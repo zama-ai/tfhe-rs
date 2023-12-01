@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::Ciphertext;
 
@@ -1385,7 +1386,7 @@ impl ServerKey {
         let acc = self
             .generate_msg_lookup_table(|x| (x == scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_equal`](`Self::smart_scalar_equal`) provided for convenience
@@ -1447,7 +1448,7 @@ impl ServerKey {
         let acc = self
             .generate_msg_lookup_table(|x| (x != scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_not_equal`](`Self::smart_scalar_not_equal`) provided for convenience
@@ -1514,7 +1515,7 @@ impl ServerKey {
         let acc = self
             .generate_msg_lookup_table(|x| (x >= scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_greater_or_equal`](`Self::smart_scalar_greater_or_equal`) provided
@@ -1578,7 +1579,7 @@ impl ServerKey {
         let acc = self
             .generate_msg_lookup_table(|x| (x <= scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_less_or_equal`](`Self::smart_scalar_less_or_equal`) provided for
@@ -1641,7 +1642,7 @@ impl ServerKey {
         let acc =
             self.generate_msg_lookup_table(|x| (x > scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_greater`](`Self::smart_scalar_greater`) provided for convenience
@@ -1703,7 +1704,7 @@ impl ServerKey {
         let acc =
             self.generate_msg_lookup_table(|x| (x < scalar as u64) as u64, ct_left.message_modulus);
         self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree.0 = 1;
+        ct_left.degree = Degree::new(1);
     }
 
     /// Alias of [`smart_scalar_less`](`Self::smart_scalar_less`) provided for convenience

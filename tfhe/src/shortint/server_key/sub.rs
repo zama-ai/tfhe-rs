@@ -182,17 +182,13 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
-        let mut z = (ct_right.degree.0 + msg_mod - 1) / msg_mod;
+        let mut z = (ct_right.degree.get() + msg_mod - 1) / msg_mod;
         z = z.wrapping_mul(msg_mod);
 
-        let final_operation_count = ct_left.degree.0 + z;
+        let final_operation_count = ct_left.degree.get() + z;
 
-        if final_operation_count > self.max_degree.0 {
-            return Err(CheckError::CarryFull {
-                degree: Degree(final_operation_count),
-                max_degree: self.max_degree,
-            });
-        }
+        self.max_degree
+            .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
             .valid(ct_left.noise_level() + ct_right.noise_level())?;
@@ -378,7 +374,7 @@ impl ServerKey {
         lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
 
         ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
-        ct_left.degree = Degree(ct_left.degree.0 + z as usize);
+        ct_left.degree = Degree::new(ct_left.degree.get() + z as usize);
 
         z
     }

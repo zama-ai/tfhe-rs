@@ -108,29 +108,26 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // Assumes message_modulus and carry_modulus matches between pairs of block
-        let mut preceding_block_carry = 0;
+        let mut preceding_block_carry = Degree::new(0);
         let mut extracted_carry_noise_level = NoiseLevel::ZERO;
         for (left_block, right_block) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
-            let degree_after_add = left_block.degree.0 + right_block.degree.0;
+            let degree_after_add = left_block.degree + right_block.degree;
 
             // Also need to take into account preceding_carry
-            if (degree_after_add + preceding_block_carry)
-                >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
-            {
-                // We would exceed the block 'capacity'
-                return Err(CheckError::CarryFull {
-                    degree: Degree(degree_after_add + preceding_block_carry),
-                    max_degree: MaxDegree(
-                        left_block.message_modulus.0 * left_block.carry_modulus.0 - 1,
-                    ),
-                });
-            }
+
+            let max_degree = MaxDegree::from_msg_carry_modulus(
+                left_block.message_modulus,
+                left_block.carry_modulus,
+            );
+
+            max_degree.validate(degree_after_add + preceding_block_carry)?;
 
             self.key.max_noise_level.valid(
                 left_block.noise_level() + right_block.noise_level() + extracted_carry_noise_level,
             )?;
 
-            preceding_block_carry = degree_after_add / left_block.message_modulus.0;
+            preceding_block_carry =
+                Degree::new(degree_after_add.get() / left_block.message_modulus.0);
             extracted_carry_noise_level = NoiseLevel::NOMINAL;
         }
         Ok(())

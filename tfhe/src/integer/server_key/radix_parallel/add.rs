@@ -484,7 +484,7 @@ impl ServerKey {
             .iter()
             .zip(rhs.blocks().iter())
             .all(|(bl, br)| {
-                let degree_after_add = bl.degree.0 + br.degree.0;
+                let degree_after_add = bl.degree.get() + br.degree.get();
                 degree_after_add < (self.key.message_modulus.0 * 2)
             });
         assert!(degree_after_add_does_not_go_beyond_first_carry);
@@ -617,7 +617,7 @@ impl ServerKey {
             .iter()
             .zip(rhs.blocks().iter())
             .all(|(bl, br)| {
-                let degree_after_add = bl.degree.0 + br.degree.0;
+                let degree_after_add = bl.degree.get() + br.degree.get();
                 degree_after_add < (self.key.message_modulus.0 * 2)
             });
         assert!(degree_after_add_does_not_go_beyond_first_carry);
@@ -984,7 +984,7 @@ impl ServerKey {
                         let first_block_to_add = a
                             .blocks()
                             .iter()
-                            .position(|block| block.degree.0 != 0)
+                            .position(|block| block.degree.get() != 0)
                             .unwrap_or(num_blocks);
                         first_block_where_addition_happened =
                             first_block_where_addition_happened.min(first_block_to_add);
@@ -992,7 +992,7 @@ impl ServerKey {
                             .blocks()
                             .iter()
                             .rev()
-                            .position(|block| block.degree.0 != 0)
+                            .position(|block| block.degree.get() != 0)
                             .map_or(num_blocks - 1, |pos| num_blocks - pos - 1);
                         last_block_where_addition_happened =
                             last_block_where_addition_happened.max(last_block_to_add);

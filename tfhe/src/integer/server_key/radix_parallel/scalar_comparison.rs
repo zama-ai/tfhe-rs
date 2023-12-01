@@ -130,7 +130,7 @@ impl ServerKey {
         low: &crate::shortint::Ciphertext,
         high: &mut crate::shortint::Ciphertext,
     ) {
-        debug_assert!(high.degree.0 < high.message_modulus.0);
+        debug_assert!(high.degree.get() < high.message_modulus.0);
 
         self.key
             .unchecked_scalar_mul_assign(high, high.message_modulus.0 as u8);

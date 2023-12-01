@@ -61,7 +61,8 @@ impl Display for CheckError {
                 write!(
                     f,
                     "The degree (={}) should not exceed {}",
-                    degree.0, max_degree.0,
+                    degree.get(),
+                    max_degree.get(),
                 )
             }
             Self::NoiseTooBig {
@@ -293,7 +294,7 @@ impl ServerKey {
             ct_params,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            degree: Degree(self.message_modulus.0 - 1),
+            degree: Degree::new(self.message_modulus.0 - 1),
             pbs_order: self.pbs_order,
             noise_level: NoiseLevel::NOMINAL,
         }
@@ -309,14 +310,11 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     rhs: &Ciphertext,
     factor: usize,
 ) -> Result<(), CheckError> {
-    let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
+    let final_degree = (lhs.degree * factor) + rhs.degree;
 
-    if final_degree >= lhs.carry_modulus.0 * lhs.message_modulus.0 {
-        return Err(CheckError::CarryFull {
-            degree: Degree(final_degree),
-            max_degree: MaxDegree(lhs.carry_modulus.0 * lhs.message_modulus.0 - 1),
-        });
-    }
+    let max_degree = MaxDegree::from_msg_carry_modulus(lhs.message_modulus, lhs.carry_modulus);
+
+    max_degree.validate(final_degree)?;
 
     server_key
         .max_noise_level
@@ -431,7 +429,7 @@ impl ServerKey {
 
         LookupTableOwned {
             acc,
-            degree: Degree(max_value as usize),
+            degree: Degree::new(max_value as usize),
         }
     }
 
@@ -570,7 +568,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = (ct_right.degree.get() + 1) as u64;
         assert!(modulus <= acc.ct_right_modulus.0 as u64);
 
         // Message 1 is shifted
@@ -722,7 +720,7 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         // Generate the lookup _table for the function
-        let factor = MessageModulus(ct_right.degree.0 + 1);
+        let factor = MessageModulus(ct_right.degree.get() + 1);
         let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
 
         self.unchecked_apply_lookup_table_bivariate_assign(ct_left, ct_right, &lookup_table);
@@ -738,7 +736,7 @@ impl ServerKey {
             self,
             ct1,
             ct2,
-            ct2.degree.0 + 1,
+            ct2.degree.get() + 1,
         )?;
 
         Ok(())
@@ -763,7 +761,7 @@ impl ServerKey {
         self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .unwrap();
 
-        let factor = MessageModulus(ct_right.degree.0 + 1);
+        let factor = MessageModulus(ct_right.degree.get() + 1);
 
         // Generate the lookup table for the function
         let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
@@ -791,7 +789,7 @@ impl ServerKey {
         self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .unwrap();
 
-        let factor = MessageModulus(ct_right.degree.0 + 1);
+        let factor = MessageModulus(ct_right.degree.get() + 1);
 
         // Generate the lookup table for the function
         let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
@@ -1003,7 +1001,7 @@ impl ServerKey {
             self.ciphertext_modulus,
         );
 
-        let degree = Degree(value as usize);
+        let degree = Degree::new(value as usize);
 
         Ciphertext::new(
             ct,
@@ -1026,7 +1024,7 @@ impl ServerKey {
 
         trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
 
-        ct.degree = Degree(modular_value);
+        ct.degree = Degree::new(modular_value);
         ct.set_noise_level(NoiseLevel::ZERO);
     }
 

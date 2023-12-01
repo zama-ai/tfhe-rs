@@ -1,5 +1,6 @@
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
+use crate::shortint::ciphertext::Degree;
 use std::os::raw::c_int;
 
 use crate::shortint;
@@ -17,7 +18,7 @@ pub unsafe extern "C" fn shortint_ciphertext_set_degree(
 
         let inner_ct = &mut ciphertext.0;
 
-        inner_ct.degree.0 = degree;
+        inner_ct.degree = Degree::new(degree);
     })
 }
 
@@ -33,7 +34,7 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
 
         let inner_ct = &ciphertext.0;
 
-        *result = inner_ct.degree.0;
+        *result = inner_ct.degree.get();
     })
 }
 

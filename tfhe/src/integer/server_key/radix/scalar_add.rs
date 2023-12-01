@@ -96,23 +96,20 @@ impl ServerKey {
             BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
         // Assumes message_modulus and carry_modulus matches between pairs of block
-        let mut preceding_block_carry = 0;
+        let mut preceding_block_carry = Degree::new(0);
         for (left_block, scalar_block_value) in ct.blocks().iter().zip(decomposer) {
-            let degree_after_add = left_block.degree.0 + scalar_block_value as usize;
+            let degree_after_add = left_block.degree + Degree::new(scalar_block_value as usize);
 
             // Also need to take into account preceding_carry
-            if (degree_after_add + preceding_block_carry)
-                >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
-            {
-                // We would exceed the block 'capacity'
-                return Err(CheckError::CarryFull {
-                    degree: Degree(degree_after_add + preceding_block_carry),
-                    max_degree: MaxDegree(
-                        left_block.message_modulus.0 * left_block.carry_modulus.0 - 1,
-                    ),
-                });
-            }
-            preceding_block_carry = degree_after_add / left_block.message_modulus.0;
+            let max_degree = MaxDegree::from_msg_carry_modulus(
+                left_block.message_modulus,
+                left_block.carry_modulus,
+            );
+
+            max_degree.validate(degree_after_add + preceding_block_carry)?;
+
+            preceding_block_carry =
+                Degree::new(degree_after_add.get() / left_block.message_modulus.0);
         }
         Ok(())
     }

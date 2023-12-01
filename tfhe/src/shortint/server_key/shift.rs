@@ -268,7 +268,7 @@ impl ServerKey {
         let acc = self.generate_msg_lookup_table(|x| x >> shift, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &acc);
 
-        ct.degree = Degree(ct.degree.0 >> shift);
+        ct.degree = Degree::new(ct.degree.get() >> shift);
     }
 
     /// Compute homomorphically a left shift of the bits.
@@ -586,14 +586,10 @@ impl ServerKey {
         ct1: &Ciphertext,
         shift: u8,
     ) -> Result<(), CheckError> {
-        let final_operation_count = ct1.degree.0 << shift as usize;
+        let final_operation_count = ct1.degree.get() << shift as usize;
 
-        if final_operation_count > self.max_degree.0 {
-            return Err(CheckError::CarryFull {
-                degree: Degree(final_operation_count),
-                max_degree: self.max_degree,
-            });
-        }
+        self.max_degree
+            .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
             .valid(ct1.noise_level() * (1 << shift))?;

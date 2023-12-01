@@ -848,7 +848,7 @@ impl WopbsKey {
 
         Ciphertext::new(
             ciphertext,
-            Degree(sks.message_modulus.0 - 1),
+            Degree::new(sks.message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             sks.message_modulus,
             sks.carry_modulus,

@@ -112,11 +112,55 @@ impl std::ops::Mul<usize> for NoiseLevel {
 
 /// Maximum value that the degree can reach.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct MaxDegree(pub usize);
+pub struct MaxDegree(usize);
+
+impl MaxDegree {
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+
+    pub fn get(&self) -> usize {
+        self.0
+    }
+
+    pub fn from_msg_carry_modulus(
+        msg_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        Self(carry_modulus.0 * msg_modulus.0 - 1)
+    }
+
+    pub fn validate(&self, degree: Degree) -> Result<(), CheckError> {
+        if degree.get() > self.0 {
+            return Err(CheckError::CarryFull {
+                degree,
+                max_degree: *self,
+            });
+        }
+        Ok(())
+    }
+}
 
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct Degree(pub usize);
+pub struct Degree(usize);
+
+impl Degree {
+    pub fn new(degree: usize) -> Self {
+        Self(degree)
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
+
+#[cfg(test)]
+impl AsMut<usize> for Degree {
+    fn as_mut(&mut self) -> &mut usize {
+        &mut self.0
+    }
+}
 
 impl Degree {
     pub(crate) fn after_bitxor(self, other: Self) -> Self {
@@ -180,6 +224,37 @@ impl Degree {
         }
 
         Self(result)
+    }
+}
+
+impl std::ops::AddAssign for Degree {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 = self.0.saturating_add(rhs.0);
+    }
+}
+
+impl std::ops::Add for Degree {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl std::ops::MulAssign<usize> for Degree {
+    fn mul_assign(&mut self, rhs: usize) {
+        self.0 = self.0.saturating_mul(rhs);
+    }
+}
+
+impl std::ops::Mul<usize> for Degree {
+    type Output = Self;
+
+    fn mul(mut self, rhs: usize) -> Self::Output {
+        self *= rhs;
+
+        self
     }
 }
 
@@ -290,7 +365,7 @@ impl Ciphertext {
         }
     }
     pub fn carry_is_empty(&self) -> bool {
-        self.degree.0 < self.message_modulus.0
+        self.degree.get() < self.message_modulus.0
     }
 
     pub fn is_trivial(&self) -> bool {
@@ -530,7 +605,7 @@ mod tests {
                 vec![1u64; 256],
                 CiphertextModulus::new_native(),
             ),
-            degree: Degree(1),
+            degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
@@ -542,7 +617,7 @@ mod tests {
                 vec![2323858949u64; 256],
                 CiphertextModulus::new_native(),
             ),
-            degree: Degree(42),
+            degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,
@@ -562,7 +637,7 @@ mod tests {
                 vec![1u64; 256],
                 CiphertextModulus::try_new_power_of_2(32).unwrap(),
             ),
-            degree: Degree(1),
+            degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
@@ -574,7 +649,7 @@ mod tests {
                 vec![2323858949u64; 256],
                 CiphertextModulus::new_native(),
             ),
-            degree: Degree(42),
+            degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,
@@ -594,7 +669,7 @@ mod tests {
                 vec![1u64; 512],
                 CiphertextModulus::new_native(),
             ),
-            degree: Degree(1),
+            degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
@@ -606,7 +681,7 @@ mod tests {
                 vec![2323858949u64; 256],
                 CiphertextModulus::new_native(),
             ),
-            degree: Degree(42),
+            degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,

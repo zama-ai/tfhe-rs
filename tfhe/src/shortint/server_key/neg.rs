@@ -224,7 +224,7 @@ impl ServerKey {
         let msg_mod = ct.message_modulus.0;
         // Ensure z is always >= 1 (which would not be the case if degree == 0)
         // some algorithms (e.g. overflowing_sub) require this even for trivial zeros
-        let mut z = divide_ceil(ct.degree.0, msg_mod).max(1) as u64;
+        let mut z = divide_ceil(ct.degree.get(), msg_mod).max(1) as u64;
         z *= msg_mod as u64;
 
         // Value of the shift we multiply our messages by
@@ -239,7 +239,7 @@ impl ServerKey {
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, w);
 
         // Update the degree
-        ct.degree = Degree(z as usize);
+        ct.degree = Degree::new(z as usize);
 
         z
     }
@@ -276,17 +276,10 @@ impl ServerKey {
     pub fn is_neg_possible(&self, ct: &Ciphertext) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
-        let mut z = (ct.degree.0 + msg_mod - 1) / msg_mod;
+        let mut z = (ct.degree.get() + msg_mod - 1) / msg_mod;
         z = z.wrapping_mul(msg_mod);
 
-        if z > self.max_degree.0 {
-            Err(CheckError::CarryFull {
-                degree: Degree(z),
-                max_degree: self.max_degree,
-            })
-        } else {
-            Ok(())
-        }
+        self.max_degree.validate(Degree::new(z))
     }
 
     /// Compute homomorphically a negation of a ciphertext.

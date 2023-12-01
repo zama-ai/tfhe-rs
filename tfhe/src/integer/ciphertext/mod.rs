@@ -351,7 +351,10 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
     /// Since it uses degree to do so, it will not
     /// always return the correct answer.
     fn holds_boolean_value(&self) -> bool {
-        self.blocks()[0].degree.0 <= 1 && self.blocks()[1..].iter().all(|block| block.degree.0 == 0)
+        self.blocks()[0].degree.get() <= 1
+            && self.blocks()[1..]
+                .iter()
+                .all(|block| block.degree.get() == 0)
     }
 
     fn into_blocks(self) -> Vec<Ciphertext>;

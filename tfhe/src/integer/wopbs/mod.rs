@@ -279,7 +279,7 @@ impl WopbsKey {
         T: IntegerCiphertext,
     {
         let total_bits_extracted = ct_in.blocks().iter().fold(0usize, |acc, block| {
-            acc + f64::log2((block.degree.0 + 1) as f64).ceil() as usize
+            acc + f64::log2((block.degree.get() + 1) as f64).ceil() as usize
         });
 
         let extract_bits_output_lwe_size = self
@@ -305,7 +305,7 @@ impl WopbsKey {
             let delta = (1u64 << 63) / (carry_modulus * message_modulus);
             // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
             let delta_log = DeltaLog(delta.ilog2() as usize);
-            let nb_bit_to_extract = f64::log2((block.degree.0 + 1) as f64).ceil() as usize;
+            let nb_bit_to_extract = f64::log2((block.degree.get() + 1) as f64).ceil() as usize;
 
             let extract_from_bit = bits_extracted_so_far;
             let extract_to_bit = extract_from_bit + nb_bit_to_extract;
@@ -330,7 +330,7 @@ impl WopbsKey {
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext::new(
                 block_out,
-                Degree(block.message_modulus.0 - 1),
+                Degree::new(block.message_modulus.0 - 1),
                 NoiseLevel::NOMINAL,
                 block.message_modulus,
                 block.carry_modulus,
@@ -417,7 +417,7 @@ impl WopbsKey {
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext::new(
                 block_out,
-                Degree(block.message_modulus.0 - 1),
+                Degree::new(block.message_modulus.0 - 1),
                 NoiseLevel::NOMINAL,
                 block.message_modulus,
                 block.carry_modulus,
@@ -534,7 +534,7 @@ impl WopbsKey {
 
         for (i, deg) in ct.moduli().iter().zip(ct.blocks().iter()) {
             modulus *= i;
-            let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
+            let b = f64::log2((deg.degree.get() + 1) as f64).ceil() as u64;
             vec_deg_basis.push(b);
             total_bit += b;
         }
@@ -723,7 +723,7 @@ impl WopbsKey {
 
         for (i, deg) in basis.iter().zip(ct.blocks.iter()) {
             modulus *= i;
-            let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
+            let b = f64::log2((deg.degree.get() + 1) as f64).ceil() as u64;
             total_bit += b;
         }
         let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
@@ -736,7 +736,7 @@ impl WopbsKey {
         for i in 0..(1 << total_bit) {
             let mut value = i;
             for (j, block) in ct.blocks.iter().enumerate() {
-                let deg = f64::log2((block.degree.0 + 1) as f64).ceil() as u64;
+                let deg = f64::log2((block.degree.get() + 1) as f64).ceil() as u64;
                 let delta: u64 = (1 << 63)
                     / (self.wopbs_key.param.message_modulus.0
                         * self.wopbs_key.param.carry_modulus.0) as u64;
@@ -804,7 +804,7 @@ impl WopbsKey {
             modulus = 1;
             for deg in ct.blocks.iter() {
                 modulus *= self.wopbs_key.param.message_modulus.0 as u64;
-                let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
+                let b = f64::log2((deg.degree.get() + 1) as f64).ceil() as u64;
                 vec_deg_basis[ct_num].push(b);
                 nb_bit_to_extract[ct_num] += b;
             }
@@ -891,7 +891,7 @@ impl WopbsKey {
         for (ct_num, ct) in [ct1, ct2].iter().enumerate() {
             for (i, deg) in basis.iter().zip(ct.blocks.iter()) {
                 modulus *= i;
-                let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
+                let b = f64::log2((deg.degree.get() + 1) as f64).ceil() as u64;
                 nb_bit_to_extract[ct_num] += b;
             }
         }
@@ -913,8 +913,8 @@ impl WopbsKey {
             let mut split = encode_radix(index, 1 << nb_bit_to_extract[0], 2);
             let mut crt_value = vec![vec![0; ct1.blocks.len()]; 2];
             for (j, base) in basis.iter().enumerate().take(ct1.blocks.len()) {
-                let deg_1 = f64::log2((ct1.blocks[j].degree.0 + 1) as f64).ceil() as u64;
-                let deg_2 = f64::log2((ct2.blocks[j].degree.0 + 1) as f64).ceil() as u64;
+                let deg_1 = f64::log2((ct1.blocks[j].degree.get() + 1) as f64).ceil() as u64;
+                let deg_2 = f64::log2((ct2.blocks[j].degree.get() + 1) as f64).ceil() as u64;
                 crt_value[0][j] = (split[0] % (1 << deg_1)) % base;
                 crt_value[1][j] = (split[1] % (1 << deg_2)) % base;
                 split[0] >>= deg_1;
@@ -1107,7 +1107,7 @@ impl WopbsKey {
         for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext::new(
                 block_out,
-                Degree(block.message_modulus.0 - 1),
+                Degree::new(block.message_modulus.0 - 1),
                 NoiseLevel::NOMINAL,
                 block.message_modulus,
                 block.carry_modulus,

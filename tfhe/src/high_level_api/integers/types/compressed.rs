@@ -137,7 +137,7 @@ mod test {
             change_parameters(&|i: usize, ct: &mut Ct| {
                 &mut ct.ciphertext.blocks[i].carry_modulus.0
             }),
-            change_parameters(&|i: usize, ct: &mut Ct| &mut ct.ciphertext.blocks[i].degree.0),
+            change_parameters(&|i: usize, ct: &mut Ct| ct.ciphertext.blocks[i].degree.as_mut()),
         ];
 
         for breaker_list in breaker_lists {
