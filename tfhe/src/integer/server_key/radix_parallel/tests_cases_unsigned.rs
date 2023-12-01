@@ -1997,8 +1997,8 @@ where
         let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
         let b: RadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
 
-        assert_eq!(a.blocks[NB_CTXT - 1].degree.0, 0);
-        assert_eq!(b.blocks[NB_CTXT - 1].degree.0, 0);
+        assert_eq!(a.blocks[NB_CTXT - 1].degree.get(), 0);
+        assert_eq!(b.blocks[NB_CTXT - 1].degree.get(), 0);
 
         let (encrypted_result, encrypted_overflow) =
             sks.unchecked_unsigned_overflowing_sub_parallelized(&a, &b);
@@ -3426,7 +3426,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.0 as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 
@@ -3461,14 +3461,14 @@ where
         assert!(ct
             .blocks
             .iter()
-            .all(|b| { b.degree.0 as u64 <= max_degree_that_can_absorb_carry }),);
+            .all(|b| { b.degree.get() as u64 <= max_degree_that_can_absorb_carry }),);
 
         // All but the first blocks are full,
         // So we do one more unchecked add on the first block to make it full
         sks.is_scalar_add_possible(&ct, block_msg_mod - 1).unwrap();
         sks.unchecked_scalar_add_assign(&mut ct, block_msg_mod - 1);
         assert_eq!(
-            ct.blocks[0].degree.0 as u64,
+            ct.blocks[0].degree.get() as u64,
             max_degree_that_can_absorb_carry + (block_msg_mod - 1)
         );
         expected_result = expected_result.wrapping_add(block_msg_mod - 1) % modulus;
@@ -3485,7 +3485,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.0 as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 
@@ -3561,7 +3561,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.degree.0 as u64 == block_msg_mod - 1),
+                .all(|b| b.degree.get() as u64 == block_msg_mod - 1),
             "Invalid degree after propagation"
         );
 

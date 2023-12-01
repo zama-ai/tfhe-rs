@@ -356,12 +356,12 @@ impl ServerKey {
             .blocks()
             .par_iter()
             .enumerate()
-            .filter(|(_, block)| block.degree.0 != 0)
+            .filter(|(_, block)| block.degree.get() != 0)
             .map(|(i, rhs_block)| {
                 let mut result = self.blockshift(lhs, i);
                 result.blocks_mut()[i..]
                     .par_iter_mut()
-                    .filter(|block| block.degree.0 != 0)
+                    .filter(|block| block.degree.get() != 0)
                     .for_each(|lhs_block| {
                         self.key.unchecked_apply_lookup_table_bivariate_assign(
                             lhs_block,
@@ -381,7 +381,7 @@ impl ServerKey {
                     rhs.blocks()
                         .par_iter()
                         .enumerate()
-                        .filter(|(_, block)| block.degree.0 != 0)
+                        .filter(|(_, block)| block.degree.get() != 0)
                         .map(|(i, rhs_block)| {
                             // Here we are doing (a * b) / modulus
                             // that is, getting the carry part of the block multiplication
@@ -389,7 +389,7 @@ impl ServerKey {
                             let mut result = self.blockshift(lhs, i + 1);
                             result.blocks_mut()[i + 1..]
                                 .par_iter_mut()
-                                .filter(|block| block.degree.0 != 0)
+                                .filter(|block| block.degree.get() != 0)
                                 .for_each(|lhs_block| {
                                     self.key.unchecked_apply_lookup_table_bivariate_assign(
                                         lhs_block,

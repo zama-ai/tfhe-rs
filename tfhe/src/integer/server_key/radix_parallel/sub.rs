@@ -1,6 +1,7 @@
 use super::add::OutputCarry;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use std::cmp::Ordering;
@@ -398,7 +399,7 @@ impl ServerKey {
             assert!(ct.block_carries_are_empty());
             // we know here that the result is a boolean value
             // however the lut used has a degree of 2.
-            output_borrow.degree.0 = 1;
+            output_borrow.degree = Degree::new(1);
             (ct, BooleanBlock::new_unchecked(output_borrow))
         } else {
             self.unchecked_unsigned_overflowing_sub(lhs, rhs)

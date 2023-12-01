@@ -119,7 +119,7 @@ impl CompactPublicKey {
         let message_modulus = self.parameters.message_modulus();
         Ciphertext::new(
             encrypted_ct,
-            Degree(message_modulus.0 - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             self.parameters.carry_modulus(),
@@ -181,7 +181,7 @@ impl CompactPublicKey {
         let message_modulus = self.parameters.message_modulus();
         CompactCiphertextList {
             ct_list,
-            degree: Degree(message_modulus.0 - 1),
+            degree: Degree::new(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus(),
             pbs_order: self.pbs_order,

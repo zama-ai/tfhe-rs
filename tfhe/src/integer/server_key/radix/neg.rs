@@ -66,7 +66,7 @@ impl ServerKey {
                 self.key.unchecked_scalar_add_assign(block, z_b);
             }
             z = self.key.unchecked_neg_assign_with_correcting_term(block);
-            block.degree.0 = z as usize - z_b as usize;
+            block.degree = Degree::new(z as usize - z_b as usize);
 
             z_b = (z / self.key.message_modulus.0 as u64) as u8;
         }
@@ -96,33 +96,29 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut preceding_block_carry = 0;
+        let mut preceding_block_carry = Degree::new(0);
         let mut preceding_scaled_z = 0;
         for block in ctxt.blocks().iter() {
             let msg_mod = block.message_modulus.0;
-            let carry_mod = block.carry_modulus.0;
-            let total_modulus = msg_mod * carry_mod;
+            let max_degree =
+                MaxDegree::from_msg_carry_modulus(block.message_modulus, block.carry_modulus);
 
             // z = ceil( degree / 2^p ) x 2^p
-            let mut z = divide_ceil(block.degree.0, msg_mod);
+            let mut z = divide_ceil(block.degree.get(), msg_mod);
             z = z.wrapping_mul(msg_mod);
             // In the actual operation, preceding_scaled_z is added to the ciphertext
             // before doing lwe_ciphertext_opposite:
             // i.e the code does -(ciphertext + preceding_scaled_z) + z
             // here we do -ciphertext -preceding_scaled_z + z
             // which is easier to express degree
-            let block_degree_after_negation = z - preceding_scaled_z;
+            let block_degree_after_negation = Degree::new(z - preceding_scaled_z);
 
             // We want to be able to add together the negated block and the carry
             // from preceding negated block to make sure carry propagation would be correct.
-            if (block_degree_after_negation + preceding_block_carry) >= total_modulus {
-                return Err(CheckError::CarryFull {
-                    degree: Degree(block_degree_after_negation + preceding_block_carry),
-                    max_degree: MaxDegree(total_modulus - 1),
-                });
-            }
 
-            preceding_block_carry = block_degree_after_negation / msg_mod;
+            max_degree.validate(block_degree_after_negation + preceding_block_carry)?;
+
+            preceding_block_carry = Degree::new(block_degree_after_negation.get() / msg_mod);
             preceding_scaled_z = z / msg_mod;
         }
         Ok(())

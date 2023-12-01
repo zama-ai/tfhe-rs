@@ -289,17 +289,13 @@ impl ServerKey {
     /// ```
     pub fn is_scalar_mul_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
         //scalar * ct.counter
-        let final_degree = scalar as usize * ct.degree.0;
+        let final_degree = scalar as usize * ct.degree.get();
 
-        if final_degree > self.max_degree.0 {
-            return Err(CheckError::CarryFull {
-                degree: Degree(final_degree),
-                max_degree: self.max_degree,
-            });
-        }
+        self.max_degree.validate(Degree::new(final_degree))?;
 
         self.max_noise_level
             .valid(ct.noise_level() * scalar as usize)?;
+
         Ok(())
     }
 
@@ -503,20 +499,20 @@ impl ServerKey {
         // Direct scalar computation is possible
         if self.is_scalar_mul_possible(ct, scalar).is_ok() {
             self.unchecked_scalar_mul_assign(ct, scalar);
-            ct.degree = Degree(ct.degree.0 * scalar as usize);
+            ct.degree = Degree::new(ct.degree.get() * scalar as usize);
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
             let acc = self.generate_msg_lookup_table(|x| scalar as u64 * x, self.message_modulus);
             self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = Degree(self.message_modulus.0 - 1);
+            ct.degree = Degree::new(self.message_modulus.0 - 1);
         }
     }
 }
 
 pub(crate) fn unchecked_scalar_mul_assign(ct: &mut Ciphertext, scalar: u8) {
     ct.set_noise_level(ct.noise_level() * scalar as usize);
-    ct.degree = Degree(ct.degree.0 * scalar as usize);
+    ct.degree = Degree::new(ct.degree.get() * scalar as usize);
 
     match scalar {
         0 => {

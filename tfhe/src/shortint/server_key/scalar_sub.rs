@@ -2,8 +2,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
-use crate::MessageModulus;
+use crate::shortint::{Ciphertext, MessageModulus, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -213,7 +212,7 @@ impl ServerKey {
 
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
-        ct.degree = Degree(ct.degree.0 + neg_scalar as usize);
+        ct.degree += Degree::new(neg_scalar as usize);
     }
 
     /// Verify if a scalar can be subtracted to the ciphertext.

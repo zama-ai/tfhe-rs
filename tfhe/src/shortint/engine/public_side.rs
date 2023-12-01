@@ -174,7 +174,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(message_modulus.0 - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
@@ -223,7 +223,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(message_modulus.0 - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
@@ -263,7 +263,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(public_key.parameters.message_modulus().0 - 1),
+            Degree::new(public_key.parameters.message_modulus().0 - 1),
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
@@ -303,7 +303,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(public_key.parameters.message_modulus().0 - 1),
+            Degree::new(public_key.parameters.message_modulus().0 - 1),
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
@@ -340,7 +340,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(message_modulus as usize - 1),
+            Degree::new(message_modulus as usize - 1),
             NoiseLevel::NOMINAL,
             MessageModulus(message_modulus as usize),
             CarryModulus(carry_modulus),
@@ -377,7 +377,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(message_modulus as usize - 1),
+            Degree::new(message_modulus as usize - 1),
             NoiseLevel::NOMINAL,
             MessageModulus(message_modulus as usize),
             CarryModulus(carry_modulus),
@@ -413,7 +413,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(
+            Degree::new(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
                     - 1,
             ),
@@ -452,7 +452,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree(
+            Degree::new(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
                     - 1,
             ),

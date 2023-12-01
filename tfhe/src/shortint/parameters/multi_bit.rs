@@ -64,7 +64,7 @@ impl MultiBitPBSParameters {
         let ciphertext_modulus = self.ciphertext_modulus;
         let carry_modulus = self.carry_modulus;
 
-        let degree = Degree(message_modulus.0 - 1);
+        let degree = Degree::new(message_modulus.0 - 1);
 
         let noise_level = NoiseLevel::NOMINAL;
 

@@ -119,7 +119,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree(message_modulus.0 - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
@@ -165,7 +165,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree(message_modulus.0 - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
@@ -220,7 +220,7 @@ impl ShortintEngine {
 
         CompressedCiphertext {
             ct,
-            degree: Degree(message_modulus.0 - 1),
+            degree: Degree::new(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
             pbs_order: params_op_order,
@@ -259,7 +259,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree(
+            Degree::new(
                 client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0
                     - 1,
             ),
@@ -308,7 +308,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree(client_key.parameters.message_modulus().0 - 1),
+            Degree::new(client_key.parameters.message_modulus().0 - 1),
             NoiseLevel::NOMINAL,
             client_key.parameters.message_modulus(),
             client_key.parameters.carry_modulus(),
@@ -354,7 +354,7 @@ impl ShortintEngine {
 
         CompressedCiphertext {
             ct,
-            degree: Degree(client_key.parameters.message_modulus().0 - 1),
+            degree: Degree::new(client_key.parameters.message_modulus().0 - 1),
             message_modulus: client_key.parameters.message_modulus(),
             carry_modulus: client_key.parameters.carry_modulus(),
             pbs_order: params_op_order,
@@ -397,7 +397,7 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree(message_modulus as usize - 1),
+            Degree::new(message_modulus as usize - 1),
             NoiseLevel::NOMINAL,
             MessageModulus(message_modulus as usize),
             CarryModulus(carry_modulus),
@@ -440,7 +440,7 @@ impl ShortintEngine {
 
         CompressedCiphertext {
             ct,
-            degree: Degree(message_modulus as usize - 1),
+            degree: Degree::new(message_modulus as usize - 1),
             message_modulus: MessageModulus(message_modulus as usize),
             carry_modulus: CarryModulus(carry_modulus),
             pbs_order: params_op_order,

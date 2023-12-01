@@ -267,12 +267,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        if ct_left.degree.0 + ct_right.degree.0 > self.max_degree.0 {
-            return Err(CheckError::CarryFull {
-                degree: Degree(ct_left.degree.0 + ct_right.degree.0),
-                max_degree: self.max_degree,
-            });
-        }
+        self.max_degree.validate(ct_left.degree + ct_right.degree)?;
 
         self.max_noise_level
             .valid(ct_left.noise_level() + ct_right.noise_level())?;
@@ -423,9 +418,17 @@ impl ServerKey {
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
         if self.is_add_possible(ct_left, ct_right).is_err() {
-            if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= self.max_degree.0 {
+            if self
+                .max_degree
+                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0 - 1))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_left);
-            } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= self.max_degree.0 {
+            } else if self
+                .max_degree
+                .validate(ct_left.degree + Degree::new(ct_right.message_modulus.0 - 1))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_right);
             } else {
                 self.message_extract_assign(ct_left);
@@ -489,9 +492,17 @@ impl ServerKey {
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
         if self.is_add_possible(ct_left, ct_right).is_err() {
-            if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= self.max_degree.0 {
+            if self
+                .max_degree
+                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0 - 1))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_left);
-            } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= self.max_degree.0 {
+            } else if self
+                .max_degree
+                .validate(ct_left.degree + Degree::new(ct_right.message_modulus.0 - 1))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_right);
             } else {
                 self.message_extract_assign(ct_left);
@@ -507,6 +518,6 @@ impl ServerKey {
 
 pub(crate) fn unchecked_add_assign(ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
     lwe_ciphertext_add_assign(&mut ct_left.ct, &ct_right.ct);
-    ct_left.degree = Degree(ct_left.degree.0 + ct_right.degree.0);
+    ct_left.degree = Degree::new(ct_left.degree.get() + ct_right.degree.get());
     ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
 }

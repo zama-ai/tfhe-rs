@@ -259,7 +259,7 @@ impl ServerKey {
     ) where
         T: IntegerRadixCiphertext,
     {
-        assert!(condition_block.degree.0 <= 1);
+        assert!(condition_block.degree.get() <= 1);
 
         self.zero_out_if_condition_equals(ct, condition_block, 0);
     }
@@ -272,7 +272,7 @@ impl ServerKey {
     ) where
         T: IntegerRadixCiphertext,
     {
-        assert!(condition_block.degree.0 < condition_block.message_modulus.0);
+        assert!(condition_block.degree.get() < condition_block.message_modulus.0);
         assert!(value < condition_block.message_modulus.0 as u64);
 
         self.zero_out_if(ct, condition_block, |x| x == value);
@@ -287,9 +287,9 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         F: Fn(u64) -> bool,
     {
-        assert!(condition_block.degree.0 < condition_block.message_modulus.0);
+        assert!(condition_block.degree.get() < condition_block.message_modulus.0);
 
-        if condition_block.degree.0 == 0 {
+        if condition_block.degree.get() == 0 {
             // The block 'encrypts'  0, and only 0
             if predicate(0u64) {
                 self.create_trivial_zero_assign_radix(ct);
@@ -305,7 +305,7 @@ impl ServerKey {
 
         ct.blocks_mut()
             .par_iter_mut()
-            .filter(|block| block.degree.0 != 0)
+            .filter(|block| block.degree.get() != 0)
             .for_each(|block| {
                 self.key.unchecked_apply_lookup_table_bivariate_assign(
                     block,

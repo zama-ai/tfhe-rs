@@ -3,6 +3,7 @@
 use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::integer::{gen_keys, IntegerKeyKind};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::{ClassicPBSParameters, *};
@@ -156,7 +157,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
                 * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct.degree.0 = degree;
+            ct.degree = Degree::new(degree);
         }
         let res = cks.decrypt_crt(&ct1);
 
@@ -276,10 +277,10 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         for (ct_1, ct_2) in ct1.blocks.iter_mut().zip(ct2.blocks.iter_mut()) {
             let degree = params.0.message_modulus.0
                 * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_1.degree.0 = degree;
+            ct_1.degree = Degree::new(degree);
             let degree = params.0.message_modulus.0
                 * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
-            ct_2.degree.0 = degree;
+            ct_2.degree = Degree::new(degree);
         }
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);

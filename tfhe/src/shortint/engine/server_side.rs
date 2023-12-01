@@ -17,7 +17,7 @@ impl ShortintEngine {
         let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
         // The maximum number of operations before we need to clean the carry buffer
-        let max = MaxDegree(max_value);
+        let max = MaxDegree::new(max_value);
         self.new_server_key_with_max_degree(cks, max)
     }
 
@@ -182,7 +182,7 @@ impl ShortintEngine {
         let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
         // The maximum number of operations before we need to clean the carry buffer
-        let max = MaxDegree(max_value);
+        let max = MaxDegree::new(max_value);
         self.new_compressed_server_key_with_max_degree(cks, max)
     }
 

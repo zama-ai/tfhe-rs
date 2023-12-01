@@ -80,7 +80,7 @@ fn test_ct_binary_op_noise_level_propagation(sk: &ServerKey, ct1: &Ciphertext, c
     );
 
     let both_are_trivially_encrypted = ct1.is_trivial() && ct2.is_trivial();
-    let any_trivial_zero = ct1.degree.0 == 0 || ct2.degree.0 == 0;
+    let any_trivial_zero = ct1.degree.get() == 0 || ct2.degree.get() == 0;
     test_fn(&ServerKey::unchecked_mul_lsb, &|_, _| {
         if any_trivial_zero || both_are_trivially_encrypted {
             NoiseLevel::ZERO
@@ -173,7 +173,7 @@ fn test_ct_binary_op_assign_noise_level_propagation(
     );
 
     let both_are_trivially_encrypted = ct1.is_trivial() && ct2.is_trivial();
-    let any_trivial_zero = ct1.degree.0 == 0 || ct2.degree.0 == 0;
+    let any_trivial_zero = ct1.degree.get() == 0 || ct2.degree.get() == 0;
     test_fn(&ServerKey::unchecked_mul_lsb_assign, &|_, _| {
         if any_trivial_zero || both_are_trivially_encrypted {
             NoiseLevel::ZERO

@@ -52,7 +52,12 @@ impl ServerKey {
             .zip(ctxt.moduli.par_iter())
             .for_each(|(ct_i, mod_i)| {
                 let scalar_i = (scalar % mod_i) as u8;
-                if ct_i.degree.0 * (scalar_i as usize) < self.key.max_degree.0 {
+                if self
+                    .key
+                    .max_degree
+                    .validate(ct_i.degree * scalar_i as usize)
+                    .is_ok()
+                {
                     self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
                 } else {
                     self.key

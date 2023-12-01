@@ -213,7 +213,7 @@ impl ServerKey {
         let encoded_scalar = Plaintext(shift_plaintext);
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
-        ct.degree = Degree(ct.degree.0 + scalar as usize);
+        ct.degree = Degree::new(ct.degree.get() + scalar as usize);
     }
 
     /// Verify if a scalar can be added to the ciphertext.
@@ -244,16 +244,9 @@ impl ServerKey {
     /// sks.is_scalar_add_possible(&ct, 3).unwrap();
     /// ```
     pub fn is_scalar_add_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
-        let final_degree = scalar as usize + ct.degree.0;
+        let final_degree = scalar as usize + ct.degree.get();
 
-        if final_degree > self.max_degree.0 {
-            Err(CheckError::CarryFull {
-                degree: Degree(final_degree),
-                max_degree: self.max_degree,
-            })
-        } else {
-            Ok(())
-        }
+        self.max_degree.validate(Degree::new(final_degree))
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.
@@ -460,7 +453,7 @@ impl ServerKey {
             // If the scalar is too large, PBS is used to compute the scalar mul
             let acc = self.generate_msg_lookup_table(|x| scalar as u64 + x, self.message_modulus);
             self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = Degree(self.message_modulus.0 - 1);
+            ct.degree = Degree::new(self.message_modulus.0 - 1);
         }
     }
 }

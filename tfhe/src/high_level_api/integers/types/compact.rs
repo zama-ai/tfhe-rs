@@ -158,7 +158,7 @@ mod test {
             change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
-            change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.degree.0),
+            change_parameters(&|ct: &mut Ct| ct.list.ct_list.degree.as_mut()),
             change_parameters(&|ct: &mut Ct| {
                 &mut ct.list.ct_list.ct_list.get_mut_lwe_ciphertext_count().0
             }),
@@ -234,7 +234,7 @@ mod test {
             change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
-            change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.degree.0),
+            change_parameters(&|ct: &mut Ct| ct.list.ct_list.degree.as_mut()),
             change_parameters(&|ct: &mut Ct| {
                 &mut ct.list.ct_list.ct_list.get_mut_lwe_ciphertext_count().0
             }),

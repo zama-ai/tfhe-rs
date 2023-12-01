@@ -1,6 +1,6 @@
 use super::add::unchecked_add_assign;
 use super::ServerKey;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::server_key::CheckError;
 
 use crate::shortint::Ciphertext;
@@ -119,7 +119,7 @@ impl ServerKey {
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        if ct_left.degree.0 == 0 || ct_right.degree.0 == 0 {
+        if ct_left.degree.get() == 0 || ct_right.degree.get() == 0 {
             // One of the ciphertext is a trivial 0
             self.create_trivial_assign(ct_left, 0);
             return;
@@ -201,7 +201,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        if ct_left.degree.0 == 0 || ct_right.degree.0 == 0 {
+        if ct_left.degree.get() == 0 || ct_right.degree.get() == 0 {
             // One of the ciphertext is a trivial 0
             self.create_trivial_assign(ct_left, 0);
             return;
@@ -644,7 +644,7 @@ impl ServerKey {
     ) -> Result<Ciphertext, CheckError> {
         self.is_mul_small_carry_possible(ct_left, ct_right)?;
         let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
-        ct_result.degree = Degree(ct_left.degree.0 * 2);
+        ct_result.degree = Degree::new(ct_left.degree.get() * 2);
         Ok(ct_result)
     }
 
@@ -1128,15 +1128,20 @@ impl ServerKey {
             self.is_mul_small_carry_possible(ct_left, ct_right).unwrap();
             self.unchecked_mul_lsb_small_carry_modulus_assign(ct_left, ct_right);
         } else {
+            let max_degree =
+                MaxDegree::from_msg_carry_modulus(ct_right.message_modulus, ct_right.carry_modulus);
+
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
             if self.is_mul_possible(ct_left, ct_right).is_err() {
-                if (self.message_modulus.0 - 1) * ct_right.degree.0
-                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                if max_degree
+                    .validate(ct_right.degree * (self.message_modulus.0 - 1))
+                    .is_ok()
                 {
                     self.message_extract_assign(ct_left);
-                } else if (self.message_modulus.0 - 1) + ct_left.degree.0
-                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                } else if max_degree
+                    .validate(ct_left.degree + Degree::new(self.message_modulus.0 - 1))
+                    .is_ok()
                 {
                     self.message_extract_assign(ct_right);
                 } else {
@@ -1285,15 +1290,20 @@ impl ServerKey {
 
             self.unchecked_mul_lsb_small_carry_modulus(ct_left, ct_right)
         } else {
+            let max_degree =
+                MaxDegree::from_msg_carry_modulus(ct_right.message_modulus, ct_right.carry_modulus);
+
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
             if self.is_mul_possible(ct_left, ct_right).is_err() {
-                if (self.message_modulus.0 - 1) * ct_right.degree.0
-                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                if max_degree
+                    .validate(ct_right.degree * (self.message_modulus.0 - 1))
+                    .is_ok()
                 {
                     self.message_extract_assign(ct_left);
-                } else if (self.message_modulus.0 - 1) + ct_left.degree.0
-                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                } else if max_degree
+                    .validate(ct_left.degree + Degree::new(self.message_modulus.0 - 1))
+                    .is_ok()
                 {
                     self.message_extract_assign(ct_right);
                 } else {

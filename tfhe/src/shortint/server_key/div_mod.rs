@@ -294,9 +294,17 @@ impl ServerKey {
             .is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .is_err()
         {
-            if ct_left.message_modulus.0 + ct_right.degree.0 <= self.max_degree.0 {
+            if self
+                .max_degree
+                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_left);
-            } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= self.max_degree.0 {
+            } else if self
+                .max_degree
+                .validate(ct_left.degree + Degree::new(1 + ct_right.message_modulus.0))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_right);
             } else {
                 self.message_extract_assign(ct_left);
@@ -362,9 +370,17 @@ impl ServerKey {
             .is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .is_err()
         {
-            if ct_left.message_modulus.0 + ct_right.degree.0 <= self.max_degree.0 {
+            if self
+                .max_degree
+                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_left);
-            } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= self.max_degree.0 {
+            } else if self
+                .max_degree
+                .validate(ct_left.degree + Degree::new(1 + ct_right.message_modulus.0))
+                .is_ok()
+            {
                 self.message_extract_assign(ct_right);
             } else {
                 self.message_extract_assign(ct_left);
@@ -466,7 +482,7 @@ impl ServerKey {
         let lookup_table =
             self.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
         self.apply_lookup_table_assign(ct, &lookup_table);
-        ct.degree = Degree(ct.degree.0 / scalar as usize);
+        ct.degree = Degree::new(ct.degree.get() / scalar as usize);
     }
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
@@ -555,7 +571,7 @@ impl ServerKey {
         assert_ne!(modulus, 0);
         let acc = self.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
         self.apply_lookup_table_assign(ct, &acc);
-        ct.degree = Degree(modulus as usize - 1);
+        ct.degree = Degree::new(modulus as usize - 1);
     }
 }
 

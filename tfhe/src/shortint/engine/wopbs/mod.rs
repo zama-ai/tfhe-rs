@@ -145,7 +145,10 @@ impl ShortintEngine {
             bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
-            max_degree: MaxDegree(parameters.message_modulus.0 * parameters.carry_modulus.0 - 1),
+            max_degree: MaxDegree::from_msg_carry_modulus(
+                parameters.message_modulus,
+                parameters.carry_modulus,
+            ),
             max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
@@ -161,8 +164,9 @@ impl ShortintEngine {
             bootstrapping_key: sks.bootstrapping_key.clone(),
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
-            max_degree: MaxDegree(
-                cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1,
+            max_degree: MaxDegree::from_msg_carry_modulus(
+                cks.parameters.message_modulus(),
+                cks.parameters.carry_modulus(),
             ),
             max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
