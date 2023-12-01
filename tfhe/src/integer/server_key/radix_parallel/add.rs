@@ -755,172 +755,14 @@ impl ServerKey {
         generates_or_propagates
     }
 
-    /// op must be associative and commutative
-    pub fn smart_binary_op_seq_parallelized<'this, 'item, T>(
-        &'this self,
-        ct_seq: impl IntoIterator<Item = &'item mut T>,
-        op: impl for<'a> Fn(&'a Self, &'a mut T, &'a mut T) -> T + Sync,
-    ) -> Option<T>
+    /// See [Self::unchecked_sum_ciphertexts_vec_parallelized]
+    pub fn unchecked_sum_ciphertexts_parallelized<'a, T, C>(&self, ciphertexts: C) -> Option<T>
     where
-        T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,
+        C: IntoIterator<Item = &'a T>,
+        T: IntegerRadixCiphertext + 'a,
     {
-        enum CiphertextCow<'a, C: IntegerRadixCiphertext> {
-            Borrowed(&'a mut C),
-            Owned(C),
-        }
-        impl<C: IntegerRadixCiphertext> CiphertextCow<'_, C> {
-            fn as_mut(&mut self) -> &mut C {
-                match self {
-                    CiphertextCow::Borrowed(b) => b,
-                    CiphertextCow::Owned(o) => o,
-                }
-            }
-        }
-
-        let ct_seq = ct_seq
-            .into_iter()
-            .map(CiphertextCow::Borrowed)
-            .collect::<Vec<_>>();
-        let op = &op;
-
-        // overhead of dynamic dispatch is negligible compared to multithreading, PBS, etc.
-        // we defer all calls to a single implementation to avoid code bloat and long compile
-        // times
-        fn reduce_impl<C>(
-            sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow<C>>,
-            op: &(dyn for<'a> Fn(&'a ServerKey, &'a mut C, &'a mut C) -> C + Sync),
-        ) -> Option<C>
-        where
-            C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
-        {
-            use rayon::prelude::*;
-
-            if ct_seq.is_empty() {
-                None
-            } else {
-                // we repeatedly divide the number of terms by two by iteratively reducing
-                // consecutive terms in the array
-                let num_blocks = ct_seq[0].as_mut().blocks().len();
-                while ct_seq.len() > 1 {
-                    let mut results =
-                        vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];
-
-                    // if the number of elements is odd, we skip the first element
-                    let untouched_prefix = ct_seq.len() % 2;
-                    let ct_seq_slice = &mut ct_seq[untouched_prefix..];
-
-                    results
-                        .par_iter_mut()
-                        .zip(ct_seq_slice.par_chunks_exact_mut(2))
-                        .for_each(|(ct_res, chunk)| {
-                            let (first, second) = chunk.split_at_mut(1);
-                            let first = first[0].as_mut();
-                            let second = second[0].as_mut();
-                            *ct_res = op(sks, first, second);
-                        });
-
-                    ct_seq.truncate(untouched_prefix);
-                    ct_seq.extend(results.into_iter().map(CiphertextCow::Owned));
-                }
-
-                let sum = ct_seq.pop().unwrap();
-
-                Some(match sum {
-                    CiphertextCow::Borrowed(b) => b.clone(),
-                    CiphertextCow::Owned(o) => o,
-                })
-            }
-        }
-
-        reduce_impl(self, ct_seq, op)
-    }
-
-    /// op must be associative and commutative
-    pub fn default_binary_op_seq_parallelized<'this, 'item, T>(
-        &'this self,
-        ct_seq: impl IntoIterator<Item = &'item T>,
-        op: impl for<'a> Fn(&'a Self, &'a T, &'a T) -> T + Sync,
-    ) -> Option<T>
-    where
-        T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,
-    {
-        enum CiphertextCow<'a, C: IntegerRadixCiphertext> {
-            Borrowed(&'a C),
-            Owned(C),
-        }
-        impl<C: IntegerRadixCiphertext> CiphertextCow<'_, C> {
-            fn as_ref(&self) -> &C {
-                match self {
-                    CiphertextCow::Borrowed(b) => b,
-                    CiphertextCow::Owned(o) => o,
-                }
-            }
-        }
-
-        let ct_seq = ct_seq
-            .into_iter()
-            .map(CiphertextCow::Borrowed)
-            .collect::<Vec<_>>();
-        let op = &op;
-
-        // overhead of dynamic dispatch is negligible compared to multithreading, PBS, etc.
-        // we defer all calls to a single implementation to avoid code bloat and long compile
-        // times
-        fn reduce_impl<C>(
-            sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow<C>>,
-            op: &(dyn for<'a> Fn(&'a ServerKey, &'a C, &'a C) -> C + Sync),
-        ) -> Option<C>
-        where
-            C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
-        {
-            use rayon::prelude::*;
-
-            if ct_seq.is_empty() {
-                None
-            } else {
-                // we repeatedly divide the number of terms by two by iteratively reducing
-                // consecutive terms in the array
-                let num_blocks = ct_seq[0].as_ref().blocks().len();
-                while ct_seq.len() > 1 {
-                    let mut results =
-                        vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];
-                    // if the number of elements is odd, we skip the first element
-                    let untouched_prefix = ct_seq.len() % 2;
-                    let ct_seq_slice = &mut ct_seq[untouched_prefix..];
-
-                    results
-                        .par_iter_mut()
-                        .zip(ct_seq_slice.par_chunks_exact(2))
-                        .for_each(|(ct_res, chunk)| {
-                            let first = chunk[0].as_ref();
-                            let second = chunk[1].as_ref();
-                            *ct_res = op(sks, first, second);
-                        });
-
-                    ct_seq.truncate(untouched_prefix);
-                    ct_seq.extend(results.into_iter().map(CiphertextCow::Owned));
-                }
-
-                let sum = ct_seq.pop().unwrap();
-
-                Some(match sum {
-                    CiphertextCow::Borrowed(b) => b.clone(),
-                    CiphertextCow::Owned(o) => o,
-                })
-            }
-        }
-
-        reduce_impl(self, ct_seq, op)
-    }
-
-    /// See [Self::unchecked_sum_ciphertexts_vec_parallelized] for constraints
-    pub fn unchecked_sum_ciphertexts_slice_parallelized(
-        &self,
-        ciphertexts: &[RadixCiphertext],
-    ) -> Option<RadixCiphertext> {
-        self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts.to_vec())
+        let ciphertexts = ciphertexts.into_iter().map(Clone::clone).collect();
+        self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
     }
 
     /// Computes the sum of the ciphertexts in parallel.
@@ -941,11 +783,7 @@ impl ServerKey {
         }
 
         if ciphertexts.len() == 1 {
-            return Some(ciphertexts[0].clone());
-        }
-
-        if ciphertexts.len() == 2 {
-            return Some(self.add_parallelized(&ciphertexts[0], &ciphertexts[1]));
+            return Some(ciphertexts.pop().unwrap());
         }
 
         let num_blocks = ciphertexts[0].blocks().len();
@@ -955,6 +793,11 @@ impl ServerKey {
                 .all(|ct| ct.blocks().len() == num_blocks),
             "Not all ciphertexts have the same number of blocks"
         );
+
+        if ciphertexts.len() == 2 {
+            return Some(self.add_parallelized(&ciphertexts[0], &ciphertexts[1]));
+        }
+
         assert!(
             ciphertexts
                 .iter()
@@ -962,6 +805,8 @@ impl ServerKey {
             "All ciphertexts must have empty carries"
         );
 
+        // Pre-conditions and easy path are met, start the real work
+        // let mut ciphertexts = ciphertexts.to_vec();
         let message_modulus = self.key.message_modulus.0;
         let carry_modulus = self.key.carry_modulus.0;
         let total_modulus = message_modulus * carry_modulus;
@@ -1093,6 +938,51 @@ impl ServerKey {
         assert!(result.block_carries_are_empty());
 
         Some(result)
+    }
+
+    /// Computes the sum of the ciphertexts in parallel.
+    ///
+    /// - Returns None if ciphertexts is empty
+    ///
+    /// See [Self::unchecked_sum_ciphertexts_parallelized] for constraints
+    pub fn sum_ciphertexts_parallelized<'a, T, C>(&self, ciphertexts: C) -> Option<T>
+    where
+        C: IntoIterator<Item = &'a T>,
+        T: IntegerRadixCiphertext + 'a,
+    {
+        let mut ciphertexts = ciphertexts
+            .into_iter()
+            .map(Clone::clone)
+            .collect::<Vec<T>>();
+        ciphertexts
+            .par_iter_mut()
+            .filter(|ct| ct.block_carries_are_empty())
+            .for_each(|ct| {
+                if !ct.block_carries_are_empty() {
+                    self.full_propagate_parallelized(&mut *ct);
+                }
+            });
+
+        self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
+    }
+
+    /// Computes the sum of the ciphertexts in parallel.
+    ///
+    /// - Returns None if ciphertexts is empty
+    ///
+    /// See [Self::unchecked_sum_ciphertexts_parallelized] for constraints
+    pub fn smart_sum_ciphertexts_parallelized<T, C>(&self, mut ciphertexts: C) -> Option<T>
+    where
+        C: AsMut<[T]> + AsRef<[T]>,
+        T: IntegerRadixCiphertext,
+    {
+        ciphertexts.as_mut().par_iter_mut().for_each(|ct| {
+            if !ct.block_carries_are_empty() {
+                self.full_propagate_parallelized(ct);
+            }
+        });
+
+        self.unchecked_sum_ciphertexts_parallelized(ciphertexts.as_ref())
     }
 }
 
