@@ -10,6 +10,18 @@ use std::fmt::Debug;
 use super::parameters::{CiphertextConformanceParams, CiphertextListConformanceParams};
 use super::CheckError;
 
+/// Error for when a non trivial ciphertext was used when a trivial was expected
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct NotTrivialCiphertextError;
+
+impl std::fmt::Display for NotTrivialCiphertextError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "The ciphertext is a not a trivial ciphertext")
+    }
+}
+
+impl std::error::Error for NotTrivialCiphertextError {}
+
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
@@ -288,6 +300,88 @@ impl Ciphertext {
 
     pub fn set_noise_level(&mut self, noise_level: NoiseLevel) {
         self.noise_level = noise_level;
+    }
+
+    /// Decrypts a trivial ciphertext
+    ///
+    /// Trivial ciphertexts are ciphertexts which are not encrypted
+    /// meaning they can be decrypted by any key, or even without a key.
+    ///
+    /// For debugging it can be useful to use trivial ciphertext to speed up
+    /// execution, and use [Self::decrypt_trivial] to decrypt temporary values
+    /// and debug.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::{gen_keys, Ciphertext};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let msg = 1;
+    /// let msg2 = 2;
+    ///
+    /// // Trivial encryption
+    /// let trivial_ct = sks.create_trivial(msg);
+    /// let non_trivial_ct = cks.encrypt(msg2);
+    ///
+    /// let res = trivial_ct.decrypt_trivial();
+    /// assert_eq!(Ok(1), res);
+    ///
+    /// let res = non_trivial_ct.decrypt_trivial();
+    /// matches!(res, Err(_));
+    ///
+    /// // Doing operations that mixes trivial and non trivial
+    /// // will always return a non trivial
+    /// let ct_res = sks.add(&trivial_ct, &non_trivial_ct);
+    /// let res = ct_res.decrypt_trivial();
+    /// matches!(res, Err(_));
+    ///
+    /// // Doing operations using only trivial ciphertexts
+    /// // will return a trivial
+    /// let ct_res = sks.add(&trivial_ct, &trivial_ct);
+    /// let res = ct_res.decrypt_trivial();
+    /// assert_eq!(Ok(2), res);
+    /// ```
+    pub fn decrypt_trivial(&self) -> Result<u64, NotTrivialCiphertextError> {
+        self.decrypt_trivial_message_and_carry()
+            .map(|x| x % self.message_modulus.0 as u64)
+    }
+
+    /// See [Self::decrypt_trivial].
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::{gen_keys, Ciphertext};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let msg = 2u64;
+    /// let clear = 3u64;
+    ///
+    /// let mut trivial_ct = sks.create_trivial(msg);
+    ///
+    /// sks.unchecked_scalar_add_assign(&mut trivial_ct, clear as u8);
+    ///
+    /// let res = trivial_ct.decrypt_trivial();
+    /// let expected = (msg + clear) % PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0 as u64;
+    /// assert_eq!(Ok(expected), res);
+    ///
+    /// let res = trivial_ct.decrypt_trivial_message_and_carry();
+    /// assert_eq!(Ok(msg + clear), res);
+    /// ```
+    pub fn decrypt_trivial_message_and_carry(&self) -> Result<u64, NotTrivialCiphertextError> {
+        if self.is_trivial() {
+            let delta = (1u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+            Ok(self.ct.get_body().data / delta)
+        } else {
+            Err(NotTrivialCiphertextError)
+        }
     }
 }
 
