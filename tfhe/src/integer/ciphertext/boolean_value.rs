@@ -1,5 +1,6 @@
 use super::{IntegerCiphertext, IntegerRadixCiphertext};
 use crate::integer::{RadixCiphertext, ServerKey};
+use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
 
@@ -123,6 +124,42 @@ impl BooleanBlock {
         let missing_blocks = num_blocks.saturating_sub(1);
         sks.extend_radix_with_trivial_zero_blocks_msb_assign(&mut radix_ct, missing_blocks);
         T::from_blocks(radix_ct.blocks)
+    }
+
+    /// Decrypts a trivial ciphertext
+    ///
+    /// Trivial ciphertexts are ciphertexts which are not encrypted
+    /// meaning they can be decrypted by any key, or even without a key.
+    ///
+    /// For debugging it can be useful to use trivial ciphertext to speed up
+    /// execution, and use [Self::decrypt_trivial] to decrypt temporary values
+    /// and debug.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext, SignedRadixCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // 8 bits
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 4);
+    ///
+    /// let msg = false;
+    /// let msg2 = true;
+    ///
+    /// // Trivial encryption
+    /// let trivial_ct = sks.create_trivial_boolean_block(msg);
+    /// let non_trivial_ct = cks.encrypt_bool(msg2);
+    ///
+    /// let res = trivial_ct.decrypt_trivial();
+    /// assert_eq!(Ok(msg), res);
+    ///
+    /// let res = non_trivial_ct.decrypt_trivial();
+    /// matches!(res, Err(_));
+    /// ```
+    pub fn decrypt_trivial(&self) -> Result<bool, NotTrivialCiphertextError> {
+        let value = self.0.decrypt_trivial()?;
+        Ok(value != 0)
     }
 }
 
