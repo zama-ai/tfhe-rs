@@ -348,9 +348,9 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let message_modulus = 5;
     /// let m = 2;
-    /// let mut ct = cks.encrypt_native_crt(m, message_modulus);
+    /// let ct = cks.encrypt_native_crt(m, message_modulus);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x * x % message_modulus as u64);
-    /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &lut);
+    /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
     /// let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
     /// assert_eq!(res, (m * m) % message_modulus as u64);
     /// ```
@@ -507,20 +507,23 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let msg = 2;
     /// let modulus = 5;
-    /// let mut ct = cks.encrypt_native_crt(msg, modulus);
+    /// let ct = cks.encrypt_native_crt(msg, modulus);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
-    /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &lut);
+    /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
     /// let res = cks.decrypt_message_native_crt(&ct_res, modulus);
     /// assert_eq!(res, msg);
     /// ```
     pub fn programmable_bootstrapping_native_crt(
         &self,
-        ct_in: &mut Ciphertext,
+        ct_in: &Ciphertext,
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
         let nb_bit_to_extract =
             f64::log2((ct_in.message_modulus.0 * ct_in.carry_modulus.0) as f64).ceil() as usize;
         let delta_log = DeltaLog(64 - nb_bit_to_extract);
+
+        // We need to add a corrective term, so clone the input
+        let mut ct_in = ct_in.clone();
 
         // trick ( ct - delta/2 + delta/2^4  )
         lwe_ciphertext_plaintext_sub_assign(
@@ -529,7 +532,7 @@ impl WopbsKey {
         );
 
         let ciphertext = self.extract_bits_circuit_bootstrapping(
-            ct_in,
+            &ct_in,
             lut.as_ref(),
             delta_log,
             ExtractedBitsCount(nb_bit_to_extract),
