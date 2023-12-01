@@ -107,8 +107,8 @@ create_parametrized_test!(integer_default_div {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_smart_add);
-create_parametrized_test!(integer_smart_add_sequence_multi_thread);
-create_parametrized_test!(integer_smart_add_sequence_single_thread);
+create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
+create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
 create_parametrized_test!(integer_default_add_work_efficient {
@@ -121,15 +121,6 @@ create_parametrized_test!(integer_default_add_work_efficient {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
-// These tests are slow and not very interesting nor efficient, keep small sizes
-create_parametrized_test!(integer_default_add_sequence_multi_thread {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS
-});
-// Other tests are pretty slow, and the code is the same as a smart add but slower
-#[test]
-fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2_ks_pbs() {
-    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-}
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
@@ -570,7 +561,7 @@ where
     smart_rem_test(param, executor);
 }
 
-fn integer_smart_add_sequence_multi_thread<P>(param: P)
+fn integer_smart_sum_ciphertexts_slice<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -596,11 +587,7 @@ where
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            let ct_res = sks
-                .smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
-                    sks.smart_add_parallelized(a, b)
-                })
-                .unwrap();
+            let ct_res = sks.smart_sum_ciphertexts_parallelized(&mut ctxts).unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
@@ -609,7 +596,7 @@ where
     }
 }
 
-fn integer_smart_add_sequence_single_thread<P>(param: P)
+fn integer_default_sum_ciphertexts_vec<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -622,30 +609,20 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for len in [1, 2, 15, 16, 17] {
+    for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             // encryption of integers
-            let mut ctxts = clears
+            let ctxts = clears
                 .iter()
                 .copied()
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            let threadpool = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .build()
-                .unwrap();
-
-            let ct_res = threadpool.install(|| {
-                sks.smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
-                    sks.smart_add_parallelized(a, b)
-                })
-                .unwrap()
-            });
+            let ct_res = sks.sum_ciphertexts_parallelized(&ctxts).unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
@@ -837,96 +814,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::if_then_else_parallelized);
     default_if_then_else_test(param, executor);
-}
-
-fn integer_default_add_sequence_multi_thread<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TESTS_SMALLER {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let ct_res = sks
-                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                .unwrap();
-            let tmp_ct = sks
-                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                .unwrap();
-            assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp_ct);
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
-}
-
-fn integer_default_add_sequence_single_thread<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17] {
-        for _ in 0..NB_TESTS_SMALLER {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let threadpool = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .build()
-                .unwrap();
-
-            let ct_res = threadpool.install(|| {
-                sks.default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                    .unwrap()
-            });
-            assert!(ct_res.block_carries_are_empty());
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
 }
 
 //=============================================================================
