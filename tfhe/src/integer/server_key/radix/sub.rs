@@ -139,7 +139,7 @@ impl ServerKey {
             // to make sure carry propagation would be correct.
             max_degree.validate(degree_after_add + preceding_block_carry)?;
 
-            self.key.max_noise_level.valid(
+            self.key.max_noise_level.validate(
                 left_block.noise_level() + right_block.noise_level() + extracted_carry_noise_level,
             )?;
 

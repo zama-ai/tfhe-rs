@@ -48,7 +48,7 @@ impl MaxNoiseLevel {
         Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
     }
 
-    pub fn valid(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
+    pub fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
         if noise_level.0 > self.0 {
             return Err(CheckError::NoiseTooBig {
                 noise_level,

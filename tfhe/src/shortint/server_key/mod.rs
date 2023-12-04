@@ -318,7 +318,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
 
     server_key
         .max_noise_level
-        .valid(lhs.noise_level() * factor + rhs.noise_level())?;
+        .validate(lhs.noise_level() * factor + rhs.noise_level())?;
 
     Ok(())
 }

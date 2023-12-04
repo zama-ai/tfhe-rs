@@ -294,7 +294,7 @@ impl ServerKey {
         self.max_degree.validate(Degree::new(final_degree))?;
 
         self.max_noise_level
-            .valid(ct.noise_level() * scalar as usize)?;
+            .validate(ct.noise_level() * scalar as usize)?;
 
         Ok(())
     }

@@ -191,7 +191,7 @@ impl ServerKey {
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
-            .valid(ct_left.noise_level() + ct_right.noise_level())?;
+            .validate(ct_left.noise_level() + ct_right.noise_level())?;
         Ok(())
     }
 

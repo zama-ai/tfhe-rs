@@ -270,7 +270,7 @@ impl ServerKey {
         self.max_degree.validate(ct_left.degree + ct_right.degree)?;
 
         self.max_noise_level
-            .valid(ct_left.noise_level() + ct_right.noise_level())?;
+            .validate(ct_left.noise_level() + ct_right.noise_level())?;
         Ok(())
     }
 
