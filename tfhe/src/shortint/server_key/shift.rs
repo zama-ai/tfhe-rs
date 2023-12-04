@@ -592,7 +592,7 @@ impl ServerKey {
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
-            .valid(ct1.noise_level() * (1 << shift))?;
+            .validate(ct1.noise_level() * (1 << shift))?;
 
         Ok(())
     }
