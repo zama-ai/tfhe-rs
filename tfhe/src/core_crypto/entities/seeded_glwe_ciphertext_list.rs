@@ -113,6 +113,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
+        assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
         Self {
             data: container,
             glwe_size,

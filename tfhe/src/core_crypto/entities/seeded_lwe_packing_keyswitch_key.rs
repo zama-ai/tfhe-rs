@@ -160,6 +160,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
+        assert!(
             container.container_len() > 0,
             "Got an empty container to create an SeededLwePackingKeyswitchKey"
         );

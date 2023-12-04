@@ -175,6 +175,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         grouping_factor: LweBskGroupingFactor,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
+        assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
         let bsk = Self {
             ggsw_list: SeededGgswCiphertextList::from_container(
                 container,

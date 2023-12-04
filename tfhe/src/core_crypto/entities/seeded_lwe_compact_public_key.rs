@@ -102,6 +102,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
         assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
+        assert!(
             container.container_len().is_power_of_two(),
             "SeededLweCompactPublicKey container len must be a power of 2, got len = {}",
             container.container_len()

@@ -127,6 +127,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
+        assert!(
             container.container_len() % (decomp_level_count.0 * glwe_size.0 * polynomial_size.0)
                 == 0,
             "The provided container length is not valid. \
