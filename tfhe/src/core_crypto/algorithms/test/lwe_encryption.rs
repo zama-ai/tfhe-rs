@@ -134,7 +134,6 @@ fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + S
 create_parametrized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
     TEST_PARAMS_4_BITS_NATIVE_U64,
     TEST_PARAMS_3_BITS_63_U64,
-    TEST_PARAMS_3_BITS_SOLINAS_U64,
     DUMMY_NATIVE_U32,
     DUMMY_31_U32,
 });
@@ -635,7 +634,7 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(lwe_seeded_public_encrypt_decrypt_custom_mod);
+create_parametrized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -718,9 +717,7 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
     }
 }
 
-create_parametrized_test_with_non_native_parameters!(
-    lwe_seeded_list_par_encrypt_decrypt_custom_mod
-);
+create_parametrized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;

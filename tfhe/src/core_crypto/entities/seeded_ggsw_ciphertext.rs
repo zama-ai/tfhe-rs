@@ -147,6 +147,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
+        assert!(
             container.container_len() > 0,
             "Got an empty container to create a SeededGgswCiphertext"
         );
@@ -474,6 +479,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
+        assert!(
+            ciphertext_modulus.is_compatible_with_native_modulus(),
+            "Seeded entities are not yet compatible with non power of 2 moduli."
+        );
+
         assert!(
             container.container_len() == seeded_ggsw_level_matrix_size(glwe_size, polynomial_size),
             "The provided container length is not valid. \
