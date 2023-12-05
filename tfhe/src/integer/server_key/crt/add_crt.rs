@@ -57,7 +57,8 @@ impl ServerKey {
         ct_right: &CrtCiphertext,
     ) -> Result<(), CheckError> {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter().zip(ct_right.blocks.iter()) {
-            self.key.is_add_possible(ct_left_i, ct_right_i)?;
+            self.key
+                .is_add_possible(ct_left_i.noise_degree(), ct_right_i.noise_degree())?;
         }
         Ok(())
     }

@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::scalar_mul::unchecked_scalar_mul_assign;
 use crate::shortint::server_key::CheckError;
@@ -567,7 +568,7 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
+    /// let res = sks.is_scalar_left_shift_possible(ct1.noise_degree(), shift);
     ///
     /// assert!(res.is_err());
     ///
@@ -577,13 +578,13 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
+    /// let res = sks.is_scalar_left_shift_possible(ct1.noise_degree(), shift);
     ///
     /// assert!(res.is_err());
     /// ```
     pub fn is_scalar_left_shift_possible(
         &self,
-        ct1: &Ciphertext,
+        ct1: CiphertextNoiseDegree,
         shift: u8,
     ) -> Result<(), CheckError> {
         let final_operation_count = ct1.degree.get() << shift as usize;
@@ -592,7 +593,7 @@ impl ServerKey {
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
-            .validate(ct1.noise_level() * (1 << shift))?;
+            .validate(ct1.noise_level * (1 << shift))?;
 
         Ok(())
     }
@@ -678,7 +679,7 @@ impl ServerKey {
         ct: &Ciphertext,
         shift: u8,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_scalar_left_shift_possible(ct, shift)?;
+        self.is_scalar_left_shift_possible(ct.noise_degree(), shift)?;
         let ct_result = self.unchecked_scalar_left_shift(ct, shift);
         Ok(ct_result)
     }
@@ -688,7 +689,7 @@ impl ServerKey {
         ct: &mut Ciphertext,
         shift: u8,
     ) -> Result<(), CheckError> {
-        self.is_scalar_left_shift_possible(ct, shift)?;
+        self.is_scalar_left_shift_possible(ct.noise_degree(), shift)?;
         self.unchecked_scalar_left_shift_assign(ct, shift);
         Ok(())
     }
@@ -763,7 +764,10 @@ impl ServerKey {
     }
 
     pub fn smart_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        if self.is_scalar_left_shift_possible(ct, shift).is_ok() {
+        if self
+            .is_scalar_left_shift_possible(ct.noise_degree(), shift)
+            .is_ok()
+        {
             self.unchecked_scalar_left_shift_assign(ct, shift);
         } else {
             let modulus = self.message_modulus.0 as u64;

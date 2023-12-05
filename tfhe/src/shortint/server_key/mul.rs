@@ -1,5 +1,5 @@
 use super::add::unchecked_add_assign;
-use super::ServerKey;
+use super::{CiphertextNoiseDegree, ServerKey};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 
@@ -270,7 +270,9 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// let res = sks.is_mul_possible(&ct_1, &ct_2).unwrap();
+    /// let res = sks
+    ///     .is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    ///     .unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -279,9 +281,15 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// let res = sks.is_mul_possible(&ct_1, &ct_2).unwrap();
+    /// let res = sks
+    ///     .is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    ///     .unwrap();
     /// ```
-    pub fn is_mul_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> Result<(), CheckError> {
+    pub fn is_mul_possible(
+        &self,
+        ct1: CiphertextNoiseDegree,
+        ct2: CiphertextNoiseDegree,
+    ) -> Result<(), CheckError> {
         self.is_functional_bivariate_pbs_possible(ct1, ct2)
     }
 
@@ -333,7 +341,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_possible(ct_left, ct_right)?;
+        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_mul_lsb(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -387,7 +395,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        self.is_mul_possible(ct_left, ct_right)?;
+        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_mul_lsb_assign(ct_left, ct_right);
         Ok(())
     }
@@ -463,7 +471,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_possible(ct_left, ct_right)?;
+        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_mul_msb(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -550,14 +558,15 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// sks.is_mul_small_carry_possible(&ct_1, &ct_2).unwrap();
+    /// sks.is_mul_small_carry_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    ///     .unwrap();
     ///
     /// //Encryption with a full carry buffer
     /// let large_msg = 7;
     /// let ct_3 = cks.unchecked_encrypt(large_msg);
     ///
     /// //  Check if we can perform a multiplication
-    /// let res = sks.is_mul_small_carry_possible(&ct_1, &ct_3);
+    /// let res = sks.is_mul_small_carry_possible(ct_1.noise_degree(), ct_3.noise_degree());
     ///
     /// assert!(res.is_err());
     ///
@@ -566,21 +575,22 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// sks.is_mul_small_carry_possible(&ct_1, &ct_2).unwrap();
+    /// sks.is_mul_small_carry_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    ///     .unwrap();
     ///
     /// //Encryption with a full carry buffer
     /// let large_msg = 7;
     /// let ct_3 = cks.unchecked_encrypt(large_msg);
     ///
     /// //  Check if we can perform a multiplication
-    /// let res = sks.is_mul_small_carry_possible(&ct_1, &ct_3);
+    /// let res = sks.is_mul_small_carry_possible(ct_1.noise_degree(), ct_3.noise_degree());
     ///
     /// assert!(res.is_err());
     /// ```
     pub fn is_mul_small_carry_possible(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: CiphertextNoiseDegree,
+        ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
         // Check if an addition is possible
         self.is_add_possible(ct_left, ct_right)?;
@@ -642,7 +652,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_small_carry_possible(ct_left, ct_right)?;
+        self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
         ct_result.degree = Degree::new(ct_left.degree.get() * 2);
         Ok(ct_result)
@@ -1121,11 +1131,15 @@ impl ServerKey {
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if self.is_mul_small_carry_possible(ct_left, ct_right).is_err() {
+            if self
+                .is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
+                .is_err()
+            {
                 self.message_extract_assign(ct_left);
                 self.message_extract_assign(ct_right);
             }
-            self.is_mul_small_carry_possible(ct_left, ct_right).unwrap();
+            self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
+                .unwrap();
             self.unchecked_mul_lsb_small_carry_modulus_assign(ct_left, ct_right);
         } else {
             let msg_modulus = ct_left.message_modulus.0 as u64;
@@ -1260,12 +1274,16 @@ impl ServerKey {
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if self.is_mul_small_carry_possible(ct_left, ct_right).is_err() {
+            if self
+                .is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
+                .is_err()
+            {
                 self.message_extract_assign(ct_left);
                 self.message_extract_assign(ct_right);
             }
 
-            self.is_mul_small_carry_possible(ct_left, ct_right).unwrap();
+            self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
+                .unwrap();
 
             self.unchecked_mul_lsb_small_carry_modulus(ct_left, ct_right)
         } else {

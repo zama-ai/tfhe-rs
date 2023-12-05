@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
@@ -173,12 +174,13 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an subtraction
-    /// sks.is_sub_possible(&ct_1, &ct_2).unwrap();
+    /// sks.is_sub_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    ///     .unwrap();
     /// ```
     pub fn is_sub_possible(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: CiphertextNoiseDegree,
+        ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
@@ -191,7 +193,7 @@ impl ServerKey {
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
-            .validate(ct_left.noise_level() + ct_right.noise_level())?;
+            .validate(ct_left.noise_level + ct_right.noise_level)?;
         Ok(())
     }
 
@@ -226,7 +228,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
         // If the ciphertexts cannot be subtracted without exceeding the degree max
-        self.is_sub_possible(ct_left, ct_right)?;
+        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_sub(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -260,8 +262,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        // If the ciphertexts cannot be subtracted without exceeding the degree max
-        self.is_sub_possible(ct_left, ct_right)?;
+        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_sub_assign(ct_left, ct_right);
         Ok(())
     }
@@ -293,12 +294,16 @@ impl ServerKey {
     /// ```
     pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         // If the ciphertext cannot be subtracted together without exceeding the degree max
-        if self.is_sub_possible(ct_left, ct_right).is_err() {
-            self.message_extract_assign(ct_right);
+        if self
+            .is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_err()
+        {
             self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
         }
 
-        self.is_sub_possible(ct_left, ct_right).unwrap();
+        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
 
         self.unchecked_sub(ct_left, ct_right)
     }
@@ -328,12 +333,16 @@ impl ServerKey {
     /// ```
     pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         // If the ciphertext cannot be subtracted together without exceeding the degree max
-        if self.is_sub_possible(ct_left, ct_right).is_err() {
-            self.message_extract_assign(ct_right);
+        if self
+            .is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_err()
+        {
             self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
         }
 
-        self.is_sub_possible(ct_left, ct_right).unwrap();
+        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
 
         self.unchecked_sub_assign(ct_left, ct_right);
     }
@@ -391,12 +400,16 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> (Ciphertext, u64) {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if self.is_sub_possible(ct_left, ct_right).is_err() {
+        if self
+            .is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_err()
+        {
             self.message_extract_assign(ct_left);
             self.message_extract_assign(ct_right);
         }
 
-        self.is_sub_possible(ct_left, ct_right).unwrap();
+        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
 
         self.unchecked_sub_with_correcting_term(ct_left, ct_right)
     }

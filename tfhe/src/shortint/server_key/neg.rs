@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::divide_ceil;
@@ -263,7 +264,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Check if we can perform a negation
-    /// let can_be_negated = sks.is_neg_possible(&ct).unwrap();
+    /// let can_be_negated = sks.is_neg_possible(ct.noise_degree()).unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -271,9 +272,9 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Check if we can perform a negation
-    /// let can_be_negated = sks.is_neg_possible(&ct).unwrap();
+    /// let can_be_negated = sks.is_neg_possible(ct.noise_degree()).unwrap();
     /// ```
-    pub fn is_neg_possible(&self, ct: &Ciphertext) -> Result<(), CheckError> {
+    pub fn is_neg_possible(&self, ct: CiphertextNoiseDegree) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
         let mut z = (ct.degree.get() + msg_mod - 1) / msg_mod;
@@ -324,7 +325,7 @@ impl ServerKey {
     /// ```
     pub fn checked_neg(&self, ct: &Ciphertext) -> Result<Ciphertext, CheckError> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        self.is_neg_possible(ct)?;
+        self.is_neg_possible(ct.noise_degree())?;
         let ct_result = self.unchecked_neg(ct);
         Ok(ct_result)
     }
@@ -372,7 +373,7 @@ impl ServerKey {
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg_assign(&self, ct: &mut Ciphertext) -> Result<(), CheckError> {
-        self.is_neg_possible(ct)?;
+        self.is_neg_possible(ct.noise_degree())?;
         self.unchecked_neg_assign(ct);
         Ok(())
     }
@@ -421,11 +422,11 @@ impl ServerKey {
     /// ```
     pub fn smart_neg(&self, ct: &mut Ciphertext) -> Ciphertext {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ct).is_err() {
+        if self.is_neg_possible(ct.noise_degree()).is_err() {
             self.message_extract_assign(ct);
         }
 
-        self.is_neg_possible(ct).unwrap();
+        self.is_neg_possible(ct.noise_degree()).unwrap();
 
         self.unchecked_neg(ct)
     }
@@ -473,10 +474,10 @@ impl ServerKey {
     /// ```
     pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ct).is_err() {
+        if self.is_neg_possible(ct.noise_degree()).is_err() {
             self.message_extract_assign(ct);
         }
-        self.is_neg_possible(ct).unwrap();
+        self.is_neg_possible(ct.noise_degree()).unwrap();
         self.unchecked_neg_assign(ct);
     }
 }

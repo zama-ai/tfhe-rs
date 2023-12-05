@@ -82,7 +82,7 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         for (ct_i, mod_i) in ctxt.blocks.iter().zip(ctxt.moduli.iter()) {
             self.key
-                .is_scalar_mul_possible(ct_i, (scalar % mod_i) as u8)?;
+                .is_scalar_mul_possible(ct_i.noise_degree(), (scalar % mod_i) as u8)?;
         }
         Ok(())
     }
@@ -232,7 +232,8 @@ impl ServerKey {
         scalar: u64,
     ) -> Result<(), CheckError> {
         for ct_i in ctxt.blocks.iter() {
-            self.key.is_scalar_mul_possible(ct_i, scalar as u8)?;
+            self.key
+                .is_scalar_mul_possible(ct_i.noise_degree(), scalar as u8)?;
         }
         Ok(())
     }

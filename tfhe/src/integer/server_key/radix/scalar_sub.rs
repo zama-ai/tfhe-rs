@@ -161,7 +161,7 @@ impl ServerKey {
                 // The decomposer gives the block of the negated
                 // scalar (-scalar) that we will be adding
                 self.key
-                    .is_scalar_add_possible(ciphertext_block, scalar_block)
+                    .is_scalar_add_possible(ciphertext_block.noise_degree(), scalar_block)
             })
     }
 
