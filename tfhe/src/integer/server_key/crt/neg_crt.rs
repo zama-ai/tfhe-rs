@@ -89,7 +89,7 @@ impl ServerKey {
 
     pub fn is_crt_neg_possible(&self, ctxt: &CrtCiphertext) -> Result<(), CheckError> {
         for ct_i in ctxt.blocks.iter() {
-            self.key.is_neg_possible(ct_i)?;
+            self.key.is_neg_possible(ct_i.noise_degree())?;
         }
         Ok(())
     }

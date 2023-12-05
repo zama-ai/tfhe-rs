@@ -170,7 +170,8 @@ impl ServerKey {
         ctxt_right: &CrtCiphertext,
     ) -> Result<(), CheckError> {
         for (ct_left_i, ct_right_i) in ctxt_left.blocks.iter().zip(ctxt_right.blocks.iter()) {
-            self.key.is_sub_possible(ct_left_i, ct_right_i)?;
+            self.key
+                .is_sub_possible(ct_left_i.noise_degree(), ct_right_i.noise_degree())?;
         }
         Ok(())
     }

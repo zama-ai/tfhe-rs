@@ -148,7 +148,8 @@ impl ServerKey {
         scalar: u64,
     ) -> Result<(), CheckError> {
         for ct_i in ctxt.blocks.iter() {
-            self.key.is_scalar_mul_possible(ct_i, scalar as u8)?;
+            self.key
+                .is_scalar_mul_possible(ct_i.noise_degree(), scalar as u8)?;
         }
         Ok(())
     }

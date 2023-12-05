@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::lwe_encryption::trivially_encrypt_lwe_ciphertext;
@@ -277,7 +278,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(2);
     ///
     /// // Verification if the scalar multiplication can be computed:
-    /// sks.is_scalar_mul_possible(&ct, 3).unwrap();
+    /// sks.is_scalar_mul_possible(ct.noise_degree(), 3).unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -285,16 +286,20 @@ impl ServerKey {
     /// let ct = cks.encrypt(2);
     ///
     /// // Verification if the scalar multiplication can be computed:
-    /// sks.is_scalar_mul_possible(&ct, 3).unwrap();
+    /// sks.is_scalar_mul_possible(ct.noise_degree(), 3).unwrap();
     /// ```
-    pub fn is_scalar_mul_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
+    pub fn is_scalar_mul_possible(
+        &self,
+        ct: CiphertextNoiseDegree,
+        scalar: u8,
+    ) -> Result<(), CheckError> {
         //scalar * ct.counter
         let final_degree = scalar as usize * ct.degree.get();
 
         self.max_degree.validate(Degree::new(final_degree))?;
 
         self.max_noise_level
-            .validate(ct.noise_level() * scalar as usize)?;
+            .validate(ct.noise_level * scalar as usize)?;
 
         Ok(())
     }
@@ -344,7 +349,7 @@ impl ServerKey {
         scalar: u8,
     ) -> Result<Ciphertext, CheckError> {
         //If the ciphertext cannot be multiplied without exceeding the degree max
-        self.is_scalar_mul_possible(ct, scalar)?;
+        self.is_scalar_mul_possible(ct.noise_degree(), scalar)?;
         let ct_result = self.unchecked_scalar_mul(ct, scalar);
         Ok(ct_result)
     }
@@ -392,7 +397,7 @@ impl ServerKey {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        self.is_scalar_mul_possible(ct, scalar)?;
+        self.is_scalar_mul_possible(ct.noise_degree(), scalar)?;
         self.unchecked_scalar_mul_assign(ct, scalar);
         Ok(())
     }
@@ -497,7 +502,10 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         // Direct scalar computation is possible
-        if self.is_scalar_mul_possible(ct, scalar).is_ok() {
+        if self
+            .is_scalar_mul_possible(ct.noise_degree(), scalar)
+            .is_ok()
+        {
             self.unchecked_scalar_mul_assign(ct, scalar);
             ct.degree = Degree::new(ct.degree.get() * scalar as usize);
         }

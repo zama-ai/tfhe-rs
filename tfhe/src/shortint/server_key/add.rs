@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
@@ -251,7 +252,9 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks.is_add_possible(&ct_left, &ct_right).unwrap();
+    /// let can_be_added = sks
+    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    ///     .unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -260,17 +263,19 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks.is_add_possible(&ct_left, &ct_right).unwrap();
+    /// let can_be_added = sks
+    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    ///     .unwrap();
     /// ```
     pub fn is_add_possible(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: CiphertextNoiseDegree,
+        ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
         self.max_degree.validate(ct_left.degree + ct_right.degree)?;
 
         self.max_noise_level
-            .validate(ct_left.noise_level() + ct_right.noise_level())?;
+            .validate(ct_left.noise_level + ct_right.noise_level)?;
         Ok(())
     }
 
@@ -319,7 +324,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_add_possible(ct_left, ct_right)?;
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_add(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -369,7 +374,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        self.is_add_possible(ct_left, ct_right)?;
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_add_assign(ct_left, ct_right);
         Ok(())
     }
@@ -417,26 +422,15 @@ impl ServerKey {
     /// ```
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if self.is_add_possible(ct_left, ct_right).is_err() {
-            if self
-                .max_degree
-                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0 - 1))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_left);
-            } else if self
-                .max_degree
-                .validate(ct_left.degree + Degree::new(ct_right.message_modulus.0 - 1))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_right);
-            } else {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
+        if self
+            .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
         }
-
-        self.is_add_possible(ct_left, ct_right).unwrap();
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
 
         self.unchecked_add(ct_left, ct_right)
     }
@@ -490,27 +484,15 @@ impl ServerKey {
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if self.is_add_possible(ct_left, ct_right).is_err() {
-            if self
-                .max_degree
-                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0 - 1))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_left);
-            } else if self
-                .max_degree
-                .validate(ct_left.degree + Degree::new(ct_right.message_modulus.0 - 1))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_right);
-            } else {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
+        if self
+            .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
         }
-
-        self.is_add_possible(ct_left, ct_right).unwrap();
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
 
         self.unchecked_add_assign(ct_left, ct_right);
     }

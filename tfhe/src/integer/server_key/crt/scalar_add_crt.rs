@@ -81,7 +81,8 @@ impl ServerKey {
         for (ct_i, mod_i) in ct.blocks.iter().zip(ct.moduli.iter()) {
             let scalar_i = scalar % mod_i;
 
-            self.key.is_scalar_add_possible(ct_i, scalar_i as u8)?;
+            self.key
+                .is_scalar_add_possible(ct_i.noise_degree(), scalar_i as u8)?;
         }
 
         Ok(())

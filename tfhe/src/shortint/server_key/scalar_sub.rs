@@ -1,3 +1,4 @@
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
@@ -265,7 +266,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(5);
     ///
     /// // Verification if the scalar subtraction can be computed:
-    /// sks.is_scalar_sub_possible(&ct, 3).unwrap();
+    /// sks.is_scalar_sub_possible(ct.noise_degree(), 3).unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -273,10 +274,14 @@ impl ServerKey {
     /// let ct = cks.encrypt(5);
     ///
     /// // Verification if the scalar subtraction can be computed:
-    /// sks.is_scalar_sub_possible(&ct, 3).unwrap();
+    /// sks.is_scalar_sub_possible(ct.noise_degree(), 3).unwrap();
     /// ```
-    pub fn is_scalar_sub_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
-        self.is_scalar_add_possible(ct, neg_scalar(scalar, ct.message_modulus))
+    pub fn is_scalar_sub_possible(
+        &self,
+        ct: CiphertextNoiseDegree,
+        scalar: u8,
+    ) -> Result<(), CheckError> {
+        self.is_scalar_add_possible(ct, neg_scalar(scalar, self.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.

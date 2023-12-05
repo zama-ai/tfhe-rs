@@ -251,7 +251,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_bitand(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -301,7 +301,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_bitand_assign(ct_left, ct_right);
         Ok(())
     }
@@ -655,7 +655,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_bitxor(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -705,7 +705,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_bitxor_assign(ct_left, ct_right);
         Ok(())
     }
@@ -1062,7 +1062,7 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         let ct_result = self.unchecked_bitor(ct_left, ct_right);
         Ok(ct_result)
     }
@@ -1112,7 +1112,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
         self.unchecked_bitor_assign(ct_left, ct_right);
         Ok(())
     }
