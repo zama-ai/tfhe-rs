@@ -1042,3 +1042,60 @@ impl Ciphertext {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct SmartCleaningOperation {
+    bootstrap_left: bool,
+    bootstrap_right: bool,
+}
+
+impl SmartCleaningOperation {
+    fn number_of_pbs(self) -> usize {
+        usize::from(self.bootstrap_left) + usize::from(self.bootstrap_right)
+    }
+}
+
+impl ServerKey {
+    /// Before doing an operations on 2 inputs which validity is described by
+    /// `is_operation_possible`, one or both the inputs may need to be cleaned (carry removal and
+    /// noise reinitilization) with a PBS
+    /// Among possible cleanings this functions returns one of the ones that has the lowest number
+    /// of PBS
+    pub(crate) fn binary_smart_op_optimal_cleaning_strategy(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+        is_operation_possible: impl Fn(&Self, CiphertextNoiseDegree, CiphertextNoiseDegree) -> bool
+            + Copy,
+    ) -> Option<SmartCleaningOperation> {
+        [false, true]
+            .into_iter()
+            .flat_map(move |bootstrap_left| {
+                let left_noise_degree = if bootstrap_left {
+                    ct_left.noise_degree_if_bootstrapped()
+                } else {
+                    ct_left.noise_degree()
+                };
+
+                [false, true]
+                    .into_iter()
+                    .filter_map(move |bootstrap_right| {
+                        let right_noise_degree = if bootstrap_right {
+                            ct_right.noise_degree_if_bootstrapped()
+                        } else {
+                            ct_right.noise_degree()
+                        };
+
+                        if is_operation_possible(self, left_noise_degree, right_noise_degree) {
+                            Some(SmartCleaningOperation {
+                                bootstrap_left,
+                                bootstrap_right,
+                            })
+                        } else {
+                            None
+                        }
+                    })
+            })
+            .min_by_key(|op| op.number_of_pbs())
+    }
+}

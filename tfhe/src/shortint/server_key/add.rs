@@ -1,4 +1,4 @@
-use super::CiphertextNoiseDegree;
+use super::{CiphertextNoiseDegree, SmartCleaningOperation};
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
@@ -421,14 +421,23 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if self
-            .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
+        let SmartCleaningOperation {
+            bootstrap_left,
+            bootstrap_right,
+        } = self
+            .binary_smart_op_optimal_cleaning_strategy(ct_left, ct_right, |sk, a, b| {
+                sk.is_add_possible(a, b).is_ok()
+            })
+            .unwrap();
+
+        if bootstrap_left {
+            self.message_extract_assign(ct_left)
         }
+
+        if bootstrap_right {
+            self.message_extract_assign(ct_right)
+        }
+
         self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
             .unwrap();
 
@@ -484,13 +493,23 @@ impl ServerKey {
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self
-            .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
+        let SmartCleaningOperation {
+            bootstrap_left,
+            bootstrap_right,
+        } = self
+            .binary_smart_op_optimal_cleaning_strategy(ct_left, ct_right, |sk, a, b| {
+                sk.is_add_possible(a, b).is_ok()
+            })
+            .unwrap();
+
+        if bootstrap_left {
+            self.message_extract_assign(ct_left)
         }
+
+        if bootstrap_right {
+            self.message_extract_assign(ct_right)
+        }
+
         self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
             .unwrap();
 
