@@ -310,16 +310,27 @@ impl ServerKey {
             }
         };
 
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            let carry = self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
+        self.unchecked_add_assign_parallelized(lhs, rhs);
+        self.unsigned_overflowing_propagate_addition_carry(lhs)
+    }
+
+    /// This function takes a ciphertext resulting from an addition of 2 clean ciphertexts
+    ///
+    /// It propagates the carries in-place, making the ciphertext clean and returns
+    /// the boolean indicating overflow
+    pub(in crate::integer) fn unsigned_overflowing_propagate_addition_carry(
+        &self,
+        ct: &mut RadixCiphertext,
+    ) -> BooleanBlock {
+        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
+            let carry = self.propagate_single_carry_parallelized_low_latency(ct);
             BooleanBlock::new_unchecked(carry)
         } else {
-            self.unchecked_add_assign(lhs, rhs);
-            let len = lhs.blocks.len();
+            let len = ct.blocks.len();
             for i in 0..len - 1 {
-                let _ = self.propagate_parallelized(lhs, i);
+                let _ = self.propagate_parallelized(ct, i);
             }
-            let carry = self.propagate_parallelized(lhs, len - 1);
+            let carry = self.propagate_parallelized(ct, len - 1);
             BooleanBlock::new_unchecked(carry)
         }
     }
@@ -495,6 +506,8 @@ impl ServerKey {
 
     /// This function takes an input ciphertext for which at most one bit of carry
     /// is consumed in each block, and does the carry propagation in place.
+    ///
+    /// It returns the output carry of the last block
     ///
     /// Used in (among other) 'default' addition:
     /// - first unchecked_add
