@@ -1,7 +1,8 @@
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
-use crate::integer::ServerKey;
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
 
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -111,5 +112,52 @@ impl ServerKey {
         } else {
             self.full_propagate_parallelized(ct);
         }
+    }
+
+    pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(
+        &self,
+        lhs: &mut RadixCiphertext,
+        scalar: T,
+    ) -> BooleanBlock
+    where
+        T: UnsignedNumeric + DecomposableInto<u8>,
+    {
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
+        }
+
+        let mut scalar_decomposer =
+            BlockDecomposer::new(scalar, self.message_modulus().0.ilog2()).iter_as::<u8>();
+
+        lhs.blocks
+            .iter_mut() // Not worth to parallelize
+            .zip(scalar_decomposer.by_ref())
+            .for_each(|(lhs_block, rhs_scalar)| {
+                self.key
+                    .unchecked_scalar_sub_assign_with_correcting_term(lhs_block, rhs_scalar)
+            });
+        let overflowed = self.unsigned_overflowing_propagate_subtraction_borrow(lhs);
+
+        let is_there_any_non_zero_scalar_blocks_left = scalar_decomposer.any(|x| x != 0);
+        if is_there_any_non_zero_scalar_blocks_left {
+            // Scalar has more blocks so subtraction counts as overflowing
+            BooleanBlock::new_unchecked(self.key.create_trivial(1))
+        } else {
+            overflowed
+        }
+    }
+
+    pub fn unsigned_overflowing_scalar_sub_parallelized<T>(
+        &self,
+        lhs: &RadixCiphertext,
+        scalar: T,
+    ) -> (RadixCiphertext, BooleanBlock)
+    where
+        T: UnsignedNumeric + DecomposableInto<u8>,
+    {
+        let mut result = lhs.clone();
+        let overflowed =
+            self.unsigned_overflowing_scalar_sub_assign_parallelized(&mut result, scalar);
+        (result, overflowed)
     }
 }

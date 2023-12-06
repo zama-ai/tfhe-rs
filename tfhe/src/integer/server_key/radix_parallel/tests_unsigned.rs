@@ -221,6 +221,7 @@ create_parametrized_test!(integer_smart_mul);
 create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
+create_parametrized_test!(integer_default_overflowing_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_default_scalar_add);
 create_parametrized_test!(integer_default_overflowing_scalar_add);
@@ -844,6 +845,15 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_sub_parallelized);
     default_scalar_sub_test(param, executor);
+}
+
+fn integer_default_overflowing_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor =
+        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized);
+    default_overflowing_scalar_sub_test(param, executor);
 }
 
 fn integer_default_scalar_bitand<P>(param: P)
