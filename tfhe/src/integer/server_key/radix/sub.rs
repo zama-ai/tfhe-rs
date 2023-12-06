@@ -406,41 +406,19 @@ impl ServerKey {
             lhs.blocks.len(),
             rhs.blocks.len()
         );
-        let modulus = self.key.message_modulus.0 as u64;
-
-        // If the block does not have a carry after the subtraction, it means it needs to
-        // borrow from the next block
-        let compute_borrow_lut = self
-            .key
-            .generate_lookup_table(|x| if x < modulus { 1 } else { 0 });
-
-        let mut borrow = self.key.create_trivial(0);
-        let mut new_blocks = Vec::with_capacity(lhs.blocks.len());
-        for (lhs_b, rhs_b) in lhs.blocks.iter().zip(rhs.blocks.iter()) {
-            let mut result_block = self.key.unchecked_sub(lhs_b, rhs_b);
-            // Here unchecked_sub_assign does not give correct result, we don't want
-            // the correcting term to be used
-            // -> This is ok as the value returned by unchecked_sub is in range 1..(message_mod * 2)
-            crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
-                &mut result_block.ct,
-                &borrow.ct,
-            );
-            result_block.set_noise_level(result_block.noise_level() + borrow.noise_level());
-            let (msg, new_borrow) = rayon::join(
-                || self.key.message_extract(&result_block),
-                || {
-                    self.key
-                        .apply_lookup_table(&result_block, &compute_borrow_lut)
-                },
-            );
-            result_block = msg;
-            borrow = new_borrow;
-            new_blocks.push(result_block);
-        }
-
-        // borrow of last block indicates overflow
-        let overflowed = BooleanBlock::new_unchecked(borrow);
-        (RadixCiphertext::from(new_blocks), overflowed)
+        // Here we have to use manual unchecked_sub on shortint blocks
+        // rather than calling integer's unchecked_sub as we need each subtraction
+        // to be independent from other blocks. And we don't want to do subtraction by
+        // adding negation
+        let result = lhs
+            .blocks
+            .iter()
+            .zip(rhs.blocks.iter())
+            .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
+            .collect::<Vec<_>>();
+        let mut result = RadixCiphertext::from(result);
+        let overflowed = self.unsigned_overflowing_propagate_subtraction_borrow(&mut result);
+        (result, overflowed)
     }
 
     pub(crate) fn unchecked_signed_overflowing_add_or_sub(

@@ -4,6 +4,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{
     IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey,
 };
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::*;
 use rand::prelude::ThreadRng;
 use rand::Rng;
@@ -1829,6 +1830,8 @@ where
             "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
@@ -1865,6 +1868,8 @@ where
                 "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
     }
 
@@ -1894,6 +1899,8 @@ where
             "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 
@@ -1947,6 +1954,8 @@ where
             "Invalid overflow flag result for overflowing_suv for ({clear_0} - {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
@@ -1983,6 +1992,8 @@ where
                 "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
     }
 
@@ -2018,6 +2029,8 @@ where
             "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 
@@ -2694,6 +2707,8 @@ where
             "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
@@ -2723,6 +2738,8 @@ where
                 "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
     }
 
@@ -2751,6 +2768,8 @@ where
             "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 
     // Test with scalar that is bigger than ciphertext modulus
@@ -2779,6 +2798,8 @@ where
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
         assert!(decrypted_overflowed); // Actually we know its an overflow case
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 
@@ -2824,6 +2845,148 @@ where
             let dec_res: u64 = cks.decrypt(&ct_res);
             assert_eq!(clear, dec_res);
         }
+    }
+}
+
+pub(crate) fn default_overflowing_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
+        let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: u64 = cks.decrypt(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            // Add non zero scalar to have non clean ciphertexts
+            let clear_2 = random_non_zero_value(&mut rng, modulus);
+            let clear_rhs = random_non_zero_value(&mut rng, modulus);
+
+            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+            let (clear_lhs, _) = overflowing_add_under_modulus(clear_0, clear_2, modulus);
+            let d0: u64 = cks.decrypt(&ctxt_0);
+            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+
+            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
+            assert!(ct_res.block_carries_are_empty());
+            let (expected_result, expected_overflowed) =
+                overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let decrypted_result: u64 = cks.decrypt(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for sub, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+            );
+            assert_eq!(
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+        }
+    }
+
+    // Test with trivial inputs
+    for _ in 0..4 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+
+        let (expected_result, expected_overflowed) =
+            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+
+    // Test with scalar that is bigger than ciphertext modulus
+    for _ in 0..2 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(modulus..=u64::MAX);
+
+        let a: RadixCiphertext = cks.encrypt(clear_0);
+
+        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+
+        let (expected_result, expected_overflowed) =
+            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert!(decrypted_overflowed); // Actually we know its an overflow case
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 

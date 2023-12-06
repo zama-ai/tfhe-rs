@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
@@ -213,6 +214,38 @@ impl ServerKey {
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 
         ct.degree += Degree::new(neg_scalar as usize);
+    }
+
+    pub fn unchecked_scalar_sub_assign_with_correcting_term(
+        &self,
+        ct: &mut Ciphertext,
+        scalar: u8,
+    ) {
+        let msg_mod = self.message_modulus.0;
+        assert!((scalar as usize) < msg_mod);
+
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+
+        let encoded_scalar = Plaintext(scalar as u64 * delta);
+        lwe_ciphertext_plaintext_sub_assign(&mut ct.ct, encoded_scalar);
+
+        let correcting_term = divide_ceil(ct.degree.get(), msg_mod).max(1) * msg_mod;
+        let encoded_msg_mod = Plaintext(correcting_term as u64 * delta);
+        lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_msg_mod);
+
+        // subtracted scalar, added the correcting term.
+        ct.degree += Degree::new(correcting_term - scalar as usize);
+        // noise does not change as operations only involved plaintexts
+    }
+
+    pub fn unchecked_scalar_sub_with_correcting_term(
+        &self,
+        ct: &Ciphertext,
+        scalar: u8,
+    ) -> Ciphertext {
+        let mut result = ct.clone();
+        self.unchecked_scalar_sub_assign_with_correcting_term(&mut result, scalar);
+        result
     }
 
     /// Verify if a scalar can be subtracted to the ciphertext.

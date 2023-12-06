@@ -365,19 +365,37 @@ impl ServerKey {
             lhs.blocks.len(),
             rhs.blocks.len()
         );
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            // Here we have to use manual unchecked_sub on shortint blocks
-            // rather than calling integer's unchecked_sub as we need each subtraction
-            // to be independent from other blocks.
-            let ct = lhs
-                .blocks
-                .iter()
-                .zip(rhs.blocks.iter())
-                .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
-                .collect::<Vec<_>>();
-            let mut ct = RadixCiphertext::from(ct);
+        // Here we have to use manual unchecked_sub on shortint blocks
+        // rather than calling integer's unchecked_sub as we need each subtraction
+        // to be independent from other blocks. And we don't want to do subtraction by
+        // adding negation
+        let ct = lhs
+            .blocks
+            .iter()
+            .zip(rhs.blocks.iter())
+            .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
+            .collect::<Vec<_>>();
+        let mut ct = RadixCiphertext::from(ct);
+        let overflowed = self.unsigned_overflowing_propagate_subtraction_borrow(&mut ct);
+        (ct, overflowed)
+    }
 
-            let generates_or_propagates = self.generate_init_borrow_array(&ct);
+    /// This function takes a ciphertext resulting from a subtraction of 2 clean ciphertexts
+    /// **USING SHORTINT'S UNCHECKED_SUB SEPARATELY ON EACH BLOCK**, that is after subtracting
+    /// blocks, the values are in range 0..(2*msg_modulus) e.g 0..7 for 2_2 parameters
+    /// where:
+    ///   - if ct's value is in 0..msg_mod -> the block overflowed (needs to borrow from next block)
+    ///   - if ct's value is in msg_mod..2*msg_mod the block did not overflow (ne need to borrow
+    ///
+    ///
+    /// It propagates the borrows in-place, making the ciphertext clean and returns
+    /// the boolean indicating overflow
+    pub(in crate::integer) fn unsigned_overflowing_propagate_subtraction_borrow(
+        &self,
+        ct: &mut RadixCiphertext,
+    ) -> BooleanBlock {
+        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
+            let generates_or_propagates = self.generate_init_borrow_array(ct);
             let (input_borrows, mut output_borrow) =
                 self.compute_borrow_propagation_parallelized_low_latency(generates_or_propagates);
 
@@ -400,9 +418,37 @@ impl ServerKey {
             // we know here that the result is a boolean value
             // however the lut used has a degree of 2.
             output_borrow.degree = Degree::new(1);
-            (ct, BooleanBlock::new_unchecked(output_borrow))
+            BooleanBlock::new_unchecked(output_borrow)
         } else {
-            self.unchecked_unsigned_overflowing_sub(lhs, rhs)
+            let modulus = self.key.message_modulus.0 as u64;
+
+            // If the block does not have a carry after the subtraction, it means it needs to
+            // borrow from the next block
+            let compute_borrow_lut =
+                self.key
+                    .generate_lookup_table(|x| if x < modulus { 1 } else { 0 });
+
+            let mut borrow = self.key.create_trivial(0);
+            for block in ct.blocks.iter_mut() {
+                // Here unchecked_sub_assign does not give correct result, we don't want
+                // the correcting term to be used
+                // -> This is ok as the value returned by unchecked_sub is in range 1..(message_mod
+                // * 2)
+                crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                    &mut block.ct,
+                    &borrow.ct,
+                );
+                block.set_noise_level(block.noise_level() + borrow.noise_level());
+                let (msg, new_borrow) = rayon::join(
+                    || self.key.message_extract(block),
+                    || self.key.apply_lookup_table(block, &compute_borrow_lut),
+                );
+                *block = msg;
+                borrow = new_borrow;
+            }
+
+            // borrow of last block indicates overflow
+            BooleanBlock::new_unchecked(borrow)
         }
     }
 

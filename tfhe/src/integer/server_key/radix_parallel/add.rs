@@ -5,6 +5,7 @@ use crate::shortint::Ciphertext;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
+use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
 #[repr(u64)]
@@ -330,7 +331,8 @@ impl ServerKey {
             for i in 0..len - 1 {
                 let _ = self.propagate_parallelized(ct, i);
             }
-            let carry = self.propagate_parallelized(ct, len - 1);
+            let mut carry = self.propagate_parallelized(ct, len - 1);
+            carry.degree = Degree::new(1);
             BooleanBlock::new_unchecked(carry)
         }
     }
