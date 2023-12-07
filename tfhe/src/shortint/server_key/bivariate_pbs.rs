@@ -55,6 +55,13 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
         .max_noise_level
         .validate(lhs.noise_level() * factor + rhs.noise_level())?;
 
+    if rhs.degree.get() >= factor {
+        return Err(CheckError::UnscaledScaledOverlap {
+            unscaled_degree: rhs.degree,
+            scale: factor as u8,
+        });
+    }
+
     Ok(())
 }
 
