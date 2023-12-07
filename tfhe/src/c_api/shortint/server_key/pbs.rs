@@ -119,8 +119,8 @@ pub unsafe extern "C" fn shortint_server_key_generate_bivariate_pbs_lookup_table
 pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
     server_key: *const ShortintServerKey,
     lookup_table: *const ShortintBivariatePBSLookupTable,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -132,14 +132,13 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let lookup_table = get_ref_checked(lookup_table).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key.0.smart_apply_lookup_table_bivariate(
-            &mut ct_left.0,
-            &mut ct_right.0,
-            &lookup_table.0,
-        );
+        let res =
+            server_key
+                .0
+                .apply_lookup_table_bivariate(&ct_left.0, &ct_right.0, &lookup_table.0);
 
         let heap_allocated_result = Box::new(ShortintCiphertext(res));
 
@@ -159,7 +158,7 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap_as
         let lookup_table = get_ref_checked(lookup_table).unwrap();
         let ct_left_and_result = get_mut_checked(ct_left_and_result).unwrap();
         let ct_right = get_mut_checked(ct_right).unwrap();
-        server_key.0.smart_apply_lookup_table_bivariate_assign(
+        server_key.0.apply_lookup_table_bivariate_assign(
             &mut ct_left_and_result.0,
             &mut ct_right.0,
             &lookup_table.0,
