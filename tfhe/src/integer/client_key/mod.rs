@@ -17,7 +17,6 @@ use crate::shortint::{
     Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
 };
 use serde::{Deserialize, Serialize};
-pub use utils::radix_decomposition;
 
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
