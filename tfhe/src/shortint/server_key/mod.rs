@@ -55,6 +55,10 @@ pub enum CheckError {
         noise_level: NoiseLevel,
         max_noise_level: MaxNoiseLevel,
     },
+    UnscaledScaledOverlap {
+        unscaled_degree: Degree,
+        scale: u8,
+    },
 }
 
 impl Display for CheckError {
@@ -77,6 +81,17 @@ impl Display for CheckError {
                     "The noise (={}) should not exceed {}",
                     noise_level.get(),
                     max_noise_level.get(),
+                )
+            }
+            Self::UnscaledScaledOverlap {
+                unscaled_degree,
+                scale,
+            } => {
+                write!(
+                    f,
+                    "The scale (={}) should be bigger than the unscaled degree (={})",
+                    scale,
+                    unscaled_degree.get(),
                 )
             }
         }
