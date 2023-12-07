@@ -108,14 +108,14 @@ impl ServerKey {
     /// let msg_1 = 3;
     /// let msg_2 = 2;
     ///
-    /// let mut ct1 = cks.encrypt(msg_1);
-    /// let mut ct2 = cks.encrypt(msg_2);
+    /// let ct1 = cks.encrypt(msg_1);
+    /// let ct2 = cks.encrypt(msg_2);
     ///
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_lookup_table_bivariate(f);
     /// acc.is_bivariate_pbs_possible(&sks, &ct1, &ct2).unwrap();
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
+    /// let ct_res = sks.apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(dec, f(msg_1, msg_2));
@@ -192,33 +192,40 @@ impl ServerKey {
     ///
     /// let msg: u64 = 3;
     /// let msg2: u64 = 2;
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg2);
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg2);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
+    /// let ct_res = sks.apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(dec, (msg * msg2 * msg) % modulus);
     /// ```
-    pub fn smart_apply_lookup_table_bivariate(
+    pub fn apply_lookup_table_bivariate(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> Ciphertext {
-        if self
+        let ct_left_clean;
+        let ct_right_clean;
+
+        let (ct_left, ct_right) = if self
             .is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .is_err()
         {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
             // so the factor has to be message_modulus
             assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
+            ct_left_clean = self.message_extract(ct_left);
+            ct_right_clean = self.message_extract(ct_right);
+
+            (&ct_left_clean, &ct_right_clean)
+        } else {
+            (ct_left, ct_right)
+        };
 
         self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .unwrap();
@@ -226,7 +233,7 @@ impl ServerKey {
         self.unchecked_apply_lookup_table_bivariate(ct_left, ct_right, acc)
     }
 
-    pub fn smart_apply_lookup_table_bivariate_assign(
+    pub fn apply_lookup_table_bivariate_assign(
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
