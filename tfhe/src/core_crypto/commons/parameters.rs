@@ -11,10 +11,6 @@ pub use super::ciphertext_modulus::CiphertextModulus;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PlaintextCount(pub usize);
 
-/// The number encoder in an encoder list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct EncoderCount(pub usize);
-
 /// The number messages in a messages list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct CleartextCount(pub usize);
@@ -26,20 +22,6 @@ pub struct CiphertextCount(pub usize);
 /// The number of ciphertexts in an lwe ciphertext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct LweCiphertextCount(pub usize);
-
-/// The index of a ciphertext in an lwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct LweCiphertextIndex(pub usize);
-
-/// The range of indices of multiple contiguous ciphertexts in an lwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct LweCiphertextRange(pub usize, pub usize);
-
-impl LweCiphertextRange {
-    pub fn is_ordered(&self) -> bool {
-        self.1 <= self.0
-    }
-}
 
 /// The number of ciphertexts in a glwe ciphertext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
@@ -173,10 +155,6 @@ pub struct PolynomialCount(pub usize);
 /// Assuming a monomial $aX^N$, this returns the $N$ value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MonomialDegree(pub usize);
-
-/// The index of a monomial in a polynomial.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MonomialIndex(pub usize);
 
 /// The logarithm of the base used in a decomposition.
 ///
