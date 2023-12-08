@@ -2,14 +2,13 @@ use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::DecompositionBaseLog;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// A member of the decomposition.
 ///
 /// If we decompose a value $\theta$ as a sum $\sum\_{i=1}^l\tilde{\theta}\_i\frac{q}{B^i}$, this
 /// represents a $\tilde{\theta}\_i$.
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DecompositionTerm<T>
 where
     T: UnsignedInteger,
@@ -93,7 +92,7 @@ where
 ///
 /// If we decompose a value $\theta$ as a sum $\sum\_{i=1}^l\tilde{\theta}\_i\frac{q}{B^i}$, this
 /// represents a $\tilde{\theta}\_i$.
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DecompositionTermNonNative<T>
 where
     T: UnsignedInteger,
