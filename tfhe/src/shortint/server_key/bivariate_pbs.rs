@@ -1,8 +1,9 @@
-use super::{CheckError, LookupTable, ServerKey};
+use super::{CheckError, CiphertextNoiseDegree, LookupTable, ServerKey};
 use crate::core_crypto::prelude::container::Container;
-use crate::shortint::ciphertext::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::{Ciphertext, MessageModulus};
+use std::cmp::Ordering;
 
 #[must_use]
 pub struct BivariateLookupTable<C: Container<Element = u64>> {
@@ -163,7 +164,6 @@ impl ServerKey {
         let modulus = (ct_right.degree.get() + 1) as u64;
         assert!(modulus <= acc.ct_right_modulus.0 as u64);
 
-        // Message 1 is shifted
         self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
 
         unchecked_add_assign(ct_left, ct_right);
@@ -309,22 +309,210 @@ impl ServerKey {
     where
         F: Fn(u64, u64) -> u64,
     {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            // We don't have enough space in carries, so clear them
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
+        let ScalingOperation {
+            order,
+            scaled_behavior,
+            unscaled_bootstrapped,
+            scale,
+        } = self
+            .get_best_bivariate_scaling(ct_left, ct_right)
+            .expect("Current parameters can't be used to make a bivariate function evaluation");
+
+        let (ct_to_scale, unscaled_ct) = match order {
+            Order::ScaleLeft => (ct_left, ct_right),
+            Order::ScaleRight => (ct_right, ct_left),
+        };
+
+        if unscaled_bootstrapped {
+            self.message_extract_assign(unscaled_ct);
         }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
 
-        let factor = MessageModulus(ct_right.degree.get() + 1);
+        let scaled = match scaled_behavior {
+            ScaledBehavior::Scaled => self.unchecked_scalar_mul(ct_to_scale, scale),
+            ScaledBehavior::BootstrappedThenScaled => {
+                self.message_extract_assign(ct_to_scale);
 
-        // Generate the lookup table for the function
-        let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
+                self.unchecked_scalar_mul(ct_to_scale, scale)
+            }
+            ScaledBehavior::ScaledInBootstrap => {
+                let lookup_table = self
+                    .generate_lookup_table(|a| (a % self.message_modulus.0 as u64) * scale as u64);
 
-        self.unchecked_apply_lookup_table_bivariate(ct_left, ct_right, &lookup_table)
+                self.apply_lookup_table(ct_to_scale, &lookup_table)
+            }
+        };
+
+        let temp = self.unchecked_add(&scaled, unscaled_ct);
+
+        let lookup_table = match order {
+            Order::ScaleLeft => {
+                self.generate_lookup_table_bivariate_with_factor(f, MessageModulus(scale as usize))
+            }
+            Order::ScaleRight => self.generate_lookup_table_bivariate_with_factor(
+                |rhs: u64, lhs: u64| f(lhs, rhs),
+                MessageModulus(scale as usize),
+            ),
+        };
+
+        self.apply_lookup_table(&temp, &lookup_table.acc)
+    }
+
+    /// To apply a bivariate function to two inputs, we must have both their messages on the same
+    /// ciphertexts To do that, we add a shift of an input 1 to the other input 2
+    /// But we must ensure that:
+    ///  - The carry of the input 2 does not overlap with input 1 message
+    ///  - The padding bit is clean
+    ///  - The noise is not too high
+    /// We have multiple possibilities:
+    ///  - choose which input to shift
+    ///  - bootstrap the unscaled input (less noise and allows for a smaller scale as not carry
+    ///    overlapping is possible) or not
+    ///  - do not bootstrap the scaled input (cheaper), scale it in a bootstrap (least noise) or
+    ///    bootstrap it then scale it (the input is cleaner for other operations)
+    /// This function choose the solution with the smallest cost and in case of equality, with the
+    /// most cleaned inputs
+    fn get_best_bivariate_scaling(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> Option<ScalingOperation> {
+        let valid = |scaled_noise_degree: CiphertextNoiseDegree,
+                     unscaled_noise_degree: CiphertextNoiseDegree| {
+            let valid_degree = self
+                .max_degree
+                .validate(scaled_noise_degree.degree + unscaled_noise_degree.degree)
+                .is_ok();
+            let valid_noise = self
+                .max_noise_level
+                .validate(scaled_noise_degree.noise_level + unscaled_noise_degree.noise_level)
+                .is_ok();
+
+            valid_degree && valid_noise
+        };
+
+        [Order::ScaleLeft, Order::ScaleRight]
+            .into_iter()
+            .flat_map(move |order| {
+                let (scaled_ct, unscaled_ct) = match order {
+                    Order::ScaleLeft => (ct_left, ct_right),
+                    Order::ScaleRight => (ct_right, ct_left),
+                };
+
+                [false, true]
+                    .into_iter()
+                    .flat_map(move |unscaled_bootstrapped| {
+                        let unscaled_noise_degree = if unscaled_bootstrapped {
+                            unscaled_ct.noise_degree_if_bootstrapped()
+                        } else {
+                            unscaled_ct.noise_degree()
+                        };
+
+                        let scale = unscaled_noise_degree.degree.get() as u8 + 1;
+
+                        [
+                            ScaledBehavior::Scaled,
+                            ScaledBehavior::BootstrappedThenScaled,
+                            ScaledBehavior::ScaledInBootstrap,
+                        ]
+                        .into_iter()
+                        .filter_map(move |scaled_behavior| {
+                            let scaled_noise_degree = match scaled_behavior {
+                                ScaledBehavior::Scaled => scaled_ct.noise_degree_if_scaled(scale),
+                                ScaledBehavior::BootstrappedThenScaled => {
+                                    scaled_ct.noise_degree_if_bootstrapped_then_scaled(scale)
+                                }
+                                ScaledBehavior::ScaledInBootstrap => {
+                                    scaled_ct.noise_degree_if_scaled_in_bootstrap(scale)
+                                }
+                            };
+
+                            if valid(scaled_noise_degree, unscaled_noise_degree) {
+                                Some(ScalingOperation {
+                                    order,
+                                    scaled_behavior,
+                                    unscaled_bootstrapped,
+                                    scale,
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                    })
+            })
+            .max_by(
+                |op1, op2| match op1.number_of_pbs().cmp(&op2.number_of_pbs()) {
+                    // If op1 has less pbs,
+                    // we want it to dominate (Greater) op2 (as we take the max)
+                    Ordering::Less => Ordering::Greater,
+                    Ordering::Greater => Ordering::Less,
+                    // op1 and op2 have as many pbs,
+                    // if op1 has more cleaned inputs, we want it to dominate op2
+                    Ordering::Equal => op1.cleaned_inputs().cmp(&op2.cleaned_inputs()),
+                },
+            )
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum Order {
+    ScaleLeft,
+    ScaleRight,
+}
+
+#[derive(Copy, Clone, Debug)]
+enum ScaledBehavior {
+    Scaled,
+    BootstrappedThenScaled,
+    ScaledInBootstrap,
+}
+
+#[derive(Copy, Clone, Debug)]
+struct ScalingOperation {
+    order: Order,
+    scaled_behavior: ScaledBehavior,
+    unscaled_bootstrapped: bool,
+    scale: u8,
+}
+
+impl ScalingOperation {
+    fn cleaned_inputs(self) -> usize {
+        let scaled_bootstapped_inplace =
+            matches!(self.scaled_behavior, ScaledBehavior::BootstrappedThenScaled);
+
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped_inplace)
+    }
+    fn number_of_pbs(self) -> usize {
+        let scaled_bootstapped = matches!(
+            self.scaled_behavior,
+            ScaledBehavior::BootstrappedThenScaled | ScaledBehavior::ScaledInBootstrap
+        );
+
+        usize::from(self.unscaled_bootstrapped) + usize::from(scaled_bootstapped)
+    }
+}
+
+impl Ciphertext {
+    fn noise_degree_if_scaled(&self, scale: u8) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: self.noise_level() * scale as usize,
+            degree: self.degree * scale as usize,
+        }
+    }
+    fn noise_degree_if_bootstrapped_then_scaled(&self, scale: u8) -> CiphertextNoiseDegree {
+        let CiphertextNoiseDegree {
+            noise_level: noise,
+            degree,
+        } = self.noise_degree_if_bootstrapped();
+
+        CiphertextNoiseDegree {
+            noise_level: noise * scale as usize,
+            degree: degree * scale as usize,
+        }
+    }
+    fn noise_degree_if_scaled_in_bootstrap(&self, scale: u8) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: NoiseLevel::NOMINAL,
+            degree: Degree::new(self.degree.get().min(self.message_modulus.0 - 1)) * scale as usize,
+        }
     }
 }

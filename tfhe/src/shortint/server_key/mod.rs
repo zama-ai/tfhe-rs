@@ -1006,3 +1006,24 @@ impl From<CompressedServerKey> for ServerKey {
         }
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct CiphertextNoiseDegree {
+    pub noise_level: NoiseLevel,
+    pub degree: Degree,
+}
+
+impl Ciphertext {
+    pub fn noise_degree(&self) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: self.noise_level(),
+            degree: self.degree,
+        }
+    }
+    pub fn noise_degree_if_bootstrapped(&self) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: NoiseLevel::NOMINAL,
+            degree: Degree::new(self.degree.get().min(self.message_modulus.0 - 1)),
+        }
+    }
+}
