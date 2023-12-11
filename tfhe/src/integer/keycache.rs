@@ -18,11 +18,9 @@ impl IntegerKeyCache {
         let client_key = ClientKey::from(client_key.clone());
         let server_key = match key_kind {
             IntegerKeyKind::Radix => {
-                ServerKey::new_radix_server_key_from_shortint(&client_key, server_key.clone())
+                ServerKey::new_radix_server_key_from_shortint(server_key.clone())
             }
-            IntegerKeyKind::CRT => {
-                ServerKey::new_crt_server_key_from_shortint(&client_key, server_key.clone())
-            }
+            IntegerKeyKind::CRT => ServerKey::new_crt_server_key_from_shortint(server_key.clone()),
         };
 
         (client_key, server_key)
