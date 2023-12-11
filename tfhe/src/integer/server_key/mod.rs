@@ -40,10 +40,13 @@ impl MaxDegree {
     /// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) (which includes adding the extracted
     /// carry from one shortint block to the next block), this formula provisions space to add a
     /// carry.
-    fn integer_radix_server_key(parameters: crate::shortint::ShortintParameterSet) -> Self {
-        let full_max_degree = parameters.message_modulus().0 * parameters.carry_modulus().0 - 1;
+    fn integer_radix_server_key(
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        let full_max_degree = message_modulus.0 * carry_modulus.0 - 1;
 
-        let carry_max_degree = parameters.carry_modulus().0 - 1;
+        let carry_max_degree = carry_modulus.0 - 1;
 
         // We want to be have a margin to add a carry from another block
         Self::new(full_max_degree - carry_max_degree)
@@ -54,8 +57,11 @@ impl MaxDegree {
     /// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed).
     /// This is tailored for [`CrtCiphertext`](`crate::integer::CrtCiphertext`) and not compatible
     /// for use with [`RadixCiphertext`](`crate::integer::RadixCiphertext`).
-    fn integer_crt_server_key(parameters: crate::shortint::ShortintParameterSet) -> Self {
-        let full_max_degree = parameters.message_modulus().0 * parameters.carry_modulus().0 - 1;
+    fn integer_crt_server_key(
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        let full_max_degree = message_modulus.0 * carry_modulus.0 - 1;
 
         Self::new(full_max_degree)
     }
@@ -82,7 +88,10 @@ impl ServerKey {
     {
         // It should remain just enough space to add a carry
         let client_key = cks.as_ref();
-        let max_degree = MaxDegree::integer_radix_server_key(client_key.key.parameters);
+        let max_degree = MaxDegree::integer_radix_server_key(
+            client_key.key.parameters.message_modulus(),
+            client_key.key.parameters.carry_modulus(),
+        );
 
         let sks = crate::shortint::server_key::ServerKey::new_with_max_degree(
             &client_key.key,
@@ -97,7 +106,10 @@ impl ServerKey {
         C: AsRef<ClientKey>,
     {
         let client_key = cks.as_ref();
-        let max_degree = MaxDegree::integer_crt_server_key(client_key.key.parameters);
+        let max_degree = MaxDegree::integer_crt_server_key(
+            client_key.key.parameters.message_modulus(),
+            client_key.key.parameters.carry_modulus(),
+        );
 
         let sks = crate::shortint::server_key::ServerKey::new_with_max_degree(
             &client_key.key,
@@ -127,14 +139,14 @@ impl ServerKey {
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_radix_server_key_from_shortint(&cks, shortint_sks);
+    /// let sks = ServerKey::new_radix_server_key_from_shortint(shortint_sks);
     /// ```
     pub fn new_radix_server_key_from_shortint(
-        cks: &ClientKey,
         mut key: crate::shortint::server_key::ServerKey,
     ) -> Self {
         // It should remain just enough space add a carry
-        let max_degree = MaxDegree::integer_radix_server_key(cks.key.parameters);
+        let max_degree =
+            MaxDegree::integer_radix_server_key(key.message_modulus, key.carry_modulus);
 
         key.max_degree = max_degree;
         Self { key }
@@ -160,13 +172,12 @@ impl ServerKey {
     /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_crt_server_key_from_shortint(&cks, shortint_sks);
+    /// let sks = ServerKey::new_crt_server_key_from_shortint(shortint_sks);
     /// ```
     pub fn new_crt_server_key_from_shortint(
-        cks: &ClientKey,
         mut key: crate::shortint::server_key::ServerKey,
     ) -> Self {
-        key.max_degree = MaxDegree::integer_crt_server_key(cks.key.parameters);
+        key.max_degree = MaxDegree::integer_crt_server_key(key.message_modulus, key.carry_modulus);
         Self { key }
     }
 
@@ -200,7 +211,10 @@ pub struct CompressedServerKey {
 
 impl CompressedServerKey {
     pub fn new_radix_compressed_server_key(client_key: &ClientKey) -> Self {
-        let max_degree = MaxDegree::integer_radix_server_key(client_key.key.parameters);
+        let max_degree = MaxDegree::integer_radix_server_key(
+            client_key.key.parameters.message_modulus(),
+            client_key.key.parameters.carry_modulus(),
+        );
 
         let key =
             crate::shortint::CompressedServerKey::new_with_max_degree(&client_key.key, max_degree);
