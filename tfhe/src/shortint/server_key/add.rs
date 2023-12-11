@@ -2,9 +2,9 @@ use super::{CiphertextNoiseDegree, SmartCleaningOperation};
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
@@ -272,9 +272,12 @@ impl ServerKey {
         ct_left: CiphertextNoiseDegree,
         ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
-        self.max_degree.validate(ct_left.degree + ct_right.degree)?;
+        self.0
+            .max_degree
+            .validate(ct_left.degree + ct_right.degree)?;
 
-        self.max_noise_level
+        self.0
+            .max_noise_level
             .validate(ct_left.noise_level + ct_right.noise_level)?;
         Ok(())
     }

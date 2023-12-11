@@ -1,11 +1,10 @@
 use super::add::unchecked_add_assign;
-use super::{CiphertextNoiseDegree, ServerKey};
+use super::CiphertextNoiseDegree;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
+use crate::shortint::{Ciphertext, DServerKey};
 
-use crate::shortint::Ciphertext;
-
-impl ServerKey {
+impl DServerKey {
     /// Multiply two ciphertexts together without checks.
     ///
     /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
@@ -208,7 +207,7 @@ impl ServerKey {
         }
 
         // Modulus of the msg in the msg bits
-        let res_modulus = self.message_modulus.0 as u64;
+        let res_modulus = self.0.message_modulus.0 as u64;
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
             (x * y) / res_modulus
         });
@@ -235,8 +234,8 @@ impl ServerKey {
             (((x.wrapping_sub(z)).wrapping_mul(x.wrapping_sub(z))) / 4) % modulus
         });
 
-        self.apply_lookup_table_assign(&mut ct_add, &acc_add);
-        self.apply_lookup_table_assign(&mut ct_sub, &acc_sub);
+        self.apply_lookup_table_assign(&mut ct_add, acc_add);
+        self.apply_lookup_table_assign(&mut ct_sub, acc_sub);
 
         //Last subtraction might fill one bit of carry
         self.unchecked_sub(&ct_add, &ct_sub)

@@ -3,9 +3,9 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically an addition between a ciphertext and a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -123,9 +123,9 @@ impl ServerKey {
     /// );
     /// ```
     pub fn scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let modulus = self.message_modulus.0 as u64;
+        let modulus = self.0.message_modulus.0 as u64;
         let acc = self.generate_lookup_table(|x| (scalar as u64 + x) % modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.
@@ -209,7 +209,7 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.0.message_modulus.0 * self.0.carry_modulus.0) as u64;
         let shift_plaintext = u64::from(scalar) * delta;
         let encoded_scalar = Plaintext(shift_plaintext);
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
@@ -251,7 +251,7 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         let final_degree = scalar as usize + ct.degree.get();
 
-        self.max_degree.validate(Degree::new(final_degree))
+        self.0.max_degree.validate(Degree::new(final_degree))
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.
@@ -459,9 +459,9 @@ impl ServerKey {
             self.unchecked_scalar_add_assign(ct, scalar);
         } else {
             // If the scalar is too large, PBS is used to compute the scalar mul
-            let acc = self.generate_msg_lookup_table(|x| scalar as u64 + x, self.message_modulus);
-            self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = Degree::new(self.message_modulus.0 - 1);
+            let acc = self.generate_msg_lookup_table(|x| scalar as u64 + x, self.0.message_modulus);
+            self.apply_lookup_table_assign(ct, acc);
+            ct.degree = Degree::new(self.0.message_modulus.0 - 1);
         }
     }
 }

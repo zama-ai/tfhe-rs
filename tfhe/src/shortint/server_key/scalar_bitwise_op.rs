@@ -1,7 +1,6 @@
-use super::ServerKey;
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a bitwise AND between a ciphertext and a clear value
     ///
     ///

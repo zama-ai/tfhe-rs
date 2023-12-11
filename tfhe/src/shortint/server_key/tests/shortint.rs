@@ -419,7 +419,7 @@ where
         //define the lookup_table as identity
         let acc = sks.generate_msg_lookup_table(|n| n, cks.parameters.message_modulus());
         // add the two ciphertexts
-        let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
+        let ct_res = sks.apply_lookup_table(ctxt_0, acc);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -450,7 +450,7 @@ where
         //define the lookup_table as identity
         let acc = sks.generate_lookup_table_bivariate(|x, y| (x * 2 * y) % modulus);
         // add the two ciphertexts
-        let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ctxt_0, &ctxt_1, &acc);
+        let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ctxt_0, &ctxt_1, acc);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -535,7 +535,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let double = |x| (2 * x) % sks.message_modulus.0 as u64;
+    let double = |x| (2 * x) % sks.0.message_modulus.0 as u64;
     let acc = sks.generate_lookup_table(double);
 
     //RNG
@@ -549,7 +549,7 @@ where
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        let ct_res = sks.apply_lookup_table(&ct, &acc);
+        let ct_res = sks.apply_lookup_table(ct, acc.clone());
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -3240,11 +3240,11 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let check_trivial_bootstrap = |clear, lut: &LookupTableOwned| {
-        let trivial_ct = sks.unchecked_create_trivial(clear);
+        let trivial_ct = sks.0.unchecked_create_trivial(clear);
         let non_trivial_ct = cks.unchecked_encrypt(clear);
 
-        let trivial_res = sks.apply_lookup_table(&trivial_ct, lut);
-        let non_trivial_res = sks.apply_lookup_table(&non_trivial_ct, lut);
+        let trivial_res = sks.apply_lookup_table(trivial_ct, lut.clone());
+        let non_trivial_res = sks.apply_lookup_table(non_trivial_ct, lut.clone());
         assert!(trivial_res.is_trivial());
         assert!(!non_trivial_res.is_trivial());
         assert_eq!(non_trivial_res.noise_level(), NoiseLevel::NOMINAL);
@@ -3259,8 +3259,8 @@ where
 
     let functions = [
         Box::new(|x| x) as Box<dyn Fn(u64) -> u64>,
-        Box::new(|x| x % sks.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
-        Box::new(|x| x / sks.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
+        Box::new(|x| x % sks.0.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
+        Box::new(|x| x / sks.0.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
     ];
 
     // Test will be too expensive

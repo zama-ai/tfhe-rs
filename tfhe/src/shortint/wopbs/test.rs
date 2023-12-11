@@ -114,7 +114,7 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
         let m = rng.gen::<usize>() % message_modulus;
         let ct = cks.encrypt(m as u64);
         let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus as u64);
-        let ct_res = wopbs_key.programmable_bootstrapping(sks, &ct, &lut);
+        let ct_res = wopbs_key.programmable_bootstrapping(sks, ct, &lut);
 
         let res = cks.decrypt(&ct_res);
         if res != (m % message_modulus) as u64 {
@@ -140,7 +140,7 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 
         let ct = cks.encrypt_with_message_modulus(m as u64, message_modulus);
 
-        let ct = wopbs_key.keyswitch_to_wopbs_params(sks, &ct);
+        let ct = wopbs_key.keyswitch_to_wopbs_params(sks, ct);
         let lut = wopbs_key.generate_lut(&ct, |x| (x * x) % message_modulus.0 as u64);
         let ct_res = wopbs_key.wopbs(&ct, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);

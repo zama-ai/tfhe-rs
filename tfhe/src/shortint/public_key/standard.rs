@@ -42,7 +42,7 @@ impl PublicKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
+    /// use tfhe::shortint::{ClientKey, DServerKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);

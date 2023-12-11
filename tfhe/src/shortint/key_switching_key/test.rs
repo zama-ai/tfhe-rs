@@ -11,13 +11,14 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
     ));
     let ck1 = keys.client_key_1();
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
+
     let ksk = keys.key_switching_key();
 
     assert_eq!(ksk.cast_rshift, 2);
 
     // Message 0 Carry 0
     let cipher = ck1.encrypt(0);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -26,7 +27,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
 
     // Message 1 Carry 0
     let cipher = ck1.encrypt(1);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 1);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -35,7 +36,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
 
     // Message 0 Carry 1
     let cipher = ck1.unchecked_encrypt(2);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 2);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -44,7 +45,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
 
     // Message 1 Carry 1
     let cipher = ck1.unchecked_encrypt(3);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 3);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -74,7 +75,7 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
 
     // Message 0 Carry 0
     let cipher = ck1.encrypt(0);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     let ct_carry = sk2.carry_extract(&output_of_cast);
     let carry = ck2.decrypt(&ct_carry);
@@ -83,7 +84,7 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
 
     // Message 1 Carry 0
     let cipher = ck1.encrypt(1);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     let ct_carry = sk2.carry_extract(&output_of_cast);
     let carry = ck2.decrypt(&ct_carry);
@@ -92,7 +93,7 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
 
     // Message 0 Carry 1
     let cipher = ck1.unchecked_encrypt(2);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     let ct_carry = sk2.carry_extract(&output_of_cast);
     let carry = ck2.decrypt(&ct_carry);
@@ -101,7 +102,7 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
 
     // Message 1 Carry 1
     let cipher = ck1.unchecked_encrypt(3);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     let ct_carry = sk2.carry_extract(&output_of_cast);
     let carry = ck2.decrypt(&ct_carry);
@@ -118,6 +119,7 @@ fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     ));
     let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
+
     let ksk = keys.key_switching_key();
 
     // voluntary overflow
@@ -127,7 +129,7 @@ fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     let c3 = sk1.unchecked_scalar_mul(&c1, 2);
     let c4 = sk1.unchecked_add(&c3, &c2);
 
-    let output_of_cast = ksk.cast(&c4);
+    let output_of_cast = ksk.cast(c4);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 3);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -177,7 +179,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
 
     // Message 0 Carry 0
     let cipher = ck1.unchecked_encrypt(0);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -186,7 +188,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
 
     // Message 1 Carry 0
     let cipher = ck1.unchecked_encrypt(1);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 1);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -195,7 +197,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
 
     // Message 0 Carry 1
     let cipher = ck1.unchecked_encrypt(2);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -204,7 +206,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
 
     // Message 1 Carry 1
     let cipher = ck1.unchecked_encrypt(3);
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 1);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -218,7 +220,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     let carry = ck1.decrypt(&ct_carry);
     assert_eq!((clear, carry), (0, 3));
 
-    let output_of_cast = ksk.cast(&cipher);
+    let output_of_cast = ksk.cast(cipher);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);

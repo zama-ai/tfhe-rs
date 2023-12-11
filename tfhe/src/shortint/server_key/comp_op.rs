@@ -1,6 +1,5 @@
-use super::ServerKey;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, DServerKey};
 
 // # Note:
 // _assign comparison operation are not made public (if they exists) as we don't think there are
@@ -8,7 +7,7 @@ use crate::shortint::Ciphertext;
 // however, comparisons like equality do not have that, "==" does not have and "===",
 // ">=" is greater of equal, not greater_assign.
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will

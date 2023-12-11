@@ -2,9 +2,9 @@ use super::{CiphertextNoiseDegree, SmartCleaningOperation};
 use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a subtraction between two ciphertexts.
     ///
     /// This returns a new ciphertext.
@@ -183,16 +183,18 @@ impl ServerKey {
         ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
-        let msg_mod = self.message_modulus.0;
+        let msg_mod = self.0.message_modulus.0;
         let mut z = (ct_right.degree.get() + msg_mod - 1) / msg_mod;
         z = z.wrapping_mul(msg_mod);
 
         let final_operation_count = ct_left.degree.get() + z;
 
-        self.max_degree
+        self.0
+            .max_degree
             .validate(Degree::new(final_operation_count))?;
 
-        self.max_noise_level
+        self.0
+            .max_noise_level
             .validate(ct_left.noise_level + ct_right.noise_level)?;
         Ok(())
     }

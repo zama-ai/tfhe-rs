@@ -4,9 +4,9 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a negation of a ciphertext.
     ///
     /// This checks that the negation is possible. In the case where the carry buffers are full,
@@ -229,7 +229,7 @@ impl ServerKey {
         z *= msg_mod as u64;
 
         // Value of the shift we multiply our messages by
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.0.message_modulus.0 * self.0.carry_modulus.0) as u64;
 
         //Scaling + 1 on the padding bit
         let w = Plaintext(z * delta);
@@ -276,11 +276,11 @@ impl ServerKey {
     /// ```
     pub fn is_neg_possible(&self, ct: CiphertextNoiseDegree) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
-        let msg_mod = self.message_modulus.0;
+        let msg_mod = self.0.message_modulus.0;
         let mut z = (ct.degree.get() + msg_mod - 1) / msg_mod;
         z = z.wrapping_mul(msg_mod);
 
-        self.max_degree.validate(Degree::new(z))
+        self.0.max_degree.validate(Degree::new(z))
     }
 
     /// Compute homomorphically a negation of a ciphertext.

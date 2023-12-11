@@ -1,4 +1,4 @@
-//! Module with the definition of the ServerKey.
+//! Module with the definition of the DServerKey.
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
@@ -21,6 +21,7 @@ pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
+use lamellar::ActiveMessaging;
 
 #[cfg(test)]
 mod tests;
@@ -43,6 +44,11 @@ use crate::shortint::parameters::{
 use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::atomic::Ordering;
+
+use super::{DServerKey, Pbs, DISPATCHER};
 
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
@@ -263,7 +269,7 @@ impl ShortintBootstrappingKey {
     /// Set the choice of PBS algorithm to have the `new_deterministic_execution` behavior.
     ///
     /// Note: the classic PBS algorithm is always deterministic and calling this function on a
-    /// [`ServerKey`] made from [`super::ClassicPBSParameters`] is a no-op.
+    /// [`DServerKey`] made from [`super::ClassicPBSParameters`] is a no-op.
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             // Classic PBS is already deterministic no matter what
@@ -319,7 +325,7 @@ impl ServerKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
     pub acc: GlweCiphertext<C>,
@@ -337,13 +343,13 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{gen_keys, ServerKey};
+    /// use tfhe::shortint::{gen_keys, DServerKey};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new(&cks);
+    /// let sks = DServerKey::new(&cks);
     /// ```
     pub fn new(cks: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks))
@@ -355,7 +361,9 @@ impl ServerKey {
             engine.new_server_key_with_max_degree(cks, max_degree)
         })
     }
+}
 
+impl DServerKey {
     /// Constructs the lookup table given a function as input.
     ///
     /// # Example
@@ -374,7 +382,7 @@ impl ServerKey {
     /// // Generate the lookup table for the function f: x -> x*x mod 4
     /// let f = |x: u64| x.pow(2) % 4;
     /// let acc = sks.generate_lookup_table(f);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let ct_res = sks.apply_lookup_table(&ct, acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3**2 mod 4 = 1
@@ -386,11 +394,11 @@ impl ServerKey {
     {
         let mut acc = GlweCiphertext::new(
             0,
-            self.bootstrapping_key.glwe_size(),
-            self.bootstrapping_key.polynomial_size(),
-            self.ciphertext_modulus,
+            self.0.bootstrapping_key.glwe_size(),
+            self.0.bootstrapping_key.polynomial_size(),
+            self.0.ciphertext_modulus,
         );
-        let max_value = fill_accumulator(&mut acc, self, f);
+        let max_value = fill_accumulator(&mut acc, &self.0, f);
 
         LookupTableOwned {
             acc,
@@ -418,7 +426,7 @@ impl ServerKey {
     /// let f = |x: u64| x.pow(2);
     ///
     /// let acc = sks.generate_msg_lookup_table(f, ct.message_modulus);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let ct_res = sks.apply_lookup_table(&ct, acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^2 mod 4 = 1
@@ -448,13 +456,13 @@ impl ServerKey {
     ///
     /// // Generate the lookup table for the function f: x -> x*x*x mod 4
     /// let acc = sks.generate_lookup_table(|x| x * x * x % modulus);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let ct_res = sks.apply_lookup_table(&ct, acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // (3*3*3) mod 4 = 3
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
-    pub fn apply_lookup_table(&self, ct: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
+    pub fn apply_lookup_table(&self, ct: Ciphertext, acc: LookupTableOwned) -> Ciphertext {
         let mut ct_res = ct.clone();
 
         self.apply_lookup_table_assign(&mut ct_res, acc);
@@ -462,15 +470,32 @@ impl ServerKey {
         ct_res
     }
 
-    pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
-        match self.pbs_order {
+    pub fn apply_lookup_table_future(
+        &self,
+        ct: Ciphertext,
+        acc: LookupTableOwned,
+    ) -> Pin<Box<dyn Future<Output = Ciphertext> + Send + 'static>> {
+        let pe_index = DISPATCHER.pe_index.fetch_add(1, Ordering::Relaxed);
+
+        DISPATCHER.world.exec_am_pe(
+            pe_index % DISPATCHER.number_pe,
+            Pbs {
+                ct,
+                acc,
+                sk: self.0.clone(),
+            },
+        )
+    }
+
+    pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: LookupTableOwned) {
+        match self.0.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 // This updates the ciphertext degree
-                self.keyswitch_programmable_bootstrap_assign(ct, acc);
+                self.0.keyswitch_programmable_bootstrap_assign(ct, &acc);
             }
             PBSOrder::BootstrapKeyswitch => {
                 // This updates the ciphertext degree
-                self.programmable_bootstrap_keyswitch_assign(ct, acc);
+                self.0.programmable_bootstrap_keyswitch_assign(ct, &acc);
             }
         };
     }
@@ -483,9 +508,9 @@ impl ServerKey {
         F: Fn(u64) -> u64,
     {
         // Generate the lookup table for the function
-        let lookup_table = self.generate_msg_lookup_table(f, self.message_modulus);
+        let lookup_table = self.generate_msg_lookup_table(f, self.0.message_modulus);
 
-        self.apply_lookup_table_assign(ct, &lookup_table);
+        self.apply_lookup_table_assign(ct, lookup_table);
     }
 
     /// Applies the given function to the message of a ciphertext
@@ -541,7 +566,7 @@ impl ServerKey {
 
         let lookup_table = self.generate_lookup_table(|x| x / modulus);
 
-        self.apply_lookup_table_assign(ct, &lookup_table);
+        self.apply_lookup_table_assign(ct, lookup_table);
     }
 
     /// Extract a new ciphertext encrypting the input carry buffer.
@@ -584,7 +609,7 @@ impl ServerKey {
     }
 
     /// Clears the carry buffer of the input ciphertext.
-    ///
+    ///s
     /// # Example
     ///
     ///```rust
@@ -619,7 +644,7 @@ impl ServerKey {
     pub fn message_extract_assign(&self, ct: &mut Ciphertext) {
         let acc = self.generate_msg_lookup_table(|x| x, ct.message_modulus);
 
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Extract a new ciphertext containing only the message i.e., with a cleared carry buffer.
@@ -660,7 +685,9 @@ impl ServerKey {
         self.message_extract_assign(&mut result);
         result
     }
+}
 
+impl ServerKey {
     /// Compute a trivial shortint ciphertext with the dimension of the big LWE secret key from a
     /// given value.
     ///
@@ -932,7 +959,7 @@ impl ServerKey {
     }
 }
 
-impl From<CompressedServerKey> for ServerKey {
+impl From<CompressedServerKey> for DServerKey {
     fn from(compressed_server_key: CompressedServerKey) -> Self {
         let CompressedServerKey {
             key_switching_key,
@@ -1009,7 +1036,7 @@ impl From<CompressedServerKey> for ServerKey {
 
         let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
 
-        Self {
+        Self::new(ServerKey {
             key_switching_key,
             bootstrapping_key,
             message_modulus,
@@ -1018,7 +1045,7 @@ impl From<CompressedServerKey> for ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
-        }
+        })
     }
 }
 
@@ -1055,7 +1082,7 @@ impl SmartCleaningOperation {
     }
 }
 
-impl ServerKey {
+impl DServerKey {
     /// Before doing an operations on 2 inputs which validity is described by
     /// `is_operation_possible`, one or both the inputs may need to be cleaned (carry removal and
     /// noise reinitilization) with a PBS

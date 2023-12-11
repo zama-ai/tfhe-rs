@@ -8,8 +8,10 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
-use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
-use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
+use crate::shortint::server_key::{
+    ServerKey, ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
+};
+use crate::shortint::{ClientKey, CompressedServerKey};
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
@@ -147,6 +149,7 @@ impl ShortintEngine {
         );
 
         // Pack the keys in the server key set:
+        // DServerKey::new(
         ServerKey {
             key_switching_key,
             bootstrapping_key: bootstrapping_key_base,
@@ -157,6 +160,7 @@ impl ShortintEngine {
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         }
+        // )
     }
 
     pub(crate) fn new_key_switching_key(

@@ -2,7 +2,7 @@ use super::{CheckError, CiphertextNoiseDegree, LookupTable, ServerKey};
 use crate::core_crypto::prelude::container::Container;
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 use crate::shortint::server_key::add::unchecked_add_assign;
-use crate::shortint::{Ciphertext, MessageModulus};
+use crate::shortint::{Ciphertext, DServerKey, MessageModulus};
 use std::cmp::Ordering;
 
 #[must_use]
@@ -66,7 +66,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     Ok(())
 }
 
-impl ServerKey {
+impl DServerKey {
     /// Generates a bivariate accumulator
     pub fn generate_lookup_table_bivariate_with_factor<F>(
         &self,
@@ -80,7 +80,7 @@ impl ServerKey {
         // (degree >= message_modulus) which is why we need to apply the message_modulus
         // to clear them
         let factor_u64 = left_message_scaling.0 as u64;
-        let message_modulus = self.message_modulus.0 as u64;
+        let message_modulus = self.0.message_modulus.0 as u64;
         let wrapped_f = |input: u64| -> u64 {
             let lhs = (input / factor_u64) % message_modulus;
             let rhs = (input % factor_u64) % message_modulus;
@@ -126,7 +126,7 @@ impl ServerKey {
     where
         F: Fn(u64, u64) -> u64,
     {
-        self.generate_lookup_table_bivariate_with_factor(f, self.message_modulus)
+        self.generate_lookup_table_bivariate_with_factor(f, self.0.message_modulus)
     }
 
     /// Compute a keyswitch and programmable bootstrap.
@@ -157,7 +157,7 @@ impl ServerKey {
         &self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &BivariateLookupTableOwned,
+        acc: BivariateLookupTableOwned,
     ) -> Ciphertext {
         let mut ct_res = ct_left.clone();
         self.unchecked_apply_lookup_table_bivariate_assign(&mut ct_res, ct_right, acc);
@@ -168,7 +168,7 @@ impl ServerKey {
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &BivariateLookupTableOwned,
+        acc: BivariateLookupTableOwned,
     ) {
         let modulus = (ct_right.degree.get() + 1) as u64;
         assert!(modulus <= acc.ct_right_modulus.0 as u64);
@@ -178,7 +178,7 @@ impl ServerKey {
         unchecked_add_assign(ct_left, ct_right);
 
         // Compute the PBS
-        self.apply_lookup_table_assign(ct_left, &acc.acc);
+        self.apply_lookup_table_assign(ct_left, acc.acc);
     }
 
     /// Compute a keyswitch and programmable bootstrap.
@@ -209,7 +209,7 @@ impl ServerKey {
         &self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &BivariateLookupTableOwned,
+        acc: BivariateLookupTableOwned,
     ) -> Ciphertext {
         let ct_left_clean;
         let ct_right_clean;
@@ -239,7 +239,7 @@ impl ServerKey {
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-        acc: &BivariateLookupTableOwned,
+        acc: BivariateLookupTableOwned,
     ) {
         if self
             .is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())
@@ -286,7 +286,7 @@ impl ServerKey {
         let factor = MessageModulus(ct_right.degree.get() + 1);
         let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
 
-        self.unchecked_apply_lookup_table_bivariate_assign(ct_left, ct_right, &lookup_table);
+        self.unchecked_apply_lookup_table_bivariate_assign(ct_left, ct_right, lookup_table);
     }
 
     /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
@@ -296,7 +296,7 @@ impl ServerKey {
         ct2: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
         ciphertexts_can_be_packed_without_exceeding_space_or_noise(
-            self,
+            &self.0,
             ct1,
             ct2,
             ct2.degree.get() + 1,
@@ -351,10 +351,11 @@ impl ServerKey {
                 self.unchecked_scalar_mul(ct_to_scale, scale)
             }
             ScaledBehavior::ScaledInBootstrap => {
-                let lookup_table = self
-                    .generate_lookup_table(|a| (a % self.message_modulus.0 as u64) * scale as u64);
+                let lookup_table = self.generate_lookup_table(|a| {
+                    (a % self.0.message_modulus.0 as u64) * scale as u64
+                });
 
-                self.apply_lookup_table(ct_to_scale, &lookup_table)
+                self.apply_lookup_table(ct_to_scale.clone(), lookup_table)
             }
         };
 
@@ -370,7 +371,7 @@ impl ServerKey {
             ),
         };
 
-        self.apply_lookup_table(&temp, &lookup_table.acc)
+        self.apply_lookup_table(temp, lookup_table.acc)
     }
 
     /// To apply a bivariate function to two inputs, we must have both their messages on the same
@@ -395,10 +396,12 @@ impl ServerKey {
         let valid = |scaled_noise_degree: CiphertextNoiseDegree,
                      unscaled_noise_degree: CiphertextNoiseDegree| {
             let valid_degree = self
+                .0
                 .max_degree
                 .validate(scaled_noise_degree.degree + unscaled_noise_degree.degree)
                 .is_ok();
             let valid_noise = self
+                .0
                 .max_noise_level
                 .validate(scaled_noise_degree.noise_level + unscaled_noise_degree.noise_level)
                 .is_ok();

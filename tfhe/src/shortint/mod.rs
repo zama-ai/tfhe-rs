@@ -1,3 +1,4 @@
+#![allow(clippy::let_and_return)]
 //! # Description
 //!
 //! This library makes it possible to execute modular operations over encrypted short integer.
@@ -16,7 +17,7 @@
 //! This crates exposes two type of keys:
 //! * The [`ClientKey`](crate::shortint::client_key::ClientKey) is used to encrypt and decrypt and
 //!   has to be kept secret;
-//! * The [`ServerKey`](crate::shortint::server_key::ServerKey) is used to perform homomorphic
+//! * The [`DServerKey`](crate::shortint::server_key::DServerKey) is used to perform homomorphic
 //!   operations on the server side and it is meant to be published (the client sends it to the
 //!   server).
 //!
@@ -59,9 +60,11 @@ pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
 
+use self::server_key::LookupTableOwned;
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub use key_switching_key::KeySwitchingKey;
+use lamellar::{AmData, Darc};
 pub use parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
     MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
@@ -69,13 +72,15 @@ pub use parameters::{
 pub use public_key::{
     CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
+use serde::{Deserialize, Serialize};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
+use std::sync::atomic::AtomicUsize;
 
 /// Generate a couple of client and server keys.
 ///
 /// # Example
 ///
-/// Generating a pair of [ClientKey] and [ServerKey] using the default parameters.
+/// Generating a pair of [ClientKey] and [DServerKey] using the default parameters.
 ///
 /// ```rust
 /// use tfhe::shortint::gen_keys;
@@ -84,7 +89,7 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 /// ```
-pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
+pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, DServerKey)
 where
     P: TryInto<ShortintParameterSet>,
     <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
@@ -119,7 +124,98 @@ where
     };
 
     let cks = ClientKey::new(shortint_parameters_set);
-    let sks = ServerKey::new(&cks);
+    let sks = DServerKey::new(ServerKey::new(&cks));
 
     (cks, sks)
+}
+
+pub struct PbsDispatcher {
+    pub pe_index: AtomicUsize,
+    pub number_pe: usize,
+    pub world: lamellar::LamellarWorld,
+}
+
+pub static DISPATCHER: once_cell::sync::Lazy<PbsDispatcher> = once_cell::sync::Lazy::new(|| {
+    let world = lamellar::LamellarWorldBuilder::new().build();
+
+    let number_pe = world.num_pes();
+
+    PbsDispatcher {
+        world,
+        pe_index: AtomicUsize::new(0),
+        number_pe,
+    }
+});
+
+#[AmData(Clone)] // `AmData` is a macro used in place of `derive`
+pub(crate) struct Pbs {
+    //the "input data" we are sending with our active message
+    pub(crate) ct: Ciphertext,
+    pub(crate) acc: LookupTableOwned,
+    pub(crate) sk: Darc<ServerKey>,
+}
+
+#[lamellar::am] // at a highlevel registers this LamellarAM implemenatation with the runtime for remote execution
+impl LamellarAM for Pbs {
+    async fn exec(&self) -> Ciphertext {
+        let mut ct = self.ct.clone();
+
+        match self.sk.pbs_order {
+            PBSOrder::KeyswitchBootstrap => {
+                self.sk
+                    .keyswitch_programmable_bootstrap_assign(&mut ct, &self.acc);
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                self.sk
+                    .programmable_bootstrap_keyswitch_assign(&mut ct, &self.acc);
+            }
+        };
+
+        ct
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DServerKey(pub Darc<ServerKey>);
+
+impl AsRef<ServerKey> for DServerKey {
+    fn as_ref(&self) -> &ServerKey {
+        &self.0
+    }
+}
+
+impl DServerKey {
+    pub fn new(sk: ServerKey) -> Self {
+        Self(Darc::new(&DISPATCHER.world, sk).unwrap())
+    }
+
+    pub fn create_trivial(&self, value: u64) -> Ciphertext {
+        self.0.create_trivial(value)
+    }
+
+    pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
+        self.0.create_trivial_assign(ct, value);
+    }
+}
+
+#[test]
+fn test_d_pbs() {
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::{gen_keys, Ciphertext};
+
+    // Generate the client key and the server key:
+    let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+
+    let msg = 1;
+
+    // Trivial encryption
+    let ct1: Ciphertext = cks.encrypt(msg);
+
+    let lut = sks.generate_lookup_table(|a| a + 1);
+
+    let ct2 = sks.apply_lookup_table(ct1, lut);
+
+    let msg2 = cks.decrypt(&ct2);
+
+    assert_eq!(msg2, 2);
 }

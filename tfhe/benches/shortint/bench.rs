@@ -9,7 +9,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{
-    Ciphertext, ClassicPBSParameters, CompressedServerKey, ServerKey, ShortintParameterSet,
+    Ciphertext, ClassicPBSParameters, CompressedServerKey, DServerKey, ShortintParameterSet,
 };
 
 use rand::Rng;
@@ -89,7 +89,7 @@ fn bench_server_key_unary_function<F>(
     unary_op: F,
     params_set: BenchParamsSet,
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext),
+    F: Fn(&DServerKey, &mut Ciphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -133,7 +133,7 @@ fn bench_server_key_binary_function<F>(
     binary_op: F,
     params_set: BenchParamsSet,
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, &mut Ciphertext),
+    F: Fn(&DServerKey, &mut Ciphertext, &mut Ciphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -179,7 +179,7 @@ fn bench_server_key_binary_scalar_function<F>(
     binary_op: F,
     params_set: BenchParamsSet,
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, u8),
+    F: Fn(&DServerKey, &mut Ciphertext, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -224,7 +224,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
     binary_op: F,
     params_set: BenchParamsSet,
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, u8),
+    F: Fn(&DServerKey, &mut Ciphertext, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -323,7 +323,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion, params_set: BenchParamsSe
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                let _ = sks.apply_lookup_table(&ctxt, &acc);
+                let _ = sks.apply_lookup_table(ctxt.clone(), acc.clone());
             })
         });
 
@@ -416,7 +416,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             b.iter_batched(
                 clone_compressed_key,
                 |sks_cloned| {
-                    let _ = ServerKey::from(sks_cloned);
+                    let _ = DServerKey::from(sks_cloned);
                 },
                 criterion::BatchSize::PerIteration,
             )

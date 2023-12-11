@@ -1,7 +1,7 @@
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute a division between two ciphertexts.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -438,7 +438,7 @@ impl ServerKey {
 
         let lookup_table =
             self.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
-        self.apply_lookup_table_assign(ct, &lookup_table);
+        self.apply_lookup_table_assign(ct, lookup_table);
         ct.degree = Degree::new(ct.degree.get() / scalar as usize);
     }
 
@@ -527,7 +527,7 @@ impl ServerKey {
     pub fn unchecked_scalar_mod_assign(&self, ct: &mut Ciphertext, modulus: u8) {
         assert_ne!(modulus, 0);
         let acc = self.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
         ct.degree = Degree::new(modulus as usize - 1);
     }
 }

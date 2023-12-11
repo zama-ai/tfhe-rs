@@ -123,6 +123,7 @@ create_parametrized_test!(shortint_compact_public_key_base_smart_add);
 fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
     let (cks, sks) = (keys.client_key(), keys.server_key());
+
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
     let mut rng = rand::thread_rng();
@@ -167,6 +168,7 @@ create_parametrized_test!(shortint_compact_public_key_base_list_smart_sub);
 fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
     let (cks, sks) = (keys.client_key(), keys.server_key());
+
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
     let mut rng = rand::thread_rng();

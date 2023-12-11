@@ -2,9 +2,9 @@ use super::CiphertextNoiseDegree;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::scalar_mul::unchecked_scalar_mul_assign;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a right shift of the bits.
     ///
     /// This returns a new ciphertext.
@@ -143,8 +143,8 @@ impl ServerKey {
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        let acc = self.generate_msg_lookup_table(|x| x >> shift, self.message_modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        let acc = self.generate_msg_lookup_table(|x| x >> shift, self.0.message_modulus);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Compute homomorphically a right shift of the bits without checks.
@@ -267,7 +267,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         let acc = self.generate_msg_lookup_table(|x| x >> shift, ct.message_modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
 
         ct.degree = Degree::new(ct.degree.get() >> shift);
     }
@@ -409,9 +409,9 @@ impl ServerKey {
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
     pub fn scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        let modulus = self.message_modulus.0 as u64;
+        let modulus = self.0.message_modulus.0 as u64;
         let acc = self.generate_lookup_table(|x| (x << shift) % modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Compute homomorphically a left shift of the bits without checks.
@@ -589,10 +589,12 @@ impl ServerKey {
     ) -> Result<(), CheckError> {
         let final_operation_count = ct1.degree.get() << shift as usize;
 
-        self.max_degree
+        self.0
+            .max_degree
             .validate(Degree::new(final_operation_count))?;
 
-        self.max_noise_level
+        self.0
+            .max_noise_level
             .validate(ct1.noise_level * (1 << shift))?;
 
         Ok(())
@@ -770,9 +772,9 @@ impl ServerKey {
         {
             self.unchecked_scalar_left_shift_assign(ct, shift);
         } else {
-            let modulus = self.message_modulus.0 as u64;
-            let acc = self.generate_msg_lookup_table(|x| x << shift, self.message_modulus);
-            self.apply_lookup_table_assign(ct, &acc);
+            let modulus = self.0.message_modulus.0 as u64;
+            let acc = self.generate_msg_lookup_table(|x| x << shift, self.0.message_modulus);
+            self.apply_lookup_table_assign(ct, acc);
             ct.degree = ct.degree.after_left_shift(shift, modulus as usize);
         }
     }

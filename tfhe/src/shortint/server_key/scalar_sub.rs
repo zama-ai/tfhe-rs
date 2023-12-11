@@ -4,9 +4,9 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, MessageModulus, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey, MessageModulus};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -118,9 +118,9 @@ impl ServerKey {
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
     pub fn scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let modulus = self.message_modulus.0 as u64;
+        let modulus = self.0.message_modulus.0 as u64;
         let acc = self.generate_lookup_table(|x| (x.wrapping_sub(scalar as u64)) % modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -208,7 +208,7 @@ impl ServerKey {
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         let neg_scalar = neg_scalar(scalar, ct.message_modulus);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.0.message_modulus.0 * self.0.carry_modulus.0) as u64;
         let shift_plaintext = neg_scalar as u64 * delta;
         let encoded_scalar = Plaintext(shift_plaintext);
 
@@ -222,10 +222,10 @@ impl ServerKey {
         ct: &mut Ciphertext,
         scalar: u8,
     ) {
-        let msg_mod = self.message_modulus.0;
+        let msg_mod = self.0.message_modulus.0;
         assert!((scalar as usize) < msg_mod);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = (1_u64 << 63) / (self.0.message_modulus.0 * self.0.carry_modulus.0) as u64;
 
         let encoded_scalar = Plaintext(scalar as u64 * delta);
         lwe_ciphertext_plaintext_sub_assign(&mut ct.ct, encoded_scalar);
@@ -281,7 +281,7 @@ impl ServerKey {
         ct: CiphertextNoiseDegree,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        self.is_scalar_add_possible(ct, neg_scalar(scalar, self.message_modulus))
+        self.is_scalar_add_possible(ct, neg_scalar(scalar, self.0.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.

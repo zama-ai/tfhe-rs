@@ -16,7 +16,7 @@ use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
-use crate::shortint::{Ciphertext, ClientKey, ServerKey, WopbsParameters};
+use crate::shortint::{Ciphertext, ClientKey, DServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -43,14 +43,15 @@ mod test;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
-    pub wopbs_server_key: ServerKey,
-    pub pbs_server_key: ServerKey,
+    pub wopbs_server_key: DServerKey,
+    pub pbs_server_key: DServerKey,
     pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
     pub ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
     pub param: WopbsParameters,
 }
 
 #[must_use]
+#[derive(Clone)]
 pub struct WopbsLUTBase {
     // Flattened Wopbs LUT
     plaintext_list: Vec<u64>,
@@ -232,7 +233,7 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// ```
-    pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> Self {
+    pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &DServerKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_wopbs_key_only_for_wopbs(cks, sks).unwrap()
         })
@@ -251,7 +252,7 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// ```
-    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &WopbsParameters) -> Self {
+    pub fn new_wopbs_key(cks: &ClientKey, sks: &DServerKey, parameters: &WopbsParameters) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_wopbs_key(cks, sks, parameters))
     }
 
@@ -286,7 +287,12 @@ impl WopbsKey {
         // The function is applied only on the message modulus bits
         let basis = ct.message_modulus.0 * ct.carry_modulus.0;
         let delta = 64 - f64::log2((basis) as f64).ceil() as u64 - 1;
-        let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+        let poly_size = self
+            .wopbs_server_key
+            .0
+            .bootstrapping_key
+            .polynomial_size()
+            .0;
         let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
         for (i, value) in lut.iter_mut().enumerate().take(basis) {
             *value = f((i % ct.message_modulus.0) as u64) << delta;
@@ -324,7 +330,12 @@ impl WopbsKey {
         // The function is applied only on the message modulus bits
         let basis = ct.message_modulus.0 * ct.carry_modulus.0;
         let delta = 64 - f64::log2((basis) as f64).ceil() as u64;
-        let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+        let poly_size = self
+            .wopbs_server_key
+            .0
+            .bootstrapping_key
+            .polynomial_size()
+            .0;
         let mut vec_lut = vec![0; poly_size];
         for (i, value) in vec_lut.iter_mut().enumerate().take(basis) {
             *value = f((i % ct.message_modulus.0) as u64) << delta;
@@ -361,7 +372,12 @@ impl WopbsKey {
         // The function is applied only on the message modulus bits
         let basis = ct.message_modulus.0 * ct.carry_modulus.0;
         let nb_bit = f64::log2((basis) as f64).ceil() as u64;
-        let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
+        let poly_size = self
+            .wopbs_server_key
+            .0
+            .bootstrapping_key
+            .polynomial_size()
+            .0;
         let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
         for i in 0..basis {
             let index_lut = (((i as u64 % basis as u64) << nb_bit) / basis as u64) as usize;
@@ -397,8 +413,8 @@ impl WopbsKey {
     /// ```
     pub fn programmable_bootstrapping(
         &self,
-        sks: &ServerKey,
-        ct_in: &Ciphertext,
+        sks: &DServerKey,
+        ct_in: Ciphertext,
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
         let ct_wopbs = self.keyswitch_to_wopbs_params(sks, ct_in);
@@ -433,8 +449,8 @@ impl WopbsKey {
     /// ```
     pub fn wopbs(&self, ct_in: &Ciphertext, lut: &ShortintWopbsLUT) -> Ciphertext {
         let tmp_sks = &self.wopbs_server_key;
-        let message_modulus = tmp_sks.message_modulus.0 as u64;
-        let carry_modulus = tmp_sks.carry_modulus.0 as u64;
+        let message_modulus = tmp_sks.0.message_modulus.0 as u64;
+        let carry_modulus = tmp_sks.0.carry_modulus.0 as u64;
         let delta = (1u64 << 63) / (carry_modulus * message_modulus);
         // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
         let delta_log = DeltaLog(delta.ilog2() as usize);
@@ -475,14 +491,14 @@ impl WopbsKey {
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
         let sks = &self.wopbs_server_key;
-        let message_modulus = sks.message_modulus.0 as u64;
-        let carry_modulus = sks.carry_modulus.0 as u64;
+        let message_modulus = sks.0.message_modulus.0 as u64;
+        let carry_modulus = sks.0.carry_modulus.0 as u64;
         let delta = (1u64 << 63) / (carry_modulus * message_modulus) * 2;
         // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
         let delta_log = DeltaLog(delta.ilog2() as usize);
 
         let nb_bit_to_extract =
-            f64::log2((sks.message_modulus.0 * sks.carry_modulus.0) as f64) as usize;
+            f64::log2((sks.0.message_modulus.0 * sks.0.carry_modulus.0) as f64) as usize;
 
         let ciphertext = self.extract_bits_circuit_bootstrapping(
             ct_in,
@@ -553,6 +569,7 @@ impl WopbsKey {
         let server_key = &self.wopbs_server_key;
 
         let lwe_size = server_key
+            .0
             .key_switching_key
             .output_key_lwe_dimension()
             .to_lwe_size();
@@ -583,8 +600,8 @@ impl WopbsKey {
     {
         let server_key = &self.wopbs_server_key;
 
-        let bsk = &server_key.bootstrapping_key;
-        let ksk = &server_key.key_switching_key;
+        let bsk = &server_key.0.bootstrapping_key;
+        let ksk = &server_key.0.key_switching_key;
 
         let fft = Fft::new(bsk.polynomial_size());
         let fft = fft.as_view();
@@ -666,15 +683,15 @@ impl WopbsKey {
         let acc = self.pbs_server_key.generate_lookup_table(|x| x);
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(&self.pbs_server_key);
+            let (mut ciphertext_buffers, buffers) = engine.get_buffers(&self.pbs_server_key.0);
             // Compute a key switch
             keyswitch_lwe_ciphertext(
-                &self.pbs_server_key.key_switching_key,
+                &self.pbs_server_key.0.key_switching_key,
                 &ct_in.ct,
                 &mut ciphertext_buffers.buffer_lwe_after_ks,
             );
 
-            let ct_out = match &self.pbs_server_key.bootstrapping_key {
+            let ct_out = match &self.pbs_server_key.0.bootstrapping_key {
                 ShortintBootstrappingKey::Classic(fourier_bsk) => {
                     let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
                     let mut ct_out =
@@ -721,10 +738,13 @@ impl WopbsKey {
         .unwrap()
     }
 
-    pub fn keyswitch_to_wopbs_params(&self, sks: &ServerKey, ct_in: &Ciphertext) -> Ciphertext {
+    pub fn keyswitch_to_wopbs_params(&self, sks: &DServerKey, ct_in: Ciphertext) -> Ciphertext {
+        let ct_in_degree = ct_in.degree;
+        let ct_in_pbs_order = ct_in.pbs_order;
+
         // First PBS to remove the noise
         let acc = sks.generate_lookup_table(|x| x);
-        let ct_clean = sks.apply_lookup_table(ct_in, &acc);
+        let ct_clean = sks.apply_lookup_table(ct_in, acc);
 
         let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
             0,
@@ -745,11 +765,11 @@ impl WopbsKey {
         // degree of the ciphertext has no changed, we manage this case manually here
         Ciphertext::new(
             buffer_lwe_after_ks,
-            ct_in.degree,
+            ct_in_degree,
             NoiseLevel::NOMINAL,
             ct_clean.message_modulus,
             ct_clean.carry_modulus,
-            ct_in.pbs_order,
+            ct_in_pbs_order,
         )
     }
 
@@ -764,7 +784,7 @@ impl WopbsKey {
         LutCont: Container<Element = u64>,
     {
         let sks = &self.wopbs_server_key;
-        let fourier_bsk = &sks.bootstrapping_key;
+        let fourier_bsk = &sks.0.bootstrapping_key;
 
         let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
 
@@ -798,7 +818,7 @@ impl WopbsKey {
 
             let stack = engine.computation_buffers.stack();
 
-            match &sks.bootstrapping_key {
+            match &sks.0.bootstrapping_key {
                 ShortintBootstrappingKey::Classic(bsk) => {
                     circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
                         extracted_bits,
@@ -848,10 +868,10 @@ impl WopbsKey {
 
         Ciphertext::new(
             ciphertext,
-            Degree::new(sks.message_modulus.0 - 1),
+            Degree::new(sks.0.message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
-            sks.message_modulus,
-            sks.carry_modulus,
+            sks.0.message_modulus,
+            sks.0.carry_modulus,
             ct_in.pbs_order,
         )
     }

@@ -8,9 +8,11 @@ use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
-use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
+use crate::shortint::{ClientKey, DServerKey, KeySwitchingKey};
 use lazy_static::*;
 use serde::{Deserialize, Serialize};
+
+use super::server_key::ServerKey;
 
 named_params_impl!( ShortintParameterSet =>
     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
@@ -282,23 +284,23 @@ impl NamedParam for ShortintKeySwitchingParameters {
     }
 }
 
-impl From<PBSParameters> for (ClientKey, ServerKey) {
+impl From<PBSParameters> for (ClientKey, DServerKey) {
     fn from(param: PBSParameters) -> Self {
         let param_set = ShortintParameterSet::from(param);
         param_set.into()
     }
 }
 
-impl From<ShortintParameterSet> for (ClientKey, ServerKey) {
+impl From<ShortintParameterSet> for (ClientKey, DServerKey) {
     fn from(param: ShortintParameterSet) -> Self {
         let cks = ClientKey::new(param);
-        let sks = ServerKey::new(&cks);
+        let sks = DServerKey::new(ServerKey::new(&cks));
         (cks, sks)
     }
 }
 
 pub struct Keycache {
-    inner: ImplKeyCache<PBSParameters, (ClientKey, ServerKey), FileStorage>,
+    inner: ImplKeyCache<PBSParameters, (ClientKey, DServerKey), FileStorage>,
 }
 
 impl Default for Keycache {
@@ -312,17 +314,17 @@ impl Default for Keycache {
 }
 
 pub struct SharedKey {
-    inner: GenericSharedKey<(ClientKey, ServerKey)>,
+    inner: GenericSharedKey<(ClientKey, DServerKey)>,
 }
 
 pub struct SharedWopbsKey {
-    inner: GenericSharedKey<(ClientKey, ServerKey)>,
+    inner: GenericSharedKey<(ClientKey, DServerKey)>,
     wopbs: GenericSharedKey<WopbsKey>,
 }
 
 pub struct SharedKeySwitchingKey {
-    inner_1: GenericSharedKey<(ClientKey, ServerKey)>,
-    inner_2: GenericSharedKey<(ClientKey, ServerKey)>,
+    inner_1: GenericSharedKey<(ClientKey, DServerKey)>,
+    inner_2: GenericSharedKey<(ClientKey, DServerKey)>,
     ksk: GenericSharedKey<KeySwitchingKey>,
 }
 
@@ -330,7 +332,7 @@ impl SharedKey {
     pub fn client_key(&self) -> &ClientKey {
         &self.inner.0
     }
-    pub fn server_key(&self) -> &ServerKey {
+    pub fn server_key(&self) -> &DServerKey {
         &self.inner.1
     }
 }
@@ -339,7 +341,7 @@ impl SharedWopbsKey {
     pub fn client_key(&self) -> &ClientKey {
         &self.inner.0
     }
-    pub fn server_key(&self) -> &ServerKey {
+    pub fn server_key(&self) -> &DServerKey {
         &self.inner.1
     }
     pub fn wopbs_key(&self) -> &WopbsKey {
@@ -351,13 +353,13 @@ impl SharedKeySwitchingKey {
     pub fn client_key_1(&self) -> &ClientKey {
         &self.inner_1.0
     }
-    pub fn server_key_1(&self) -> &ServerKey {
+    pub fn server_key_1(&self) -> &DServerKey {
         &self.inner_1.1
     }
     pub fn client_key_2(&self) -> &ClientKey {
         &self.inner_2.0
     }
-    pub fn server_key_2(&self) -> &ServerKey {
+    pub fn server_key_2(&self) -> &DServerKey {
         &self.inner_2.1
     }
     pub fn key_switching_key(&self) -> &KeySwitchingKey {

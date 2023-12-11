@@ -4,19 +4,19 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
-use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
+use crate::shortint::{ClientKey, DServerKey, WopbsParameters};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
     pub(crate) fn new_wopbs_key_only_for_wopbs(
         &mut self,
         cks: &ClientKey,
-        sks: &ServerKey,
+        sks: &DServerKey,
     ) -> EngineResult<WopbsKey> {
         if matches!(
-            sks.bootstrapping_key,
+            sks.0.bootstrapping_key,
             ShortintBootstrappingKey::MultiBit { .. }
         ) {
             return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());
@@ -39,7 +39,7 @@ impl ShortintEngine {
         let wopbs_key = WopbsKey {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
+            ksk_pbs_to_wopbs: sks.0.key_switching_key.clone(),
             param: wop_params,
             pbs_server_key: sks_cpy,
         };
@@ -50,7 +50,7 @@ impl ShortintEngine {
     pub(crate) fn new_wopbs_key(
         &mut self,
         cks: &ClientKey,
-        sks: &ServerKey,
+        sks: &DServerKey,
         parameters: &WopbsParameters,
     ) -> WopbsKey {
         //Independent client key generation dedicated to the WoPBS
@@ -140,7 +140,7 @@ impl ShortintEngine {
             parameters.carry_modulus,
         );
 
-        let wopbs_server_key = ServerKey {
+        let wopbs_server_key = DServerKey::new(ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
             bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
             message_modulus: parameters.message_modulus,
@@ -152,16 +152,16 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
-        };
+        });
 
         let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
             cks.parameters.message_modulus(),
             cks.parameters.carry_modulus(),
         );
 
-        let pbs_server_key = ServerKey {
+        let pbs_server_key = DServerKey::new(ServerKey {
             key_switching_key: ksk_wopbs_large_to_pbs_small,
-            bootstrapping_key: sks.bootstrapping_key.clone(),
+            bootstrapping_key: sks.0.bootstrapping_key.clone(),
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree: MaxDegree::from_msg_carry_modulus(
@@ -171,7 +171,7 @@ impl ShortintEngine {
             max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-        };
+        });
 
         WopbsKey {
             wopbs_server_key,

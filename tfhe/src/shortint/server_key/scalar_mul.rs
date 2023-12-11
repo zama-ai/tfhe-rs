@@ -4,9 +4,9 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::lwe_encryption::trivially_encrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
@@ -114,8 +114,8 @@ impl ServerKey {
     /// );
     /// ```
     pub fn scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let acc = self.generate_msg_lookup_table(|x| scalar as u64 * x, self.message_modulus);
-        self.apply_lookup_table_assign(ct, &acc);
+        let acc = self.generate_msg_lookup_table(|x| scalar as u64 * x, self.0.message_modulus);
+        self.apply_lookup_table_assign(ct, acc);
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -258,7 +258,7 @@ impl ServerKey {
 
         let acc_mul = self.generate_lookup_table(|x| (x.wrapping_mul(scalar as u64)) % modulus);
 
-        self.apply_lookup_table_assign(ct, &acc_mul);
+        self.apply_lookup_table_assign(ct, acc_mul);
     }
 
     /// Verify if the ciphertext can be multiplied by a scalar.
@@ -296,9 +296,10 @@ impl ServerKey {
         //scalar * ct.counter
         let final_degree = scalar as usize * ct.degree.get();
 
-        self.max_degree.validate(Degree::new(final_degree))?;
+        self.0.max_degree.validate(Degree::new(final_degree))?;
 
-        self.max_noise_level
+        self.0
+            .max_noise_level
             .validate(ct.noise_level * scalar as usize)?;
 
         Ok(())
@@ -512,7 +513,7 @@ impl ServerKey {
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
             self.evaluate_msg_univariate_function_assign(ct, |x| scalar as u64 * x);
-            ct.degree = Degree::new(self.message_modulus.0 - 1);
+            ct.degree = Degree::new(self.0.message_modulus.0 - 1);
         }
     }
 }

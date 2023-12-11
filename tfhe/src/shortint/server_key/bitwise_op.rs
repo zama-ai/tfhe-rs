@@ -1,7 +1,6 @@
-use super::ServerKey;
-use crate::shortint::{CheckError, Ciphertext};
+use crate::shortint::{CheckError, Ciphertext, DServerKey};
 
-impl ServerKey {
+impl DServerKey {
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
