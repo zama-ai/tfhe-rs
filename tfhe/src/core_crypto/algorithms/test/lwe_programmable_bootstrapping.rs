@@ -743,3 +743,198 @@ create_parametrized_test!(lwe_encrypt_ntt_pbs_decrypt_custom_mod {
     TEST_PARAMS_3_BITS_SOLINAS_NTT_U64,
     TEST_PARAMS_2_BITS_MICKAEL_PRIME_U64
 });
+
+// norm2 is the value to multiply the ciphertext by to check noise is fine
+fn lwe_encrypt_atomic_pattern_ks_ntt_pbs_decrypt_custom_mod(params: TestParams<u64>, norm2: u64) {
+    let input_lwe_dimension = params.lwe_dimension;
+    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let ciphertext_modulus = params.ciphertext_modulus;
+    let message_modulus_log = params.message_modulus_log;
+    let msg_modulus = 1u64 << message_modulus_log.0;
+    let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+    let decomp_base_log = params.pbs_base_log;
+    let decomp_level_count = params.pbs_level;
+    let ks_decomp_base_log = params.ks_base_log;
+    let ks_decomp_level_count = params.ks_level;
+    let mut rsc = TestResources::new();
+
+    let f = |x: u64| x.wrapping_rem(msg_modulus);
+
+    let delta: u64 = encoding_with_padding / msg_modulus;
+    let mut msg = msg_modulus;
+    const NB_TESTS: usize = 10;
+
+    let accumulator = generate_accumulator(
+        polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        msg_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
+
+    // Create the LweSecretKey
+    let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        input_lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+    let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+    let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
+
+    let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+        &output_lwe_secret_key,
+        &input_lwe_secret_key,
+        ks_decomp_base_log,
+        ks_decomp_level_count,
+        lwe_modular_std_dev,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut bsk = LweBootstrapKey::new(
+        0u64,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_dimension,
+        ciphertext_modulus,
+    );
+
+    par_generate_lwe_bootstrap_key(
+        &input_lwe_secret_key,
+        &output_glwe_secret_key,
+        &mut bsk,
+        glwe_modular_std_dev,
+        &mut rsc.encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
+
+    use crate::core_crypto::ntt_impl::ntt64::crypto::bootstrap::{
+        bootstrap_scratch, NttLweBootstrapKeyOwned,
+    };
+    use crate::core_crypto::ntt_impl::ntt64::math::ntt::Ntt;
+
+    let mut nbsk = NttLweBootstrapKeyOwned::new(
+        bsk.input_lwe_dimension(),
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+    );
+
+    let mut buffers = ComputationBuffers::new();
+
+    let ntt = Ntt::new(ciphertext_modulus, nbsk.polynomial_size());
+    let ntt = ntt.as_view();
+
+    let stack_size = bootstrap_scratch(glwe_dimension.to_glwe_size(), polynomial_size, ntt)
+        .unwrap()
+        .try_unaligned_bytes_required()
+        .unwrap();
+
+    buffers.resize(stack_size);
+
+    nbsk.as_mut_view().fill_with_forward_ntt(bsk.as_view(), ntt);
+
+    drop(bsk);
+
+    while msg != 0u64 {
+        msg = msg.wrapping_sub(1u64);
+
+        let plaintext = Plaintext(msg * delta);
+        let mut lwe_ciphertext_in_and_pbs_out = allocate_and_encrypt_new_lwe_ciphertext(
+            &output_lwe_secret_key,
+            plaintext,
+            glwe_modular_std_dev,
+            ciphertext_modulus,
+            &mut rsc.encryption_random_generator,
+        );
+
+        let mut out_ks_ct =
+            LweCiphertext::new(0u64, ksk_big_to_small.output_lwe_size(), ciphertext_modulus);
+
+        for _ in 0..NB_TESTS {
+            // Subtract the plaintext to have a 0
+            lwe_ciphertext_plaintext_sub_assign(&mut lwe_ciphertext_in_and_pbs_out, plaintext);
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in_and_pbs_out,
+                ciphertext_modulus
+            ));
+
+            // Do the cleartext multiplication to test norm2
+            lwe_ciphertext_cleartext_mul_assign_other_mod(
+                &mut lwe_ciphertext_in_and_pbs_out,
+                Cleartext(norm2),
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in_and_pbs_out,
+                ciphertext_modulus
+            ));
+
+            // Add back the plaintext to have the noisy version
+            lwe_ciphertext_plaintext_add_assign(&mut lwe_ciphertext_in_and_pbs_out, plaintext);
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in_and_pbs_out,
+                ciphertext_modulus
+            ));
+
+            keyswitch_lwe_ciphertext(
+                &ksk_big_to_small,
+                &lwe_ciphertext_in_and_pbs_out,
+                &mut out_ks_ct,
+            );
+
+            nbsk.as_view().bootstrap(
+                lwe_ciphertext_in_and_pbs_out.as_mut_view(),
+                out_ks_ct.as_view(),
+                accumulator.as_view(),
+                ntt,
+                buffers.stack(),
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in_and_pbs_out,
+                ciphertext_modulus
+            ));
+
+            let decrypted =
+                decrypt_lwe_ciphertext(&output_lwe_secret_key, &lwe_ciphertext_in_and_pbs_out);
+
+            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+
+            assert_eq!(decoded, f(msg));
+        }
+    }
+}
+
+#[test]
+fn lwe_encrypt_atomic_pattern_ks_ntt_pbs_decrypt_custom_mod_test_params_3_bits_solinas_ntt_u64() {
+    lwe_encrypt_atomic_pattern_ks_ntt_pbs_decrypt_custom_mod(TEST_PARAMS_3_BITS_SOLINAS_NTT_U64, 2)
+}
+#[test]
+fn lwe_encrypt_atomic_pattern_ks_ntt_pbs_decrypt_custom_mod_test_params_2_bits_mickael_prime_u64() {
+    lwe_encrypt_atomic_pattern_ks_ntt_pbs_decrypt_custom_mod(
+        TEST_PARAMS_2_BITS_MICKAEL_PRIME_U64,
+        2,
+    )
+}
