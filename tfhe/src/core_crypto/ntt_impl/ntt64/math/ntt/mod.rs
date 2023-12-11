@@ -46,10 +46,7 @@ impl Ntt {
             plan.map(|p| {
                 p.get_or_init(|| {
                     Arc::new(Plan::try_new(n, modulus).unwrap_or_else(|| {
-                        panic!(
-                            "could not generate an NTT plan for the given modulus ({})",
-                            modulus
-                        )
+                        panic!("could not generate an NTT plan for the given modulus ({modulus})",)
                     }))
                 })
                 .clone()

@@ -536,6 +536,26 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod_test_params_3_bits_127_u128() {
     lwe_encrypt_pbs_f128_decrypt_custom_mod(TEST_PARAMS_3_BITS_127_U128);
 }
 
+#[derive(Clone, Copy)]
+pub struct TestParams<Scalar: UnsignedInteger> {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_modular_std_dev: StandardDev,
+    pub glwe_modular_std_dev: StandardDev,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub pfks_level: DecompositionLevelCount,
+    pub pfks_base_log: DecompositionBaseLog,
+    pub pfks_modular_std_dev: StandardDev,
+    pub cbs_level: DecompositionLevelCount,
+    pub cbs_base_log: DecompositionBaseLog,
+    pub message_modulus_log: CiphertextModulusLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
 fn lwe_encrypt_ntt_pbs_decrypt_custom_mod(params: TestParams<u64>) {
     let input_lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;

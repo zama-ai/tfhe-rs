@@ -135,8 +135,8 @@ impl<C: Container<Element = u64>> NttGgswLevelMatrix<C> {
         );
         Self {
             data,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             row_count,
             decomposition_level,
         }
@@ -188,8 +188,8 @@ impl<C: Container<Element = u64>> NttGgswLevelRow<C> {
         assert_eq!(data.container_len(), polynomial_size.0 * glwe_size.0);
         Self {
             data,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             decomposition_level,
         }
     }
@@ -304,10 +304,10 @@ impl<C: Container<Element = u64>> NttGgswCiphertextList<C> {
         Self {
             data,
             polynomial_size,
-            count,
             glwe_size,
             decomposition_level_count,
             decomposition_base_log,
+            count,
         }
     }
 
@@ -432,7 +432,7 @@ pub fn add_external_product_assign_scratch(
 pub fn add_external_product_assign<InputGlweCont>(
     mut out: GlweCiphertextMutView<'_, u64>,
     ggsw: NttGgswCiphertextView<'_>,
-    glwe: GlweCiphertext<InputGlweCont>,
+    glwe: &GlweCiphertext<InputGlweCont>,
     ntt: NttView<'_>,
     stack: PodStack<'_>,
 ) where
@@ -681,5 +681,5 @@ pub fn cmux(
     izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
     });
-    add_external_product_assign(ct0, ggsw, ct1, ntt, stack);
+    add_external_product_assign(ct0, ggsw, &ct1, ntt, stack);
 }
