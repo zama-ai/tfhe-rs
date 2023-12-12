@@ -1013,8 +1013,9 @@ impl ServerKey {
     /// assert_eq!(clear_left | clear_right, res);
     /// ```
     pub fn unchecked_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+        let resulting_degree = ct_left.degree.after_bitor(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
-        ct_left.degree = ct_left.degree.after_bitor(ct_right.degree);
+        ct_left.degree = resulting_degree;
     }
 
     /// Compute bitwise OR between two ciphertexts without checks.

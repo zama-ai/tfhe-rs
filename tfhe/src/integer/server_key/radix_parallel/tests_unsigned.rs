@@ -109,6 +109,7 @@ create_parametrized_test!(integer_default_div {
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_sum_ciphertexts_vec);
+create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
 create_parametrized_test!(integer_default_add_work_efficient {
@@ -219,6 +220,7 @@ create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
 create_parametrized_test!(integer_default_mul);
+create_parametrized_test!(integer_default_unsigned_overflowing_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_default_overflowing_scalar_sub);
@@ -633,6 +635,13 @@ where
     }
 }
 
+fn integer_default_unsigned_overflowing_sum_ciphertexts_vec<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    integer_default_unsigned_overflowing_sum_ciphertexts_test(param);
+}
+
 //=============================================================================
 // Smart Scalar Tests
 //=============================================================================
@@ -744,6 +753,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     default_mul_test(param, executor);
+}
+
+fn integer_default_unsigned_overflowing_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_mul_parallelized);
+    default_overflowing_mul_test(param, executor);
 }
 
 fn integer_default_neg<P>(param: P)
