@@ -1,8 +1,8 @@
-use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -159,5 +159,56 @@ impl ServerKey {
         let overflowed =
             self.unsigned_overflowing_scalar_sub_assign_parallelized(&mut result, scalar);
         (result, overflowed)
+    }
+
+    pub fn signed_overflowing_scalar_sub_parallelized<Scalar>(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        scalar: Scalar,
+    ) -> (SignedRadixCiphertext, BooleanBlock)
+    where
+        Scalar: SignedNumeric + DecomposableInto<u64>,
+    {
+        // In this implementation, we cannot simply call
+        // signed_overflowing_scalar_add_parallelized(lhs, -scalar)
+        // because in the case scalar == -modulus (i.e the minimum value of the ciphertext type)
+        // then -rhs will still be -modulus, however, the overflow detection of the add
+        // will be invalid
+
+        let mut tmp_lhs;
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
+            tmp_lhs = lhs.clone();
+            self.full_propagate_parallelized(&mut tmp_lhs);
+            &tmp_lhs
+        };
+
+        // To keep the code simple we transform the scalar into a trivial
+        // performances wise this won't have much impact as all the cost is
+        // in the carry propagation
+        let trivial: SignedRadixCiphertext = self.create_trivial_radix(scalar, lhs.blocks.len());
+        let (result, overflowed) = self.signed_overflowing_sub_parallelized(lhs, &trivial);
+
+        let mut extra_scalar_block_iter =
+            BlockDecomposer::new(scalar, self.key.message_modulus.0.ilog2())
+                .iter_as::<u64>()
+                .skip(lhs.blocks.len());
+
+        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
+            extra_scalar_block_iter.all(|block| block == (self.message_modulus().0 as u64 - 1))
+        } else {
+            extra_scalar_block_iter.all(|block| block == 0)
+        };
+
+        if extra_blocks_have_correct_value {
+            (result, overflowed)
+        } else {
+            // Scalar has more blocks so addition counts as overflowing
+            (
+                result,
+                BooleanBlock::new_unchecked(self.key.create_trivial(1)),
+            )
+        }
     }
 }
