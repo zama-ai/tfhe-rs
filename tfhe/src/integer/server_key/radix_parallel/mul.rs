@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -291,6 +291,78 @@ impl ServerKey {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
     }
 
+    /// This functions computes the terms resulting from multiplying each block
+    /// of rhs with lhs. When summed these terms will give the low part of the result.
+    /// i.e. in a (lhs: Nbit * rhs: Nbit) multiplication, summing the terms will give a N bit result
+    fn compute_terms_for_mul_low<T>(&self, lhs: &T, rhs: &T) -> Vec<T>
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let message_modulus = self.key.message_modulus.0;
+
+        let lsb_block_mul_lut = self
+            .key
+            .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus as u64);
+
+        let msb_block_mul_lut = self
+            .key
+            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus as u64);
+
+        let message_part_terms_generator = rhs
+            .blocks()
+            .par_iter()
+            .enumerate()
+            .filter(|(_, block)| block.degree.get() != 0)
+            .map(|(i, rhs_block)| {
+                let mut result = self.blockshift(lhs, i);
+                result.blocks_mut()[i..]
+                    .par_iter_mut()
+                    .filter(|block| block.degree.get() != 0)
+                    .for_each(|lhs_block| {
+                        self.key.unchecked_apply_lookup_table_bivariate_assign(
+                            lhs_block,
+                            rhs_block,
+                            &lsb_block_mul_lut,
+                        );
+                    });
+
+                result
+            });
+
+        if self.message_modulus().0 > 2 {
+            // Multiplying 2 blocks generates some part this is in the carry
+            // we have to compute them.
+            message_part_terms_generator
+                .chain(
+                    rhs.blocks()[..rhs.blocks().len() - 1] // last block carry would be thrown away
+                        .par_iter()
+                        .enumerate()
+                        .filter(|(_, block)| block.degree.get() != 0)
+                        .map(|(i, rhs_block)| {
+                            // Here we are doing (a * b) / modulus
+                            // that is, getting the carry part of the block multiplication
+                            // so the shift is one block longer
+                            let mut result = self.blockshift(lhs, i + 1);
+                            result.blocks_mut()[i + 1..]
+                                .par_iter_mut()
+                                .filter(|block| block.degree.get() != 0)
+                                .for_each(|lhs_block| {
+                                    self.key.unchecked_apply_lookup_table_bivariate_assign(
+                                        lhs_block,
+                                        rhs_block,
+                                        &msb_block_mul_lut,
+                                    );
+                                });
+
+                            result
+                        }),
+                )
+                .collect::<Vec<_>>()
+        } else {
+            message_part_terms_generator.collect::<Vec<_>>()
+        }
+    }
+
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -342,69 +414,7 @@ impl ServerKey {
             return;
         }
 
-        let message_modulus = self.key.message_modulus.0;
-
-        let lsb_block_mul_lut = self
-            .key
-            .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus as u64);
-
-        let msb_block_mul_lut = self
-            .key
-            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus as u64);
-
-        let message_part_terms_generator = rhs
-            .blocks()
-            .par_iter()
-            .enumerate()
-            .filter(|(_, block)| block.degree.get() != 0)
-            .map(|(i, rhs_block)| {
-                let mut result = self.blockshift(lhs, i);
-                result.blocks_mut()[i..]
-                    .par_iter_mut()
-                    .filter(|block| block.degree.get() != 0)
-                    .for_each(|lhs_block| {
-                        self.key.unchecked_apply_lookup_table_bivariate_assign(
-                            lhs_block,
-                            rhs_block,
-                            &lsb_block_mul_lut,
-                        );
-                    });
-
-                result
-            });
-
-        let terms = if self.message_modulus().0 > 2 {
-            // Multiplying 2 blocks generates some part this is in the carry
-            // we have to compute them.
-            message_part_terms_generator
-                .chain(
-                    rhs.blocks()
-                        .par_iter()
-                        .enumerate()
-                        .filter(|(_, block)| block.degree.get() != 0)
-                        .map(|(i, rhs_block)| {
-                            // Here we are doing (a * b) / modulus
-                            // that is, getting the carry part of the block multiplication
-                            // so the shift is one block longer
-                            let mut result = self.blockshift(lhs, i + 1);
-                            result.blocks_mut()[i + 1..]
-                                .par_iter_mut()
-                                .filter(|block| block.degree.get() != 0)
-                                .for_each(|lhs_block| {
-                                    self.key.unchecked_apply_lookup_table_bivariate_assign(
-                                        lhs_block,
-                                        rhs_block,
-                                        &msb_block_mul_lut,
-                                    );
-                                });
-
-                            result
-                        }),
-                )
-                .collect::<Vec<_>>()
-        } else {
-            message_part_terms_generator.collect::<Vec<_>>()
-        };
+        let terms = self.compute_terms_for_mul_low(lhs, rhs);
 
         if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(terms) {
             *lhs = result;
@@ -587,5 +597,162 @@ impl ServerKey {
         };
 
         self.unchecked_mul_assign_parallelized(lhs, rhs);
+    }
+
+    pub fn unchecked_unsigned_overflowing_mul_parallelized(
+        &self,
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let mul_result_is_non_zero = self
+            .key
+            .generate_lookup_table_bivariate(|x, y| u64::from((x * y) != 0));
+
+        let (all_shifted_lhs, high_part) = rayon::join(
+            || self.compute_terms_for_mul_low(lhs, rhs),
+            || {
+                let (mut a, mut b) = rayon::join(
+                    || {
+                        let mut indices = vec![];
+                        for i in 1..rhs.blocks.len() {
+                            for j in lhs.blocks.len() - i..lhs.blocks.len() {
+                                indices.push((i, j));
+                            }
+                        }
+
+                        indices
+                            .into_par_iter()
+                            .map(|(i, j)| {
+                                self.key.unchecked_apply_lookup_table_bivariate(
+                                    &lhs.blocks[j],
+                                    &rhs.blocks[i],
+                                    &mul_result_is_non_zero,
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    },
+                    || {
+                        let lut = self.key.generate_lookup_table_bivariate(|x, y| {
+                            u64::from((x * y) >= self.key.message_modulus.0 as u64)
+                        });
+
+                        rhs.blocks
+                            .par_iter()
+                            .enumerate()
+                            .map(|(i, rhs_block)| {
+                                self.key.unchecked_apply_lookup_table_bivariate(
+                                    &lhs.blocks[lhs.blocks.len() - i - 1],
+                                    rhs_block,
+                                    &lut,
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    },
+                );
+                a.append(&mut b);
+                a
+            },
+        );
+
+        let (sum_result, high_part_is_non_zero) = rayon::join(
+            || {
+                self.unchecked_unsigned_overflowing_sum_ciphertexts_vec_parallelized(
+                    all_shifted_lhs,
+                )
+            },
+            || {
+                let high_part = RadixCiphertext::from(high_part);
+                self.unchecked_scalar_ne_parallelized(&high_part, 0)
+            },
+        );
+
+        if let Some((result, sum_overflowed)) = sum_result {
+            let final_overflow = self.boolean_bitor(&sum_overflowed, &high_part_is_non_zero);
+            (result, final_overflow)
+        } else {
+            // We can end up here, if all blocks of either rhs, or lhs were trivial zeros
+            let result = self.create_trivial_zero_radix(lhs.blocks.len());
+            (result, high_part_is_non_zero)
+        }
+    }
+
+    pub fn unchecked_unsigned_overflowing_mul_assign_parallelized(
+        &self,
+        lhs: &mut RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> BooleanBlock {
+        let (result, overflowed) = self.unchecked_unsigned_overflowing_mul_parallelized(lhs, rhs);
+        *lhs = result;
+        overflowed
+    }
+
+    /// Computes homomorphically a multiplication along with an overflow flag
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let clear_1 = 128u8;
+    /// let clear_2 = 5u8;
+    ///
+    /// // Encrypt two messages
+    /// let ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_2 = cks.encrypt(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let (ct_res, ct_overflowed) = sks.unsigned_overflowing_mul_parallelized(&ctxt_1, &ctxt_2);
+    /// // Decrypt
+    /// let res: u8 = cks.decrypt(&ct_res);
+    /// let overflowed = cks.decrypt_bool(&ct_overflowed);
+    ///
+    /// let (expected_result, expected_overflowed) = clear_1.overflowing_mul(clear_2);
+    /// assert_eq!(res, expected_result);
+    /// assert_eq!(overflowed, expected_overflowed);
+    /// ```
+    pub fn unsigned_overflowing_mul_parallelized(
+        &self,
+        ct1: &RadixCiphertext,
+        ct2: &RadixCiphertext,
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let mut ct_res = ct1.clone();
+        let overflowed = self.unsigned_overflowing_mul_assign_parallelized(&mut ct_res, ct2);
+        (ct_res, overflowed)
+    }
+
+    pub fn unsigned_overflowing_mul_assign_parallelized(
+        &self,
+        ct1: &mut RadixCiphertext,
+        ct2: &RadixCiphertext,
+    ) -> BooleanBlock {
+        let mut tmp_rhs;
+
+        let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.block_carries_are_empty()) {
+            (true, true) => (ct1, ct2),
+            (true, false) => {
+                tmp_rhs = ct2.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct1, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct1);
+                (ct1, ct2)
+            }
+            (false, false) => {
+                tmp_rhs = ct2.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct1),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct1, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_unsigned_overflowing_mul_assign_parallelized(lhs, rhs)
     }
 }
