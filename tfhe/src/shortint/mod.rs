@@ -175,8 +175,27 @@ impl LamellarAM for Pbs {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct DServerKey(pub Darc<ServerKey>);
+
+impl Serialize for DServerKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        (*self.0).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for DServerKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        ServerKey::deserialize(deserializer)
+            .map(|sk| Self(Darc::new(&DISPATCHER.world, sk).unwrap()))
+    }
+}
 
 impl AsRef<ServerKey> for DServerKey {
     fn as_ref(&self) -> &ServerKey {
