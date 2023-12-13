@@ -78,12 +78,12 @@ pub mod boolean;
 /// cbindgen:ignore
 pub mod core_crypto;
 
-#[cfg(feature = "integer")]
-/// Welcome to the TFHE-rs [`integer`](`crate::integer`) module documentation!
-///
-/// # Special module attributes
-/// cbindgen:ignore
-pub mod integer;
+// #[cfg(feature = "integer")]
+// /// Welcome to the TFHE-rs [`integer`](`crate::integer`) module documentation!
+// ///
+// /// # Special module attributes
+// /// cbindgen:ignore
+// pub mod integer;
 
 #[cfg(feature = "shortint")]
 /// Welcome to the TFHE-rs [`shortint`](`crate::shortint`) module documentation!
@@ -104,12 +104,12 @@ mod js_on_wasm_api;
 ))]
 mod test_user_docs;
 
-#[cfg(feature = "integer")]
-/// cbindgen:ignore
-pub(crate) mod high_level_api;
+// #[cfg(feature = "integer")]
+// /// cbindgen:ignore
+// pub(crate) mod high_level_api;
 
-#[cfg(feature = "integer")]
-pub use high_level_api::*;
+// #[cfg(feature = "integer")]
+// pub use high_level_api::*;
 
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 /// cbindgen:ignore

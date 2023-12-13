@@ -174,11 +174,11 @@ name = "pbs128-bench"
 path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
 
-[[bench]]
-name = "boolean-bench"
-path = "benches/boolean/bench.rs"
-harness = false
-required-features = ["boolean", "internal-keycache"]
+# [[bench]]
+# name = "boolean-bench"
+# path = "benches/boolean/bench.rs"
+# harness = false
+# required-features = ["boolean", "internal-keycache"]
 
 [[bench]]
 name = "shortint-bench"
@@ -186,17 +186,17 @@ path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
-[[bench]]
-name = "integer-bench"
-path = "benches/integer/bench.rs"
-harness = false
-required-features = ["integer", "internal-keycache"]
+# [[bench]]
+# name = "integer-bench"
+# path = "benches/integer/bench.rs"
+# harness = false
+# required-features = ["integer", "internal-keycache"]
 
-[[bench]]
-name = "integer-signed-bench"
-path = "benches/integer/signed_bench.rs"
-harness = false
-required-features = ["integer", "internal-keycache"]
+# [[bench]]
+# name = "integer-signed-bench"
+# path = "benches/integer/signed_bench.rs"
+# harness = false
+# required-features = ["integer", "internal-keycache"]
 
 [[bench]]
 name = "keygen"
@@ -204,62 +204,62 @@ path = "benches/keygen/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
-[[bench]]
-name = "utilities"
-path = "benches/utilities.rs"
-harness = false
-required-features = ["boolean", "shortint", "integer", "internal-keycache"]
+# [[bench]]
+# name = "utilities"
+# path = "benches/utilities.rs"
+# harness = false
+# required-features = ["boolean", "shortint", "integer", "internal-keycache"]
 
 # Examples used as tools
 
-[[example]]
-name = "wasm_benchmarks_parser"
-path = "examples/utilities/wasm_benchmarks_parser.rs"
-required-features = ["shortint", "internal-keycache"]
+# [[example]]
+# name = "wasm_benchmarks_parser"
+# path = "examples/utilities/wasm_benchmarks_parser.rs"
+# required-features = ["shortint", "internal-keycache"]
 
-[[example]]
-name = "generates_test_keys"
-path = "examples/utilities/generates_test_keys.rs"
-required-features = ["boolean", "shortint", "internal-keycache"]
+# [[example]]
+# name = "generates_test_keys"
+# path = "examples/utilities/generates_test_keys.rs"
+# required-features = ["boolean", "shortint", "internal-keycache"]
 
-[[example]]
-name = "boolean_key_sizes"
-path = "examples/utilities/boolean_key_sizes.rs"
-required-features = ["boolean", "internal-keycache"]
+# [[example]]
+# name = "boolean_key_sizes"
+# path = "examples/utilities/boolean_key_sizes.rs"
+# required-features = ["boolean", "internal-keycache"]
 
-[[example]]
-name = "shortint_key_sizes"
-path = "examples/utilities/shortint_key_sizes.rs"
-required-features = ["shortint", "internal-keycache"]
+# [[example]]
+# name = "shortint_key_sizes"
+# path = "examples/utilities/shortint_key_sizes.rs"
+# required-features = ["shortint", "internal-keycache"]
 
-[[example]]
-name = "hlapi_compact_pk_ct_sizes"
-path = "examples/utilities/hlapi_compact_pk_ct_sizes.rs"
-required-features = ["integer", "internal-keycache"]
+# [[example]]
+# name = "hlapi_compact_pk_ct_sizes"
+# path = "examples/utilities/hlapi_compact_pk_ct_sizes.rs"
+# required-features = ["integer", "internal-keycache"]
 
-[[example]]
-name = "micro_bench_and"
-path = "examples/utilities/micro_bench_and.rs"
-required-features = ["boolean"]
+# [[example]]
+# name = "micro_bench_and"
+# path = "examples/utilities/micro_bench_and.rs"
+# required-features = ["boolean"]
 
-[[example]]
-name = "write_params_to_file"
-path = "examples/utilities/params_to_file.rs"
-required-features = ["boolean", "shortint", "internal-keycache"]
+# [[example]]
+# name = "write_params_to_file"
+# path = "examples/utilities/params_to_file.rs"
+# required-features = ["boolean", "shortint", "internal-keycache"]
 
 # Real use-case examples
 
-[[example]]
-name = "dark_market"
-required-features = ["integer", "internal-keycache"]
+# [[example]]
+# name = "dark_market"
+# required-features = ["integer", "internal-keycache"]
 
-[[example]]
-name = "regex_engine"
-required-features = ["integer"]
+# [[example]]
+# name = "regex_engine"
+# required-features = ["integer"]
 
-[[example]]
-name = "sha256_bool"
-required-features = ["boolean"]
+# [[example]]
+# name = "sha256_bool"
+# required-features = ["boolean"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

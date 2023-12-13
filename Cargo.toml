@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tfhe", "tasks", "apps/trivium", "concrete-csprng"]
+members = ["tfhe", "tasks", "concrete-csprng"]
 
 [profile.bench]
 lto = "fat"
