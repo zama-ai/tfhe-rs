@@ -4,7 +4,8 @@ mod utilities;
 use crate::utilities::{write_to_json, OperatorType};
 use std::env;
 
-use criterion::{criterion_group, Criterion};
+use criterion::{black_box, criterion_group, Criterion};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{
@@ -16,43 +17,43 @@ use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
 
-const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 1] = [
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 ];
 
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 0] = [
+    // PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    // PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_8_CARRY_0_KS_PBS,
 ];
 
-const SERVER_KEY_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 2] = [
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+const SERVER_KEY_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 0] = [
+    // PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 ];
 
-const SERVER_KEY_MULTI_BIT_BENCH_PARAMS_EXTENDED: [MultiBitPBSParameters; 6] = [
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+const SERVER_KEY_MULTI_BIT_BENCH_PARAMS_EXTENDED: [MultiBitPBSParameters; 0] = [
+    // PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    // PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
 ];
 
 enum BenchParamsSet {
@@ -323,6 +324,53 @@ fn programmable_bootstrapping_bench(c: &mut Criterion, params_set: BenchParamsSe
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let _ = sks.apply_lookup_table(&ctxt, &acc);
+            })
+        });
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            *param,
+            param.name(),
+            "pbs",
+            &OperatorType::Atomic,
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
+        );
+    }
+
+    bench_group.finish();
+}
+
+fn programmable_bootstrapping_throughput_bench(c: &mut Criterion, params_set: BenchParamsSet) {
+    let count = 100;
+
+    let mut bench_group = c.benchmark_group("programmable_bootstrap");
+
+    for param in benchmark_parameters(params_set).iter() {
+        let keys = KEY_CACHE.get_from_param(*param);
+        let (cks, sks) = (keys.client_key(), keys.server_key());
+
+        let mut rng = rand::thread_rng();
+
+        let modulus = cks.parameters.message_modulus().0 as u64;
+
+        let acc = sks.generate_lookup_table(|x| x);
+
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let ctxt = cks.encrypt(clear_0);
+
+        let bench_id = format!(
+            "shortint::programmable_bootstrap_throughput_{}::{}",
+            count,
+            param.name(),
+        );
+
+        bench_group.bench_function(&bench_id, |b| {
+            b.iter(|| {
+                (0..count).into_par_iter().for_each(|_| {
+                    let _ = black_box(sks.apply_lookup_table(ctxt.clone(), acc.clone()));
+                })
             })
         });
 
@@ -741,6 +789,11 @@ define_custom_bench_fn!(
     BenchParamsSet::Standard
 );
 
+define_custom_bench_fn!(
+    function_name: programmable_bootstrapping_throughput,
+    BenchParamsSet::Standard
+);
+
 criterion_group!(
     smart_ops,
     smart_bitand,
@@ -763,7 +816,8 @@ criterion_group!(
     unchecked_less,
     unchecked_equal,
     carry_extract,
-    programmable_bootstrapping
+    programmable_bootstrapping,
+    programmable_bootstrapping_throughput
 );
 
 criterion_group!(
