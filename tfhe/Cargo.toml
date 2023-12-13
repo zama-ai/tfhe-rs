@@ -151,28 +151,28 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 #         #
 ###########
 
-[[bench]]
-name = "ks-bench"
-path = "benches/core_crypto/ks_bench.rs"
-harness = false
-required-features = ["shortint", "internal-keycache"]
+# [[bench]]
+# name = "ks-bench"
+# path = "benches/core_crypto/ks_bench.rs"
+# harness = false
+# required-features = ["shortint", "internal-keycache"]
 
-[[bench]]
-name = "pbs-bench"
-path = "benches/core_crypto/pbs_bench.rs"
-harness = false
-required-features = ["boolean", "shortint", "internal-keycache"]
+# [[bench]]
+# name = "pbs-bench"
+# path = "benches/core_crypto/pbs_bench.rs"
+# harness = false
+# required-features = ["boolean", "shortint", "internal-keycache"]
 
-[[bench]]
-name = "dev-bench"
-path = "benches/core_crypto/dev_bench.rs"
-harness = false
-required-features = ["experimental", "internal-keycache"]
+# [[bench]]
+# name = "dev-bench"
+# path = "benches/core_crypto/dev_bench.rs"
+# harness = false
+# required-features = ["experimental", "internal-keycache"]
 
-[[bench]]
-name = "pbs128-bench"
-path = "benches/core_crypto/pbs128_bench.rs"
-harness = false
+# [[bench]]
+# name = "pbs128-bench"
+# path = "benches/core_crypto/pbs128_bench.rs"
+# harness = false
 
 # [[bench]]
 # name = "boolean-bench"
@@ -198,11 +198,11 @@ required-features = ["shortint", "internal-keycache"]
 # harness = false
 # required-features = ["integer", "internal-keycache"]
 
-[[bench]]
-name = "keygen"
-path = "benches/keygen/bench.rs"
-harness = false
-required-features = ["shortint", "internal-keycache"]
+# [[bench]]
+# name = "keygen"
+# path = "benches/keygen/bench.rs"
+# harness = false
+# required-features = ["shortint", "internal-keycache"]
 
 # [[bench]]
 # name = "utilities"
