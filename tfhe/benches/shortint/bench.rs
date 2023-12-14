@@ -5,11 +5,13 @@ use crate::utilities::{write_to_json, OperatorType};
 use std::env;
 
 use criterion::{black_box, criterion_group, Criterion};
+use lamellar::ActiveMessaging;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{
     Ciphertext, ClassicPBSParameters, CompressedServerKey, DServerKey, ShortintParameterSet,
+    DISPATCHER,
 };
 
 use rand::Rng;
@@ -368,9 +370,13 @@ fn programmable_bootstrapping_throughput_bench(c: &mut Criterion, params_set: Be
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                (0..count).into_par_iter().for_each(|_| {
-                    let _ = black_box(sks.apply_lookup_table(ctxt.clone(), acc.clone()));
-                })
+                let a: Vec<_> = (0..count)
+                    .map(|_| sks.apply_lookup_table_future(ctxt.clone(), acc.clone()))
+                    .collect();
+
+                for i in a {
+                    let c: Ciphertext = DISPATCHER.world.block_on(i);
+                }
             })
         });
 
