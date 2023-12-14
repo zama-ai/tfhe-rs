@@ -833,20 +833,22 @@ criterion_group!(
 
 criterion_group!(
     default_ops,
-    neg,
-    bitand,
-    bitor,
-    bitxor,
-    add,
-    sub,
-    div,
-    mul,
-    greater,
-    greater_or_equal,
-    less,
-    less_or_equal,
-    equal,
-    not_equal
+    programmable_bootstrapping,
+    programmable_bootstrapping_throughput,
+    /* neg,
+     * bitand,
+     * bitor,
+     * bitxor,
+     * add,
+     * sub,
+     * div,
+     * mul,
+     * greater,
+     * greater_or_equal,
+     * less,
+     * less_or_equal,
+     * equal,
+     * not_equal */
 );
 
 criterion_group!(
