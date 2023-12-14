@@ -463,11 +463,9 @@ impl DServerKey {
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
     pub fn apply_lookup_table(&self, ct: Ciphertext, acc: LookupTableOwned) -> Ciphertext {
-        let mut ct_res = ct.clone();
-
-        self.apply_lookup_table_assign(&mut ct_res, acc);
-
-        ct_res
+        DISPATCHER
+            .world
+            .block_on(self.apply_lookup_table_future(ct, acc))
     }
 
     pub fn apply_lookup_table_future(
@@ -488,16 +486,7 @@ impl DServerKey {
     }
 
     pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: LookupTableOwned) {
-        match self.0.pbs_order {
-            PBSOrder::KeyswitchBootstrap => {
-                // This updates the ciphertext degree
-                self.0.keyswitch_programmable_bootstrap_assign(ct, &acc);
-            }
-            PBSOrder::BootstrapKeyswitch => {
-                // This updates the ciphertext degree
-                self.0.programmable_bootstrap_keyswitch_assign(ct, &acc);
-            }
-        };
+        *ct = self.apply_lookup_table(ct.clone(), acc)
     }
     /// Applies the given function to the message of a ciphertext
     /// The input is reduced to the message space before the funciton application
