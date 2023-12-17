@@ -68,7 +68,7 @@ jobs:
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@1c938490c880156b746568a518594309cfb3f66b
+        uses: tj-actions/changed-files@94549999469dbfa032becf298d95c87a14c34394
         with:
           files_yaml: |
             tfhe:
