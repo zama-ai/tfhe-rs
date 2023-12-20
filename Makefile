@@ -314,13 +314,13 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
 test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
+		--out xml --ignore-panics --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage \
 		-p $(TFHE_SPEC) -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
+			--out xml --ignore-panics --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage,$(AVX512_FEATURE) \
 			-p $(TFHE_SPEC) -- core_crypto::; \
@@ -334,7 +334,7 @@ test_boolean: install_rs_build_toolchain
 .PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
 test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
+		--out xml --ignore-panics --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,__coverage \
 		-p $(TFHE_SPEC) -- boolean::
@@ -375,7 +375,7 @@ test_shortint: install_rs_build_toolchain
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
 test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
+		--out xml --ignore-panics --output-dir coverage/shortint --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage \
 		-p $(TFHE_SPEC) -- shortint::
