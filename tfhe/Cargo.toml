@@ -49,6 +49,7 @@ log = "0.4.19"
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
+rand = "0.8.5"
 concrete-csprng = { version = "0.4.0", path = "../concrete-csprng", features = [
     "generator_fallback",
     "parallel",
@@ -183,11 +184,17 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 # harness = false
 # required-features = ["boolean", "internal-keycache"]
 
-[[bench]]
-name = "shortint-bench"
-path = "benches/shortint/bench.rs"
-harness = false
+# [[bench]]
+# name = "shortint-bench"
+# path = "benches/shortint/bench.rs"
+# harness = false
+# required-features = ["shortint", "internal-keycache"]
+
+[[bin]]
+name = "pbs_bench"
+path = "src/pbs_bench.rs"
 required-features = ["shortint", "internal-keycache"]
+
 
 # [[bench]]
 # name = "integer-bench"
