@@ -5,7 +5,9 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::ThreadCount;
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, ThreadCount,
+};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -119,24 +121,26 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
     );
-    assert!(
-        lwe_keyswitch_key.ciphertext_modulus() == input_lwe_ciphertext.ciphertext_modulus(),
-        "Mismatched CiphertextModulus. \
-        LweKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+
+    let output_ciphertext_modulus = output_lwe_ciphertext.ciphertext_modulus();
+
+    assert_eq!(
         lwe_keyswitch_key.ciphertext_modulus(),
-        input_lwe_ciphertext.ciphertext_modulus()
-    );
-    assert!(
-        lwe_keyswitch_key.ciphertext_modulus() == output_lwe_ciphertext.ciphertext_modulus(),
+        output_ciphertext_modulus,
         "Mismatched CiphertextModulus. \
         LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
         lwe_keyswitch_key.ciphertext_modulus(),
-        output_lwe_ciphertext.ciphertext_modulus()
+        output_ciphertext_modulus
     );
     assert!(
-        lwe_keyswitch_key
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
+        output_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    let input_ciphertext_modulus = input_lwe_ciphertext.ciphertext_modulus();
+
+    assert!(
+        input_ciphertext_modulus.is_compatible_with_native_modulus(),
         "This operation currently only supports power of 2 moduli"
     );
 
@@ -145,6 +149,20 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 
     // Copy the input body to the output ciphertext
     *output_lwe_ciphertext.get_mut_body().data = *input_lwe_ciphertext.get_body().data;
+
+    // If the moduli are not the same, we need to round the body in the output ciphertext
+    if output_ciphertext_modulus != input_ciphertext_modulus
+        && !output_ciphertext_modulus.is_native_modulus()
+    {
+        let modulus_bits = output_ciphertext_modulus.get_custom_modulus().ilog2() as usize;
+        let output_decomposer = SignedDecomposer::new(
+            DecompositionBaseLog(modulus_bits),
+            DecompositionLevelCount(1),
+        );
+
+        *output_lwe_ciphertext.get_mut_body().data =
+            output_decomposer.closest_representable(*output_lwe_ciphertext.get_mut_body().data);
+    }
 
     // We instantiate a decomposer
     let decomposer = SignedDecomposer::new(
@@ -385,24 +403,26 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
     );
-    assert!(
-        lwe_keyswitch_key.ciphertext_modulus() == input_lwe_ciphertext.ciphertext_modulus(),
-        "Mismatched CiphertextModulus. \
-        LweKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+
+    let output_ciphertext_modulus = output_lwe_ciphertext.ciphertext_modulus();
+
+    assert_eq!(
         lwe_keyswitch_key.ciphertext_modulus(),
-        input_lwe_ciphertext.ciphertext_modulus()
-    );
-    assert!(
-        lwe_keyswitch_key.ciphertext_modulus() == output_lwe_ciphertext.ciphertext_modulus(),
+        output_ciphertext_modulus,
         "Mismatched CiphertextModulus. \
         LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
         lwe_keyswitch_key.ciphertext_modulus(),
-        output_lwe_ciphertext.ciphertext_modulus()
+        output_ciphertext_modulus
     );
     assert!(
-        lwe_keyswitch_key
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
+        output_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    let input_ciphertext_modulus = input_lwe_ciphertext.ciphertext_modulus();
+
+    assert!(
+        input_ciphertext_modulus.is_compatible_with_native_modulus(),
         "This operation currently only supports power of 2 moduli"
     );
 
@@ -410,6 +430,28 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
         thread_count.0 != 0,
         "Got thread_count == 0, this is not supported"
     );
+
+    // Clear the output ciphertext, as it will get updated gradually
+    output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
+
+    let output_lwe_size = output_lwe_ciphertext.lwe_size();
+
+    // Copy the input body to the output ciphertext
+    *output_lwe_ciphertext.get_mut_body().data = *input_lwe_ciphertext.get_body().data;
+
+    // If the moduli are not the same, we need to round the body in the output ciphertext
+    if output_ciphertext_modulus != input_ciphertext_modulus
+        && !output_ciphertext_modulus.is_native_modulus()
+    {
+        let modulus_bits = output_ciphertext_modulus.get_custom_modulus().ilog2() as usize;
+        let output_decomposer = SignedDecomposer::new(
+            DecompositionBaseLog(modulus_bits),
+            DecompositionLevelCount(1),
+        );
+
+        *output_lwe_ciphertext.get_mut_body().data =
+            output_decomposer.closest_representable(*output_lwe_ciphertext.get_mut_body().data);
+    }
 
     // We instantiate a decomposer
     let decomposer = SignedDecomposer::new(
@@ -420,9 +462,6 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
     // Don't go above the current number of threads
     let thread_count = thread_count.0.min(rayon::current_num_threads());
     let mut intermediate_accumulators = Vec::with_capacity(thread_count);
-
-    let output_lwe_size = output_lwe_ciphertext.lwe_size();
-    let output_ciphertext_modulus = output_lwe_ciphertext.ciphertext_modulus();
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
     let chunk_size = divide_ceil(input_lwe_ciphertext.lwe_size().0, thread_count);
@@ -475,8 +514,9 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
         .get_mut_mask()
         .as_mut()
         .copy_from_slice(reduced.get_mask().as_ref());
-    let input_lwe_body = *input_lwe_ciphertext.get_body().data;
     let reduced_ksed_body = *reduced.get_body().data;
-    // Copy the input body to the output ciphertext
-    *output_lwe_ciphertext.get_mut_body().data = input_lwe_body.wrapping_add(reduced_ksed_body);
+
+    // Add the reduced body of the keyswitch to the output body to complete the keyswitch
+    *output_lwe_ciphertext.get_mut_body().data =
+        (*output_lwe_ciphertext.get_mut_body().data).wrapping_add(reduced_ksed_body);
 }
