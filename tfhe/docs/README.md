@@ -16,7 +16,7 @@ The TFHE-rs library implements Zama’s variant of Fully Homomorphic Encryption 
 
 In cryptography, a raw value is called a message (also sometimes called a cleartext), while an encoded message is called a plaintext and an encrypted plaintext is called a ciphertext.
 
-The idea of homomorphic encryption is that you can compute on ciphertexts while not knowing messages encrypted within them. A scheme is said to be _fully homomorphic_, meaning any program can be evaluated with it, if at least two of the following operations are supported ($$x$$is a plaintext and $$E[x]$$ is the corresponding ciphertext):
+The idea of homomorphic encryption is that you can compute on ciphertexts while not knowing messages encrypted within them. A scheme is said to be _fully homomorphic_, meaning any program can be evaluated with it, if at least two of the following operations are supported ($$x$$ is a plaintext and $$E[x]$$ is the corresponding ciphertext):
 
 * homomorphic univariate function evaluation: $$f(E[x]) = E[f(x)]$$
 * homomorphic addition: $$E[x] + E[y] = E[x + y]$$
