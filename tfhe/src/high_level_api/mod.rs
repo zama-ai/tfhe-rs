@@ -41,7 +41,6 @@ expand_pub_use_fhe_type!(
         FheUint256, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256
     };
 );
-#[cfg(feature = "safe-deserialization")]
 pub use integers::safe_serialize::{
     safe_deserialize_conformant, safe_deserialize_conformant_compact_integer,
     safe_deserialize_conformant_compressed_integer, safe_deserialize_conformant_integer,

@@ -33,7 +33,6 @@ serde_json = "1.0.94"
 # changes often between minor releases, which breaks our CI
 clap = { version = "=4.4.4", features = ["derive"] }
 # Used in user documentation
-bincode = "1.3.3"
 fs2 = { version = "0.4.3" }
 itertools = "0.11.0"
 # For erf and normality test
@@ -56,7 +55,7 @@ concrete-csprng = { version = "0.4.0", path = "../concrete-csprng", features = [
 lazy_static = { version = "1.4.0", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 rayon = { version = "1.5.0" }
-bincode = { version = "1.3.3", optional = true }
+bincode = "1.3.3"
 concrete-fft = { version = "0.3.0", features = ["serde", "fft128"] }
 pulp = "0.13"
 aligned-vec = { version = "0.5", features = ["serde"] }
@@ -82,15 +81,14 @@ bytemuck = "1.13.1"
 boolean = ["dep:paste"]
 shortint = ["dep:paste"]
 integer = ["shortint", "dep:paste"]
-internal-keycache = ["dep:lazy_static", "dep:fs2", "dep:bincode", "dep:paste"]
-safe-deserialization = ["dep:bincode"]
+internal-keycache = ["dep:lazy_static", "dep:fs2", "dep:paste"]
 
 # Experimental section
 experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 
-__c_api = ["dep:cbindgen", "dep:bincode", "dep:paste"]
+__c_api = ["dep:cbindgen", "dep:paste"]
 # For the semver trick to skip the build.rs
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
@@ -104,8 +102,6 @@ __wasm_api = [
     "dep:serde-wasm-bindgen",
     "dep:getrandom",
     "getrandom/js",
-    "dep:bincode",
-    "safe-deserialization",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
