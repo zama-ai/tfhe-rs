@@ -24,7 +24,6 @@ rust-version = "1.72"
 [dev-dependencies]
 rand = "0.8.5"
 rand_distr = "0.4.3"
-paste = "1.0.7"
 lazy_static = { version = "1.4.0" }
 criterion = "0.5.1"
 doc-comment = "0.3.3"
@@ -60,7 +59,7 @@ concrete-fft = { version = "0.3.0", features = ["serde", "fft128"] }
 pulp = "0.13"
 aligned-vec = { version = "0.5", features = ["serde"] }
 dyn-stack = { version = "0.9" }
-paste = { version = "1.0.7", optional = true }
+paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
 # While we wait for repeat_n in rust standard library
 itertools = "0.11.0"
@@ -77,18 +76,17 @@ getrandom = { version = "0.2.8", optional = true }
 bytemuck = "1.13.1"
 
 [features]
-# paste is used by the HL API
-boolean = ["dep:paste"]
-shortint = ["dep:paste"]
-integer = ["shortint", "dep:paste"]
-internal-keycache = ["dep:lazy_static", "dep:fs2", "dep:paste"]
+boolean = []
+shortint = []
+integer = ["shortint"]
+internal-keycache = ["dep:lazy_static", "dep:fs2"]
 
 # Experimental section
 experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 
-__c_api = ["dep:cbindgen", "dep:paste"]
+__c_api = ["dep:cbindgen"]
 # For the semver trick to skip the build.rs
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
