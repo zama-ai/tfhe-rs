@@ -68,7 +68,7 @@ $ cmake .. -DCMAKE_BUILD_TYPE=RELEASE
 $ make
 ...
 $ ./my-executable
-Result: 2
+FHE computation successful!
 $
 ```
 
@@ -135,6 +135,8 @@ int main(void)
     // Destroy the keys
     client_key_destroy(client_key);
     server_key_destroy(server_key);
+
+    printf("FHE computation successful!\n");
     return EXIT_SUCCESS;
 }
 ```
