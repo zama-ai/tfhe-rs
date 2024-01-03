@@ -115,7 +115,6 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 pub mod keycache;
 
-#[cfg(feature = "safe-deserialization")]
 pub mod safe_deserialization;
 
 pub mod conformance;

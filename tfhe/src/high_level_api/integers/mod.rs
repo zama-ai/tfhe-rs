@@ -23,7 +23,6 @@ mod tests_signed;
 mod tests_unsigned;
 mod types;
 
-#[cfg(feature = "safe-deserialization")]
 pub mod safe_serialize {
     use super::parameters::IntegerId;
     use super::types::compact::GenericCompactInteger;

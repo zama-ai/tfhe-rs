@@ -207,7 +207,7 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
@@ -265,13 +265,13 @@ build_tfhe_full: install_rs_build_toolchain
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization,experimental-force_fft_algo_dif4 \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4 \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
@@ -342,7 +342,7 @@ test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
 		-p $(TFHE_SPEC) \
 		c_api
 
@@ -429,7 +429,7 @@ test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nexte
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization -p $(TFHE_SPEC) -- safe_deserialization::
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) -- safe_deserialization::
 
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain
@@ -508,7 +508,7 @@ format_doc_latex:
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
-		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache,safe-deserialization \
+		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
 		-p $(TFHE_SPEC)
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
