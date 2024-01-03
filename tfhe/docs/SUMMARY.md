@@ -14,6 +14,7 @@
 * [Homomorphic Case Changing on Ascii String](tutorials/ascii_fhe_string.md)
 
 ## How To
+* [Run on GPU](how_to/run_on_gpu.md)
 * [Configure Rust](how_to/rust_configuration.md)
 * [Detect Overflow](how_to/overflow_operations.md)
 * [Serialize/Deserialize](how_to/serialization.md)
