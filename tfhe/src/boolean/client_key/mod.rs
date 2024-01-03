@@ -134,4 +134,92 @@ impl ClientKey {
     pub fn new(parameter_set: &BooleanParameters) -> ClientKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
     }
+
+    /// Deconstruct a [`ClientKey`] into its constituants.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # fn main() {
+    /// use tfhe::boolean::client_key::ClientKey;
+    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+    /// use tfhe::boolean::prelude::*;
+    ///
+    /// // Generate the client key:
+    /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    /// let raw_parts = cks.into_raw_parts();
+    /// # }
+    /// ```
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        LweSecretKeyOwned<u32>,
+        GlweSecretKeyOwned<u32>,
+        BooleanParameters,
+    ) {
+        let Self {
+            lwe_secret_key,
+            glwe_secret_key,
+            parameters,
+        } = self;
+
+        (lwe_secret_key, glwe_secret_key, parameters)
+    }
+
+    /// Construct a [`ClientKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided raw parts are not compatible with the provided parameters.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # fn main() {
+    /// use tfhe::boolean::client_key::ClientKey;
+    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+    /// use tfhe::boolean::prelude::*;
+    ///
+    /// // Generate the client key:
+    /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    /// let (lwe_secret_key, glwe_secret_key, parameters) = cks.into_raw_parts();
+    /// let reconstructed_cks = ClientKey::new_from_raw_parts(lwe_secret_key, glwe_secret_key, parameters);
+    /// # }
+    pub fn new_from_raw_parts(
+        lwe_secret_key: LweSecretKeyOwned<u32>,
+        glwe_secret_key: GlweSecretKeyOwned<u32>,
+        parameters: BooleanParameters,
+    ) -> Self {
+        assert_eq!(
+            lwe_secret_key.lwe_dimension(),
+            parameters.lwe_dimension,
+            "Mismatch between the LweSecretKey LweDimension ({:?}) \
+            and the parameters LweDimension ({:?})",
+            lwe_secret_key.lwe_dimension(),
+            parameters.lwe_dimension
+        );
+        assert_eq!(
+            glwe_secret_key.glwe_dimension(),
+            parameters.glwe_dimension,
+            "Mismatch between the GlweSecretKey GlweDimension ({:?}) \
+            and the parameters GlweDimension ({:?})",
+            glwe_secret_key.glwe_dimension(),
+            parameters.glwe_dimension
+        );
+
+        assert_eq!(
+            glwe_secret_key.polynomial_size(),
+            parameters.polynomial_size,
+            "Mismatch between the GlweSecretKey PolynomialSize ({:?}) \
+            and the parameters PolynomialSize ({:?})",
+            glwe_secret_key.polynomial_size(),
+            parameters.polynomial_size
+        );
+
+        Self {
+            lwe_secret_key,
+            glwe_secret_key,
+            parameters,
+        }
+    }
 }
