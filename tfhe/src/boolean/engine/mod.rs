@@ -118,10 +118,10 @@ impl BooleanEngine {
                 client_key.glwe_secret_key.as_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            EncryptionKeyChoice::Small => {
-                let view = LweSecretKey::from_container(client_key.lwe_secret_key.as_ref());
-                (view, client_key.parameters.lwe_modular_std_dev)
-            }
+            EncryptionKeyChoice::Small => (
+                client_key.lwe_secret_key.as_view(),
+                client_key.parameters.lwe_modular_std_dev,
+            ),
         };
 
         // Formula is (n + 1) * log2(q) + 128
@@ -161,10 +161,10 @@ impl BooleanEngine {
                 client_key.glwe_secret_key.as_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            EncryptionKeyChoice::Small => {
-                let view = LweSecretKey::from_container(client_key.lwe_secret_key.as_ref());
-                (view, client_key.parameters.lwe_modular_std_dev)
-            }
+            EncryptionKeyChoice::Small => (
+                client_key.lwe_secret_key.as_view(),
+                client_key.parameters.lwe_modular_std_dev,
+            ),
         };
 
         // Formula is (n + 1) * log2(q) + 128
@@ -211,9 +211,7 @@ impl BooleanEngine {
                 cks2.glwe_secret_key.as_lwe_secret_key(),
             ),
             (EncryptionKeyChoice::Small, EncryptionKeyChoice::Small) => {
-                let view1 = LweSecretKey::from_container(cks1.lwe_secret_key.as_ref());
-                let view2 = LweSecretKey::from_container(cks2.lwe_secret_key.as_ref());
-                (view1, view2)
+                (cks1.lwe_secret_key.as_view(), cks2.lwe_secret_key.as_view())
             }
             (choice1, choice2) => panic!(
                 "EncryptionKeyChoice of cks1 and cks2 must be the same.\
@@ -251,10 +249,10 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
                 cks.glwe_secret_key.as_lwe_secret_key(),
                 cks.parameters.glwe_modular_std_dev,
             ),
-            EncryptionKeyChoice::Small => {
-                let view = LweSecretKey::from_container(cks.lwe_secret_key.as_ref());
-                (view, cks.parameters.lwe_modular_std_dev)
-            }
+            EncryptionKeyChoice::Small => (
+                cks.lwe_secret_key.as_view(),
+                cks.parameters.lwe_modular_std_dev,
+            ),
         };
 
         // encryption
@@ -282,10 +280,10 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
                 cks.glwe_secret_key.as_lwe_secret_key(),
                 cks.parameters.glwe_modular_std_dev,
             ),
-            EncryptionKeyChoice::Small => {
-                let view = LweSecretKey::from_container(cks.lwe_secret_key.as_ref());
-                (view, cks.parameters.lwe_modular_std_dev)
-            }
+            EncryptionKeyChoice::Small => (
+                cks.lwe_secret_key.as_view(),
+                cks.parameters.lwe_modular_std_dev,
+            ),
         };
 
         // encryption
@@ -357,9 +355,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             Ciphertext::Encrypted(ciphertext) => {
                 let lwe_sk = match cks.parameters.encryption_key_choice {
                     EncryptionKeyChoice::Big => cks.glwe_secret_key.as_lwe_secret_key(),
-                    EncryptionKeyChoice::Small => {
-                        LweSecretKey::from_container(cks.lwe_secret_key.as_ref())
-                    }
+                    EncryptionKeyChoice::Small => cks.lwe_secret_key.as_view(),
                 };
 
                 // decryption
