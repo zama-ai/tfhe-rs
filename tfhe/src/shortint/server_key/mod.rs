@@ -36,7 +36,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
-use crate::shortint::engine::{fill_accumulator, ShortintEngine};
+use crate::shortint::engine::{fill_accumulator, fill_accumulator_no_encoding, ShortintEngine};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
@@ -395,6 +395,26 @@ impl ServerKey {
         LookupTableOwned {
             acc,
             degree: Degree::new(max_value as usize),
+        }
+    }
+
+    pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        let mut acc = GlweCiphertext::new(
+            0,
+            self.bootstrapping_key.glwe_size(),
+            self.bootstrapping_key.polynomial_size(),
+            self.ciphertext_modulus,
+        );
+        fill_accumulator_no_encoding(&mut acc, self, f);
+
+        LookupTableOwned {
+            acc,
+            // We should not rely on the degree in this case
+            // The degree should be set manually on the outputs of PBS by this LUT
+            degree: Degree::new(self.message_modulus.0 * self.carry_modulus.0 * 2),
         }
     }
 

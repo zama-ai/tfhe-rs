@@ -287,15 +287,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
-            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
-        };
-
-        // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
-
-        let decrypted_u64: u64 = decrypted_encoded.0;
+        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
         let delta = (1_u64 << 63)
             / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
@@ -342,6 +334,14 @@ impl ClientKey {
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
         self.decrypt_message_and_carry(ct) % ct.message_modulus.0 as u64
+    }
+
+    fn decrypt_no_decode(&self, ct: &Ciphertext) -> u64 {
+        let lwe_decryption_key = match ct.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
+            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
+        };
+        decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct).0
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -430,15 +430,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
-            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
-        };
-
-        // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
-
-        let decrypted_u64: u64 = decrypted_encoded.0;
+        let decrypted_u64 = self.decrypt_no_decode(ct);
 
         let delta = ((1_u64 << 63)
             / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64)
@@ -592,15 +584,7 @@ impl ClientKey {
     pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, basis: u8) -> u64 {
         let basis = basis as u64;
 
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
-            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
-        };
-
-        // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
-
-        let decrypted_u64: u64 = decrypted_encoded.0;
+        let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
         let mut result = decrypted_u64 as u128 * basis as u128;
         result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);
