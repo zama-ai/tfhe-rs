@@ -120,6 +120,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
 
+    /// Return a view of the [`GlweSecretKey`]. This is useful if an algorithm takes a view by
+    /// value.
+    pub fn as_view(&self) -> GlweSecretKeyView<'_, Scalar> {
+        GlweSecretKey::from_container(self.as_ref(), self.polynomial_size)
+    }
+
     /// Consume the entity and return its underlying container.
     ///
     /// See [`GlweSecretKey::from_container`] for usage.
@@ -128,8 +134,20 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
     }
 }
 
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweSecretKey<C> {
+    /// Mutable variant of [`GlweSecretKey::as_view`].
+    pub fn as_mut_view(&mut self) -> GlweSecretKeyMutView<'_, Scalar> {
+        let polynomial_size = self.polynomial_size;
+        GlweSecretKey::from_container(self.as_mut(), polynomial_size)
+    }
+}
+
 /// A [`GlweSecretKey`] owning the memory for its own storage.
 pub type GlweSecretKeyOwned<Scalar> = GlweSecretKey<Vec<Scalar>>;
+/// An [`GlweSecretKey`] immutably borrowing memory for its own storage.
+pub type GlweSecretKeyView<'data, Scalar> = GlweSecretKey<&'data [Scalar]>;
+/// An [`GlweSecretKey`] mutably borrowing memory for its own storage.
+pub type GlweSecretKeyMutView<'data, Scalar> = GlweSecretKey<&'data mut [Scalar]>;
 
 impl<Scalar> GlweSecretKeyOwned<Scalar>
 where
