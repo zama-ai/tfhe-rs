@@ -62,7 +62,7 @@ impl ShortintEngine {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
                 let bootstrap_key: LweBootstrapKeyOwned<u64> =
                     par_allocate_and_generate_new_lwe_bootstrap_key(
-                        &cks.small_lwe_secret_key,
+                        &cks.small_lwe_secret_key(),
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
@@ -88,7 +88,7 @@ impl ShortintEngine {
             crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
                 let bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
                     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key,
+                        &cks.small_lwe_secret_key(),
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
@@ -132,8 +132,8 @@ impl ShortintEngine {
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key,
-            &cks.small_lwe_secret_key,
+            &cks.large_lwe_secret_key(),
+            &cks.small_lwe_secret_key(),
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
             cks.parameters.lwe_modular_std_dev(),
@@ -167,8 +167,8 @@ impl ShortintEngine {
     ) -> LweKeyswitchKeyOwned<u64> {
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(
-            &cks1.large_lwe_secret_key,
-            &cks2.large_lwe_secret_key,
+            &cks1.large_lwe_secret_key(),
+            &cks2.large_lwe_secret_key(),
             params.ks_base_log,
             params.ks_level,
             cks2.parameters.lwe_modular_std_dev(),
@@ -195,7 +195,7 @@ impl ShortintEngine {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
                 #[cfg(not(feature = "__wasm_api"))]
                 let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                    &cks.small_lwe_secret_key,
+                    &cks.small_lwe_secret_key(),
                     &cks.glwe_secret_key,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
@@ -206,7 +206,7 @@ impl ShortintEngine {
 
                 #[cfg(feature = "__wasm_api")]
                 let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                    &cks.small_lwe_secret_key,
+                    &cks.small_lwe_secret_key(),
                     &cks.glwe_secret_key,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
@@ -221,7 +221,7 @@ impl ShortintEngine {
                 #[cfg(not(feature = "__wasm_api"))]
                 let bootstrapping_key =
                     par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key,
+                        &cks.small_lwe_secret_key(),
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
@@ -234,7 +234,7 @@ impl ShortintEngine {
                 #[cfg(feature = "__wasm_api")]
                 let bootstrapping_key =
                     allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key,
+                        &cks.small_lwe_secret_key(),
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
@@ -253,8 +253,8 @@ impl ShortintEngine {
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key,
-            &cks.small_lwe_secret_key,
+            &cks.large_lwe_secret_key(),
+            &cks.small_lwe_secret_key(),
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
             cks.parameters.lwe_modular_std_dev(),

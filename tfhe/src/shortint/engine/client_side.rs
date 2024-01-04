@@ -12,7 +12,7 @@ use crate::shortint::{
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: ShortintParameterSet) -> ClientKey {
         // generate the lwe secret key
-        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension(),
             &mut self.secret_generator,
         );
@@ -24,13 +24,10 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
-
         // pack the keys in the client key set
         ClientKey {
-            large_lwe_secret_key,
             glwe_secret_key,
-            small_lwe_secret_key,
+            lwe_secret_key,
             parameters,
         }
     }
@@ -55,14 +52,17 @@ impl ShortintEngine {
         )
     }
 
-    fn encrypt_inner_ct(
+    fn encrypt_inner_ct<KeyCont>(
         &mut self,
         client_key_parameters: &ShortintParameterSet,
-        client_lwe_sk: &LweSecretKeyOwned<u64>,
+        client_lwe_sk: &LweSecretKey<KeyCont>,
         noise_parameter: impl DispersionParameter,
         message: u64,
         message_modulus: MessageModulus,
-    ) -> LweCiphertextOwned<u64> {
+    ) -> LweCiphertextOwned<u64>
+    where
+        KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
+    {
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
             / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0)
@@ -94,18 +94,18 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = self.encrypt_inner_ct(
             &client_key.parameters,
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encryption_noise,
             message,
             message_modulus,
@@ -146,18 +146,18 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = self.encrypt_inner_ct(
             &client_key.parameters,
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encryption_noise,
             message,
             message_modulus,
@@ -201,17 +201,17 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -233,11 +233,11 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
@@ -250,7 +250,7 @@ impl ShortintEngine {
         let encoded = Plaintext(shifted_message);
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -289,17 +289,17 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -335,17 +335,17 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -378,17 +378,17 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -421,17 +421,17 @@ impl ShortintEngine {
 
         let (encryption_lwe_sk, encryption_noise) = match params_op_order {
             PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
+                client_key.large_lwe_secret_key(),
                 client_key.parameters.glwe_modular_std_dev(),
             ),
             PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
+                client_key.small_lwe_secret_key(),
                 client_key.parameters.lwe_modular_std_dev(),
             ),
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
-            encryption_lwe_sk,
+            &encryption_lwe_sk,
             encoded,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),

@@ -25,7 +25,7 @@ impl ShortintEngine {
         let wop_params = cks.parameters.wopbs_parameters().unwrap();
 
         let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
-            &cks.large_lwe_secret_key,
+            &cks.large_lwe_secret_key(),
             &cks.glwe_secret_key,
             wop_params.pfks_base_log,
             wop_params.pfks_level,
@@ -104,7 +104,7 @@ impl ShortintEngine {
 
         // KSK to convert from input ciphertext key to the wopbs input one
         let ksk_pbs_large_to_wopbs_large = allocate_and_generate_new_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key,
+            &cks.large_lwe_secret_key(),
             &large_lwe_secret_key,
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
@@ -117,7 +117,7 @@ impl ShortintEngine {
         // classical PBS. This allows compatibility between PBS and WoPBS
         let ksk_wopbs_large_to_pbs_small = allocate_and_generate_new_lwe_keyswitch_key(
             &large_lwe_secret_key,
-            &cks.small_lwe_secret_key,
+            &cks.small_lwe_secret_key(),
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
             cks.parameters.lwe_modular_std_dev(),

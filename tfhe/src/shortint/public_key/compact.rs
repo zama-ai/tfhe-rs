@@ -53,11 +53,11 @@ impl CompactPublicKey {
         let (secret_encryption_key, encryption_noise) =
             match client_key.parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    &client_key.large_lwe_secret_key,
+                    client_key.large_lwe_secret_key(),
                     parameters.glwe_modular_std_dev(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    &client_key.small_lwe_secret_key,
+                    client_key.small_lwe_secret_key(),
                     parameters.lwe_modular_std_dev(),
                 ),
             };
@@ -73,7 +73,7 @@ impl CompactPublicKey {
         );
         ShortintEngine::with_thread_local_mut(|engine| {
             generate_lwe_compact_public_key(
-                secret_encryption_key,
+                &secret_encryption_key,
                 &mut key,
                 encryption_noise,
                 &mut engine.encryption_generator,
@@ -211,18 +211,18 @@ impl CompressedCompactPublicKey {
         let (secret_encryption_key, encryption_noise) =
             match client_key.parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    &client_key.large_lwe_secret_key,
+                    client_key.large_lwe_secret_key(),
                     parameters.glwe_modular_std_dev(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    &client_key.small_lwe_secret_key,
+                    client_key.small_lwe_secret_key(),
                     parameters.lwe_modular_std_dev(),
                 ),
             };
 
         let key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_compact_public_key(
-                secret_encryption_key,
+                &secret_encryption_key,
                 encryption_noise,
                 parameters.ciphertext_modulus(),
                 &mut engine.seeder,
