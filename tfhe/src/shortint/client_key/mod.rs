@@ -21,11 +21,9 @@ use super::PBSOrder;
 /// * `parameters` - the cryptographic parameter set.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientKey {
-    /// The LWE secret key equivalent to the GLWE secret key
-    pub(crate) large_lwe_secret_key: LweSecretKeyOwned<u64>,
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
-    pub(crate) small_lwe_secret_key: LweSecretKeyOwned<u64>,
+    pub(crate) lwe_secret_key: LweSecretKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
 }
 
@@ -49,6 +47,16 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_client_key(parameters.try_into().unwrap())
         })
+    }
+
+    /// Returns a view to the `glwe_secret_key` interpreted as an LWE secret key.
+    pub(crate) fn large_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
+        self.glwe_secret_key.as_lwe_secret_key()
+    }
+
+    /// Returns a view to the `lwe_secret_key`
+    pub(crate) fn small_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
+        self.lwe_secret_key.as_view()
     }
 
     /// Encrypt a small integer message using the client key.
@@ -280,12 +288,12 @@ impl ClientKey {
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
         let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
-            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
+            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
 
         // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
 
         let decrypted_u64: u64 = decrypted_encoded.0;
 
@@ -423,12 +431,12 @@ impl ClientKey {
     /// ```
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
-            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
+            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
 
         // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
 
         let decrypted_u64: u64 = decrypted_encoded.0;
 
@@ -585,12 +593,12 @@ impl ClientKey {
         let basis = basis as u64;
 
         let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
-            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+            PBSOrder::KeyswitchBootstrap => self.large_lwe_secret_key(),
+            PBSOrder::BootstrapKeyswitch => self.small_lwe_secret_key(),
         };
 
         // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+        let decrypted_encoded = decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct);
 
         let decrypted_u64: u64 = decrypted_encoded.0;
 

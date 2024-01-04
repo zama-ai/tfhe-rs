@@ -26,11 +26,11 @@ impl ShortintEngine {
         let (secret_encryption_key, encryption_noise) =
             match client_parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    &client_key.large_lwe_secret_key,
+                    client_key.large_lwe_secret_key(),
                     client_parameters.glwe_modular_std_dev(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    &client_key.small_lwe_secret_key,
+                    client_key.small_lwe_secret_key(),
                     client_parameters.lwe_modular_std_dev(),
                 ),
             };
@@ -41,7 +41,7 @@ impl ShortintEngine {
 
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
-            secret_encryption_key,
+            &secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -50,7 +50,7 @@ impl ShortintEngine {
 
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         let lwe_public_key = allocate_and_generate_new_lwe_public_key(
-            secret_encryption_key,
+            &secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
             client_key.parameters.ciphertext_modulus(),
@@ -72,11 +72,11 @@ impl ShortintEngine {
         let (secret_encryption_key, encryption_noise) =
             match client_parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    &client_key.large_lwe_secret_key,
+                    client_key.large_lwe_secret_key(),
                     client_parameters.glwe_modular_std_dev(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    &client_key.small_lwe_secret_key,
+                    client_key.small_lwe_secret_key(),
                     client_parameters.lwe_modular_std_dev(),
                 ),
             };
@@ -87,7 +87,7 @@ impl ShortintEngine {
 
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         let compressed_public_key = par_allocate_and_generate_new_seeded_lwe_public_key(
-            secret_encryption_key,
+            &secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
             client_parameters.ciphertext_modulus(),
@@ -96,7 +96,7 @@ impl ShortintEngine {
 
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         let compressed_public_key = allocate_and_generate_new_seeded_lwe_public_key(
-            secret_encryption_key,
+            &secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
             client_parameters.ciphertext_modulus(),
