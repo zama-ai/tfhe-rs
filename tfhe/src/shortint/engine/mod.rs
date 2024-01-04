@@ -106,7 +106,6 @@ where
     // Tracking the max value of the function to define the degree later
     let mut max_value = 0;
 
-    // This accumulator extracts the carry bits
     for i in 0..modulus_sup {
         let index = i * box_size;
         let f_eval = f(i as u64);
@@ -125,6 +124,35 @@ where
     accumulator_u64.rotate_left(half_box_size);
 
     max_value
+}
+
+pub(crate) fn fill_accumulator_no_encoding<F, C>(
+    accumulator: &mut GlweCiphertext<C>,
+    server_key: &ServerKey,
+    f: F,
+) where
+    C: ContainerMut<Element = u64>,
+    F: Fn(u64) -> u64,
+{
+    assert_eq!(
+        accumulator.polynomial_size(),
+        server_key.bootstrapping_key.polynomial_size()
+    );
+    assert_eq!(
+        accumulator.glwe_size(),
+        server_key.bootstrapping_key.glwe_size()
+    );
+
+    let mut accumulator_view = accumulator.as_mut_view();
+
+    accumulator_view.get_mut_mask().as_mut().fill(0);
+
+    let mut body = accumulator_view.get_mut_body();
+    let accumulator_u64 = body.as_mut();
+
+    for (i, value) in accumulator_u64.iter_mut().enumerate() {
+        *value = f(i as u64);
+    }
 }
 
 /// Simple wrapper around [`std::error::Error`] to be able to
