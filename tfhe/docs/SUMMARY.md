@@ -17,6 +17,7 @@
 * [Configure Rust](how_to/rust_configuration.md)
 * [Detect Overflow](how_to/overflow_operations.md)
 * [Serialize/Deserialize](how_to/serialization.md)
+* [Migrate Data to Newer Versions of TFHE-rs](how_to/migrate_data.md)
 * [Compress Ciphertexts/Keys](how_to/compress.md)
 * [Use Public Key Encryption](how_to/public_key.md)
 * [Use Trivial Ciphertext](how_to/trivial_ciphertext.md)
