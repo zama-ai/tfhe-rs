@@ -80,10 +80,12 @@ macro_rules! static_int_type {
         $(#[$outer:meta])*
         $name:ident {
             num_bits: $num_bits:literal,
-        }
+        },
+        $signedness:literal
     ) => {
          paste! {
-            #[doc = concat!("An unsigned integer type with", stringify!($num_bits), "bits")]
+            #[doc = concat!("An integer type with ", stringify!($num_bits), " bits of precision ")]
+            #[doc = concat!("representing ", $signedness, " values")]
             $(#[$outer])*
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type $name = GenericInteger<[<$name Id>]>;
@@ -135,7 +137,8 @@ macro_rules! static_int_type {
                 $(#[$outer])*
                 [<FheUint $num_bits>] {
                     num_bits: $num_bits,
-                }
+                },
+                "unsigned"
             );
         }
     };
@@ -164,7 +167,8 @@ macro_rules! static_int_type {
                 $(#[$outer])*
                 [<FheInt $num_bits>] {
                     num_bits: $num_bits,
-                }
+                },
+                "signed"
             );
         }
     };
