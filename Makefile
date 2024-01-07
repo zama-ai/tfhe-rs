@@ -493,6 +493,12 @@ test_user_doc_gpu: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu -p $(TFHE_SPEC) \
 		-- test_user_docs::
 
+.PHONY: test_fhe_strings # Run tests for fhe_strings example
+test_fhe_strings: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--example fhe_strings \
+		--features=$(TARGET_ARCH_FEATURE),integer
+
 .PHONY: test_regex_engine # Run tests for regex_engine example
 test_regex_engine: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
