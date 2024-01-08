@@ -59,6 +59,91 @@ impl ClientKey {
         self.lwe_secret_key.as_view()
     }
 
+    /// Deconstruct a [`ClientKey`] into its constituants.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::client_key::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key:
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
+    /// ```
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        GlweSecretKeyOwned<u64>,
+        LweSecretKeyOwned<u64>,
+        ShortintParameterSet,
+    ) {
+        let Self {
+            glwe_secret_key,
+            lwe_secret_key,
+            parameters,
+        } = self;
+
+        (glwe_secret_key, lwe_secret_key, parameters)
+    }
+
+    /// Construct a [`ClientKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the keys are not compatible with the parameters provided as raw parts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::client_key::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key:
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
+    ///
+    /// let cks = ClientKey::from_raw_parts(glwe_secret_key, lwe_secret_key, parameters);
+    /// ```
+    pub fn from_raw_parts(
+        glwe_secret_key: GlweSecretKeyOwned<u64>,
+        lwe_secret_key: LweSecretKeyOwned<u64>,
+        parameters: ShortintParameterSet,
+    ) -> Self {
+        assert_eq!(
+            lwe_secret_key.lwe_dimension(),
+            parameters.lwe_dimension(),
+            "Mismatch between the LweSecretKey LweDimension ({:?}) \
+            and the parameters LweDimension ({:?})",
+            lwe_secret_key.lwe_dimension(),
+            parameters.lwe_dimension()
+        );
+        assert_eq!(
+            glwe_secret_key.glwe_dimension(),
+            parameters.glwe_dimension(),
+            "Mismatch between the GlweSecretKey GlweDimension ({:?}) \
+            and the parameters GlweDimension ({:?})",
+            glwe_secret_key.glwe_dimension(),
+            parameters.glwe_dimension()
+        );
+        assert_eq!(
+            glwe_secret_key.polynomial_size(),
+            parameters.polynomial_size(),
+            "Mismatch between the GlweSecretKey PolynomialSize ({:?}) \
+            and the parameters PolynomialSize ({:?})",
+            glwe_secret_key.polynomial_size(),
+            parameters.polynomial_size()
+        );
+
+        Self {
+            glwe_secret_key,
+            lwe_secret_key,
+            parameters,
+        }
+    }
+
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus

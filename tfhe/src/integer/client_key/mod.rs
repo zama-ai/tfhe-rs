@@ -136,6 +136,46 @@ impl ClientKey {
         }
     }
 
+    /// Deconstruct a [`ClientKey`] into its constituants.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key, that can encrypt in
+    /// // radix and crt decomposition, where each block of the decomposition
+    /// // have over 2 bits of message modulus.
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let key = cks.into_raw_parts();
+    /// ```
+    pub fn into_raw_parts(self) -> ShortintClientKey {
+        self.key
+    }
+
+    /// Construct a [`ClientKey`] from its constituants.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key, that can encrypt in
+    /// // radix and crt decomposition, where each block of the decomposition
+    /// // have over 2 bits of message modulus.
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let key = cks.into_raw_parts();
+    ///
+    /// let cks = ClientKey::from_raw_parts(key);
+    /// ```
+    pub fn from_raw_parts(key: ShortintClientKey) -> Self {
+        Self { key }
+    }
+
     pub fn parameters(&self) -> crate::shortint::PBSParameters {
         self.key.parameters.pbs_parameters().unwrap()
     }
