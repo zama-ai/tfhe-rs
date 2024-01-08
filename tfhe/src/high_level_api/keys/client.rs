@@ -63,6 +63,24 @@ impl ClientKey {
         }
     }
 
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::ClientKey,
+        Option<crate::shortint::WopbsParameters>,
+    ) {
+        self.key.into_raw_parts()
+    }
+
+    pub fn from_raw_parts(
+        key: crate::integer::ClientKey,
+        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+    ) -> Self {
+        Self {
+            key: IntegerClientKey::from_raw_parts(key, wopbs_block_parameters),
+        }
+    }
+
     /// Generates a new ServerKey
     ///
     /// The `ServerKey` generated is meant to be used to initialize the global state

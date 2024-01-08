@@ -71,6 +71,47 @@ impl IntegerClientKey {
         }
     }
 
+    /// Deconstruct an [`IntegerClientKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::ClientKey,
+        Option<crate::shortint::WopbsParameters>,
+    ) {
+        let Self {
+            key,
+            wopbs_block_parameters,
+        } = self;
+        (key, wopbs_block_parameters)
+    }
+
+    /// Construct a, [`IntegerClientKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided raw parts are not compatible with the provided parameters.
+    pub fn from_raw_parts(
+        key: crate::integer::ClientKey,
+        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+    ) -> Self {
+        let shortint_cks: &crate::shortint::ClientKey = key.as_ref();
+        if let Some(wop_params) = wopbs_block_parameters.as_ref() {
+            assert_eq!(
+                shortint_cks.parameters.message_modulus(),
+                wop_params.message_modulus
+            );
+            assert_eq!(
+                shortint_cks.parameters.carry_modulus(),
+                wop_params.carry_modulus
+            );
+        }
+
+        Self {
+            key,
+            wopbs_block_parameters,
+        }
+    }
+
     pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::PBSParameters {
         self.key.parameters()
     }
