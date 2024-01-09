@@ -223,14 +223,14 @@ macro_rules! impl_serialize_deserialize_on_type {
             #[no_mangle]
             pub unsafe extern "C" fn [<$wrapper_type:snake _serialize>](
                 sself: *const $wrapper_type,
-                result: *mut $crate::c_api::buffer::Buffer,
+                result: *mut $crate::c_api::buffer::DynamicBuffer,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
                     $crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
 
                     let wrapper = $crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-                    let buffer: $crate::c_api::buffer::Buffer = bincode::serialize(&wrapper.0)
+                    let buffer: $crate::c_api::buffer::DynamicBuffer = bincode::serialize(&wrapper.0)
                         .unwrap()
                         .into();
 
@@ -240,7 +240,7 @@ macro_rules! impl_serialize_deserialize_on_type {
 
             #[no_mangle]
             pub unsafe extern "C" fn [<$wrapper_type:snake _deserialize>](
-                buffer_view: $crate::c_api::buffer::BufferView,
+                buffer_view: $crate::c_api::buffer::DynamicBufferView,
                 result: *mut *mut $wrapper_type,
                 ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
@@ -250,7 +250,7 @@ macro_rules! impl_serialize_deserialize_on_type {
                     // checked, then any access to the result pointer will segfault (mimics malloc on failure)
                     *result = std::ptr::null_mut();
 
-                    let object = bincode::deserialize(buffer_view.into()).unwrap();
+                    let object = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
                     let heap_allocated_object = Box::new($wrapper_type(object));
 
@@ -267,7 +267,7 @@ macro_rules! impl_safe_serialize_on_type {
             #[no_mangle]
             pub unsafe extern "C" fn [<$wrapper_type:snake _safe_serialize>](
                 sself: *const $wrapper_type,
-                result: *mut crate::c_api::buffer::Buffer,
+                result: *mut crate::c_api::buffer::DynamicBuffer,
                 serialized_size_limit: u64,
             ) -> ::std::os::raw::c_int {
                 crate::c_api::utils::catch_panic(|| {
@@ -292,7 +292,7 @@ macro_rules! impl_safe_deserialize_conformant_integer {
         ::paste::paste! {
             #[no_mangle]
             pub unsafe extern "C" fn [<$wrapper_type:snake _safe_deserialize_conformant>](
-                buffer_view: crate::c_api::buffer::BufferView,
+                buffer_view: crate::c_api::buffer::DynamicBufferView,
                 serialized_size_limit: u64,
                 server_key: *const crate::c_api::high_level_api::keys::ServerKey,
                 result: *mut *mut $wrapper_type,
@@ -302,7 +302,7 @@ macro_rules! impl_safe_deserialize_conformant_integer {
 
                     let sk = crate::c_api::utils::get_ref_checked(server_key).unwrap();
 
-                    let buffer_view: &[u8] = buffer_view.into();
+                    let buffer_view: &[u8] = buffer_view.as_slice();
 
                     // First fill the result with a null ptr so that if we fail and the return code is not
                     // checked, then any access to the result pointer will segfault (mimics malloc on failure)

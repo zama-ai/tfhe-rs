@@ -13,14 +13,14 @@ pub struct BooleanCompressedCiphertext(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_ciphertext(
     ciphertext: *const BooleanCiphertext,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let ciphertext = get_ref_checked(ciphertext).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&ciphertext.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&ciphertext.0).unwrap().into();
 
         *result = buffer;
     })
@@ -28,7 +28,7 @@ pub unsafe extern "C" fn boolean_serialize_ciphertext(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_ciphertext(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn boolean_deserialize_ciphertext(
         *result = std::ptr::null_mut();
 
         let ciphertext: boolean::ciphertext::Ciphertext =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(BooleanCiphertext(ciphertext));
 
@@ -72,14 +72,14 @@ pub unsafe extern "C" fn boolean_decompress_ciphertext(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_compressed_ciphertext(
     ciphertext: *const BooleanCompressedCiphertext,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let ciphertext = get_ref_checked(ciphertext).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&ciphertext.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&ciphertext.0).unwrap().into();
 
         *result = buffer;
     })
@@ -87,7 +87,7 @@ pub unsafe extern "C" fn boolean_serialize_compressed_ciphertext(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_compressed_ciphertext(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanCompressedCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn boolean_deserialize_compressed_ciphertext(
         *result = std::ptr::null_mut();
 
         let ciphertext: boolean::ciphertext::CompressedCiphertext =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(BooleanCompressedCiphertext(ciphertext));
 

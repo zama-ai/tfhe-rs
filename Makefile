@@ -262,11 +262,18 @@ build_tfhe_full: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p $(TFHE_SPEC) --all-targets
 
+.PHONY: symlink_c_libs_without_fingerprint # Link the .a and .so files without the changing hash part in target
+symlink_c_libs_without_fingerprint:
+	@./scripts/symlink_c_libs_without_fingerprint.sh \
+		--cargo-profile "$(CARGO_PROFILE)" \
+		--lib-name tfhe-c-api-dynamic-buffer
+
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
 		-p $(TFHE_SPEC)
+	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain

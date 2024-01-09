@@ -57,14 +57,14 @@ pub unsafe extern "C" fn shortint_public_key_encrypt(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_public_key(
     public_key: *const ShortintPublicKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let public_key = get_ref_checked(public_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&public_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&public_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn shortint_serialize_public_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_public_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintPublicKey,
 ) -> c_int {
     catch_panic(|| {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn shortint_deserialize_public_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let public_key = bincode::deserialize(buffer_view.into()).unwrap();
+        let public_key = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_public_key = Box::new(ShortintPublicKey(public_key));
 
@@ -138,14 +138,14 @@ pub unsafe extern "C" fn shortint_compressed_public_key_encrypt(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_compressed_public_key(
     compressed_public_key: *const ShortintCompressedPublicKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let compressed_public_key = get_ref_checked(compressed_public_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&compressed_public_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&compressed_public_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn shortint_serialize_compressed_public_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_compressed_public_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintCompressedPublicKey,
 ) -> c_int {
     catch_panic(|| {
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn shortint_deserialize_compressed_public_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let compressed_public_key = bincode::deserialize(buffer_view.into()).unwrap();
+        let compressed_public_key = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_public_key =
             Box::new(ShortintCompressedPublicKey(compressed_public_key));

@@ -68,14 +68,14 @@ pub unsafe extern "C" fn shortint_server_key_create_trivial(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_server_key(
     server_key: *const ShortintServerKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&server_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&server_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn shortint_serialize_server_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_server_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintServerKey,
 ) -> c_int {
     catch_panic(|| {
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn shortint_deserialize_server_key(
         *result = std::ptr::null_mut();
 
         let server_key: shortint::server_key::ServerKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_server_key = Box::new(ShortintServerKey(server_key));
 
@@ -127,14 +127,14 @@ pub unsafe extern "C" fn shortint_gen_compressed_server_key(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_compressed_server_key(
     server_key: *const ShortintCompressedServerKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&server_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&server_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn shortint_serialize_compressed_server_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_compressed_server_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintCompressedServerKey,
 ) -> c_int {
     catch_panic(|| {
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn shortint_deserialize_compressed_server_key(
         // *result = std::ptr::null_mut();
 
         let server_key: shortint::server_key::CompressedServerKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_server_key = Box::new(ShortintCompressedServerKey(server_key));
 

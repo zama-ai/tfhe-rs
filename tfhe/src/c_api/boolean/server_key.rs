@@ -594,14 +594,14 @@ pub unsafe extern "C" fn boolean_server_key_xnor_scalar_assign(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_server_key(
     server_key: *const BooleanServerKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&server_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&server_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -609,7 +609,7 @@ pub unsafe extern "C" fn boolean_serialize_server_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_server_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanServerKey,
 ) -> c_int {
     catch_panic(|| {
@@ -620,7 +620,7 @@ pub unsafe extern "C" fn boolean_deserialize_server_key(
         *result = std::ptr::null_mut();
 
         let server_key: boolean::server_key::ServerKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_server_key = Box::new(BooleanServerKey(server_key));
 
@@ -631,14 +631,14 @@ pub unsafe extern "C" fn boolean_deserialize_server_key(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_compressed_server_key(
     server_key: *const BooleanCompressedServerKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&server_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&server_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -646,7 +646,7 @@ pub unsafe extern "C" fn boolean_serialize_compressed_server_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_compressed_server_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanCompressedServerKey,
 ) -> c_int {
     catch_panic(|| {
@@ -657,7 +657,7 @@ pub unsafe extern "C" fn boolean_deserialize_compressed_server_key(
         // *result = std::ptr::null_mut();
 
         let server_key: boolean::server_key::CompressedServerKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_server_key = Box::new(BooleanCompressedServerKey(server_key));
 

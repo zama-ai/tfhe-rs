@@ -38,17 +38,19 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
     })
 }
 
+use tfhe_c_api_dynamic_buffer::DynamicBuffer;
+
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_ciphertext(
     ciphertext: *const ShortintCiphertext,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let ciphertext = get_ref_checked(ciphertext).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&ciphertext.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&ciphertext.0).unwrap().into();
 
         *result = buffer;
     })
@@ -56,7 +58,7 @@ pub unsafe extern "C" fn shortint_serialize_ciphertext(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_ciphertext(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -66,7 +68,7 @@ pub unsafe extern "C" fn shortint_deserialize_ciphertext(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let ciphertext = bincode::deserialize(buffer_view.into()).unwrap();
+        let ciphertext = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(ShortintCiphertext(ciphertext));
 
@@ -99,14 +101,14 @@ pub unsafe extern "C" fn shortint_decompress_ciphertext(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_compressed_ciphertext(
     ciphertext: *const ShortintCompressedCiphertext,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let ciphertext = get_ref_checked(ciphertext).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&ciphertext.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&ciphertext.0).unwrap().into();
 
         *result = buffer;
     })
@@ -114,7 +116,7 @@ pub unsafe extern "C" fn shortint_serialize_compressed_ciphertext(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_deserialize_compressed_ciphertext(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut ShortintCompressedCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -124,7 +126,7 @@ pub unsafe extern "C" fn shortint_deserialize_compressed_ciphertext(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let ciphertext = bincode::deserialize(buffer_view.into()).unwrap();
+        let ciphertext = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(ShortintCompressedCiphertext(ciphertext));
 

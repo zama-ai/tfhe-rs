@@ -9,7 +9,8 @@ void test_predefined_keygen_w_serde(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintCiphertext *ct = NULL;
-  Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer ct_ser_dyn_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
+  DynamicBuffer ct_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   ShortintCiphertext *deser_ct = NULL;
   ShortintCompressedCiphertext *cct = NULL;
   ShortintCompressedCiphertext *deser_cct = NULL;
@@ -22,17 +23,18 @@ void test_predefined_keygen_w_serde(void) {
   int encrypt_ok = shortint_client_key_encrypt(cks, 3, &ct);
   assert(encrypt_ok == 0);
 
-  int ser_ok = shortint_serialize_ciphertext(ct, &ct_ser_buffer);
+  int ser_ok = shortint_serialize_ciphertext(ct, &ct_ser_dyn_buffer);
   assert(ser_ok == 0);
 
-  BufferView deser_view = {.pointer = ct_ser_buffer.pointer, .length = ct_ser_buffer.length};
+  DynamicBufferView deser_view = {.pointer = ct_ser_dyn_buffer.pointer,
+                                  .length = ct_ser_dyn_buffer.length};
 
   int deser_ok = shortint_deserialize_ciphertext(deser_view, &deser_ct);
   assert(deser_ok == 0);
 
-  assert(deser_view.length == ct_ser_buffer.length);
+  assert(deser_view.length == ct_ser_dyn_buffer.length);
   for (size_t idx = 0; idx < deser_view.length; ++idx) {
-    assert(deser_view.pointer[idx] == ct_ser_buffer.pointer[idx]);
+    assert(deser_view.pointer[idx] == ct_ser_dyn_buffer.pointer[idx]);
   }
 
   uint64_t result = -1;
@@ -69,7 +71,8 @@ void test_predefined_keygen_w_serde(void) {
   shortint_destroy_compressed_ciphertext(cct);
   shortint_destroy_compressed_ciphertext(deser_cct);
   shortint_destroy_ciphertext(decompressed_ct);
-  destroy_buffer(&ct_ser_buffer);
+  destroy_dynamic_buffer(&ct_ser_buffer);
+  destroy_dynamic_buffer(&ct_ser_dyn_buffer);
 }
 
 void test_server_key_trivial_encrypt(void) {
@@ -127,7 +130,7 @@ void test_public_keygen(ShortintPBSParameters params) {
   ShortintPublicKey *pks = NULL;
   ShortintPublicKey *pks_deser = NULL;
   ShortintCiphertext *ct = NULL;
-  Buffer pks_ser_buff = {.pointer = NULL, .length = 0};
+  DynamicBuffer pks_ser_buff = {.pointer = NULL, .length = 0, .destructor = NULL};
 
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
@@ -138,7 +141,8 @@ void test_public_keygen(ShortintPBSParameters params) {
   int pks_ser = shortint_serialize_public_key(pks, &pks_ser_buff);
   assert(pks_ser == 0);
 
-  BufferView pks_ser_buff_view = {.pointer = pks_ser_buff.pointer, .length = pks_ser_buff.length};
+  DynamicBufferView pks_ser_buff_view = {.pointer = pks_ser_buff.pointer,
+                                         .length = pks_ser_buff.length};
   int pks_deser_ok = shortint_deserialize_public_key(pks_ser_buff_view, &pks_deser);
   assert(pks_deser_ok == 0);
 
@@ -156,7 +160,7 @@ void test_public_keygen(ShortintPBSParameters params) {
   shortint_destroy_client_key(cks);
   shortint_destroy_public_key(pks);
   shortint_destroy_public_key(pks_deser);
-  destroy_buffer(&pks_ser_buff);
+  destroy_dynamic_buffer(&pks_ser_buff);
   shortint_destroy_ciphertext(ct);
 }
 
