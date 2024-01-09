@@ -55,14 +55,14 @@ pub unsafe extern "C" fn boolean_public_key_encrypt(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_public_key(
     public_key: *const BooleanPublicKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let public_key = get_ref_checked(public_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&public_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&public_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn boolean_serialize_public_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_public_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanPublicKey,
 ) -> c_int {
     catch_panic(|| {
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn boolean_deserialize_public_key(
         *result = std::ptr::null_mut();
 
         let public_key: boolean::public_key::PublicKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_public_key = Box::new(BooleanPublicKey(public_key));
 

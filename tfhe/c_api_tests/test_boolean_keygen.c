@@ -9,7 +9,7 @@ void test_default_keygen_w_serde(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
   BooleanCiphertext *ct = NULL;
-  Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer ct_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   BooleanCiphertext *deser_ct = NULL;
   BooleanCompressedCiphertext *cct = NULL;
   BooleanCompressedCiphertext *deser_cct = NULL;
@@ -24,7 +24,7 @@ void test_default_keygen_w_serde(void) {
   int ser_ok = boolean_serialize_ciphertext(ct, &ct_ser_buffer);
   assert(ser_ok == 0);
 
-  BufferView deser_view = {.pointer = ct_ser_buffer.pointer, .length = ct_ser_buffer.length};
+  DynamicBufferView deser_view = {.pointer = ct_ser_buffer.pointer, .length = ct_ser_buffer.length};
 
   int deser_ok = boolean_deserialize_ciphertext(deser_view, &deser_ct);
   assert(deser_ok == 0);
@@ -68,7 +68,7 @@ void test_default_keygen_w_serde(void) {
   boolean_destroy_compressed_ciphertext(cct);
   boolean_destroy_compressed_ciphertext(deser_cct);
   boolean_destroy_ciphertext(decompressed_ct);
-  destroy_buffer(&ct_ser_buffer);
+  destroy_dynamic_buffer(&ct_ser_buffer);
 }
 
 void test_predefined_keygen_w_serde(void) {

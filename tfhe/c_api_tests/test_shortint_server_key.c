@@ -527,11 +527,11 @@ void test_server_key(void) {
   ShortintClientKey *cks = NULL;
   ShortintCompressedServerKey *csks = NULL;
   ShortintServerKey *sks = NULL;
-  Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer cks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   ShortintClientKey *deser_cks = NULL;
-  Buffer csks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer csks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   ShortintCompressedServerKey *deser_csks = NULL;
-  Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer sks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   ShortintServerKey *deser_sks = NULL;
   ShortintClientKey *cks_small = NULL;
   ShortintServerKey *sks_small = NULL;
@@ -562,7 +562,8 @@ void test_server_key(void) {
   int ser_csks_ok = shortint_serialize_compressed_server_key(csks, &csks_ser_buffer);
   assert(ser_csks_ok == 0);
 
-  BufferView deser_view = {.pointer = csks_ser_buffer.pointer, .length = csks_ser_buffer.length};
+  DynamicBufferView deser_view = {.pointer = csks_ser_buffer.pointer,
+                                  .length = csks_ser_buffer.length};
 
   int deser_csks_ok = shortint_deserialize_compressed_server_key(deser_view, &deser_csks);
   assert(deser_csks_ok == 0);
@@ -829,9 +830,9 @@ void test_server_key(void) {
   shortint_destroy_client_key(deser_cks);
   shortint_destroy_compressed_server_key(deser_csks);
   shortint_destroy_server_key(deser_sks);
-  destroy_buffer(&cks_ser_buffer);
-  destroy_buffer(&csks_ser_buffer);
-  destroy_buffer(&sks_ser_buffer);
+  destroy_dynamic_buffer(&cks_ser_buffer);
+  destroy_dynamic_buffer(&csks_ser_buffer);
+  destroy_dynamic_buffer(&sks_ser_buffer);
 }
 
 int main(void) {

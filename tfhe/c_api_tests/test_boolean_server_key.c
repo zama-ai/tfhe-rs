@@ -328,11 +328,11 @@ void test_server_key(void) {
   BooleanClientKey *cks = NULL;
   BooleanCompressedServerKey *csks = NULL;
   BooleanServerKey *sks = NULL;
-  Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer cks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   BooleanClientKey *deser_cks = NULL;
-  Buffer csks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer csks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   BooleanCompressedServerKey *deser_csks = NULL;
-  Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
+  DynamicBuffer sks_ser_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   BooleanServerKey *deser_sks = NULL;
 
   int gen_cks_ok = boolean_gen_client_key(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks);
@@ -344,7 +344,8 @@ void test_server_key(void) {
   int ser_csks_ok = boolean_serialize_compressed_server_key(csks, &csks_ser_buffer);
   assert(ser_csks_ok == 0);
 
-  BufferView deser_view = {.pointer = csks_ser_buffer.pointer, .length = csks_ser_buffer.length};
+  DynamicBufferView deser_view = {.pointer = csks_ser_buffer.pointer,
+                                  .length = csks_ser_buffer.length};
 
   int deser_csks_ok = boolean_deserialize_compressed_server_key(deser_view, &deser_csks);
   assert(deser_csks_ok == 0);
@@ -413,9 +414,9 @@ void test_server_key(void) {
   boolean_destroy_client_key(deser_cks);
   boolean_destroy_compressed_server_key(deser_csks);
   boolean_destroy_server_key(deser_sks);
-  destroy_buffer(&cks_ser_buffer);
-  destroy_buffer(&csks_ser_buffer);
-  destroy_buffer(&sks_ser_buffer);
+  destroy_dynamic_buffer(&cks_ser_buffer);
+  destroy_dynamic_buffer(&csks_ser_buffer);
+  destroy_dynamic_buffer(&sks_ser_buffer);
 }
 
 int main(void) {

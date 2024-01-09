@@ -69,9 +69,9 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   CompactFheUint8 *lhs = NULL;
   CompactFheUint8 *deserialized_lhs = NULL;
   CompactFheUint8 *result = NULL;
-  Buffer value_buffer = {.pointer = NULL, .length = 0};
-  Buffer cks_buffer = {.pointer = NULL, .length = 0};
-  BufferView deser_view = {.pointer = NULL, .length = 0};
+  DynamicBuffer value_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
+  DynamicBuffer cks_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
+  DynamicBufferView deser_view = {.pointer = NULL, .length = 0};
   ClientKey *deserialized_client_key = NULL;
 
   const uint64_t max_serialization_size = UINT64_C(1) << UINT64_C(20);
@@ -115,7 +115,7 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   assert(clear == lhs_clear);
 
   if (value_buffer.pointer != NULL) {
-    destroy_buffer(&value_buffer);
+    destroy_dynamic_buffer(&value_buffer);
   }
   compact_fhe_uint8_destroy(lhs);
   compact_fhe_uint8_destroy(deserialized_lhs);
@@ -130,9 +130,9 @@ int uint8_serialization(const ClientKey *client_key) {
   FheUint8 *lhs = NULL;
   FheUint8 *deserialized_lhs = NULL;
   FheUint8 *result = NULL;
-  Buffer value_buffer = {.pointer = NULL, .length = 0};
-  Buffer cks_buffer = {.pointer = NULL, .length = 0};
-  BufferView deser_view = {.pointer = NULL, .length = 0};
+  DynamicBuffer value_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
+  DynamicBuffer cks_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
+  DynamicBufferView deser_view = {.pointer = NULL, .length = 0};
   ClientKey *deserialized_client_key = NULL;
 
   uint8_t lhs_clear = 123;
@@ -163,7 +163,7 @@ int uint8_serialization(const ClientKey *client_key) {
   assert(clear == lhs_clear);
 
   if (value_buffer.pointer != NULL) {
-    destroy_buffer(&value_buffer);
+    destroy_dynamic_buffer(&value_buffer);
   }
   fhe_uint8_destroy(lhs);
   fhe_uint8_destroy(deserialized_lhs);

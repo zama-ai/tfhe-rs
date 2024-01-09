@@ -92,14 +92,14 @@ pub unsafe extern "C" fn boolean_client_key_decrypt(
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_client_key(
     client_key: *const BooleanClientKey,
-    result: *mut Buffer,
+    result: *mut DynamicBuffer,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let client_key = get_ref_checked(client_key).unwrap();
 
-        let buffer: Buffer = bincode::serialize(&client_key.0).unwrap().into();
+        let buffer: DynamicBuffer = bincode::serialize(&client_key.0).unwrap().into();
 
         *result = buffer;
     })
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn boolean_serialize_client_key(
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_deserialize_client_key(
-    buffer_view: BufferView,
+    buffer_view: DynamicBufferView,
     result: *mut *mut BooleanClientKey,
 ) -> c_int {
     catch_panic(|| {
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn boolean_deserialize_client_key(
         *result = std::ptr::null_mut();
 
         let client_key: boolean::client_key::ClientKey =
-            bincode::deserialize(buffer_view.into()).unwrap();
+            bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_client_key = Box::new(BooleanClientKey(client_key));
 

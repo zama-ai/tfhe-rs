@@ -7,18 +7,20 @@ This library exposes a C binding to the high-level TFHE-rs primitives to impleme
 TFHE-rs C API can be built on a Unix x86\_64 machine using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_64-unix,high-level-c-api -p tfhe
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
 ```
 
 or on a Unix aarch64 machine using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build +nightly --release --features=aarch64-unix,high-level-c-api -p tfhe
+RUSTFLAGS="-C target-cpu=native" cargo build +nightly --release --features=aarch64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
 ```
 
-The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/"
+The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/".
 
-The build system needs to be set up so that the C or C++ program links against TFHE-rs C API binaries.
+The `tfhe-c-api-dynamic-buffer.h` header and the static (.a) and dynamic (.so) libraries will be found in "${REPO\_ROOT}/target/release/deps/".
+
+The build system needs to be set up so that the C or C++ program links against TFHE-rs C API binaries and the dynamic buffer library.
 
 Here is a minimal CMakeLists.txt to do just that:
 
@@ -27,11 +29,14 @@ project(my-project)
 
 cmake_minimum_required(VERSION 3.16)
 
-set(TFHE_C_API "/path/to/tfhe-rs/binaries/and/header")
+set(TFHE_C_API "/path/to/tfhe-rs/target/release")
 
 include_directories(${TFHE_C_API})
+include_directories(${TFHE_C_API}/deps)
 add_library(tfhe STATIC IMPORTED)
 set_target_properties(tfhe PROPERTIES IMPORTED_LOCATION ${TFHE_C_API}/libtfhe.a)
+add_library(tfheDynamicBuffer STATIC IMPORTED)
+set_target_properties(tfheDynamicBuffer PROPERTIES IMPORTED_LOCATION ${TFHE_C_API}/deps/libtfhe_c_api_dynamic_buffer.a)
 
 if(APPLE)
     find_library(SECURITY_FRAMEWORK Security)
@@ -43,7 +48,7 @@ endif()
 set(EXECUTABLE_NAME my-executable)
 add_executable(${EXECUTABLE_NAME} main.c)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${EXECUTABLE_NAME} LINK_PUBLIC tfhe m pthread dl)
+target_link_libraries(${EXECUTABLE_NAME} LINK_PUBLIC tfhe tfheDynamicBuffer m pthread dl)
 if(APPLE)
     target_link_libraries(${EXECUTABLE_NAME} LINK_PUBLIC ${SECURITY_FRAMEWORK})
 endif()
