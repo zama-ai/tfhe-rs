@@ -362,8 +362,16 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
     display_name: add
 );
 define_server_key_bench_binary_signed_clean_inputs_fn!(
+    method_name: signed_overflowing_add_parallelized,
+    display_name: overflowing_add
+);
+define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: sub_parallelized,
     display_name: sub
+);
+define_server_key_bench_binary_signed_clean_inputs_fn!(
+    method_name: signed_overflowing_sub_parallelized,
+    display_name: overflowing_sub
 );
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: mul_parallelized,
@@ -483,7 +491,9 @@ criterion_group!(
     neg_parallelized,
     abs_parallelized,
     add_parallelized,
+    signed_overflowing_add_parallelized,
     sub_parallelized,
+    signed_overflowing_sub_parallelized,
     mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
@@ -509,6 +519,16 @@ criterion_group!(
     gt_parallelized,
     ge_parallelized,
     signed_if_then_else_parallelized,
+);
+
+define_server_key_bench_binary_signed_clean_inputs_fn!(
+    method_name: unchecked_signed_overflowing_add_parallelized,
+    display_name: overflowing_add
+);
+
+define_server_key_bench_binary_signed_clean_inputs_fn!(
+    method_name: unchecked_signed_overflowing_sub_parallelized,
+    display_name: overflowing_sub
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
@@ -634,6 +654,8 @@ define_server_key_bench_unary_signed_clean_input_fn!(
 
 criterion_group!(
     unchecked_ops,
+    unchecked_signed_overflowing_add_parallelized,
+    unchecked_signed_overflowing_sub_parallelized,
     unchecked_mul_parallelized,
     unchecked_left_shift_parallelized,
     unchecked_right_shift_parallelized,
@@ -820,8 +842,18 @@ define_server_key_bench_binary_scalar_clean_inputs_fn!(
     rng_func: default_scalar
 );
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
+    method_name: signed_overflowing_scalar_add_parallelized,
+    display_name: overflowing_add,
+    rng_func: default_scalar
+);
+define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_sub_parallelized,
     display_name: sub,
+    rng_func: default_scalar
+);
+define_server_key_bench_binary_scalar_clean_inputs_fn!(
+    method_name: signed_overflowing_scalar_sub_parallelized,
+    display_name: overflowing_sub,
     rng_func: default_scalar
 );
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
@@ -925,7 +957,9 @@ define_server_key_bench_binary_scalar_clean_inputs_fn!(
 criterion_group!(
     default_scalar_parallelized_ops,
     scalar_add_parallelized,
+    signed_overflowing_scalar_add_parallelized,
     scalar_sub_parallelized,
+    signed_overflowing_scalar_sub_parallelized,
     scalar_mul_parallelized,
     signed_scalar_div_parallelized,
     signed_scalar_rem_parallelized, // For scalar rem == div_rem
