@@ -662,7 +662,9 @@ define_server_key_bench_fn!(method_name: smart_right_shift_parallelized, display
 define_server_key_bench_fn!(method_name: smart_left_shift_parallelized, display_name: left_shift);
 
 define_server_key_bench_default_fn!(method_name: add_parallelized, display_name: add);
+define_server_key_bench_default_fn!(method_name: unsigned_overflowing_add_parallelized, display_name: overflowing_add);
 define_server_key_bench_default_fn!(method_name: sub_parallelized, display_name: sub);
+define_server_key_bench_default_fn!(method_name: unsigned_overflowing_sub_parallelized, display_name: overflowing_sub);
 define_server_key_bench_default_fn!(method_name: mul_parallelized, display_name: mul);
 define_server_key_bench_default_fn!(method_name: div_parallelized, display_name: div);
 define_server_key_bench_default_fn!(method_name: rem_parallelized, display_name: modulo);
@@ -807,8 +809,18 @@ define_server_key_bench_scalar_default_fn!(
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
+    method_name: unsigned_overflowing_scalar_add_parallelized,
+    display_name: overflowing_add,
+    rng_func: default_scalar
+);
+define_server_key_bench_scalar_default_fn!(
     method_name: scalar_sub_parallelized,
     display_name: sub,
+    rng_func: default_scalar
+);
+define_server_key_bench_scalar_default_fn!(
+    method_name: unsigned_overflowing_scalar_sub_parallelized,
+    display_name: overflowing_sub,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
@@ -1181,7 +1193,9 @@ criterion_group!(
     neg_parallelized,
     abs_parallelized,
     add_parallelized,
+    unsigned_overflowing_add_parallelized,
     sub_parallelized,
+    unsigned_overflowing_sub_parallelized,
     mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
@@ -1246,7 +1260,9 @@ criterion_group!(
 criterion_group!(
     default_scalar_parallelized_ops,
     scalar_add_parallelized,
+    unsigned_overflowing_scalar_add_parallelized,
     scalar_sub_parallelized,
+    unsigned_overflowing_scalar_sub_parallelized,
     scalar_mul_parallelized,
     scalar_div_parallelized,
     scalar_rem_parallelized,
