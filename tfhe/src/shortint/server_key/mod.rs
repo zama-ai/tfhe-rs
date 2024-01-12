@@ -274,6 +274,34 @@ impl ShortintBootstrappingKey {
             } => *deterministic_execution = new_deterministic_execution,
         }
     }
+
+    /// Recomputes the number of threads required for the multi bit PBS.
+    ///
+    /// It may be useful to call this function when the CPU usage is low and predictable to have a
+    /// better value for the number of threads to use for the multi bit PBS.
+    ///
+    /// Has not effects for other keys.
+    pub fn recompute_thread_count(&mut self) {
+        match self {
+            Self::Classic(_) => (),
+            Self::MultiBit {
+                fourier_bsk,
+                thread_count,
+                ..
+            } => {
+                *thread_count = ShortintEngine::with_thread_local_mut(|engine| {
+                    engine.get_thread_count_for_multi_bit_pbs(
+                        fourier_bsk.input_lwe_dimension(),
+                        fourier_bsk.glwe_size().to_glwe_dimension(),
+                        fourier_bsk.polynomial_size(),
+                        fourier_bsk.decomposition_base_log(),
+                        fourier_bsk.decomposition_level_count(),
+                        fourier_bsk.grouping_factor(),
+                    )
+                })
+            }
+        }
+    }
 }
 
 /// A structure containing the server public key.
