@@ -80,6 +80,85 @@ impl KeySwitchingKey {
         }
     }
 
+    /// Deconstruct a [`KeySwitchingKey`] into its constituants.
+    pub fn into_raw_parts(self) -> (LweKeyswitchKeyOwned<u64>, ServerKey, ServerKey, i8) {
+        let Self {
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+        } = self;
+
+        (
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+        )
+    }
+
+    /// Construct a [`KeySwitchingKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided raw parts are not compatible with each other, i.e.:
+    ///
+    /// if the provided source [`ServerKey`] ciphertext
+    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match the
+    /// input [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// provided [`LweKeyswitchKeyOwned`] or if the provided destination [`ServerKey`]
+    /// ciphertext [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`)
+    /// does not match the output
+    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// provided [`LweKeyswitchKeyOwned`].
+    pub fn from_raw_parts(
+        key_switching_key: LweKeyswitchKeyOwned<u64>,
+        dest_server_key: ServerKey,
+        src_server_key: ServerKey,
+        cast_rshift: i8,
+    ) -> Self {
+        let src_lwe_dimension = src_server_key.ciphertext_lwe_dimension();
+        let dst_lwe_dimension = dest_server_key.ciphertext_lwe_dimension();
+
+        assert_eq!(
+            src_lwe_dimension,
+            key_switching_key.input_key_lwe_dimension(),
+            "Mismatch between the source ServerKey ciphertext LweDimension ({:?}) \
+            and the LweKeyswitchKey input LweDimension ({:?})",
+            src_lwe_dimension,
+            key_switching_key.input_key_lwe_dimension(),
+        );
+        assert_eq!(
+            dst_lwe_dimension,
+            key_switching_key.output_key_lwe_dimension(),
+            "Mismatch between the destination ServerKey ciphertext LweDimension ({:?}) \
+            and the LweKeyswitchKey output LweDimension ({:?})",
+            dst_lwe_dimension,
+            key_switching_key.output_key_lwe_dimension(),
+        );
+        assert_eq!(
+            src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+            "Mismatch between the source ServerKey CiphertextModulus ({:?}) \
+            and the destination ServerKey CiphertextModulus ({:?})",
+            src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+        );
+        assert_eq!(
+            key_switching_key.ciphertext_modulus(),
+            dest_server_key.ciphertext_modulus,
+            "Mismatch between the LweKeyswitchKey CiphertextModulus ({:?}) \
+            and the destination ServerKey CiphertextModulus ({:?})",
+            key_switching_key.ciphertext_modulus(),
+            dest_server_key.ciphertext_modulus,
+        );
+
+        Self {
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+        }
+    }
+
     /// Cast a ciphertext from the source parameter set to the dest parameter set,
     /// using provided &mut.
     ///
