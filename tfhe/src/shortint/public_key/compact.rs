@@ -87,6 +87,73 @@ impl CompactPublicKey {
         })
     }
 
+    /// Deconstruct a [`CompactPublicKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        LweCompactPublicKeyOwned<u64>,
+        ShortintParameterSet,
+        PBSOrder,
+    ) {
+        let Self {
+            key,
+            parameters,
+            pbs_order,
+        } = self;
+
+        (key, parameters, pbs_order)
+    }
+
+    /// Construct a [`CompactPublicKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        key: LweCompactPublicKeyOwned<u64>,
+        parameters: ShortintParameterSet,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        let expected_pbs_order: PBSOrder = parameters.encryption_key_choice().into();
+
+        assert_eq!(
+            pbs_order, expected_pbs_order,
+            "Mismatch between expected PBSOrder ({expected_pbs_order:?}) and \
+            provided PBSOrder ({pbs_order:?})"
+        );
+
+        let ciphertext_lwe_dimension = match pbs_order {
+            PBSOrder::KeyswitchBootstrap => parameters
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(parameters.polynomial_size()),
+            PBSOrder::BootstrapKeyswitch => parameters.lwe_dimension(),
+        };
+
+        assert_eq!(
+            key.lwe_dimension(),
+            ciphertext_lwe_dimension,
+            "Mismatch between the LweCompactPublicKey LweDimension ({:?}) and \
+            the provided parameters LweDimension ({:?})",
+            key.lwe_dimension(),
+            ciphertext_lwe_dimension,
+        );
+
+        assert_eq!(
+            key.ciphertext_modulus(),
+            parameters.ciphertext_modulus(),
+            "Mismatch between the LweCompactPublicKey CiphertextModulus ({:?}) and \
+            the provided parameters CiphertextModulus ({:?})",
+            key.ciphertext_modulus(),
+            parameters.ciphertext_modulus(),
+        );
+
+        Self {
+            key,
+            parameters,
+            pbs_order,
+        }
+    }
+
     pub fn encrypt(&self, message: u64) -> Ciphertext {
         let plain = to_plaintext_iterator(once(message), &self.parameters)
             .next()
