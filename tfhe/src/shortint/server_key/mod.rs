@@ -298,10 +298,7 @@ pub struct ServerKey {
 
 impl ServerKey {
     pub fn conformance_params(&self) -> CiphertextConformanceParams {
-        let lwe_dim = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
-            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
-        };
+        let lwe_dim = self.ciphertext_lwe_dimension();
 
         let ct_params = LweCiphertextParameters {
             lwe_dim,
@@ -354,6 +351,119 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_server_key_with_max_degree(cks, max_degree)
         })
+    }
+
+    pub fn ciphertext_lwe_dimension(&self) -> LweDimension {
+        match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
+            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+        }
+    }
+
+    /// Deconstruct a [`ServerKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        LweKeyswitchKeyOwned<u64>,
+        ShortintBootstrappingKey,
+        MessageModulus,
+        CarryModulus,
+        MaxDegree,
+        MaxNoiseLevel,
+        CiphertextModulus,
+        PBSOrder,
+    ) {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+        } = self;
+
+        (
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+        )
+    }
+
+    /// Construct a [`ServerKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_raw_parts(
+        key_switching_key: LweKeyswitchKeyOwned<u64>,
+        bootstrapping_key: ShortintBootstrappingKey,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        max_degree: MaxDegree,
+        max_noise_level: MaxNoiseLevel,
+        ciphertext_modulus: CiphertextModulus,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        assert_eq!(
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension(),
+            "Mismatch between the input LweKeyswitchKey LweDimension ({:?}) \
+            and the ShortintBootstrappingKey output LweDimension ({:?})",
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension(),
+            "Mismatch between the output LweKeyswitchKey LweDimension ({:?}) \
+            and the ShortintBootstrappingKey input LweDimension ({:?})",
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.ciphertext_modulus(),
+            ciphertext_modulus,
+            "Mismatch between the LweKeyswitchKey CiphertextModulus ({:?}) \
+            and the provided CiphertextModulus ({:?})",
+            key_switching_key.ciphertext_modulus(),
+            ciphertext_modulus
+        );
+
+        let max_max_degree = MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus);
+
+        assert!(
+            max_degree.get() <= max_max_degree.get(),
+            "Maximum valid MaxDegree is {max_max_degree:?}, got ({max_degree:?})"
+        );
+
+        let expected_max_noise_level =
+            MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
+
+        assert_eq!(
+            max_noise_level, expected_max_noise_level,
+            "Expected MaxNoiseLevel {expected_max_noise_level:?}, got ({max_noise_level:?})"
+        );
+
+        Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+        }
     }
 
     /// Constructs the lookup table given a function as input.
