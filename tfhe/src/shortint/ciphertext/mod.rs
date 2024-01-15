@@ -510,6 +510,55 @@ impl CompressedCiphertext {
             noise_level,
         }
     }
+
+    /// Deconstruct a [`CompressedCiphertext`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        SeededLweCiphertext<u64>,
+        Degree,
+        MessageModulus,
+        CarryModulus,
+        PBSOrder,
+        NoiseLevel,
+    ) {
+        let Self {
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        } = self;
+
+        (
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        )
+    }
+
+    /// Construct a [`CompressedCiphertext`] from its constituants.
+    pub fn from_raw_parts(
+        ct: SeededLweCiphertext<u64>,
+        degree: Degree,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        pbs_order: PBSOrder,
+        noise_level: NoiseLevel,
+    ) -> Self {
+        Self {
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        }
+    }
 }
 
 impl From<CompressedCiphertext> for Ciphertext {
@@ -582,6 +631,55 @@ impl CompactCiphertextList {
                 }
             })
             .collect::<Vec<_>>()
+    }
+
+    /// Deconstruct a [`CompactCiphertextList`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        LweCompactCiphertextListOwned<u64>,
+        Degree,
+        MessageModulus,
+        CarryModulus,
+        PBSOrder,
+        NoiseLevel,
+    ) {
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        } = self;
+
+        (
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        )
+    }
+
+    /// Construct a [`CompactCiphertextList`] from its constituants.
+    pub fn from_raw_parts(
+        ct_list: LweCompactCiphertextListOwned<u64>,
+        degree: Degree,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        pbs_order: PBSOrder,
+        noise_level: NoiseLevel,
+    ) -> Self {
+        Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        }
     }
 
     pub fn size_elements(&self) -> usize {
