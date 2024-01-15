@@ -15,6 +15,7 @@
 
 ## How To
 * [Configure Rust](how_to/rust_configuration.md)
+* [Detect Overflow](how_to/overflow_operations.md)
 * [Serialize/Deserialize](how_to/serialization.md)
 * [Compress Ciphertexts/Keys](how_to/compress.md)
 * [Use Public Key Encryption](how_to/public_key.md)
