@@ -666,6 +666,7 @@ define_server_key_bench_default_fn!(method_name: unsigned_overflowing_add_parall
 define_server_key_bench_default_fn!(method_name: sub_parallelized, display_name: sub);
 define_server_key_bench_default_fn!(method_name: unsigned_overflowing_sub_parallelized, display_name: overflowing_sub);
 define_server_key_bench_default_fn!(method_name: mul_parallelized, display_name: mul);
+define_server_key_bench_default_fn!(method_name: unsigned_overflowing_mul_parallelized, display_name: overflowing_mul);
 define_server_key_bench_default_fn!(method_name: div_parallelized, display_name: div);
 define_server_key_bench_default_fn!(method_name: rem_parallelized, display_name: modulo);
 define_server_key_bench_default_fn!(method_name: div_rem_parallelized, display_name: div_mod);
@@ -1197,6 +1198,7 @@ criterion_group!(
     sub_parallelized,
     unsigned_overflowing_sub_parallelized,
     mul_parallelized,
+    unsigned_overflowing_mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
     div_rem_parallelized,
