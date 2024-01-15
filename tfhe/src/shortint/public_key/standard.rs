@@ -34,6 +34,67 @@ impl PublicKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key))
     }
 
+    /// Deconstruct a [`PublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> (LwePublicKeyOwned<u64>, ShortintParameterSet, PBSOrder) {
+        let Self {
+            lwe_public_key,
+            parameters,
+            pbs_order,
+        } = self;
+
+        (lwe_public_key, parameters, pbs_order)
+    }
+
+    /// Construct a [`PublicKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        lwe_public_key: LwePublicKeyOwned<u64>,
+        parameters: ShortintParameterSet,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        let expected_pbs_order: PBSOrder = parameters.encryption_key_choice().into();
+
+        assert_eq!(
+            pbs_order, expected_pbs_order,
+            "Mismatch between expected PBSOrder ({expected_pbs_order:?}) and \
+            provided PBSOrder ({pbs_order:?})"
+        );
+
+        let ciphertext_lwe_dimension = match pbs_order {
+            PBSOrder::KeyswitchBootstrap => parameters
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(parameters.polynomial_size()),
+            PBSOrder::BootstrapKeyswitch => parameters.lwe_dimension(),
+        };
+
+        assert_eq!(
+            (*lwe_public_key).lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+            "Mismatch between the LwePublicKeyOwned LweDimension ({:?}) and \
+            the provided parameters LweDimension ({:?})",
+            (*lwe_public_key).lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+        );
+
+        assert_eq!(
+            (*lwe_public_key).ciphertext_modulus(),
+            parameters.ciphertext_modulus(),
+            "Mismatch between the LwePublicKeyOwned CiphertextModulus ({:?}) and \
+            the provided parameters CiphertextModulus ({:?})",
+            (*lwe_public_key).ciphertext_modulus(),
+            parameters.ciphertext_modulus(),
+        );
+
+        Self {
+            lwe_public_key,
+            parameters,
+            pbs_order,
+        }
+    }
+
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
