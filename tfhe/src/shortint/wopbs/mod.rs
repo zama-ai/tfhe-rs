@@ -255,6 +255,66 @@ impl WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_wopbs_key(cks, sks, parameters))
     }
 
+    /// Deconstruct a [`WopbsKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        ServerKey,
+        ServerKey,
+        LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
+        LweKeyswitchKeyOwned<u64>,
+        WopbsParameters,
+    ) {
+        let Self {
+            wopbs_server_key,
+            pbs_server_key,
+            cbs_pfpksk,
+            ksk_pbs_to_wopbs,
+            param,
+        } = self;
+
+        (
+            wopbs_server_key,
+            pbs_server_key,
+            cbs_pfpksk,
+            ksk_pbs_to_wopbs,
+            param,
+        )
+    }
+
+    /// Construct a [`WopbsKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        wopbs_server_key: ServerKey,
+        pbs_server_key: ServerKey,
+        cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
+        ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
+        param: WopbsParameters,
+    ) -> Self {
+        assert_eq!(
+            ksk_pbs_to_wopbs.input_key_lwe_dimension(),
+            pbs_server_key.ciphertext_lwe_dimension()
+        );
+
+        assert_eq!(
+            ksk_pbs_to_wopbs.output_key_lwe_dimension(),
+            wopbs_server_key.ciphertext_lwe_dimension()
+        );
+
+        // TODO add asserts/conformance checks for the wopbs key
+
+        Self {
+            wopbs_server_key,
+            pbs_server_key,
+            cbs_pfpksk,
+            ksk_pbs_to_wopbs,
+            param,
+        }
+    }
+
     /// Generate the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// # Warning: this assumes one bit of padding.
