@@ -1124,14 +1124,18 @@ fn main() {
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             match val.to_lowercase().as_str() {
-                "default" => default_parallelized_ops(),
-                "default_comp" => default_parallelized_ops_comp(),
-                "default_scalar" => default_scalar_parallelized_ops(),
-                "default_scalar_comp" => default_scalar_parallelized_ops_comp(),
-                "unchecked" => unchecked_ops(),
-                "unchecked_comp" => unchecked_ops_comp(),
-                "unchecked_scalar" => unchecked_scalar_ops(),
-                "unchecked_scalar_comp" => unchecked_scalar_ops_comp(),
+                "default" => {
+                    default_parallelized_ops();
+                    default_parallelized_ops_comp();
+                    default_scalar_parallelized_ops();
+                    default_scalar_parallelized_ops_comp()
+                }
+                "unchecked" => {
+                    unchecked_ops();
+                    unchecked_ops_comp();
+                    unchecked_scalar_ops();
+                    unchecked_scalar_ops_comp()
+                }
                 _ => panic!("unknown benchmark operations flavor"),
             };
         }

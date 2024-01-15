@@ -39,15 +39,12 @@ jobs:
       - name: Weekly benchmarks
         if: ${{ github.event.inputs.user_inputs == 'weekly_benchmarks' }}
         run: |
-          echo "OP_FLAVOR=[\"default\", \"default_comp\", \"default_scalar\", \"default_scalar_comp\"]" >> ${GITHUB_ENV}
+          echo "OP_FLAVOR=[\"default\"]" >> ${GITHUB_ENV}
 
       - name: Quarterly benchmarks
         if: ${{ github.event.inputs.user_inputs == 'quarterly_benchmarks' }}
         run: |
-          echo "OP_FLAVOR=[\"default\", \"default_comp\", \"default_scalar\", \"default_scalar_comp\", \
-          \"smart\", \"smart_comp\", \"smart_scalar\", \"smart_parallelized\", \"smart_parallelized_comp\", \"smart_scalar_parallelized\", \"smart_scalar_parallelized_comp\", \
-          \"unchecked\", \"unchecked_comp\", \"unchecked_scalar\", \"unchecked_scalar_comp\", \
-          \"misc\"]" >> ${GITHUB_ENV}
+          echo "OP_FLAVOR=[\"default\", \"smart\", \"unchecked\", \"misc\"]" >> ${GITHUB_ENV}
 
       -  name: Set operation flavor output
          id: set_op_flavor
@@ -60,6 +57,7 @@ jobs:
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
     continue-on-error: true
+    timeout-minutes: 1440  # 24 hours
     strategy:
       max-parallel: 1
       matrix:

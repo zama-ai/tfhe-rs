@@ -1373,29 +1373,37 @@ fn main() {
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             match val.to_lowercase().as_str() {
-                "default" => default_parallelized_ops(),
-                "default_comp" => default_parallelized_ops_comp(),
-                "default_scalar" => default_scalar_parallelized_ops(),
-                "default_scalar_comp" => default_scalar_parallelized_ops_comp(),
-                "smart" => smart_ops(),
-                "smart_comp" => smart_ops_comp(),
-                "smart_scalar" => smart_scalar_ops(),
-                "smart_parallelized" => smart_parallelized_ops(),
-                "smart_parallelized_comp" => smart_parallelized_ops_comp(),
-                "smart_scalar_parallelized" => smart_scalar_parallelized_ops(),
-                "smart_scalar_parallelized_comp" => smart_scalar_parallelized_ops_comp(),
-                "unchecked" => unchecked_ops(),
-                "unchecked_parallelized" => unchecked_parallelized_ops(),
-                "unchecked_comp" => unchecked_ops_comp(),
-                "unchecked_scalar" => unchecked_scalar_ops(),
-                "unchecked_scalar_comp" => unchecked_scalar_ops_comp(),
+                "default" => {
+                    default_parallelized_ops();
+                    default_parallelized_ops_comp();
+                    default_scalar_parallelized_ops();
+                    default_scalar_parallelized_ops_comp()
+                }
+                "smart" => {
+                    smart_ops();
+                    smart_ops_comp();
+                    smart_scalar_ops();
+                    smart_parallelized_ops();
+                    smart_parallelized_ops_comp();
+                    smart_scalar_parallelized_ops();
+                    smart_scalar_parallelized_ops_comp()
+                }
+                "unchecked" => {
+                    unchecked_ops();
+                    unchecked_parallelized_ops();
+                    unchecked_ops_comp();
+                    unchecked_scalar_ops();
+                    unchecked_scalar_ops_comp()
+                }
                 "misc" => misc(),
                 _ => panic!("unknown benchmark operations flavor"),
             };
         }
         Err(_) => {
             default_parallelized_ops();
-            default_scalar_parallelized_ops()
+            default_parallelized_ops_comp();
+            default_scalar_parallelized_ops();
+            default_scalar_parallelized_ops_comp()
         }
     };
 
