@@ -58,6 +58,7 @@ pub mod client_key;
 pub mod key_switching_key;
 #[cfg(any(test, feature = "internal-keycache"))]
 pub mod keycache;
+pub mod oprf;
 pub mod parameters;
 pub mod public_key;
 pub mod server_key;
