@@ -26,6 +26,10 @@ doctest!(
     "../docs/how_to/trivial_ciphertext.md",
     how_to_trivial_ciphertext
 );
+doctest!(
+    "../docs/how_to/overflow_operations.md",
+    how_to_detect_overflow
+);
 
 //FINE GRAINED API
 doctest!(
