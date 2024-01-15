@@ -27,3 +27,15 @@ impl From<CompressedCiphertext> for Ciphertext {
         Self::Encrypted(value.ciphertext.decompress_into_lwe_ciphertext())
     }
 }
+
+impl CompressedCiphertext {
+    /// Deconstruct a [`CompressedCiphertext`] into its constituants.
+    pub fn into_raw_parts(self) -> SeededLweCiphertext<u32> {
+        self.ciphertext
+    }
+
+    /// Construct a [`CompressedCiphertext`] from its constituants.
+    pub fn from_raw_parts(ciphertext: SeededLweCiphertext<u32>) -> Self {
+        Self { ciphertext }
+    }
+}
