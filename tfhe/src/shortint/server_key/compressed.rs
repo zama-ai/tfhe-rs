@@ -17,6 +17,69 @@ pub enum ShortintCompressedBootstrappingKey {
 }
 
 impl ShortintCompressedBootstrappingKey {
+    pub fn input_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(inner) => inner.input_lwe_dimension(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.input_lwe_dimension(),
+        }
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic(inner) => inner.polynomial_size(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.polynomial_size(),
+        }
+    }
+
+    pub fn glwe_size(&self) -> GlweSize {
+        match self {
+            Self::Classic(inner) => inner.glwe_size(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.glwe_size(),
+        }
+    }
+
+    pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            Self::Classic(inner) => inner.decomposition_base_log(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.decomposition_base_log(),
+        }
+    }
+
+    pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
+        match self {
+            Self::Classic(inner) => inner.decomposition_level_count(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.decomposition_level_count(),
+        }
+    }
+
+    pub fn output_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(inner) => inner.output_lwe_dimension(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.output_lwe_dimension(),
+        }
+    }
+
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus {
+        match self {
+            Self::Classic(inner) => inner.ciphertext_modulus(),
+            Self::MultiBit {
+                seeded_bsk: inner, ..
+            } => inner.ciphertext_modulus(),
+        }
+    }
+
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
             Self::Classic(bsk) => bsk.as_view().into_container().len(),
@@ -71,6 +134,107 @@ impl CompressedServerKey {
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_server_key(client_key))
+    }
+
+    /// Deconstruct a [`CompressedServerKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        SeededLweKeyswitchKeyOwned<u64>,
+        ShortintCompressedBootstrappingKey,
+        MessageModulus,
+        CarryModulus,
+        MaxDegree,
+        CiphertextModulus,
+        PBSOrder,
+    ) {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        } = self;
+
+        (
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        )
+    }
+
+    /// Construct a [`CompressedServerKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
+        bootstrapping_key: ShortintCompressedBootstrappingKey,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        max_degree: MaxDegree,
+        ciphertext_modulus: CiphertextModulus,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        assert_eq!(
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension(),
+            "Mismatch between the input SeededLweKeyswitchKeyOwned LweDimension ({:?}) \
+            and the ShortintCompressedBootstrappingKey output LweDimension ({:?})",
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension(),
+            "Mismatch between the output SeededLweKeyswitchKeyOwned LweDimension ({:?}) \
+            and the ShortintCompressedBootstrappingKey input LweDimension ({:?})",
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.ciphertext_modulus(),
+            ciphertext_modulus,
+            "Mismatch between the SeededLweKeyswitchKeyOwned CiphertextModulus ({:?}) \
+            and the provided CiphertextModulus ({:?})",
+            key_switching_key.ciphertext_modulus(),
+            ciphertext_modulus
+        );
+
+        assert_eq!(
+            bootstrapping_key.ciphertext_modulus(),
+            ciphertext_modulus,
+            "Mismatch between the ShortintCompressedBootstrappingKey CiphertextModulus ({:?}) \
+            and the provided CiphertextModulus ({:?})",
+            bootstrapping_key.ciphertext_modulus(),
+            ciphertext_modulus
+        );
+
+        let max_max_degree = MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus);
+
+        assert!(
+            max_degree.get() <= max_max_degree.get(),
+            "Maximum valid MaxDegree is {max_max_degree:?}, got ({max_degree:?})"
+        );
+
+        Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        }
     }
 
     /// Generate a compressed server key with a chosen maximum degree
