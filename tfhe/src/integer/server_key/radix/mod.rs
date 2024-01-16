@@ -64,6 +64,47 @@ impl ServerKey {
         BooleanBlock::new_unchecked(self.key.create_trivial(u64::from(value)))
     }
 
+    pub fn create_trivial_max_radix<T>(&self, num_blocks: usize) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let block_with_all_ones = self
+            .key
+            .create_trivial(self.key.message_modulus.0 as u64 - 1);
+        if T::IS_SIGNED {
+            // The max of a two's complement number is a 0 in msb and then only 1
+            let mut trivial_blocks = vec![block_with_all_ones; num_blocks - 1];
+            // msb blocks has its last bit set to 0, the rest are 1
+            trivial_blocks.push(
+                self.key
+                    .create_trivial((self.message_modulus().0 >> 1) as u64 - 1),
+            );
+            T::from_blocks(trivial_blocks)
+        } else {
+            // Max value is simply all bits set to one
+            T::from_blocks(vec![block_with_all_ones; num_blocks])
+        }
+    }
+
+    pub fn create_trivial_min_radix<T>(&self, num_blocks: usize) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if T::IS_SIGNED {
+            // create num_blocks -1 blocks containing 0
+            let mut trivial_blocks = vec![self.key.create_trivial(0); num_blocks - 1];
+            // msb block has its msb set to 1, rest is 0
+            let num_bits_of_message = self.message_modulus().0.ilog2();
+            trivial_blocks.push(self.key.create_trivial(
+                (self.message_modulus().0 as u64 - 1) << (num_bits_of_message - 1),
+            ));
+            T::from_blocks(trivial_blocks)
+        } else {
+            // Min value is simply 0
+            self.create_trivial_zero_radix(num_blocks)
+        }
+    }
+
     /// Create a trivial radix ciphertext
     ///
     /// Trivial means that the value is not encrypted
@@ -417,6 +458,9 @@ impl ServerKey {
         ct: &mut SignedRadixCiphertext,
         num_blocks: usize,
     ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct)
+        }
         let message_modulus = self.key.message_modulus.0 as u64;
         let num_bits_in_block = message_modulus.ilog2();
         let padding_block_creator_lut = self.key.generate_lookup_table(|x| {
