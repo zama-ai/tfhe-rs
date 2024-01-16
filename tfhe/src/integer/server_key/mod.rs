@@ -181,6 +181,16 @@ impl ServerKey {
         Self { key }
     }
 
+    /// Deconstruct a [`ServerKey`] into its constituants.
+    pub fn into_raw_parts(self) -> crate::shortint::ServerKey {
+        self.key
+    }
+
+    /// Construct a [`ServerKey`] from its constituants.
+    pub fn from_raw_parts(key: crate::shortint::ServerKey) -> Self {
+        Self { key }
+    }
+
     pub fn deterministic_pbs_execution(&self) -> bool {
         self.key.deterministic_pbs_execution()
     }
@@ -189,6 +199,7 @@ impl ServerKey {
         self.key
             .set_deterministic_pbs_execution(new_deterministic_execution);
     }
+
     pub fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus
     }
