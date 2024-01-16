@@ -61,6 +61,61 @@ impl PublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))
     }
+
+    /// Deconstruct a [`PublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> (LwePublicKeyOwned<u32>, BooleanParameters) {
+        let Self {
+            lwe_public_key,
+            parameters,
+        } = self;
+
+        (lwe_public_key, parameters)
+    }
+
+    /// Construct a [`PublicKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        lwe_public_key: LwePublicKeyOwned<u32>,
+        parameters: BooleanParameters,
+    ) -> Self {
+        let ciphertext_lwe_dimension = match parameters.encryption_key_choice {
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
+                .glwe_dimension
+                .to_equivalent_lwe_dimension(parameters.polynomial_size),
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+                parameters.lwe_dimension
+            }
+        };
+
+        assert_eq!(
+            lwe_public_key.lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+            "Mismatch between LwePublicKeyOwned LweDimension ({:?}) \
+            and parameters LweDimension ({:?})",
+            lwe_public_key.lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+        );
+
+        assert!(
+            lwe_public_key.ciphertext_modulus().is_native_modulus(),
+            "LwePublicKeyOwned CiphertextModulus needs to be the native modulus got ({:?})",
+            lwe_public_key.ciphertext_modulus()
+        );
+
+        assert!(
+            lwe_public_key.ciphertext_modulus().is_native_modulus(),
+            "LwePublicKeyOwned CiphertextModulus needs to be the native modulus got ({:?})",
+            lwe_public_key.ciphertext_modulus()
+        );
+
+        Self {
+            lwe_public_key,
+            parameters,
+        }
+    }
 }
 
 impl From<CompressedPublicKey> for PublicKey {
