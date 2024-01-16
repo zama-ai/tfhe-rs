@@ -95,6 +95,38 @@ impl CompactCiphertextList {
         T::from(blocks)
     }
 
+    /// Deconstruct a [`CompactCiphertextList`] into its constituants.
+    pub fn into_raw_parts(self) -> (crate::shortint::ciphertext::CompactCiphertextList, usize) {
+        let Self {
+            ct_list,
+            num_blocks_per_integer,
+        } = self;
+        (ct_list, num_blocks_per_integer)
+    }
+
+    /// Construct a [`CompactCiphertextList`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        ct_list: crate::shortint::ciphertext::CompactCiphertextList,
+        num_blocks_per_integer: usize,
+    ) -> Self {
+        assert_eq!(
+            ct_list.ct_list.lwe_ciphertext_count().0 % num_blocks_per_integer,
+            0,
+            "CompactCiphertextList LweCiphertextCount is expected \
+            to be a multiple of {num_blocks_per_integer}, got {:?}",
+            ct_list.ct_list.lwe_ciphertext_count()
+        );
+
+        Self {
+            ct_list,
+            num_blocks_per_integer,
+        }
+    }
+
     pub fn ciphertext_count(&self) -> usize {
         self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer
     }
