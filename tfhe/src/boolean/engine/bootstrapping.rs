@@ -189,6 +189,72 @@ pub struct CompressedServerKey {
     pub(crate) pbs_order: PBSOrder,
 }
 
+impl CompressedServerKey {
+    /// Deconstruct a [`CompressedServerKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        SeededLweBootstrapKeyOwned<u32>,
+        SeededLweKeyswitchKeyOwned<u32>,
+        PBSOrder,
+    ) {
+        let Self {
+            bootstrapping_key,
+            key_switching_key,
+            pbs_order,
+        } = self;
+
+        (bootstrapping_key, key_switching_key, pbs_order)
+    }
+
+    /// Construct a [`CompressedServerKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        bootstrapping_key: SeededLweBootstrapKeyOwned<u32>,
+        key_switching_key: SeededLweKeyswitchKeyOwned<u32>,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        assert_eq!(
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension(),
+            "Mismatch between the input SeededLweBootstrapKeyOwned LweDimension ({:?}) \
+            and the SeededLweBootstrapKeyOwned output LweDimension ({:?})",
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension(),
+            "Mismatch between the output SeededLweBootstrapKeyOwned LweDimension ({:?}) \
+            and the SeededLweBootstrapKeyOwned input LweDimension ({:?})",
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension()
+        );
+
+        assert!(
+            key_switching_key.ciphertext_modulus().is_native_modulus(),
+            "Expected native CiphertextModulus for SeededLweKeyswitchKeyOwned got {:?}",
+            key_switching_key.ciphertext_modulus()
+        );
+
+        assert!(
+            bootstrapping_key.ciphertext_modulus().is_native_modulus(),
+            "Expected native CiphertextModulus for SeededLweBootstrapKeyOwned got {:?}",
+            bootstrapping_key.ciphertext_modulus()
+        );
+
+        Self {
+            bootstrapping_key,
+            key_switching_key,
+            pbs_order,
+        }
+    }
+}
+
 /// Perform ciphertext bootstraps on the CPU
 pub(crate) struct Bootstrapper {
     memory: Memory,
