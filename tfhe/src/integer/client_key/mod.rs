@@ -66,10 +66,8 @@ where
     if num_bits_set >= T::BITS as u32 {
         return unpadded_value;
     }
-
     let sign_bit_pos = num_bits_set - 1;
-    let sign_bit_mask = T::cast_from(1u32 << sign_bit_pos);
-    let sign_bit = (unpadded_value & sign_bit_mask) >> sign_bit_pos;
+    let sign_bit = (unpadded_value >> sign_bit_pos) & T::ONE;
 
     // Creates a padding mask
     // where bits above num_bits_set

@@ -1,5 +1,6 @@
+use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{IntegerKeyKind, ServerKey, U256};
+use crate::integer::{IntegerKeyKind, ServerKey, SignedRadixCiphertext, U256};
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
@@ -67,6 +68,8 @@ create_parametrized_test!(integer_full_propagate {
     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS
 });
+
+create_parametrized_test!(integer_signed_decryption_correctly_sign_extend);
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -1135,4 +1138,22 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate);
     full_propagate_test(param, executor);
+}
+fn integer_signed_decryption_correctly_sign_extend(param: impl Into<PBSParameters>) {
+    // Test that when decrypting a negative SignedRadixCiphertext of N bits to a
+    // clear type of M bits where M > N, the sign extension is correctly done
+    //
+    // Specifically here we take N = 64 bits, M = 128 bits
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let num_bits_in_one_block = sks.message_modulus().0.ilog2();
+    let num_blocks = divide_ceil(64, num_bits_in_one_block);
+    let value = -1i64;
+
+    let encrypted = cks.encrypt_signed_radix(value, num_blocks as usize);
+    let decrypted: i128 = cks.decrypt_signed_radix(&encrypted);
+    assert_eq!(decrypted, value as i128);
+
+    let trivial: SignedRadixCiphertext = sks.create_trivial_radix(value, num_blocks as usize);
+    assert_eq!(trivial.decrypt_trivial::<i128>().unwrap(), value as i128);
 }
