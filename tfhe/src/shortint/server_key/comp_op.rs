@@ -1324,7 +1324,7 @@ impl ServerKey {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs == scalar as u64))
     }
 
-    /// Alias of [`smart_scalar_equal`](`Self::smart_scalar_equal`) provided for convenience
+    /// Equality between a ciphertext and a clear
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
@@ -1333,8 +1333,10 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_equal(ct_left, scalar)
+    pub fn scalar_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+        let acc = self
+            .generate_msg_lookup_table(|x| (x == scalar as u64) as u64, ct_left.message_modulus);
+        self.apply_lookup_table(ct_left, &acc)
     }
 
     /// Implement the "not equal" operator (`!=`) between a ciphertext and a scalar without checks.
@@ -1377,7 +1379,7 @@ impl ServerKey {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs != scalar as u64))
     }
 
-    /// Alias of [`smart_scalar_not_equal`](`Self::smart_scalar_not_equal`) provided for convenience
+    /// Difference between a ciphertext and a clear
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
@@ -1386,8 +1388,10 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_not_equal(ct_left, scalar)
+    pub fn scalar_not_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+        let acc = self
+            .generate_msg_lookup_table(|x| (x != scalar as u64) as u64, ct_left.message_modulus);
+        self.apply_lookup_table(ct_left, &acc)
     }
 
     /// Implement the "greater or equal" operator (`>=`) between a ciphertext and a scalar without
