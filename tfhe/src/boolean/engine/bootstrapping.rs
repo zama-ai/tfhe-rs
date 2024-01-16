@@ -97,6 +97,64 @@ pub struct ServerKey {
 }
 
 impl ServerKey {
+    /// Deconstruct a [`ServerKey`] into its constituants.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        FourierLweBootstrapKeyOwned,
+        LweKeyswitchKeyOwned<u32>,
+        PBSOrder,
+    ) {
+        let Self {
+            bootstrapping_key,
+            key_switching_key,
+            pbs_order,
+        } = self;
+
+        (bootstrapping_key, key_switching_key, pbs_order)
+    }
+
+    /// Construct a [`ServerKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        bootstrapping_key: FourierLweBootstrapKeyOwned,
+        key_switching_key: LweKeyswitchKeyOwned<u32>,
+        pbs_order: PBSOrder,
+    ) -> Self {
+        assert_eq!(
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension(),
+            "Mismatch between the input LweKeyswitchKey LweDimension ({:?}) \
+            and the FourierLweBootstrapKey output LweDimension ({:?})",
+            key_switching_key.input_key_lwe_dimension(),
+            bootstrapping_key.output_lwe_dimension()
+        );
+
+        assert_eq!(
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension(),
+            "Mismatch between the output LweKeyswitchKey LweDimension ({:?}) \
+            and the FourierLweBootstrapKey input LweDimension ({:?})",
+            key_switching_key.output_key_lwe_dimension(),
+            bootstrapping_key.input_lwe_dimension()
+        );
+
+        assert!(
+            key_switching_key.ciphertext_modulus().is_native_modulus(),
+            "Expected native CiphertextModulus for LweKeyswitchKey got {:?}",
+            key_switching_key.ciphertext_modulus()
+        );
+
+        Self {
+            bootstrapping_key,
+            key_switching_key,
+            pbs_order,
+        }
+    }
+
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         self.bootstrapping_key.as_view().data().as_ref().len()
     }
