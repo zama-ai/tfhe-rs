@@ -236,6 +236,16 @@ impl CompressedServerKey {
         let key = crate::shortint::CompressedServerKey::new(&client_key.key);
         Self { key }
     }
+
+    /// Deconstruct a [`CompressedServerKey`] into its constituants.
+    pub fn into_raw_parts(self) -> crate::shortint::CompressedServerKey {
+        self.key
+    }
+
+    /// Construct a [`CompressedServerKey`] from its constituants.
+    pub fn from_raw_parts(key: crate::shortint::CompressedServerKey) -> Self {
+        Self { key }
+    }
 }
 
 impl From<CompressedServerKey> for ServerKey {
