@@ -26,6 +26,16 @@ impl CompactPublicKey {
         Some(Self { key })
     }
 
+    /// Deconstruct a [`CompactPublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> ShortintCompactPublicKey {
+        self.key
+    }
+
+    /// Construct a [`CompactPublicKey`] from its constituants.
+    pub fn from_raw_parts(key: ShortintCompactPublicKey) -> Self {
+        Self { key }
+    }
+
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
     where
         T: DecomposableInto<u64> + UnsignedNumeric,
