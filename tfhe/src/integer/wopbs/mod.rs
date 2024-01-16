@@ -227,9 +227,14 @@ impl WopbsKey {
         }
     }
 
-    pub fn new_from_shortint(wopbskey: &crate::shortint::wopbs::WopbsKey) -> Self {
-        let key = wopbskey.clone();
-        Self { wopbs_key: key }
+    /// Deconstruct a [`WopbsKey`] into its constituants.
+    pub fn into_raw_parts(self) -> crate::shortint::wopbs::WopbsKey {
+        self.wopbs_key
+    }
+
+    /// Construct a [`WopbsKey`] from its constituants.
+    pub fn from_raw_parts(wopbs_key: crate::shortint::wopbs::WopbsKey) -> Self {
+        Self { wopbs_key }
     }
 
     pub fn new_wopbs_key_only_for_wopbs<IntegerClientKey: AsRef<ClientKey>>(
