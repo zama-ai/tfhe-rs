@@ -46,6 +46,57 @@ impl CompressedPublicKey {
         })
     }
 
+    /// Deconstruct a [`CompressedPublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> (SeededLwePublicKeyOwned<u32>, BooleanParameters) {
+        let Self {
+            compressed_lwe_public_key,
+            parameters,
+        } = self;
+
+        (compressed_lwe_public_key, parameters)
+    }
+
+    /// Construct a [`CompressedPublicKey`] from its constituants.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constituants are not compatible with each others.
+    pub fn from_raw_parts(
+        compressed_lwe_public_key: SeededLwePublicKeyOwned<u32>,
+        parameters: BooleanParameters,
+    ) -> Self {
+        let ciphertext_lwe_dimension = match parameters.encryption_key_choice {
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
+                .glwe_dimension
+                .to_equivalent_lwe_dimension(parameters.polynomial_size),
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+                parameters.lwe_dimension
+            }
+        };
+
+        assert_eq!(
+            compressed_lwe_public_key.lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+            "Mismatch between SeededLwePublicKeyOwned LweDimension ({:?}) \
+            and parameters LweDimension ({:?})",
+            compressed_lwe_public_key.lwe_size().to_lwe_dimension(),
+            ciphertext_lwe_dimension,
+        );
+
+        assert!(
+            compressed_lwe_public_key
+                .ciphertext_modulus()
+                .is_native_modulus(),
+            "SeededLwePublicKeyOwned CiphertextModulus needs to be the native modulus got ({:?})",
+            compressed_lwe_public_key.ciphertext_modulus()
+        );
+
+        Self {
+            compressed_lwe_public_key,
+            parameters,
+        }
+    }
+
     /// Encrypt a Boolean message using the compressed public key.
     ///
     /// # Note
