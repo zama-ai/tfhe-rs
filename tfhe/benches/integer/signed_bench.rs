@@ -377,6 +377,10 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: mul_parallelized,
     display_name: mul
 );
+define_server_key_bench_binary_signed_clean_inputs_fn!(
+    method_name: signed_overflowing_mul_parallelized,
+    display_name: overflowing_mul
+);
 // define_server_key_bench_binary_signed_clean_inputs_fn!(
 //     method_name: div_parallelized,
 //     display_name: div,
@@ -495,6 +499,7 @@ criterion_group!(
     sub_parallelized,
     signed_overflowing_sub_parallelized,
     mul_parallelized,
+    signed_overflowing_mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
     div_rem_parallelized, // For ciphertext div == rem == div_rem

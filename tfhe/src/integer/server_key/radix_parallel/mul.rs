@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
+use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -754,5 +755,90 @@ impl ServerKey {
         };
 
         self.unchecked_unsigned_overflowing_mul_assign_parallelized(lhs, rhs)
+    }
+
+    /// Computes homomorphically a multiplication along with an overflow flag
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let clear_1 = -128i8;
+    /// let clear_2 = 5i8;
+    ///
+    /// // Encrypt two messages
+    /// let ctxt_1 = cks.encrypt_signed(clear_1);
+    /// let ctxt_2 = cks.encrypt_signed(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let (ct_res, ct_overflowed) = sks.signed_overflowing_mul_parallelized(&ctxt_1, &ctxt_2);
+    /// // Decrypt
+    /// let res: i8 = cks.decrypt_signed(&ct_res);
+    /// let overflowed = cks.decrypt_bool(&ct_overflowed);
+    ///
+    /// let (expected_result, expected_overflowed) = clear_1.overflowing_mul(clear_2);
+    /// assert_eq!(res, expected_result);
+    /// assert_eq!(overflowed, expected_overflowed);
+    /// ```
+    pub fn signed_overflowing_mul_parallelized(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        // Note: Naive implementation of signed mul with overflow
+        // surely there are optimized way of computing this
+
+        // Do a full multiplication (Nbits * Nbits) = 2Nbits result
+        let bigger_lhs = self.extend_radix_with_sign_msb(lhs, lhs.blocks.len());
+        let bigger_rhs = self.extend_radix_with_sign_msb(rhs, rhs.blocks.len());
+        let mut full_result = self.mul_parallelized(&bigger_lhs, &bigger_rhs);
+
+        let num_bits_of_message = self.message_modulus().0.ilog2();
+        let total_num_bits = num_bits_of_message * lhs.blocks.len() as u32;
+
+        let (is_lt_min, is_gt_max) = if total_num_bits > I256::BITS {
+            let mut max_trivial: SignedRadixCiphertext =
+                self.create_trivial_max_radix(lhs.blocks.len());
+            let mut min_trivial: SignedRadixCiphertext =
+                self.create_trivial_min_radix(lhs.blocks.len());
+
+            // Manually do sign extension as we know the sign, max is positive
+            // so pad with 0s, min is negative, so pad with 1s
+            max_trivial
+                .blocks
+                .resize_with(bigger_lhs.blocks.len(), || self.key.create_trivial(0));
+            min_trivial.blocks.resize_with(bigger_lhs.blocks.len(), || {
+                self.key.create_trivial(self.message_modulus().0 as u64 - 1)
+            });
+
+            rayon::join(
+                || self.unchecked_lt_parallelized(&full_result, &min_trivial),
+                || self.unchecked_gt_parallelized(&full_result, &max_trivial),
+            )
+        } else {
+            let max_scalar = I256::MAX >> (I256::BITS - total_num_bits);
+            let min_scalar = I256::from(-1i32) << (total_num_bits - 1);
+
+            rayon::join(
+                || self.unchecked_scalar_lt_parallelized(&full_result, min_scalar),
+                || self.unchecked_scalar_gt_parallelized(&full_result, max_scalar),
+            )
+        };
+
+        assert_eq!(is_gt_max.0.degree.get(), 1);
+        assert_eq!(is_gt_max.0.degree.get(), 1);
+
+        let mut overflowed = self.boolean_bitor(&is_lt_min, &is_gt_max);
+        // after_bitor does not give the correct degree
+        overflowed.0.degree = Degree::new(1);
+
+        full_result.blocks.truncate(lhs.blocks.len());
+        (full_result, overflowed)
     }
 }

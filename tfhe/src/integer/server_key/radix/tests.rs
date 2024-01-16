@@ -1,6 +1,6 @@
 use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{IntegerKeyKind, ServerKey, SignedRadixCiphertext, U256};
+use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
@@ -69,6 +69,7 @@ create_parametrized_test!(integer_full_propagate {
     PARAM_MESSAGE_4_CARRY_4_KS_PBS
 });
 
+create_parametrized_test!(integer_create_trivial_min_max);
 create_parametrized_test!(integer_signed_decryption_correctly_sign_extend);
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
@@ -1139,6 +1140,61 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate);
     full_propagate_test(param, executor);
 }
+
+fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
+    let (_, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let num_bits_in_one_block = sks.message_modulus().0.ilog2();
+    // The test only involves trivial types so we can afford to test more
+    for bit_size in 1..=127 {
+        assert!(bit_size < i128::BITS);
+        let num_blocks = divide_ceil(bit_size, num_bits_in_one_block);
+        // If num_bits_in_one_block is not a multiple of bit_size, then
+        // the actual number of bits is not the same as bit size (we end up with more)
+        let actual_num_bits = num_blocks * num_bits_in_one_block;
+
+        // Unsigned
+        {
+            let expected_unsigned_max = 2u128.pow(actual_num_bits) - 1;
+            let expected_unsigned_min = 0;
+
+            let trivial_unsigned_max: RadixCiphertext =
+                sks.create_trivial_max_radix(num_blocks as usize);
+            let trivial_unsigned_min: RadixCiphertext =
+                sks.create_trivial_min_radix(num_blocks as usize);
+
+            assert_eq!(
+                trivial_unsigned_max.decrypt_trivial::<u128>().unwrap(),
+                expected_unsigned_max
+            );
+            assert_eq!(
+                trivial_unsigned_min.decrypt_trivial::<u128>().unwrap(),
+                expected_unsigned_min
+            );
+        }
+
+        // Signed
+        {
+            let expected_signed_max = 2i128.pow(actual_num_bits - 1) - 1;
+            let expected_signed_min = -(2i128.pow(actual_num_bits - 1));
+
+            let trivial_signed_max: SignedRadixCiphertext =
+                sks.create_trivial_max_radix(num_blocks as usize);
+            let trivial_signed_min: SignedRadixCiphertext =
+                sks.create_trivial_min_radix(num_blocks as usize);
+
+            assert_eq!(
+                trivial_signed_max.decrypt_trivial::<i128>().unwrap(),
+                expected_signed_max
+            );
+            assert_eq!(
+                trivial_signed_min.decrypt_trivial::<i128>().unwrap(),
+                expected_signed_min
+            );
+        }
+    }
+}
+
 fn integer_signed_decryption_correctly_sign_extend(param: impl Into<PBSParameters>) {
     // Test that when decrypting a negative SignedRadixCiphertext of N bits to a
     // clear type of M bits where M > N, the sign extension is correctly done
