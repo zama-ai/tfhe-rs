@@ -20,6 +20,16 @@ impl CompressedPublicKey {
         }
     }
 
+    /// Deconstruct a [`CompressedPublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> crate::shortint::CompressedPublicKey {
+        self.key
+    }
+
+    /// Construct a [`CompressedPublicKey`] from its constituants.
+    pub fn from_raw_parts(key: crate::shortint::CompressedPublicKey) -> Self {
+        Self { key }
+    }
+
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
         self.encrypt_crt_impl(
             message,
