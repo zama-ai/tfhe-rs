@@ -22,6 +22,16 @@ impl KeySwitchingKey {
         }
     }
 
+    /// Deconstruct a [`KeySwitchingKey`] into its constituants.
+    pub fn into_raw_parts(self) -> LweKeyswitchKeyOwned<u32> {
+        self.key_switching_key
+    }
+
+    /// Construct a [`KeySwitchingKey`] from its constituants.
+    pub fn from_raw_parts(key_switching_key: LweKeyswitchKeyOwned<u32>) -> Self {
+        Self { key_switching_key }
+    }
+
     pub fn cast_into(&self, ct: &Ciphertext, ct_dest: &mut Ciphertext) {
         match ct {
             Ciphertext::Trivial(_) => *ct_dest = ct.clone(),
