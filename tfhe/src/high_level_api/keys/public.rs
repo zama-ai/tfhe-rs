@@ -91,6 +91,16 @@ impl CompactPublicKey {
         IntegerCompactPublicKey::try_new(&client_key.key).map(|key| Self { key })
     }
 
+    pub fn into_raw_parts(self) -> crate::integer::public_key::CompactPublicKey {
+        self.key.into_raw_parts()
+    }
+
+    pub fn from_raw_parts(key: crate::integer::public_key::CompactPublicKey) -> Self {
+        Self {
+            key: IntegerCompactPublicKey::from_raw_parts(key),
+        }
+    }
+
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.key.key.message_modulus()
     }

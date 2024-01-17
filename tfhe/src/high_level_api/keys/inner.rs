@@ -219,6 +219,14 @@ impl IntegerCompactPublicKey {
     {
         self.key.encrypt_slice_radix_compact(values, num_blocks)
     }
+
+    pub fn into_raw_parts(self) -> CompactPublicKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: CompactPublicKey) -> Self {
+        Self { key }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
