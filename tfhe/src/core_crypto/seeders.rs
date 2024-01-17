@@ -5,14 +5,14 @@
 //! for cryptographically secure pseudo random number generators.
 
 pub use crate::core_crypto::commons::math::random::Seeder;
-#[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
+#[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
 pub use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
 pub use concrete_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
 pub use concrete_csprng::seeders::UnixSeeder;
 
-#[cfg(feature = "__wasm_api")]
+#[cfg(target_arch = "wasm32")]
 mod wasm_seeder {
     use crate::core_crypto::commons::math::random::{Seed, Seeder};
     // This is used for web interfaces
@@ -73,7 +73,7 @@ pub fn new_seeder() -> Box<dyn Seeder> {
 
     let err_msg;
 
-    #[cfg(not(feature = "__wasm_api"))]
+    #[cfg(not(target_arch = "wasm32"))]
     {
         #[cfg(feature = "seeder_x86_64_rdseed")]
         {
@@ -110,7 +110,7 @@ pub fn new_seeder() -> Box<dyn Seeder> {
         }
     }
 
-    #[cfg(feature = "__wasm_api")]
+    #[cfg(target_arch = "wasm32")]
     {
         if seeder.is_none() && wasm_seeder::WasmSeeder::is_available() {
             seeder = Some(Box::new(wasm_seeder::WasmSeeder {}));

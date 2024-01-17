@@ -81,6 +81,9 @@ serde-wasm-bindgen = { version = "0.6.0", optional = true }
 getrandom = { version = "0.2.8", optional = true }
 bytemuck = "1.13.1"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
+optional = false
+
 [features]
 boolean = []
 shortint = []

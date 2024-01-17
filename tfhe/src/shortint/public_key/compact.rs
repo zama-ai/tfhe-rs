@@ -212,7 +212,7 @@ impl CompactPublicKey {
         );
 
         // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
+        #[cfg(all(target_arch = "wasm32", not(feature = "parallel-wasm-api")))]
         {
             use crate::core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
             ShortintEngine::with_thread_local_mut(|engine| {
@@ -229,7 +229,7 @@ impl CompactPublicKey {
         }
 
         // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+        #[cfg(any(not(target_arch = "wasm32"), feature = "parallel-wasm-api"))]
         {
             use crate::core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
             ShortintEngine::with_thread_local_mut(|engine| {
