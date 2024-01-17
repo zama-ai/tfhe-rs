@@ -5,7 +5,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A convenience structure to easily manipulate the body of a [`GlweCiphertext`].
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GlweBody<C: Container>
 where
     C::Element: UnsignedInteger,
