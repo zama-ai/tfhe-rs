@@ -55,7 +55,10 @@ impl ServerKey {
             } else if scalar < Scalar::ZERO {
                 // If scalar is negative, and that any bits above the ct's n-1 bits is not set
                 // it means scalar is smaller.
-
+                if ct.blocks().len() > scalar_blocks.len() {
+                    // Ciphertext has more blocks, the scalar may be in range
+                    return None;
+                }
                 // (returns false for empty iter)
                 let at_least_one_block_is_not_full_of_1s = scalar_blocks[ct.blocks().len()..]
                     .iter()

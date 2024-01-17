@@ -492,25 +492,25 @@ fn rotate_right_parallelized(c: &mut Criterion) {
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
-    add_parallelized,
-    signed_overflowing_add_parallelized,
-    sub_parallelized,
-    signed_overflowing_sub_parallelized,
-    mul_parallelized,
+    // neg_parallelized,
+    // abs_parallelized,
+    // add_parallelized,
+    // signed_overflowing_add_parallelized,
+    // sub_parallelized,
+    // signed_overflowing_sub_parallelized,
+    // mul_parallelized,
     signed_overflowing_mul_parallelized,
-    // div_parallelized,
-    // rem_parallelized,
-    div_rem_parallelized, // For ciphertext div == rem == div_rem
-    bitand_parallelized,
-    bitnot_parallelized,
-    bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
+    // // div_parallelized,
+    // // rem_parallelized,
+    // div_rem_parallelized, // For ciphertext div == rem == div_rem
+    // bitand_parallelized,
+    // bitnot_parallelized,
+    // bitor_parallelized,
+    // bitxor_parallelized,
+    // left_shift_parallelized,
+    // right_shift_parallelized,
+    // rotate_left_parallelized,
+    // rotate_right_parallelized,
 );
 
 criterion_group!(
@@ -1131,9 +1131,9 @@ fn main() {
             match val.to_lowercase().as_str() {
                 "default" => {
                     default_parallelized_ops();
-                    default_parallelized_ops_comp();
-                    default_scalar_parallelized_ops();
-                    default_scalar_parallelized_ops_comp()
+                    // default_parallelized_ops_comp();
+                    // default_scalar_parallelized_ops();
+                    // default_scalar_parallelized_ops_comp()
                 }
                 "unchecked" => {
                     unchecked_ops();

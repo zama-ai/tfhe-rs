@@ -12,7 +12,7 @@ use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
+use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::keycache::NamedParam;
 
 use tfhe::integer::U256;
@@ -547,6 +547,69 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             bit_size as u32,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
+    }
+
+    bench_group.finish()
+}
+
+fn ciphertexts_sum_parallelized(c: &mut Criterion) {
+    let bench_name = "integer::sum_ciphertexts_parallelized";
+    let display_name = "sum_ctxts";
+
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        if bit_size != 64 {
+            // Dirty hack to run bench only against FheUint64
+            continue;
+        }
+        let param_name = param.name();
+
+        for len in [5, 10, 20] {
+            let bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                let nb_ctxt = 4;
+                let cks = RadixClientKey::from((cks, nb_ctxt));
+                let modulus = cks.parameters().message_modulus().0.pow(nb_ctxt as u32) as u64;
+
+                let encrypt_values = || {
+                    let clears = (0..len)
+                        .map(|_| rng.gen::<u64>() % modulus)
+                        .collect::<Vec<_>>();
+
+                    // encryption of integers
+                    let ctxts = clears
+                        .iter()
+                        .copied()
+                        .map(|clear| cks.encrypt(clear))
+                        .collect::<Vec<_>>();
+
+                    ctxts
+                };
+
+                b.iter_batched(
+                    encrypt_values,
+                    |ctxts| sks.sum_ciphertexts_parallelized(&ctxts),
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
     }
 
     bench_group.finish()
@@ -1191,25 +1254,26 @@ criterion_group!(
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
-    add_parallelized,
-    unsigned_overflowing_add_parallelized,
-    sub_parallelized,
-    unsigned_overflowing_sub_parallelized,
-    mul_parallelized,
+    // neg_parallelized,
+    // abs_parallelized,
+    // add_parallelized,
+    // unsigned_overflowing_add_parallelized,
+    // sub_parallelized,
+    // unsigned_overflowing_sub_parallelized,
+    // mul_parallelized,
     unsigned_overflowing_mul_parallelized,
-    // div_parallelized,
-    // rem_parallelized,
-    div_rem_parallelized,
-    bitand_parallelized,
-    bitnot_parallelized,
-    bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
+    // // div_parallelized,
+    // // rem_parallelized,
+    // div_rem_parallelized,
+    // bitand_parallelized,
+    // bitnot_parallelized,
+    // bitor_parallelized,
+    // bitxor_parallelized,
+    // left_shift_parallelized,
+    // right_shift_parallelized,
+    // rotate_left_parallelized,
+    // rotate_right_parallelized,
+    ciphertexts_sum_parallelized,
 );
 
 criterion_group!(
@@ -1377,9 +1441,9 @@ fn main() {
             match val.to_lowercase().as_str() {
                 "default" => {
                     default_parallelized_ops();
-                    default_parallelized_ops_comp();
-                    default_scalar_parallelized_ops();
-                    default_scalar_parallelized_ops_comp()
+                    // default_parallelized_ops_comp();
+                    // default_scalar_parallelized_ops();
+                    // default_scalar_parallelized_ops_comp()
                 }
                 "smart" => {
                     smart_ops();
