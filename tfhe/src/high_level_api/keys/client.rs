@@ -5,7 +5,8 @@
 use concrete_csprng::seeders::Seed;
 
 use crate::high_level_api::config::Config;
-use crate::high_level_api::integers::IntegerClientKey;
+use crate::high_level_api::keys::IntegerClientKey;
+use crate::shortint::MessageModulus;
 
 use super::{CompressedServerKey, ServerKey};
 
@@ -21,7 +22,7 @@ pub struct ClientKey {
 }
 
 impl ClientKey {
-    /// Generates a new keys.
+    /// Generates a new key from the given config.
     pub fn generate<C: Into<Config>>(config: C) -> Self {
         let config: Config = config.into();
         Self {
@@ -29,6 +30,32 @@ impl ClientKey {
         }
     }
 
+    /// Generates a key from a config and uses a seed.
+    ///
+    /// Using the same seed between generations allows to regenerate the same key.
+    ///
+    /// ```rust
+    /// use bincode;
+    /// use tfhe::{ClientKey, ConfigBuilder, Seed};
+    ///
+    /// let builder = ConfigBuilder::default();
+    /// let config = builder.build();
+    ///
+    /// let cks1 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    /// let cks2 = ClientKey::generate(config.clone());
+    /// let cks3 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    ///
+    /// // The keys created with the same seed are equal
+    /// assert_eq!(
+    ///     bincode::serialize(&cks1).unwrap(),
+    ///     bincode::serialize(&cks3).unwrap()
+    /// );
+    /// // Which is not the case for keys not created using the same seed
+    /// assert_ne!(
+    ///     bincode::serialize(&cks1).unwrap(),
+    ///     bincode::serialize(&cks2).unwrap()
+    /// );
+    /// ```
     pub fn generate_with_seed<C: Into<Config>>(config: C, seed: Seed) -> Self {
         let config: Config = config.into();
         Self {
@@ -47,6 +74,10 @@ impl ClientKey {
     /// Generates a new CompressedServerKey
     pub fn generate_compressed_server_key(&self) -> CompressedServerKey {
         CompressedServerKey::new(self)
+    }
+
+    pub(crate) fn message_modulus(&self) -> MessageModulus {
+        self.key.block_parameters().message_modulus()
     }
 }
 

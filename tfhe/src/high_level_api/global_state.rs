@@ -1,17 +1,15 @@
 //! In this module, we store the hidden (to the end-user) internal state/keys that are needed to
 //! perform operations.
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
+use crate::high_level_api::keys::{IntegerServerKey, InternalServerKey, ServerKey};
 use std::cell::RefCell;
-
-use crate::high_level_api::keys::ServerKey;
-
 /// We store the internal keys as thread local, meaning each thread has its own set of keys.
 ///
 /// This means that the user can do computations in multiple threads
 /// (eg a web server that processes multiple requests in multiple threads).
 /// The user however, has to initialize the internal keys each time it starts a thread.
 thread_local! {
-    static INTERNAL_KEYS: RefCell<Option<ServerKey>> = RefCell::new(None);
+    static INTERNAL_KEYS: RefCell<Option<InternalServerKey>> = RefCell::new(None);
 }
 
 /// The function used to initialize internal keys.
@@ -56,32 +54,63 @@ thread_local! {
 ///     // Now, this thread we can do operations on homomorphic types
 /// });
 ///
-/// th2.join();
-/// th1.join();
+/// th2.join().unwrap();
+/// th1.join().unwrap();
 /// ```
-pub fn set_server_key(keys: ServerKey) {
-    INTERNAL_KEYS.with(|internal_keys| internal_keys.replace_with(|_old| Some(keys)));
+pub fn set_server_key<T: Into<InternalServerKey>>(keys: T) {
+    INTERNAL_KEYS.with(|internal_keys| internal_keys.replace_with(|_old| Some(keys.into())));
 }
 
-pub fn unset_server_key() -> Option<ServerKey> {
-    INTERNAL_KEYS.with(|internal_keys| internal_keys.replace_with(|_old| None))
+pub fn unset_server_key() {
+    INTERNAL_KEYS.with(|internal_keys| {
+        let _ = internal_keys.replace_with(|_old| None);
+    })
 }
 
-pub fn with_server_key_as_context<T, F>(keys: ServerKey, f: F) -> (T, ServerKey)
+pub fn with_server_key_as_context<T, F>(keys: ServerKey, f: F) -> T
 where
     F: FnOnce() -> T,
 {
     set_server_key(keys);
     let result = f();
-    let keys = unset_server_key();
-    (result, keys.unwrap()) // unwrap is ok since we know we did set_server_key
+    unset_server_key();
+    result
 }
 
-/// Convenience function that allows to write functions that needs to access the internal keys.
+/// Convenience function that allows to write functions that needs to access the internal keys
+///
+/// # Panics
+///
+/// Panics if the server key is not set
+#[track_caller]
 #[inline]
-pub(crate) fn with_internal_keys<T, F>(func: F) -> T
+pub(in crate::high_level_api) fn with_internal_keys<T, F>(func: F) -> T
 where
-    F: FnOnce(&ServerKey) -> T,
+    F: FnOnce(&InternalServerKey) -> T,
+{
+    try_with_internal_keys(|maybe_key| {
+        let key = maybe_key.ok_or(UninitializedServerKey).unwrap_display();
+        func(key)
+    })
+}
+
+#[inline]
+pub(in crate::high_level_api) fn try_with_internal_keys<T, F>(func: F) -> T
+where
+    F: FnOnce(Option<&InternalServerKey>) -> T,
+{
+    // Should use `with_borrow` when its stabilized
+    INTERNAL_KEYS.with(|keys| {
+        let maybe_key = &*keys.borrow();
+        let key = maybe_key.as_ref();
+        func(key)
+    })
+}
+
+#[inline]
+pub(crate) fn with_cpu_internal_keys<T, F>(func: F) -> T
+where
+    F: FnOnce(&IntegerServerKey) -> T,
 {
     // Should use `with_borrow` when its stabilized
     INTERNAL_KEYS.with(|keys| {
@@ -90,15 +119,8 @@ where
             .as_ref()
             .ok_or(UninitializedServerKey)
             .unwrap_display();
-        func(key)
+        match key {
+            InternalServerKey::Cpu(key) => func(key),
+        }
     })
-}
-
-/// Global key access trait
-pub trait WithGlobalKey: Sized {
-    type Key;
-
-    fn with_unwrapped_global<R, F>(self, func: F) -> R
-    where
-        F: FnOnce(&Self::Key) -> R;
 }

@@ -1,6 +1,5 @@
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
-use crate::high_level_api::integers::parameters::IntegerId;
-use crate::high_level_api::integers::types::base::GenericInteger;
+use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::parameters::{
@@ -9,82 +8,74 @@ use crate::integer::parameters::{
 use crate::named::Named;
 use crate::CompactPublicKey;
 
+/// Compact [FheUint]
+///
+/// Meant to save in storage space / transfer.
+///
+/// - A Compact type must be expanded using [expand](Self::expand) before it can be used.
+/// - It is not possible to 'compact' an existing [FheUint]. Compacting can only be achieved at
+///   encryption time by a [CompactPublicKey]
+///
+/// # Example
+///
+/// ```
+/// use tfhe::prelude::*;
+/// use tfhe::{generate_keys, CompactFheUint32, CompactPublicKey, ConfigBuilder, FheUint32};
+///
+/// let (client_key, _) = generate_keys(ConfigBuilder::default());
+/// let compact_public_key = CompactPublicKey::try_new(&client_key).unwrap();
+///
+/// let compact = CompactFheUint32::encrypt(u32::MAX, &compact_public_key);
+///
+/// let ciphertext = compact.expand();
+/// let decrypted: u32 = ciphertext.decrypt(&client_key);
+/// assert_eq!(decrypted, u32::MAX);
+/// ```
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct GenericCompactInteger<Id: IntegerId> {
+pub struct CompactFheUint<Id: FheUintId> {
     pub(in crate::high_level_api::integers) list: CompactCiphertextList,
     pub(in crate::high_level_api::integers) id: Id,
 }
 
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct GenericCompactIntegerList<Id: IntegerId> {
-    pub(in crate::high_level_api::integers) list: CompactCiphertextList,
-    pub(in crate::high_level_api::integers) id: Id,
-}
-
-impl<Id> GenericCompactInteger<Id>
+impl<Id> CompactFheUint<Id>
 where
-    Id: IntegerId,
+    Id: FheUintId,
 {
-    pub fn expand(&self) -> GenericInteger<Id> {
-        let ct = self.list.expand_one();
-        GenericInteger::new(ct, self.id)
+    /// Expand to a [FheUint]
+    ///
+    /// See [CompactFheUint] example.
+    pub fn expand(&self) -> FheUint<Id> {
+        let ct: crate::integer::RadixCiphertext = self.list.expand_one();
+        let mut ct = FheUint::new(ct);
+        ct.move_to_device_of_server_key_if_set();
+        ct
     }
 }
 
-impl<Id> GenericCompactIntegerList<Id>
-where
-    Id: IntegerId,
-{
-    pub fn len(&self) -> usize {
-        self.list.ciphertext_count()
-    }
-
-    pub fn expand(&self) -> Vec<GenericInteger<Id>> {
-        self.list
-            .expand()
-            .into_iter()
-            .map(|ct| GenericInteger::new(ct, self.id))
-            .collect::<Vec<_>>()
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for GenericCompactInteger<Id>
+impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for CompactFheUint<Id>
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64>,
-    Id: IntegerId,
+    Id: FheUintId,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let id = Id::default();
-        let ciphertext = key.key.try_encrypt_compact(&[value], Id::num_blocks());
+        let ciphertext = key
+            .key
+            .try_encrypt_compact(&[value], Id::num_blocks(key.message_modulus()));
         Ok(Self {
             list: ciphertext,
-            id,
+            id: Id::default(),
         })
     }
 }
 
-impl<'a, Id, T> FheTryEncrypt<&'a [T], CompactPublicKey> for GenericCompactIntegerList<Id>
-where
-    T: crate::integer::block_decomposition::DecomposableInto<u64>,
-    Id: IntegerId,
-{
-    type Error = crate::high_level_api::errors::Error;
-
-    fn try_encrypt(values: &'a [T], key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let id = Id::default();
-        let ciphertext = key.key.try_encrypt_compact(values, Id::num_blocks());
-        Ok(Self {
-            list: ciphertext,
-            id,
-        })
-    }
+impl<Id: FheUintId> Named for CompactFheUint<Id> {
+    const NAME: &'static str = "high_level_api::CompactFheUint";
 }
 
-impl<Id: IntegerId> ParameterSetConformant for GenericCompactInteger<Id> {
+impl<Id: FheUintId> ParameterSetConformant for CompactFheUint<Id> {
     type ParameterSet = RadixCiphertextConformanceParams;
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
         let lsc = ListSizeConstraint::exact_size(1);
@@ -94,15 +85,93 @@ impl<Id: IntegerId> ParameterSetConformant for GenericCompactInteger<Id> {
     }
 }
 
-impl<Id: IntegerId> Named for GenericCompactInteger<Id> {
-    const NAME: &'static str = "high_level_api::GenericCompactInteger";
+/// Compact list of [FheUint]
+///
+/// Meant to save in storage space / transfer.
+///
+/// - A Compact type must be expanded using [expand](Self::expand) before it can be used.
+/// - It is not possible to 'compact' an existing [FheUint]. Compacting can only be achieved at
+///   encryption time by a [CompactPublicKey]
+///
+/// # Example
+///
+/// ```
+/// use tfhe::prelude::*;
+/// use tfhe::{generate_keys, CompactFheUint32List, CompactPublicKey, ConfigBuilder, FheUint32};
+///
+/// let (client_key, _) = generate_keys(ConfigBuilder::default());
+/// let compact_public_key = CompactPublicKey::try_new(&client_key).unwrap();
+///
+/// let clears = vec![u32::MAX, 0, 1];
+/// let compact = CompactFheUint32List::encrypt(&clears, &compact_public_key);
+/// assert_eq!(compact.len(), clears.len());
+///
+/// let ciphertexts = compact.expand();
+/// let decrypted: Vec<u32> = ciphertexts
+///     .into_iter()
+///     .map(|ciphertext| ciphertext.decrypt(&client_key))
+///     .collect();
+/// assert_eq!(decrypted, clears);
+/// ```
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct CompactFheUintList<Id: FheUintId> {
+    pub(in crate::high_level_api::integers) list: CompactCiphertextList,
+    pub(in crate::high_level_api::integers) id: Id,
 }
 
-impl<Id: IntegerId> Named for GenericCompactIntegerList<Id> {
-    const NAME: &'static str = "high_level_api::GenericCompactIntegerList";
+impl<Id> CompactFheUintList<Id>
+where
+    Id: FheUintId,
+{
+    /// Returns the number of element in the compact list
+    pub fn len(&self) -> usize {
+        self.list.ciphertext_count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Expand to a Vec<[FheUint]>
+    ///
+    /// See [CompactFheUintList] example.
+    pub fn expand(&self) -> Vec<FheUint<Id>> {
+        self.list
+            .expand()
+            .into_iter()
+            .map(|ct: crate::integer::RadixCiphertext| {
+                let mut ct = FheUint::new(ct);
+                ct.move_to_device_of_server_key_if_set();
+                ct
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
-impl<Id: IntegerId> ParameterSetConformant for GenericCompactIntegerList<Id> {
+impl<'a, Id, T> FheTryEncrypt<&'a [T], CompactPublicKey> for CompactFheUintList<Id>
+where
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
+    Id: FheUintId,
+{
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt(values: &'a [T], key: &CompactPublicKey) -> Result<Self, Self::Error> {
+        let ciphertext = key
+            .key
+            .try_encrypt_compact(values, Id::num_blocks(key.message_modulus()));
+        Ok(Self {
+            list: ciphertext,
+            id: Id::default(),
+        })
+    }
+}
+
+impl<Id: FheUintId> Named for CompactFheUintList<Id> {
+    const NAME: &'static str = "high_level_api::CompactFheUintList";
+}
+
+impl<Id: FheUintId> ParameterSetConformant for CompactFheUintList<Id> {
     type ParameterSet = RadixCompactCiphertextListConformanceParams;
     fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
         self.list.is_conformant(params)

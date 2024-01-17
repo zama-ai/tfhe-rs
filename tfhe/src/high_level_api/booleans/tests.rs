@@ -11,7 +11,7 @@ use crate::high_level_api::{
 };
 use crate::CompressedPublicKey;
 
-fn setup_static_default() -> ClientKey {
+fn setup_default() -> ClientKey {
     let config = ConfigBuilder::default().build();
 
     let (my_keys, server_keys) = generate_keys(config);
@@ -22,7 +22,7 @@ fn setup_static_default() -> ClientKey {
 
 #[test]
 fn test_xor_truth_table_static_default() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let ttrue = FheBool::encrypt(true, &keys);
     let ffalse = FheBool::encrypt(false, &keys);
@@ -32,7 +32,7 @@ fn test_xor_truth_table_static_default() {
 
 #[test]
 fn test_and_truth_table_static_default() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let ttrue = FheBool::encrypt(true, &keys);
     let ffalse = FheBool::encrypt(false, &keys);
@@ -42,7 +42,7 @@ fn test_and_truth_table_static_default() {
 
 #[test]
 fn test_or_truth_table_static_default() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let ttrue = FheBool::encrypt(true, &keys);
     let ffalse = FheBool::encrypt(false, &keys);
@@ -52,7 +52,7 @@ fn test_or_truth_table_static_default() {
 
 #[test]
 fn test_not_truth_table_static_default() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let ttrue = FheBool::encrypt(true, &keys);
     let ffalse = FheBool::encrypt(false, &keys);
@@ -127,7 +127,7 @@ where
 
 #[test]
 fn test_compressed_bool() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let cttrue = CompressedFheBool::encrypt(true, &keys);
     let cffalse = CompressedFheBool::encrypt(false, &keys);
@@ -141,7 +141,7 @@ fn test_compressed_bool() {
 
 #[test]
 fn test_trivial_bool() {
-    let keys = setup_static_default();
+    let keys = setup_default();
 
     let a = FheBool::encrypt_trivial(true);
     let b = FheBool::encrypt_trivial(false);

@@ -161,6 +161,10 @@ impl BooleanBlock {
         let value = self.0.decrypt_trivial()?;
         Ok(value != 0)
     }
+
+    pub fn is_trivial(&self) -> bool {
+        self.0.is_trivial()
+    }
 }
 
 impl AsRef<Ciphertext> for BooleanBlock {

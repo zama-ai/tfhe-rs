@@ -1,89 +1,96 @@
 use crate::conformance::ParameterSetConformant;
-use crate::high_level_api::integers::parameters::IntegerId;
-use crate::high_level_api::integers::types::base::GenericInteger;
-use crate::high_level_api::internal_traits::EncryptionKey;
+use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
+use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::ciphertext::CompressedRadixCiphertext;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 
+/// Compressed [FheUint]
+///
+/// Meant to save in storage space / transfer.
+///
+/// - A Compressed type must be decompressed using [decompress](Self::decompress) before it can be
+///   used.
+/// - It is not possible to compress an existing [FheUint]. compression can only be achieved at
+///   encryption time by a [ClientKey]
+///
+/// # Example
+///
+/// ```
+/// use tfhe::prelude::*;
+/// use tfhe::{generate_keys, CompressedFheUint32, ConfigBuilder};
+///
+/// let (client_key, _) = generate_keys(ConfigBuilder::default());
+/// let compressed = CompressedFheUint32::encrypt(u32::MAX, &client_key);
+///
+/// let decompressed = compressed.decompress();
+/// let decrypted: u32 = decompressed.decrypt(&client_key);
+/// assert_eq!(decrypted, u32::MAX);
+/// ```
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompressedGenericInteger<Id>
+pub struct CompressedFheUint<Id>
 where
-    Id: IntegerId,
+    Id: FheUintId,
 {
-    pub(in crate::high_level_api::integers) ciphertext: Id::InnerCompressedCiphertext,
+    pub(in crate::high_level_api::integers) ciphertext: CompressedRadixCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
 }
 
-impl<Id: IntegerId> ParameterSetConformant for CompressedGenericInteger<Id>
+impl<Id> CompressedFheUint<Id>
 where
-    Id::InnerCompressedCiphertext:
-        ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>,
+    Id: FheUintId,
 {
+    pub(in crate::high_level_api::integers) fn new(inner: CompressedRadixCiphertext) -> Self {
+        Self {
+            ciphertext: inner,
+            id: Id::default(),
+        }
+    }
+}
+
+impl<Id> CompressedFheUint<Id>
+where
+    Id: FheUintId,
+{
+    /// Decompress to a [FheUint]
+    ///
+    /// See [CompressedFheUint] example.
+    pub fn decompress(self) -> FheUint<Id> {
+        let inner: crate::integer::RadixCiphertext = self.ciphertext.into();
+        let mut ciphertext = FheUint::new(inner);
+        ciphertext.move_to_device_of_server_key_if_set();
+        ciphertext
+    }
+}
+
+impl<Id, T> FheTryEncrypt<T, ClientKey> for CompressedFheUint<Id>
+where
+    Id: FheUintId,
+    T: DecomposableInto<u64> + UnsignedNumeric,
+{
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
+        let inner = key
+            .key
+            .key
+            .encrypt_radix_compressed(value, Id::num_blocks(key.message_modulus()));
+        Ok(Self::new(inner))
+    }
+}
+
+impl<Id: FheUintId> ParameterSetConformant for CompressedFheUint<Id> {
     type ParameterSet = RadixCiphertextConformanceParams;
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
         self.ciphertext.is_conformant(params)
     }
 }
 
-impl<Id: IntegerId> Named for CompressedGenericInteger<Id> {
-    const NAME: &'static str = "high_level_api::CompressedGenericInteger";
-}
-
-impl<Id> CompressedGenericInteger<Id>
-where
-    Id: IntegerId,
-{
-    pub(in crate::high_level_api::integers) fn new(
-        inner: Id::InnerCompressedCiphertext,
-        id: Id,
-    ) -> Self {
-        Self {
-            ciphertext: inner,
-            id,
-        }
-    }
-}
-
-impl<Id> CompressedGenericInteger<Id>
-where
-    Id: IntegerId,
-    Id::InnerCompressedCiphertext: Into<Id::InnerCiphertext>,
-{
-    pub fn decompress(self) -> GenericInteger<Id> {
-        let inner = self.ciphertext.into();
-        GenericInteger::new(inner, self.id)
-    }
-}
-
-impl<Id> From<CompressedGenericInteger<Id>> for GenericInteger<Id>
-where
-    Id: IntegerId,
-    Id::InnerCompressedCiphertext: Into<Id::InnerCiphertext>,
-{
-    fn from(value: CompressedGenericInteger<Id>) -> Self {
-        let inner = value.ciphertext.into();
-        Self::new(inner, value.id)
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, ClientKey> for CompressedGenericInteger<Id>
-where
-    Id: IntegerId,
-    crate::integer::ClientKey: EncryptionKey<(T, usize), Id::InnerCompressedCiphertext>,
-{
-    type Error = crate::high_level_api::errors::Error;
-
-    fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = Id::default();
-        let integer_client_key = &key.key.key;
-        let inner = <crate::integer::ClientKey as EncryptionKey<_, _>>::encrypt(
-            integer_client_key,
-            (value, Id::num_blocks()),
-        );
-        Ok(Self::new(inner, id))
-    }
+impl<Id: FheUintId> Named for CompressedFheUint<Id> {
+    const NAME: &'static str = "high_level_api::CompressedFheUint";
 }
 
 #[cfg(test)]

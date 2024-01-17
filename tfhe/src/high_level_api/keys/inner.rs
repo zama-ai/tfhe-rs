@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
-use crate::shortint::EncryptionKeyChoice;
+use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
@@ -57,6 +57,10 @@ pub(crate) struct IntegerClientKey {
 
 impl IntegerClientKey {
     pub(crate) fn with_seed(config: IntegerConfig, seed: Seed) -> Self {
+        assert!(
+            (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
+            "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
+        );
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters.into());
@@ -67,7 +71,6 @@ impl IntegerClientKey {
         }
     }
 
-    #[cfg(feature = "__wasm_api")]
     pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::PBSParameters {
         self.key.parameters()
     }
@@ -75,6 +78,10 @@ impl IntegerClientKey {
 
 impl From<IntegerConfig> for IntegerClientKey {
     fn from(config: IntegerConfig) -> Self {
+        assert!(
+            (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
+            "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
+        );
         let key = crate::integer::ClientKey::new(config.block_parameters);
         Self {
             key,
@@ -92,11 +99,6 @@ pub struct IntegerServerKey {
 impl IntegerServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
         let cks = &client_key.key;
-        assert_eq!(
-            cks.parameters().message_modulus().0,
-            4,
-            "This API only supports integers with 2 bits per block (MessageModulus(4))",
-        );
         let base_integer_key = crate::integer::ServerKey::new_radix_server_key(cks);
         let wopbs_key = client_key
             .wopbs_block_parameters
@@ -112,6 +114,10 @@ impl IntegerServerKey {
 
     pub(in crate::high_level_api) fn pbs_key(&self) -> &crate::integer::ServerKey {
         &self.key
+    }
+
+    pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
+        self.key.message_modulus()
     }
 }
 
@@ -162,7 +168,7 @@ impl IntegerCompactPublicKey {
         Some(Self { key })
     }
 
-    pub(in crate::high_level_api::integers) fn try_encrypt_compact<T>(
+    pub(in crate::high_level_api) fn try_encrypt_compact<T>(
         &self,
         values: &[T],
         num_blocks: usize,
