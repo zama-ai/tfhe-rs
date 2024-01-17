@@ -1,0 +1,14 @@
+# Compile and test Concrete-cuda on an AWS instance
+name: Concrete Cuda - Full tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: Placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a Placeholder for GPU Workflow"
