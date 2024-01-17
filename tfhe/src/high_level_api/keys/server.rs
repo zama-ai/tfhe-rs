@@ -1,4 +1,4 @@
-use crate::high_level_api::integers::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 
 use std::sync::Arc;
 
@@ -16,20 +16,20 @@ use super::ClientKey;
 // multithreading with less overhead)
 #[derive(Clone)]
 pub struct ServerKey {
-    pub(crate) integer_key: Arc<IntegerServerKey>,
+    pub(crate) key: Arc<IntegerServerKey>,
 }
 
 impl ServerKey {
     pub fn new(keys: &ClientKey) -> Self {
         Self {
-            integer_key: Arc::new(IntegerServerKey::new(&keys.key)),
+            key: Arc::new(IntegerServerKey::new(&keys.key)),
         }
     }
 }
 
 impl AsRef<crate::integer::ServerKey> for ServerKey {
     fn as_ref(&self) -> &crate::integer::ServerKey {
-        &self.integer_key.key
+        &self.key.key
     }
 }
 
@@ -57,7 +57,7 @@ impl serde::Serialize for ServerKey {
         S: serde::Serializer,
     {
         SerializableServerKey {
-            integer_key: &self.integer_key,
+            integer_key: &self.key,
         }
         .serialize(serializer)
     }
@@ -74,11 +74,19 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
         D: serde::Deserializer<'de>,
     {
         DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
-            integer_key: Arc::new(deserialized.integer_key),
+            key: Arc::new(deserialized.integer_key),
         })
     }
 }
 
+/// Compressed ServerKey
+///
+/// A CompressedServerKey takes much less disk space / memory space than a
+/// ServerKey.
+///
+/// It has to be decompressed into a ServerKey in order to be usable.
+///
+/// Once decompressed, it is not possible to recompress the key.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompressedServerKey {
     pub(crate) integer_key: IntegerCompressedServerKey,
@@ -93,7 +101,7 @@ impl CompressedServerKey {
 
     pub fn decompress(self) -> ServerKey {
         ServerKey {
-            integer_key: Arc::new(self.integer_key.decompress()),
+            key: Arc::new(self.integer_key.decompress()),
         }
     }
 }
@@ -101,5 +109,15 @@ impl CompressedServerKey {
 impl From<CompressedServerKey> for ServerKey {
     fn from(value: CompressedServerKey) -> Self {
         value.decompress()
+    }
+}
+
+pub enum InternalServerKey {
+    Cpu(Arc<IntegerServerKey>),
+}
+
+impl From<ServerKey> for InternalServerKey {
+    fn from(value: ServerKey) -> Self {
+        Self::Cpu(value.key)
     }
 }

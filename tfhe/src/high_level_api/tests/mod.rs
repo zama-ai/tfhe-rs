@@ -140,7 +140,7 @@ fn test_with_context() {
     let a = FheBool::encrypt(false, &cks);
     let b = FheBool::encrypt(true, &cks);
 
-    let (r, _) = crate::high_level_api::with_server_key_as_context(sks, move || a & b);
+    let r = crate::high_level_api::with_server_key_as_context(sks, move || a & b);
     let d = r.decrypt(&cks);
     assert!(!d);
 }

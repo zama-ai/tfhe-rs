@@ -22,32 +22,6 @@ where
     }
 }
 
-/// Enum that lists types available
-///
-/// Mainly used to provide good errors.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Type {
-    FheBool,
-    FheUint2,
-    FheUint3,
-    FheUint4,
-    FheUint8,
-    FheUint10,
-    FheUint12,
-    FheUint14,
-    FheUint16,
-    FheUint32,
-    FheUint64,
-    FheUint128,
-    FheUint256,
-    FheInt8,
-    FheInt16,
-    FheInt32,
-    FheInt64,
-    FheInt128,
-    FheInt256,
-}
-
 /// The server key was not initialized
 #[derive(Debug)]
 pub struct UninitializedServerKey;
@@ -57,8 +31,7 @@ impl Display for UninitializedServerKey {
         write!(
             f,
             "The server key was not properly initialized.\n\
-             Did you forget to call `set_server_key` in this thread or forget to
-             enable the type in the config ?
+             Did you forget to call `set_server_key` in the current thread ?
             ",
         )
     }

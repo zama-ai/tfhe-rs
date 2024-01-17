@@ -521,7 +521,7 @@ test_concrete_csprng:
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps -p $(TFHE_SPEC)
 
 .PHONY: docs # Build rust doc alias for doc
 docs: doc

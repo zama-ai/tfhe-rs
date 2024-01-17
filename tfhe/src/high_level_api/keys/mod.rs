@@ -4,10 +4,20 @@ mod client;
 mod public;
 mod server;
 
+mod inner;
+mod key_switching_key;
+
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
+pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
+pub(crate) use server::InternalServerKey;
 pub use server::{CompressedServerKey, ServerKey};
+
+pub(in crate::high_level_api) use inner::{
+    IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
+    IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
+};
 
 /// Generates keys using the provided config.
 ///

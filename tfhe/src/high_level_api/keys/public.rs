@@ -13,7 +13,9 @@
 //! transfer sizes.
 //! - [CompressedPublicKey]
 //! - [CompressedCompactPublicKey]
-use crate::high_level_api::integers::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::integer::encryption::KnowsMessageModulus;
+use crate::shortint::MessageModulus;
 
 use super::ClientKey;
 
@@ -32,6 +34,10 @@ impl PublicKey {
         Self {
             key: base_integer_key,
         }
+    }
+
+    pub(crate) fn message_modulus(&self) -> MessageModulus {
+        self.key.parameters().message_modulus()
     }
 }
 
@@ -53,6 +59,10 @@ impl CompressedPublicKey {
         PublicKey {
             key: crate::integer::PublicKey::from(self.key),
         }
+    }
+
+    pub(crate) fn message_modulus(&self) -> MessageModulus {
+        self.key.parameters().message_modulus()
     }
 }
 
@@ -78,9 +88,11 @@ impl CompactPublicKey {
     }
 
     pub fn try_new(client_key: &ClientKey) -> Option<Self> {
-        Some(Self {
-            key: IntegerCompactPublicKey::try_new(&client_key.key)?,
-        })
+        IntegerCompactPublicKey::try_new(&client_key.key).map(|key| Self { key })
+    }
+
+    pub(crate) fn message_modulus(&self) -> MessageModulus {
+        self.key.key.key.message_modulus()
     }
 }
 

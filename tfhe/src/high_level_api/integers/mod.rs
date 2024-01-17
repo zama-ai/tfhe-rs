@@ -1,40 +1,108 @@
 expand_pub_use_fhe_type!(
-    pub use types{
-        FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128,
-        FheUint256, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256
+    pub use unsigned{
+        FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
+        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256
     };
 );
 
-pub(in crate::high_level_api) use keys::{
-    IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
-    IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
-};
+expand_pub_use_fhe_type!(
+    pub use signed{
+        FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16,
+        FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
+    };
+);
 
-pub(in crate::high_level_api) use parameters::IntegerId;
-pub(in crate::high_level_api) use types::GenericInteger;
+pub(in crate::high_level_api) use signed::FheIntId;
+pub(in crate::high_level_api) use unsigned::FheUintId;
+// These are pub-exported so that their doc can appear in generated rust docs
+use crate::shortint::MessageModulus;
+pub use signed::{CompactFheInt, CompactFheIntList, CompressedFheInt, FheInt};
+pub use unsigned::{CompactFheUint, CompactFheUintList, CompressedFheUint, FheUint};
 
-mod client_key;
-mod keys;
-mod parameters;
-mod server_key;
-#[cfg(test)]
-mod tests_signed;
-#[cfg(test)]
-mod tests_unsigned;
-mod types;
+mod signed;
+mod unsigned;
+
+/// Trait to mark Id type for integers
+// The 'static restrains implementor from holding non static refs
+// which is ok as it is meant to be impld by zero sized types.
+pub trait IntegerId: Copy + Default + 'static {
+    fn num_bits() -> usize;
+
+    fn num_blocks(message_modulus: MessageModulus) -> usize {
+        Self::num_bits() / message_modulus.0.ilog2() as usize
+    }
+}
 
 pub mod safe_serialize {
-    use super::parameters::IntegerId;
-    use super::types::compact::GenericCompactInteger;
-    use super::types::compressed::CompressedGenericInteger;
-    use super::types::GenericInteger;
+    use super::signed::{CompactFheInt, CompressedFheInt};
+    use super::unsigned::{CompactFheUint, CompressedFheUint, FheUint};
+    use super::FheUintId;
     use crate::conformance::ParameterSetConformant;
+    use crate::high_level_api::integers::{FheInt, FheIntId};
     use crate::integer::parameters::RadixCiphertextConformanceParams;
     use crate::named::Named;
-    use crate::shortint::parameters::CiphertextConformanceParams;
-    use crate::ServerKey;
+    use crate::shortint::MessageModulus;
+    use crate::{CompactFheBool, CompressedFheBool, FheBool, ServerKey};
     use serde::de::DeserializeOwned;
     use serde::Serialize;
+
+    pub trait ExpectedNumBlocks {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize;
+    }
+
+    impl ExpectedNumBlocks for FheBool {
+        fn expected_num_blocks(_message_modulus: MessageModulus) -> usize {
+            1
+        }
+    }
+
+    impl ExpectedNumBlocks for CompressedFheBool {
+        fn expected_num_blocks(_message_modulus: MessageModulus) -> usize {
+            1
+        }
+    }
+
+    impl ExpectedNumBlocks for CompactFheBool {
+        fn expected_num_blocks(_message_modulus: MessageModulus) -> usize {
+            1
+        }
+    }
+
+    impl<Id: FheUintId> ExpectedNumBlocks for FheUint<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
+
+    impl<Id: FheUintId> ExpectedNumBlocks for CompressedFheUint<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
+
+    impl<Id: FheUintId> ExpectedNumBlocks for CompactFheUint<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
+
+    impl<Id: FheIntId> ExpectedNumBlocks for FheInt<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
+
+    impl<Id: FheIntId> ExpectedNumBlocks for CompressedFheInt<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
+
+    impl<Id: FheIntId> ExpectedNumBlocks for CompactFheInt<Id> {
+        fn expected_num_blocks(message_modulus: MessageModulus) -> usize {
+            Id::num_blocks(message_modulus)
+        }
+    }
 
     pub fn safe_serialize<T>(
         a: &T,
@@ -55,72 +123,12 @@ pub mod safe_serialize {
     where
         T: Named
             + DeserializeOwned
-            + ParameterSetConformant<ParameterSet = CiphertextConformanceParams>,
-    {
-        let parameter_set = sk.integer_key.pbs_key().key.conformance_params();
-
-        crate::safe_deserialization::safe_deserialize_conformant(
-            reader,
-            serialized_size_limit,
-            &parameter_set,
-        )
-    }
-
-    pub fn safe_deserialize_conformant_integer<Id>(
-        reader: impl std::io::Read,
-        serialized_size_limit: u64,
-        sk: &ServerKey,
-    ) -> Result<GenericInteger<Id>, String>
-    where
-        Id: IntegerId + DeserializeOwned,
-        Id::InnerCiphertext: ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>
-            + DeserializeOwned,
+            + ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>
+            + ExpectedNumBlocks,
     {
         let parameter_set = RadixCiphertextConformanceParams {
-            shortint_params: sk.integer_key.pbs_key().key.conformance_params(),
-            num_blocks_per_integer: Id::num_blocks(),
-        };
-
-        crate::safe_deserialization::safe_deserialize_conformant(
-            reader,
-            serialized_size_limit,
-            &parameter_set,
-        )
-    }
-
-    pub fn safe_deserialize_conformant_compressed_integer<Id>(
-        reader: impl std::io::Read,
-        serialized_size_limit: u64,
-        sk: &ServerKey,
-    ) -> Result<CompressedGenericInteger<Id>, String>
-    where
-        Id: IntegerId + DeserializeOwned,
-        Id::InnerCompressedCiphertext: ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>
-            + DeserializeOwned,
-    {
-        let parameter_set = RadixCiphertextConformanceParams {
-            shortint_params: sk.integer_key.pbs_key().key.conformance_params(),
-            num_blocks_per_integer: Id::num_blocks(),
-        };
-
-        crate::safe_deserialization::safe_deserialize_conformant(
-            reader,
-            serialized_size_limit,
-            &parameter_set,
-        )
-    }
-
-    pub fn safe_deserialize_conformant_compact_integer<Id>(
-        reader: impl std::io::Read,
-        serialized_size_limit: u64,
-        sk: &ServerKey,
-    ) -> Result<GenericCompactInteger<Id>, String>
-    where
-        Id: IntegerId + DeserializeOwned,
-    {
-        let parameter_set = RadixCiphertextConformanceParams {
-            shortint_params: sk.integer_key.pbs_key().key.conformance_params(),
-            num_blocks_per_integer: Id::num_blocks(),
+            shortint_params: sk.key.pbs_key().key.conformance_params(),
+            num_blocks_per_integer: T::expected_num_blocks(sk.key.message_modulus()),
         };
 
         crate::safe_deserialization::safe_deserialize_conformant(

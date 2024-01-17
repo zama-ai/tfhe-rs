@@ -22,23 +22,11 @@ where
     }
 }
 
-pub trait DynamicFheEncryptor<T> {
-    type FheType;
-
-    fn encrypt(&self, value: T, key: &ClientKey) -> Self::FheType;
-}
-
 // This trait has the same signature than
 // `std::convert::From` however we create our own trait
 // to be explicit about the `trivial`
 pub trait FheTrivialEncrypt<T> {
     fn encrypt_trivial(value: T) -> Self;
-}
-
-pub trait DynamicFheTrivialEncryptor<T> {
-    type FheType;
-
-    fn encrypt_trivial(&self, value: T) -> Self::FheType;
 }
 
 /// Trait used to have a generic **fallible** way of creating a value of a FHE type.
@@ -67,16 +55,15 @@ where
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error>;
 }
 
-pub trait DynamicFheTryEncryptor<T> {
-    type FheType;
-    type Error;
-
-    fn try_encrypt(&self, value: T, key: &ClientKey) -> Result<Self::FheType, Self::Error>;
-}
-
 /// Decrypt a FHE type to a native type.
 pub trait FheDecrypt<T> {
     fn decrypt(&self, key: &ClientKey) -> T;
+}
+
+/// Key switch an ciphertext into a new ciphertext of same type but encrypted
+/// under a different key.
+pub trait FheKeyswitch<T> {
+    fn keyswitch(&self, input: &T) -> T;
 }
 
 /// Trait for fully homomorphic equality test.
@@ -166,4 +153,23 @@ pub trait DivRem<Rhs = Self> {
     type Output;
 
     fn div_rem(self, amount: Rhs) -> Self::Output;
+}
+
+pub trait IfThenElse<Ciphertext> {
+    fn if_then_else(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> Ciphertext;
+    fn cmux(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> Ciphertext {
+        self.if_then_else(ct_then, ct_else)
+    }
+}
+
+pub trait OverflowingAdd<Rhs> {
+    type Output;
+
+    fn overflowing_add(self, rhs: Rhs) -> (Self::Output, FheBool);
+}
+
+pub trait OverflowingSub<Rhs> {
+    type Output;
+
+    fn overflowing_sub(self, rhs: Rhs) -> (Self::Output, FheBool);
 }

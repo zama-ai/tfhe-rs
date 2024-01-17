@@ -1,4 +1,4 @@
-use crate::high_level_api::integers::IntegerConfig;
+use crate::high_level_api::keys::IntegerConfig;
 
 /// The config type
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -28,6 +28,9 @@ impl ConfigBuilder {
         self
     }
 
+    /// Use default parameters with big encryption
+    ///
+    /// For more information see [crate::core_crypto::prelude::PBSOrder::KeyswitchBootstrap]
     pub fn default_with_big_encryption() -> Self {
         Self {
             config: Config {
@@ -36,6 +39,9 @@ impl ConfigBuilder {
         }
     }
 
+    /// Use default parameters with small encryption
+    ///
+    /// For more information see [crate::core_crypto::prelude::PBSOrder::BootstrapKeyswitch]
     pub fn default_with_small_encryption() -> Self {
         Self {
             config: Config {

@@ -11,7 +11,7 @@ mod test;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KeySwitchingKey {
-    key: crate::shortint::KeySwitchingKey,
+    pub(crate) key: crate::shortint::KeySwitchingKey,
 }
 
 impl KeySwitchingKey {

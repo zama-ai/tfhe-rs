@@ -198,6 +198,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi"
+path = "benches/high_level_api/bench.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "keygen"
 path = "benches/keygen/bench.rs"
 harness = false

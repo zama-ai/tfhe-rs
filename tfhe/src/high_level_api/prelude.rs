@@ -6,10 +6,9 @@
 //! use tfhe::prelude::*;
 //! ```
 pub use crate::high_level_api::traits::{
-    DivRem, DynamicFheEncryptor, DynamicFheTrivialEncryptor, DynamicFheTryEncryptor, FheBootstrap,
-    FheDecrypt, FheEncrypt, FheEq, FheMax, FheMin, FheNumberConstant, FheOrd, FheTrivialEncrypt,
-    FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
-    RotateRightAssign,
+    DivRem, FheBootstrap, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
+    FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse,
+    OverflowingAdd, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
 };
 
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};

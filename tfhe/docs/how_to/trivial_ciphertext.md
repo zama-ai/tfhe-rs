@@ -50,7 +50,7 @@ assert_eq!(clear, 2097152 << 1);
 
 // This is going to be slower
 let a = FheUint32::try_encrypt(2097152u32, &client_key).unwrap();
-let shift = FheUint32::try_encrypt_trivial(1).unwrap();
+let shift = FheUint32::try_encrypt_trivial(1u32).unwrap();
 let shifted = a << shift;
 let clear: u32 = shifted.decrypt(&client_key);
 assert_eq!(clear, 2097152 << 1);
