@@ -25,6 +25,26 @@ impl ServerKey {
             key: Arc::new(IntegerServerKey::new(&keys.key)),
         }
     }
+
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::ServerKey,
+        Option<crate::integer::wopbs::WopbsKey>,
+    ) {
+        let IntegerServerKey { key, wopbs_key } = (*self.key).clone();
+
+        (key, wopbs_key)
+    }
+
+    pub fn from_raw_parts(
+        key: crate::integer::ServerKey,
+        wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
+    ) -> Self {
+        Self {
+            key: Arc::new(IntegerServerKey { key, wopbs_key }),
+        }
+    }
 }
 
 impl AsRef<crate::integer::ServerKey> for ServerKey {
