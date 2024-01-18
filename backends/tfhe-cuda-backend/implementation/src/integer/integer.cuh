@@ -477,8 +477,8 @@ void scratch_cuda_full_propagation(
   // PBS
   int8_t *pbs_buffer;
   if (pbs_type == MULTI_BIT) {
-    uint32_t lwe_chunk_size =
-        get_average_lwe_chunk_size(lwe_dimension, pbs_level, glwe_dimension);
+    uint32_t lwe_chunk_size = get_average_lwe_chunk_size(
+        lwe_dimension, pbs_level, glwe_dimension, num_radix_blocks);
     // Only 64 bits is supported
     scratch_cuda_multi_bit_pbs_64(stream, &pbs_buffer, lwe_dimension,
                                   glwe_dimension, polynomial_size, pbs_level,

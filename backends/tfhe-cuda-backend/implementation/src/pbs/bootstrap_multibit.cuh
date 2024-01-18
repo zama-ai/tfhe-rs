@@ -376,8 +376,9 @@ scratch_multi_bit_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
 
   if (allocate_gpu_memory) {
     if (!lwe_chunk_size)
-      lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                  glwe_dimension);
+      lwe_chunk_size =
+          get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension,
+                                     input_lwe_ciphertext_count);
 
     uint64_t buffer_size = get_buffer_size_multibit_bootstrap<Torus>(
         glwe_dimension, polynomial_size, level_count,
@@ -400,8 +401,8 @@ __host__ void host_multi_bit_pbs(
 
   // If a chunk size is not passed to this function, select one.
   if (!lwe_chunk_size)
-    lwe_chunk_size =
-        get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension);
+    lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
+                                                glwe_dimension, num_samples);
   //
   double2 *keybundle_fft = (double2 *)pbs_buffer;
   double2 *global_accumulator_fft =
