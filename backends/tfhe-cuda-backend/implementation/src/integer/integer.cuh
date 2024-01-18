@@ -88,8 +88,9 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
 // grid is one dimensional
 // blockIdx.x represents x_th block of radix ciphertext
 template <typename Torus>
-__global__ void radix_blocks_rotate_right(Torus *dst, Torus *src, uint32_t value,
-                                   uint32_t blocks_count, uint32_t lwe_size) {
+__global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
+                                          uint32_t value, uint32_t blocks_count,
+                                          uint32_t lwe_size) {
   value %= blocks_count;
 
   size_t tid = threadIdx.x;
@@ -110,7 +111,8 @@ __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src, uint32_t value
 // blockIdx.x represents x_th block of radix ciphertext
 template <typename Torus>
 __global__ void radix_blocks_rotate_left(Torus *dst, Torus *src, uint32_t value,
-                                  uint32_t blocks_count, uint32_t lwe_size) {
+                                         uint32_t blocks_count,
+                                         uint32_t lwe_size) {
   value %= blocks_count;
   size_t src_block_id = blockIdx.x;
 
