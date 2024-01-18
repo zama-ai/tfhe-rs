@@ -243,6 +243,16 @@ impl IntegerCompressedCompactPublicKey {
         Self { key }
     }
 
+    /// Deconstruct a [`IntegerCompressedCompactPublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> CompressedCompactPublicKey {
+        self.key
+    }
+
+    /// Construct a [`IntegerCompressedCompactPublicKey`] from its constituants.
+    pub fn from_raw_parts(key: CompressedCompactPublicKey) -> Self {
+        Self { key }
+    }
+
     pub(in crate::high_level_api) fn decompress(self) -> IntegerCompactPublicKey {
         IntegerCompactPublicKey {
             key: CompressedCompactPublicKey::decompress(self.key),
