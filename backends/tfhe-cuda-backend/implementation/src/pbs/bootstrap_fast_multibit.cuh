@@ -186,8 +186,9 @@ __host__ void scratch_fast_multi_bit_pbs(
 
   if (allocate_gpu_memory) {
     if (!lwe_chunk_size)
-      lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                  glwe_dimension);
+      lwe_chunk_size =
+          get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension,
+                                     input_lwe_ciphertext_count);
 
     uint64_t buffer_size = get_buffer_size_fast_multibit_bootstrap<Torus>(
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
@@ -210,8 +211,8 @@ __host__ void host_fast_multi_bit_pbs(
   cudaSetDevice(stream->gpu_index);
 
   if (!lwe_chunk_size)
-    lwe_chunk_size =
-        get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension);
+    lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
+                                                glwe_dimension, num_samples);
 
   //
   double2 *keybundle_fft = (double2 *)pbs_buffer;

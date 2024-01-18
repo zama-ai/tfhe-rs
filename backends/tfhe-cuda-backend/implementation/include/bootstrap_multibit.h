@@ -35,7 +35,8 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t lwe_dimension,
 
 __host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
                                              uint32_t level_count,
-                                             uint32_t glwe_dimension);
+                                             uint32_t glwe_dimension,
+                                             uint32_t ct_count);
 
 __host__ uint64_t get_max_buffer_size_multibit_bootstrap(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,

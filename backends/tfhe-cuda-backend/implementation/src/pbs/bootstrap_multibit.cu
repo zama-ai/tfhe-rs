@@ -437,7 +437,8 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t lwe_dimension,
 // Returns a chunk size that is not optimal but close to
 __host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
                                              uint32_t level_count,
-                                             uint32_t glwe_dimension) {
+                                             uint32_t glwe_dimension,
+                                             uint32_t ct_count) {
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, 0); // Assuming device 0
@@ -448,17 +449,17 @@ __host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
 
   if (std::strstr(deviceProp.name, v100Name) != nullptr) {
     // Tesla V100
-    return 12;
+    return (ct_count > 10000) ? 12 : 18;
   } else if (std::strstr(deviceProp.name, a100Name) != nullptr) {
     // Tesla A100
-    return 30;
+    return (ct_count > 10000) ? 30 : 45;
   } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
     // Tesla H100
-    return 30;
+    return (ct_count > 10000) ? 30 : 45;
   }
 
   // Generic case
-  return 2;
+  return (ct_count > 10000) ? 2 : 10;
 }
 
 // Returns the maximum buffer size required to execute batches up to
