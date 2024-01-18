@@ -183,6 +183,14 @@ impl IntegerCompressedServerKey {
         Self { key }
     }
 
+    pub fn into_raw_parts(self) -> crate::integer::CompressedServerKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: crate::integer::CompressedServerKey) -> Self {
+        Self { key }
+    }
+
     pub(in crate::high_level_api) fn decompress(self) -> IntegerServerKey {
         IntegerServerKey {
             key: crate::integer::ServerKey::from(self.key),

@@ -99,6 +99,16 @@ impl CompressedServerKey {
         }
     }
 
+    pub fn into_raw_parts(self) -> crate::integer::CompressedServerKey {
+        self.integer_key.into_raw_parts()
+    }
+
+    pub fn from_raw_parts(integer_key: crate::integer::CompressedServerKey) -> Self {
+        Self {
+            integer_key: IntegerCompressedServerKey::from_raw_parts(integer_key),
+        }
+    }
+
     pub fn decompress(self) -> ServerKey {
         ServerKey {
             key: Arc::new(self.integer_key.decompress()),
