@@ -127,6 +127,18 @@ impl CompressedCompactPublicKey {
         }
     }
 
+    /// Deconstruct a [`CompressedCompactPublicKey`] into its constituants.
+    pub fn into_raw_parts(self) -> crate::integer::CompressedCompactPublicKey {
+        self.key.into_raw_parts()
+    }
+
+    /// Construct a [`CompressedCompactPublicKey`] from its constituants.
+    pub fn from_raw_parts(key: crate::integer::CompressedCompactPublicKey) -> Self {
+        Self {
+            key: IntegerCompressedCompactPublicKey::from_raw_parts(key),
+        }
+    }
+
     /// Decompresses the key
     pub fn decompress(self) -> CompactPublicKey {
         CompactPublicKey {
