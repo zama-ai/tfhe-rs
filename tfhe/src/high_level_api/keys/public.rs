@@ -55,6 +55,14 @@ impl CompressedPublicKey {
         }
     }
 
+    pub fn into_raw_parts(self) -> crate::integer::CompressedPublicKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: crate::integer::CompressedPublicKey) -> Self {
+        Self { key }
+    }
+
     pub fn decompress(self) -> PublicKey {
         PublicKey {
             key: crate::integer::PublicKey::from(self.key),
