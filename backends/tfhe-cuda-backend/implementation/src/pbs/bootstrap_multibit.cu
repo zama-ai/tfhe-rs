@@ -448,17 +448,17 @@ __host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
 
   if (std::strstr(deviceProp.name, v100Name) != nullptr) {
     // Tesla V100
-    return 18;
+    return 12;
   } else if (std::strstr(deviceProp.name, a100Name) != nullptr) {
     // Tesla A100
-    return 45;
+    return 30;
   } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
     // Tesla H100
-    return 45;
+    return 30;
   }
 
   // Generic case
-  return 10;
+  return 2;
 }
 
 // Returns the maximum buffer size required to execute batches up to

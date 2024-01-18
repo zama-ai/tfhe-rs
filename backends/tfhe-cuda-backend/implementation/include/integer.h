@@ -270,6 +270,9 @@ struct int_radix_params {
 // Store things needed to apply LUTs
 template <typename Torus> struct int_radix_lut {
   int_radix_params params;
+  uint32_t num_blocks;
+  bool mem_reuse = false;
+
   int8_t *pbs_buffer;
 
   Torus *lut_indexes;
@@ -284,7 +287,7 @@ template <typename Torus> struct int_radix_lut {
                 uint32_t num_luts, uint32_t num_radix_blocks,
                 bool allocate_gpu_memory) {
     this->params = params;
-
+    this->num_blocks = num_radix_blocks;
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
     Torus big_size =
         (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
@@ -351,6 +354,58 @@ template <typename Torus> struct int_radix_lut {
     }
   }
 
+  // constructor to reuse memory
+  int_radix_lut(cuda_stream_t *stream, int_radix_params params,
+                uint32_t num_luts, uint32_t num_radix_blocks,
+                int_radix_lut<Torus> *base_lut_object) {
+    bool allocate_gpu_memory = true;
+    this->params = params;
+    this->num_blocks = num_radix_blocks;
+    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    Torus big_size =
+        (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
+    Torus small_size =
+        (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
+    Torus lut_buffer_size =
+        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
+
+    // base lut object should have bigger or equal memory than current one
+    assert(num_radix_blocks <= base_lut_object->num_blocks);
+    // pbs
+    pbs_buffer = base_lut_object->pbs_buffer;
+    // Keyswitch
+    tmp_lwe_before_ks = base_lut_object->tmp_lwe_before_ks;
+    tmp_lwe_after_ks = base_lut_object->tmp_lwe_after_ks;
+
+    mem_reuse = true;
+
+    if (allocate_gpu_memory) {
+      // Allocate LUT
+      // LUT is used as a trivial encryption and must be initialized outside
+      // this contructor
+      lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size, stream);
+
+      lut_indexes = (Torus *)cuda_malloc_async(lut_indexes_size, stream);
+
+      // lut_indexes is initialized to 0 by default
+      // if a different behavior is wanted, it should be rewritten later
+      cuda_memset_async(lut_indexes, 0, lut_indexes_size, stream);
+
+      // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
+      // by default
+      lwe_indexes = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                         stream->gpu_index);
+      auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+
+      for (int i = 0; i < num_radix_blocks; i++)
+        h_lwe_indexes[i] = i;
+
+      cuda_memcpy_to_gpu(lwe_indexes, h_lwe_indexes,
+                         num_radix_blocks * sizeof(Torus));
+      free(h_lwe_indexes);
+    }
+  }
+
   Torus *get_lut(size_t ind) {
     assert(lut != nullptr);
     return &lut[ind * (params.glwe_dimension + 1) * params.polynomial_size];
@@ -360,10 +415,12 @@ template <typename Torus> struct int_radix_lut {
   void release(cuda_stream_t *stream) {
     cuda_drop_async(lut_indexes, stream);
     cuda_drop_async(lwe_indexes, stream);
-    cuda_drop_async(tmp_lwe_before_ks, stream);
-    cuda_drop_async(tmp_lwe_after_ks, stream);
     cuda_drop_async(lut, stream);
-    cuda_drop_async(pbs_buffer, stream);
+    if (!mem_reuse) {
+      cuda_drop_async(pbs_buffer, stream);
+      cuda_drop_async(tmp_lwe_before_ks, stream);
+      cuda_drop_async(tmp_lwe_after_ks, stream);
+    }
   }
 };
 
