@@ -49,6 +49,15 @@ where
         let ct = self.list.expand_one();
         FheInt::new(ct)
     }
+
+    pub fn into_raw_parts(self) -> (CompactCiphertextList, Id) {
+        let Self { list, id } = self;
+        (list, id)
+    }
+
+    pub fn from_raw_parts(list: CompactCiphertextList, id: Id) -> Self {
+        Self { list, id }
+    }
 }
 
 impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for CompactFheInt<Id>
@@ -130,6 +139,15 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn into_raw_parts(self) -> (CompactCiphertextList, Id) {
+        let Self { list, id } = self;
+        (list, id)
+    }
+
+    pub fn from_raw_parts(list: CompactCiphertextList, id: Id) -> Self {
+        Self { list, id }
     }
 
     /// Expand to a Vec<[FheInt]>

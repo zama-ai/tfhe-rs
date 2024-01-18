@@ -50,6 +50,15 @@ where
             id: Id::default(),
         }
     }
+
+    pub fn into_raw_parts(self) -> (CompressedSignedRadixCiphertext, Id) {
+        let Self { ciphertext, id } = self;
+        (ciphertext, id)
+    }
+
+    pub fn from_raw_parts(ciphertext: CompressedSignedRadixCiphertext, id: Id) -> Self {
+        Self { ciphertext, id }
+    }
 }
 
 impl<Id> CompressedFheInt<Id>

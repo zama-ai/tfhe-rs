@@ -293,6 +293,21 @@ where
         }
     }
 
+    pub fn into_raw_parts(self) -> (crate::integer::RadixCiphertext, Id) {
+        let Self { ciphertext, id } = self;
+
+        let ciphertext = ciphertext.into_cpu();
+
+        (ciphertext, id)
+    }
+
+    pub fn from_raw_parts(ciphertext: crate::integer::RadixCiphertext, id: Id) -> Self {
+        Self {
+            ciphertext: RadixCiphertext::Cpu(ciphertext),
+            id,
+        }
+    }
+
     pub(in crate::high_level_api) fn move_to_device_of_server_key_if_set(&mut self) {
         self.ciphertext.move_to_device_of_server_key_if_set();
     }
