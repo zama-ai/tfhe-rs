@@ -15,6 +15,7 @@ macro_rules! expand_pub_use_fhe_type(
                     [<Compressed $fhe_type_name>],
                     [<Compact $fhe_type_name>],
                     [<Compact $fhe_type_name List>],
+                    [<$fhe_type_name Id>],
                 )*
             };
 

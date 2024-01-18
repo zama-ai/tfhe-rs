@@ -88,6 +88,15 @@ where
         }
     }
 
+    pub fn into_raw_parts(self) -> (SignedRadixCiphertext, Id) {
+        let Self { ciphertext, id } = self;
+        (ciphertext, id)
+    }
+
+    pub fn from_raw_parts(ciphertext: SignedRadixCiphertext, id: Id) -> Self {
+        Self { ciphertext, id }
+    }
+
     /// Returns the absolute value
     ///
     /// # Example
