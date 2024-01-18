@@ -36,6 +36,14 @@ impl PublicKey {
         }
     }
 
+    pub fn into_raw_parts(self) -> crate::integer::PublicKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: crate::integer::PublicKey) -> Self {
+        Self { key }
+    }
+
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.parameters().message_modulus()
     }
