@@ -26,6 +26,8 @@ pub use crate::core_crypto::commons::math::random::Seed;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
+#[cfg(feature = "gpu")]
+pub use keys::CudaServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
     CompressedServerKey, KeySwitchingKey, PublicKey, ServerKey,
@@ -70,4 +72,6 @@ pub mod prelude;
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Device {
     Cpu,
+    #[cfg(feature = "gpu")]
+    CudaGpu,
 }

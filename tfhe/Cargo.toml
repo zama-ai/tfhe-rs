@@ -42,6 +42,7 @@ test-case = "3.1.0"
 combine = "4.6.6"
 env_logger = "0.10.0"
 log = "0.4.19"
+hex = "0.4.3"
 # End regex-engine deps
 
 [build-dependencies]
@@ -279,6 +280,10 @@ required-features = ["integer"]
 [[example]]
 name = "sha256_bool"
 required-features = ["boolean"]
+
+[[example]]
+name = "sha256"
+required-features = ["integer"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

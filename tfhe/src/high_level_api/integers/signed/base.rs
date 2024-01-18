@@ -401,6 +401,10 @@ where
                         Self::new,
                     )
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support signed integers");
+            }
         })
     }
 }
