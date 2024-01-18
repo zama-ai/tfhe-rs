@@ -1,5 +1,7 @@
 //! In this module, we store the hidden (to the end-user) internal state/keys that are needed to
 //! perform operations.
+#[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::{CudaDevice, CudaStream};
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
 use crate::high_level_api::keys::{IntegerServerKey, InternalServerKey, ServerKey};
 use std::cell::RefCell;
@@ -107,6 +109,20 @@ where
     })
 }
 
+#[cfg(feature = "gpu")]
+#[inline]
+pub(in crate::high_level_api) fn device_of_internal_keys() -> Option<crate::Device> {
+    // Should use `with_borrow` when its stabilized
+    INTERNAL_KEYS.with(|keys| {
+        let cell = keys.borrow();
+        Some(match cell.as_ref()? {
+            InternalServerKey::Cpu(_) => crate::Device::Cpu,
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => crate::Device::CudaGpu,
+        })
+    })
+}
+
 #[inline]
 pub(crate) fn with_cpu_internal_keys<T, F>(func: F) -> T
 where
@@ -121,6 +137,31 @@ where
             .unwrap_display();
         match key {
             InternalServerKey::Cpu(key) => func(key),
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cpu key requested but only cuda key is available")
+            }
         }
     })
+}
+
+#[cfg(feature = "gpu")]
+fn create_cuda_cell_stream() -> CudaStream {
+    let device = CudaDevice::new(0);
+    CudaStream::new_unchecked(device)
+}
+
+#[cfg(feature = "gpu")]
+thread_local! {
+    static CUDA_STREAM: std::cell::OnceCell<CudaStream> = std::cell::OnceCell::from(create_cuda_cell_stream());
+}
+
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api) fn with_thread_local_cuda_stream<
+    R,
+    F: for<'a> FnOnce(&'a CudaStream) -> R,
+>(
+    func: F,
+) -> R {
+    CUDA_STREAM.with(|cell| func(cell.get().unwrap()))
 }

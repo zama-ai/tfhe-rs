@@ -20,6 +20,75 @@ fn setup_default() -> ClientKey {
     my_keys
 }
 
+#[cfg(feature = "gpu")]
+mod gpu {
+    use super::*;
+    use crate::Device;
+
+    fn setup_gpu_default() -> ClientKey {
+        let config = ConfigBuilder::default().build();
+        let cks = crate::ClientKey::generate(config);
+        let csks = crate::CompressedServerKey::new(&cks);
+
+        let server_keys = csks.decompress_to_gpu();
+
+        set_server_key(server_keys);
+        cks
+    }
+
+    #[test]
+    fn test_xor_truth_table_static_default() {
+        let keys = setup_gpu_default();
+
+        let ttrue = FheBool::encrypt(true, &keys);
+        let ffalse = FheBool::encrypt(false, &keys);
+
+        assert_eq!(ttrue.current_device(), Device::CudaGpu);
+        assert_eq!(ffalse.current_device(), Device::CudaGpu);
+
+        xor_truth_table(&ttrue, &ffalse, &keys);
+    }
+
+    #[test]
+    fn test_and_truth_table_static_default() {
+        let keys = setup_gpu_default();
+
+        let ttrue = FheBool::encrypt(true, &keys);
+        let ffalse = FheBool::encrypt(false, &keys);
+
+        assert_eq!(ttrue.current_device(), Device::CudaGpu);
+        assert_eq!(ffalse.current_device(), Device::CudaGpu);
+
+        and_truth_table(&ttrue, &ffalse, &keys);
+    }
+
+    #[test]
+    fn test_or_truth_table_static_default() {
+        let keys = setup_gpu_default();
+
+        let ttrue = FheBool::encrypt(true, &keys);
+        let ffalse = FheBool::encrypt(false, &keys);
+
+        assert_eq!(ttrue.current_device(), Device::CudaGpu);
+        assert_eq!(ffalse.current_device(), Device::CudaGpu);
+
+        or_truth_table(&ttrue, &ffalse, &keys);
+    }
+
+    #[test]
+    fn test_not_truth_table_static_default() {
+        let keys = setup_gpu_default();
+
+        let ttrue = FheBool::encrypt(true, &keys);
+        let ffalse = FheBool::encrypt(false, &keys);
+
+        assert_eq!(ttrue.current_device(), Device::CudaGpu);
+        assert_eq!(ffalse.current_device(), Device::CudaGpu);
+
+        not_truth_table(&ttrue, &ffalse, &keys);
+    }
+}
+
 #[test]
 fn test_xor_truth_table_static_default() {
     let keys = setup_default();

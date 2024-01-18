@@ -11,6 +11,8 @@ use crate::high_level_api::config::Config;
 pub use client::ClientKey;
 pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
+#[cfg(feature = "gpu")]
+pub use server::CudaServerKey;
 pub(crate) use server::InternalServerKey;
 pub use server::{CompressedServerKey, ServerKey};
 

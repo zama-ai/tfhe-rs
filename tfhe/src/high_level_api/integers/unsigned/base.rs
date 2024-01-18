@@ -9,6 +9,8 @@ use crate::conformance::ParameterSetConformant;
 
 use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
 use crate::high_level_api::details::MaybeCloned;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::{CompressedPublicKey, InternalServerKey};
@@ -28,6 +30,8 @@ use serde::{Deserializer, Serializer};
 
 pub(crate) enum RadixCiphertext {
     Cpu(crate::integer::RadixCiphertext),
+    #[cfg(feature = "gpu")]
+    Cuda(crate::integer::gpu::ciphertext::CudaRadixCiphertext),
 }
 
 impl From<crate::integer::RadixCiphertext> for RadixCiphertext {
@@ -36,10 +40,21 @@ impl From<crate::integer::RadixCiphertext> for RadixCiphertext {
     }
 }
 
+#[cfg(feature = "gpu")]
+impl From<crate::integer::gpu::ciphertext::CudaRadixCiphertext> for RadixCiphertext {
+    fn from(value: crate::integer::gpu::ciphertext::CudaRadixCiphertext) -> Self {
+        Self::Cuda(value)
+    }
+}
+
 impl Clone for RadixCiphertext {
     fn clone(&self) -> Self {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_stream(|stream| Self::Cuda(inner.duplicate(stream)))
+            }
         }
     }
 }
@@ -69,6 +84,8 @@ impl RadixCiphertext {
     pub(crate) fn current_device(&self) -> Device {
         match self {
             Self::Cpu(_) => Device::Cpu,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => Device::CudaGpu,
         }
     }
 
@@ -77,18 +94,63 @@ impl RadixCiphertext {
     pub(crate) fn on_cpu(&self) -> MaybeCloned<'_, crate::integer::RadixCiphertext> {
         match self {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => with_thread_local_cuda_stream(|stream| {
+                let cpu_ct = ct.to_radix_ciphertext(stream);
+                MaybeCloned::Cloned(cpu_ct)
+            }),
+        }
+    }
+
+    /// Returns the inner cpu ciphertext if self is on the CPU, otherwise, returns a copy
+    /// that is on the CPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn on_gpu(
+        &self,
+    ) -> MaybeCloned<'_, crate::integer::gpu::ciphertext::CudaRadixCiphertext> {
+        match self {
+            Self::Cpu(ct) => with_thread_local_cuda_stream(|stream| {
+                let ct =
+                    crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
+                        ct, stream,
+                    );
+                MaybeCloned::Cloned(ct)
+            }),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => MaybeCloned::Borrowed(ct),
         }
     }
 
     pub(crate) fn as_cpu_mut(&mut self) -> &mut crate::integer::RadixCiphertext {
         match self {
             Self::Cpu(radix_ct) => radix_ct,
+            #[cfg(feature = "gpu")]
+            _ => {
+                self.move_to_device(Device::Cpu);
+                self.as_cpu_mut()
+            }
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    pub(crate) fn as_gpu_mut(
+        &mut self,
+    ) -> &mut crate::integer::gpu::ciphertext::CudaRadixCiphertext {
+        if let Self::Cuda(radix_ct) = self {
+            radix_ct
+        } else {
+            self.move_to_device(Device::CudaGpu);
+            self.as_gpu_mut()
         }
     }
 
     pub(crate) fn into_cpu(self) -> crate::integer::RadixCiphertext {
         match self {
             Self::Cpu(cpu_ct) => cpu_ct,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => {
+                with_thread_local_cuda_stream(|stream| ct.to_radix_ciphertext(stream))
+            }
         }
     }
 
@@ -97,12 +159,36 @@ impl RadixCiphertext {
             (Self::Cpu(_), Device::Cpu) => {
                 // Nothing to do, we already are on the correct device
             }
+            #[cfg(feature = "gpu")]
+            (Self::Cuda(_), Device::CudaGpu) => {
+                // Nothing to do, we already are on the correct device
+            }
+            #[cfg(feature = "gpu")]
+            (Self::Cpu(ct), Device::CudaGpu) => {
+                let new_inner = with_thread_local_cuda_stream(|stream| {
+                    crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
+                        ct, stream,
+                    )
+                });
+                *self = Self::Cuda(new_inner);
+            }
+            #[cfg(feature = "gpu")]
+            (Self::Cuda(ct), Device::Cpu) => {
+                let new_inner =
+                    with_thread_local_cuda_stream(|stream| ct.to_radix_ciphertext(stream));
+                *self = Self::Cpu(new_inner);
+            }
         }
     }
 
     #[inline]
     #[allow(clippy::unused_self)]
-    pub(crate) fn move_to_device_of_server_key_if_set(&mut self) {}
+    pub(crate) fn move_to_device_of_server_key_if_set(&mut self) {
+        #[cfg(feature = "gpu")]
+        if let Some(device) = global_state::device_of_internal_keys() {
+            self.move_to_device(device);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -326,15 +412,17 @@ where
 
     fn try_from(other: crate::integer::RadixCiphertext) -> Result<Self, GenericIntegerBlockError> {
         // Get correct carry modulus and message modulus from ServerKey
-        let (correct_carry_mod, correct_message_mod) = global_state::with_internal_keys(|sks| {
-            // TODO this should be a method of the sks
-            match sks {
+        let (correct_carry_mod, correct_message_mod) =
+            global_state::with_internal_keys(|sks| match sks {
                 InternalServerKey::Cpu(sks) => (
                     sks.pbs_key().key.carry_modulus,
                     sks.pbs_key().key.message_modulus,
                 ),
-            }
-        });
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    (cuda_key.key.carry_modulus, cuda_key.key.message_modulus)
+                }
+            });
 
         // Check number of blocks
         let expected_num_blocks = Id::num_blocks(correct_message_mod);
@@ -362,7 +450,9 @@ where
             }
         }
 
-        Ok(Self::new(other))
+        let mut ciphertext = Self::new(other);
+        ciphertext.move_to_device_of_server_key_if_set();
+        Ok(ciphertext)
     }
 }
 
@@ -501,6 +591,15 @@ where
                     .create_trivial_radix(value, Id::num_blocks(key.message_modulus()));
                 Ok(Self::new(ciphertext))
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner = cuda_key.key.create_trivial_radix(
+                    value,
+                    Id::num_blocks(cuda_key.key.message_modulus),
+                    stream,
+                );
+                Ok(Self::new(inner))
+            }),
         })
     }
 }
@@ -582,6 +681,10 @@ where
                 );
                 (FheUint::new(result), FheBool::new(overflow))
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support overflowing_add yet");
+            }
         })
     }
 }
@@ -662,6 +765,10 @@ where
                     .key
                     .unsigned_overflowing_scalar_add_parallelized(&self.ciphertext.on_cpu(), other);
                 (FheUint::new(result), FheBool::new(overflow))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support overflowing_add yet");
             }
         })
     }
@@ -784,6 +891,10 @@ where
                 );
                 (FheUint::new(result), FheBool::new(overflow))
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support overflowing_sub yet");
+            }
         })
     }
 }
@@ -864,6 +975,10 @@ where
                     .key
                     .unsigned_overflowing_scalar_sub_parallelized(&self.ciphertext.on_cpu(), other);
                 (FheUint::new(result), FheBool::new(overflow))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support overflowing_add yet");
             }
         })
     }
@@ -1013,6 +1128,10 @@ where
                     .into_radix(Id::num_blocks(cpu_key.message_modulus()), cpu_key.pbs_key());
                 Self::new(ciphertext)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support casting yet");
+            }
         })
     }
 }
@@ -1064,6 +1183,22 @@ where
                         },
                         Self::new,
                     )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let mut iter = iter;
+                // TODO have a proper impl on cuda side
+                with_thread_local_cuda_stream(|stream| {
+                    let mut result = iter.next().unwrap().ciphertext.on_gpu().duplicate(stream);
+
+                    for rhs in iter {
+                        cuda_key
+                            .key
+                            .add_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
+                    }
+
+                    Self::new(result)
+                })
             }
         })
     }
@@ -1122,6 +1257,22 @@ where
                         Self::new,
                     )
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let mut iter = iter;
+                // TODO have a proper impl on cuda side
+                with_thread_local_cuda_stream(|stream| {
+                    let mut result = iter.next().unwrap().ciphertext.on_gpu().duplicate(stream);
+
+                    for rhs in iter {
+                        cuda_key
+                            .key
+                            .add_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
+                    }
+
+                    Self::new(result)
+                })
+            }
         })
     }
 }
@@ -1159,6 +1310,14 @@ where
                     .max_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 Self::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .max(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                Self::new(inner_result)
+            }),
         })
     }
 }
@@ -1197,6 +1356,13 @@ where
                     .scalar_max_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 Self::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_max(&self.ciphertext.on_gpu(), rhs, stream);
+                Self::new(inner_result)
+            }),
         })
     }
 }
@@ -1234,6 +1400,14 @@ where
                     .min_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 Self::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .min(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                Self::new(inner_result)
+            }),
         })
     }
 }
@@ -1272,6 +1446,13 @@ where
                     .scalar_min_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 Self::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_min(&self.ciphertext.on_gpu(), rhs, stream);
+                Self::new(inner_result)
+            }),
         })
     }
 }
@@ -1320,6 +1501,14 @@ where
                     .eq_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .eq(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1350,6 +1539,14 @@ where
                     .ne_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .ne(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 }
@@ -1386,6 +1583,10 @@ where
                     .scalar_eq_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support equality with clear");
+            }
         })
     }
 
@@ -1415,6 +1616,10 @@ where
                     .pbs_key()
                     .scalar_ne_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                todo!("cuda devices do not support difference with clear")
             }
         })
     }
@@ -1472,6 +1677,14 @@ where
                     .lt_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .lt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1502,6 +1715,14 @@ where
                     .le_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .le(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1532,6 +1753,14 @@ where
                     .gt_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .gt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1562,6 +1791,14 @@ where
                     .ge_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result =
+                    cuda_key
+                        .key
+                        .ge(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 }
@@ -1598,6 +1835,13 @@ where
                     .scalar_lt_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_lt(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1628,6 +1872,13 @@ where
                     .scalar_le_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_le(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1658,6 +1909,13 @@ where
                     .scalar_gt_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_gt(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -1688,6 +1946,13 @@ where
                     .scalar_ge_parallelized(&*self.ciphertext.on_cpu(), rhs);
                 FheBool::new(inner_result)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_ge(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 }
@@ -1710,6 +1975,10 @@ where
                     .expect("Function evaluation on integers was not enabled in the config")
                     .apply_wopbs(cpu_key.pbs_key(), &*self.ciphertext.on_cpu(), func);
                 Self::new(res)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support function evaluation yet");
             }
         })
     }
@@ -1743,6 +2012,10 @@ where
                     .expect("Function evaluation on integers was not enabled in the config")
                     .apply_bivariate_wopbs(cpu_key.pbs_key(), &*lhs, &*rhs, func);
                 Self::new(res)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support bivariate functions yet");
             }
         })
     }
@@ -1808,6 +2081,10 @@ where
                     .div_rem_parallelized(&*self.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                 (FheUint::<Id>::new(q), FheUint::<Id>::new(r))
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support division yet");
+            }
         })
     }
 }
@@ -1845,7 +2122,10 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     InternalServerKey::Cpu(cpu_key) => {
                                         cpu_key.pbs_key().$key_method(&*self.ciphertext.on_cpu(), rhs)
                                     }
-
+                                    #[cfg(feature = "gpu")]
+                                    InternalServerKey::Cuda(_) => {
+                                        panic!("Cuda devices do not support div_rem yet");
+                                    }
                                 }
                             });
 
@@ -1942,7 +2222,14 @@ generic_integer_impl_operation!(
                         .add_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .add(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -1978,7 +2265,14 @@ generic_integer_impl_operation!(
                         .sub_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .sub(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -2014,7 +2308,14 @@ generic_integer_impl_operation!(
                         .mul_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                     with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .mul(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -2048,6 +2349,14 @@ generic_integer_impl_operation!(
                         .bitand_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                     with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .bitand(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -2081,7 +2390,14 @@ generic_integer_impl_operation!(
                         .bitor_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                     with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .bitor(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -2115,7 +2431,14 @@ generic_integer_impl_operation!(
                         .bitxor_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                     with_thread_local_cuda_stream(|stream| {
+                        let inner_result = cuda_key.key
+                            .bitxor(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        FheUint::new(inner_result)
+                    })
+                }
             })
         }
    },
@@ -2154,6 +2477,10 @@ generic_integer_impl_operation!(
                         .div_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_cuda_key) => {
+                    panic!("Division '/' is not yet supported by Cuda devices")
+                }
             })
         }
    },
@@ -2192,6 +2519,10 @@ generic_integer_impl_operation!(
                         .rem_parallelized(&*lhs.ciphertext.on_cpu(), &*rhs.ciphertext.on_cpu());
                     FheUint::new(inner_result)
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_cuda_key) => {
+                   panic!("Remainder/Modulo '%' is not yet supported by Cuda devices")
+                }
             })
         }
    },
@@ -2297,6 +2628,10 @@ generic_integer_impl_shift_rotate!(
                             .left_shift_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
                         FheUint::new(ciphertext)
                     }
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                        panic!("Shl '<<' is not yet supported by Cuda devices")
+                    }
                 }
             })
         }
@@ -2333,7 +2668,10 @@ generic_integer_impl_shift_rotate!(
                             .right_shift_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
                         FheUint::new(ciphertext)
                     }
-
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                        panic!("Shr '>>' is not yet supported by Cuda devices")
+                    }
                 }
             })
         }
@@ -2370,7 +2708,10 @@ generic_integer_impl_shift_rotate!(
                             .rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
                         FheUint::new(ciphertext)
                     }
-
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                       panic!("RotateLeft is not yet supported by Cuda devices")
+                    }
                 }
             })
         }
@@ -2407,7 +2748,10 @@ generic_integer_impl_shift_rotate!(
                             .rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), &rhs.ciphertext.on_cpu());
                         FheUint::new(ciphertext)
                     }
-
+                    #[cfg(feature = "gpu")]
+                    InternalServerKey::Cuda(_) => {
+                        panic!("RotateRight is not yet supported by Cuda devices")
+                    }
                 }
             })
         }
@@ -2450,6 +2794,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.add_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2487,6 +2839,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.sub_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2524,6 +2884,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.mul_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2559,6 +2927,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.bitand_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2594,6 +2970,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.bitor_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2629,6 +3013,14 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.bitxor_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -2669,6 +3061,10 @@ where
                     &*rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support division");
+            }
         })
     }
 }
@@ -2708,6 +3104,10 @@ where
                     self.ciphertext.as_cpu_mut(),
                     &*rhs.ciphertext.on_cpu(),
                 );
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support division");
             }
         })
     }
@@ -2759,6 +3159,10 @@ where
                     &rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support left shift with encrypted value");
+            }
         })
     }
 }
@@ -2807,6 +3211,10 @@ where
                     self.ciphertext.as_cpu_mut(),
                     &rhs.ciphertext.on_cpu(),
                 );
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support right shift with encrypted value");
             }
         })
     }
@@ -2858,6 +3266,10 @@ where
                     &rhs.ciphertext.on_cpu(),
                 );
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support rotate left with encrypted value");
+            }
         })
     }
 }
@@ -2907,6 +3319,10 @@ where
                     self.ciphertext.as_cpu_mut(),
                     &rhs.ciphertext.on_cpu(),
                 );
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support rotate right with encrypted value");
             }
         })
     }
@@ -2963,6 +3379,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_add(
+                            &lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -2992,7 +3417,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                 InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_sub(
+                            &lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3022,7 +3455,10 @@ generic_integer_impl_scalar_operation!(
                         .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("Mul '*' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -3052,7 +3488,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_bitand(
+                            &lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3082,7 +3526,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_bitor(
+                            &lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3113,6 +3565,15 @@ generic_integer_impl_scalar_operation!(
                    RadixCiphertext::Cpu(inner_result)
                 },
 
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_bitxor(
+                            &lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3142,7 +3603,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_left_shift(
+                            &lhs.ciphertext.on_gpu(), u64::cast_from(rhs), stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3172,6 +3641,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                   let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_right_shift(
+                            &lhs.ciphertext.on_gpu(), u64::cast_from(rhs), stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3201,7 +3679,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_rotate_left(
+                            &lhs.ciphertext.on_gpu(), u64::cast_from(rhs), stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3231,7 +3717,15 @@ generic_integer_impl_scalar_operation!(
                         .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_rotate_right(
+                            &lhs.ciphertext.on_gpu(), u64::cast_from(rhs), stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
+                }
             })
         }
     },
@@ -3261,7 +3755,10 @@ generic_integer_impl_scalar_operation!(
                         .scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("Div '/' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -3291,7 +3788,10 @@ generic_integer_impl_scalar_operation!(
                         .scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
                    RadixCiphertext::Cpu(inner_result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("Rem '%' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -3436,7 +3936,14 @@ generic_integer_impl_scalar_left_operation!(
                         .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
                     RadixCiphertext::Cpu(result)
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        let mut result = cuda_key.key.create_trivial_radix(lhs, rhs.ciphertext.on_gpu().info.blocks.len(), stream);
+                        cuda_key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
+                        RadixCiphertext::Cuda(result)
+                    })
+                }
             })
         }
     },
@@ -3689,7 +4196,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                 InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3740,7 +4253,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3769,7 +4288,10 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("MulAssign '*=' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -3798,7 +4320,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3827,7 +4355,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3856,7 +4390,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3885,7 +4425,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3914,7 +4460,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
-
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3943,6 +4495,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3971,6 +4530,13 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
+                }
             })
         }
     },
@@ -3999,6 +4565,10 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -4027,6 +4597,10 @@ generic_integer_impl_scalar_operation_assign!(
                         .pbs_key()
                         .scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_) => {
+                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
+                }
             })
         }
     },
@@ -4113,6 +4687,11 @@ where
                     .neg_parallelized(&*self.ciphertext.on_cpu());
                 FheUint::new(ciphertext)
             }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key.key.neg(&self.ciphertext.on_gpu(), stream);
+                FheUint::new(inner_result)
+            }),
         })
     }
 }
@@ -4175,6 +4754,10 @@ where
                     .pbs_key()
                     .bitnot_parallelized(&*self.ciphertext.on_cpu());
                 FheUint::new(ciphertext)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Not '!' is not yet supported by Cuda devices")
             }
         })
     }
