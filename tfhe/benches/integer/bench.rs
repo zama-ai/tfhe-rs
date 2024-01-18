@@ -58,11 +58,6 @@ impl Default for ParamsAndNumBlocksIter {
             Err(_) => false,
         };
 
-        let is_gpu = match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
-            Ok(val) => val.contains("gpu"),
-            Err(_) => false,
-        };
-
         let bit_sizes = if is_fast_bench {
             FAST_BENCH_BIT_SIZES.to_vec()
         } else {
@@ -70,16 +65,17 @@ impl Default for ParamsAndNumBlocksIter {
         };
 
         if is_multi_bit {
-            let params = if is_gpu {
-                vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()]
-            } else {
-                vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()]
-            };
+            #[cfg(feature = "gpu")]
+            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+            #[cfg(not(feature = "gpu"))]
+            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 
             let bit_sizes = if is_fast_bench {
                 vec![32]
-            } else {
+            } else if cfg!(feature = "gpu") {
                 BENCH_BIT_SIZES.to_vec()
+            } else {
+                vec![8, 16, 32, 40, 64]
             };
 
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
