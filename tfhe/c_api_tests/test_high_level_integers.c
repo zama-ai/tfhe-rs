@@ -3,6 +3,17 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdint.h>
+
+
+#define assert_m(condition, format, ...)                                         \
+  do {                                                                         \
+    if (!(condition)) {                                                        \
+      fprintf(stderr, "%s::%d::%s: condition `%s` failed.\n" format "\n",      \
+              __FILE__, __LINE__, __func__, #condition, ##__VA_ARGS__);        \
+      abort();                                                                 \
+    }                                                                          \
+  } while (0)
 
 int uint8_client_key(const ClientKey *client_key) {
   int ok;
@@ -19,19 +30,320 @@ int uint8_client_key(const ClientKey *client_key) {
   ok = fhe_uint8_try_encrypt_with_client_key_u8(rhs_clear, client_key, &rhs);
   assert(ok == 0);
 
-  ok = fhe_uint8_add(lhs, rhs, &result);
-  assert(ok == 0);
-
   uint8_t clear;
-  ok = fhe_uint8_decrypt(result, client_key, &clear);
-  assert(ok == 0);
 
-  assert(clear == (lhs_clear + rhs_clear));
+  // Check addition
+  {
+    ok = fhe_uint8_add(lhs, rhs, &result);
+    assert(ok == 0);
+
+    ok = fhe_uint8_decrypt(result, client_key, &clear);
+    assert(ok == 0);
+
+    assert(clear == (lhs_clear + rhs_clear));
+  }
+
+  // Check sum
+  {
+    FheUint8 *sum_result;
+    const FheUint8 *data[2] = {lhs, rhs};
+    ok = fhe_uint8_sum(data, 2, &sum_result);
+    assert(ok == 0);
+
+    clear = 0;
+    ok = fhe_uint8_decrypt(result, client_key, &clear);
+    assert(ok == 0);
+
+    assert(clear == (lhs_clear + rhs_clear));
+    fhe_uint8_destroy(sum_result);
+  }
 
   fhe_uint8_destroy(lhs);
   fhe_uint8_destroy(rhs);
   fhe_uint8_destroy(result);
   return ok;
+}
+
+void test_uint8_overflowing_add(const ClientKey *client_key) {
+  int ok;
+  FheUint8 *lhs = NULL;
+  FheUint8 *rhs = NULL;
+  FheUint8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  uint8_t lhs_clear = UINT8_MAX;
+  uint8_t rhs_clear = 1;
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  uint8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_uint8_overflowing_add(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_uint8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    uint8_t expected_result = lhs_clear + rhs_clear;
+    assert_m(
+        clear_result == expected_result,
+         "Invalid result for overflowing_add(%"PRIu8", %"PRIu8"), "
+         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_uint8_destroy(lhs);
+  fhe_uint8_destroy(rhs);
+  fhe_uint8_destroy(result);
+  fhe_bool_destroy(overflowed);
+}
+
+void test_uint8_overflowing_sub(const ClientKey *client_key) {
+  int ok;
+  FheUint8 *lhs = NULL;
+  FheUint8 *rhs = NULL;
+  FheUint8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  uint8_t lhs_clear = 0;
+  uint8_t rhs_clear = 1;
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  uint8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_uint8_overflowing_sub(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_uint8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    uint8_t expected_result = lhs_clear - rhs_clear;
+    assert_m(
+        clear_result == expected_result,
+         "Invalid result for overflowing_sub(%"PRIu8", %"PRIu8"), "
+         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_uint8_destroy(lhs);
+  fhe_uint8_destroy(rhs);
+  fhe_uint8_destroy(result);
+  fhe_bool_destroy(overflowed);
+}
+
+void test_uint8_overflowing_mul(const ClientKey *client_key) {
+  int ok;
+  FheUint8 *lhs = NULL;
+  FheUint8 *rhs = NULL;
+  FheUint8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  uint8_t lhs_clear = 123;
+  uint8_t rhs_clear = 3;
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  uint8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_uint8_overflowing_mul(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_uint8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    uint8_t expected_result = lhs_clear * rhs_clear;
+    assert_m(
+        clear_result == expected_result,
+         "Invalid result for overflowing_mul(%"PRIu8", %"PRIu8"), "
+         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_uint8_destroy(lhs);
+  fhe_uint8_destroy(rhs);
+  fhe_uint8_destroy(result);
+  fhe_bool_destroy(overflowed);
+}
+
+void test_int8_overflowing_add(const ClientKey *client_key) {
+  int ok;
+  FheInt8 *lhs = NULL;
+  FheInt8 *rhs = NULL;
+  FheInt8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  int8_t lhs_clear = INT8_MAX;
+  int8_t rhs_clear = 1;
+  assert((int)INT8_MAX == 127);
+  assert((int)INT8_MIN == -128); // C < C23 is not guaranteed to use two's complement
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  int8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_int8_overflowing_add(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_int8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    // In C, signed overflow is actually undefined behaviour (until C23)
+    // so we can't do the addition here, and have to hardcode the result
+    int8_t expected_result = INT8_MIN;
+    assert_m(
+          clear_result == expected_result,
+          "Invalid result for overflowing_add(%"PRIi8", %"PRIi8"), "
+          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_int8_destroy(lhs);
+  fhe_int8_destroy(rhs);
+  fhe_int8_destroy(result);
+  fhe_bool_destroy(overflowed);
+}
+
+void test_int8_overflowing_sub(const ClientKey *client_key) {
+  int ok;
+  FheInt8 *lhs = NULL;
+  FheInt8 *rhs = NULL;
+  FheInt8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  int8_t lhs_clear = INT8_MIN;
+  int8_t rhs_clear = 1;
+  assert((int)INT8_MAX == 127);
+  assert((int)INT8_MIN == -128); // C < C23 is not guaranteed to use two's complement
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  int8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_int8_overflowing_sub(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_int8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    // In C, signed overflow is actually undefined behaviour (until C23)
+    // so we can't do the addition here, and have to hardcode the result
+    int8_t expected_result = 127;
+    assert_m(
+          clear_result == expected_result,
+          "Invalid result for overflowing_sub(%"PRIi8", %"PRIi8"), "
+          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_int8_destroy(lhs);
+  fhe_int8_destroy(rhs);
+  fhe_int8_destroy(result);
+  fhe_bool_destroy(overflowed);
+}
+
+void test_int8_overflowing_mul(const ClientKey *client_key) {
+  int ok;
+  FheInt8 *lhs = NULL;
+  FheInt8 *rhs = NULL;
+  FheInt8 *result = NULL;
+  FheBool *overflowed = NULL;
+
+  int8_t lhs_clear = 123;
+  int8_t rhs_clear = -17;
+  assert((int)INT8_MAX == 127);
+  assert((int)INT8_MIN == -128); // C < C23 is not guaranteed to use two's complement
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_int8_try_encrypt_with_client_key_i8(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
+
+  int8_t clear_result;
+  bool clear_overflowed;
+
+  // Check
+  {
+    ok = fhe_int8_overflowing_mul(lhs, rhs, &result, &overflowed);
+    assert(ok == 0);
+
+    ok = fhe_int8_decrypt(result, client_key, &clear_result);
+    assert(ok == 0);
+
+    ok = fhe_bool_decrypt(overflowed, client_key, &clear_overflowed);
+    assert(ok == 0);
+
+    // In C, signed overflow is actually undefined behaviour (until C23)
+    // so we can't do the addition here, and have to hardcode the result
+    int8_t expected_result = -43;
+    assert_m(
+          clear_result == expected_result,
+          "Invalid result for overflowing_mul(%"PRIi8", %"PRIi8"), "
+          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
+    );
+    assert(clear_overflowed == true);
+  }
+
+  fhe_int8_destroy(lhs);
+  fhe_int8_destroy(rhs);
+  fhe_int8_destroy(result);
+  fhe_bool_destroy(overflowed);
 }
 
 int uint8_public_key(const ClientKey *client_key, const PublicKey *public_key) {
@@ -197,6 +509,32 @@ int uint8_compressed(const ClientKey *client_key) {
   return ok;
 }
 
+void test_try_decrypt_trivial(const ClientKey *client_key)
+{
+    const uint16_t clear = UINT16_MAX - 2;
+
+    FheUint16 *trivial = NULL;
+    int status = fhe_uint16_try_encrypt_trivial_u16(clear, &trivial);
+    assert(status == 0);
+
+    FheUint16 *non_trivial = NULL;
+    status = fhe_uint16_try_encrypt_with_client_key_u16(clear, client_key, &non_trivial);
+    assert(status == 0);
+
+    /* Example of decrypting a trivial */
+    uint16_t decrypted;
+    status = fhe_uint16_try_decrypt_trivial(trivial, &decrypted);
+    assert(status == 0);
+    assert(decrypted == clear);
+
+    /* Example of trying to trivial decrypt a ciphertext that is not trivial */
+    status = fhe_uint16_try_decrypt_trivial(non_trivial, &decrypted);
+    assert(status == 1); // Returns that its an error
+
+    fhe_uint16_destroy(trivial);
+    fhe_uint16_destroy(non_trivial);
+}
+
 int main(void) {
   int ok = 0;
   {
@@ -231,6 +569,14 @@ int main(void) {
     ok = uint8_public_key(client_key, public_key);
     assert(ok == 0);
 
+    test_uint8_overflowing_add(client_key);
+    test_uint8_overflowing_sub(client_key);
+    test_uint8_overflowing_mul(client_key);
+    test_int8_overflowing_add(client_key);
+    test_int8_overflowing_sub(client_key);
+    test_int8_overflowing_mul(client_key);
+    test_try_decrypt_trivial(client_key);
+
     client_key_destroy(client_key);
     public_key_destroy(public_key);
     server_key_destroy(server_key);
@@ -259,8 +605,17 @@ int main(void) {
 
     ok = uint8_client_key(client_key);
     assert(ok == 0);
+
     ok = uint8_public_key(client_key, public_key);
     assert(ok == 0);
+
+    test_uint8_overflowing_add(client_key);
+    test_uint8_overflowing_sub(client_key);
+    test_uint8_overflowing_mul(client_key);
+    test_int8_overflowing_add(client_key);
+    test_int8_overflowing_sub(client_key);
+    test_int8_overflowing_mul(client_key);
+    test_try_decrypt_trivial(client_key);
 
     client_key_destroy(client_key);
     public_key_destroy(public_key);

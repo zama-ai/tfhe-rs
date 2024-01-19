@@ -8,7 +8,8 @@
 pub use crate::high_level_api::traits::{
     DivRem, FheBootstrap, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
     FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse,
-    OverflowingAdd, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
+    OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight,
+    RotateRightAssign,
 };
 
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};

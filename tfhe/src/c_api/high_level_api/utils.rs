@@ -171,6 +171,7 @@ macro_rules! impl_try_encrypt_trivial_on_type {
         }
     };
 }
+
 macro_rules! impl_decrypt_on_type {
     ($wrapper_type:ty, $output_type:ty) => {
         ::paste::paste! {
@@ -190,6 +191,38 @@ macro_rules! impl_decrypt_on_type {
 
                     *result = <$output_type>::from(rust_clear);
                 })
+            }
+        }
+    };
+}
+
+macro_rules! impl_try_decrypt_trivial_on_type {
+    ($wrapper_type:ty, $output_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn  [<$wrapper_type:snake _try_decrypt_trivial>](
+                encrypted_value: *const $wrapper_type,
+                result: *mut $output_type,
+            ) -> ::std::os::raw::c_int {
+                type RustScalarType_ = <$output_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::RustEquivalent;
+
+                let mut rust_result: Option<RustScalarType_> = None;
+
+                // This is done the 'hard' way because we don't want to unwrap the decrypt_trivial
+                // as the panic will print something and polute.
+                $crate::c_api::utils::catch_panic(|| {
+                    let encrypted_value = $crate::c_api::utils::get_ref_checked(encrypted_value).unwrap();
+
+                    rust_result = encrypted_value.0.try_decrypt_trivial().ok();
+                });
+
+                match rust_result {
+                    Some(value) => {
+                        *result = <$output_type>::from(value);
+                        0
+                    }
+                    None => 1
+                }
             }
         }
     };
@@ -372,6 +405,47 @@ macro_rules! impl_binary_fn_on_type {
         );
     };
 }
+// Like binary fn, but an extra output value is needed for the overflow flag
+macro_rules! impl_binary_overflowing_fn_on_type {
+     (
+        lhs_type: $lhs_type:ty,
+        rhs_type: $rhs_type:ty,
+        binary_fn_names: $($binary_fn_name:ident),*
+        $(,)?
+    ) => {
+         $( // unroll binary_fn_names
+           ::paste::paste! {
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_fn_name>](
+                    lhs: *const $lhs_type,
+                    rhs: *const $rhs_type,
+                    out_result: *mut *mut $lhs_type,
+                    out_overflowed: *mut *mut FheBool
+                ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                        let rhs = $crate::c_api::utils::get_ref_checked(rhs).unwrap();
+
+                        let (inner, overflowed) = (&lhs.0).$binary_fn_name(&rhs.0);
+
+                        *out_result = Box::into_raw(Box::new($lhs_type(inner)));
+                        *out_overflowed = Box::into_raw(Box::new(FheBool(overflowed)))
+                    })
+                }
+            }
+         )*
+
+    };
+
+    // Usual binary fn case, where lhs, rhs and result are all of the same type
+    ($wrapper_type:ty => $($binary_fn_name:ident),* $(,)?) => {
+        impl_binary_overflowing_fn_on_type!(
+            lhs_type: $wrapper_type,
+            rhs_type: $wrapper_type,
+            binary_fn_names: $($binary_fn_name),*
+        );
+    };
+}
 
 // Comparisons returns FheBool so we use a specialized
 // macro for them
@@ -545,3 +619,26 @@ macro_rules! impl_scalar_binary_assign_fn_on_type {
         )*
     };
 }
+
+// Defines the function to cast `from` a type _into_ the given list of type
+macro_rules! define_casting_operation(
+    ($from:ty => $($to:ty),*) => {
+        $(
+            ::paste::paste!{
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$from:snake _cast_into_ $to:snake>](
+                    sself: *const $from,
+                    result: *mut *mut $to,
+                    ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let from = $crate::c_api::utils::get_ref_checked(sself).unwrap();
+                        let cloned = from.0.clone();
+
+                        let inner_to = <_ as $crate::prelude::CastInto<_>>::cast_into(cloned);
+                        *result = Box::into_raw(Box::new($to(inner_to)));
+                    })
+                }
+            }
+        )*
+    }
+);
