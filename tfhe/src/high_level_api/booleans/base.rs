@@ -12,8 +12,9 @@ use crate::high_level_api::traits::{
     FheDecrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse,
 };
 use crate::integer::BooleanBlock;
-use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::{CompactFheBool, CompressedPublicKey, Device};
+use crate::named::Named;
+use crate::shortint::ciphertext::{Degree, NotTrivialCiphertextError};
+use crate::{CompactFheBool, CompactPublicKey, CompressedPublicKey, Device};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub(in crate::high_level_api) enum InnerBoolean {
@@ -202,6 +203,10 @@ impl InnerBoolean {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FheBool {
     pub(in crate::high_level_api) ciphertext: InnerBoolean,
+}
+
+impl Named for FheBool {
+    const NAME: &'static str = "high_level_api::FheBool";
 }
 
 impl FheBool {
@@ -531,6 +536,18 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
         let mut ciphertext = Self::new(integer_client_key.encrypt_bool(value));
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
+    }
+}
+
+impl FheTryEncrypt<bool, CompactPublicKey> for FheBool {
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt(value: bool, key: &CompactPublicKey) -> Result<Self, Self::Error> {
+        let mut ciphertext = key.key.key.encrypt_radix(value as u8, 1);
+        ciphertext.blocks[0].degree = Degree::new(1);
+        Ok(Self::new(BooleanBlock::new_unchecked(
+            ciphertext.blocks.into_iter().next().unwrap(),
+        )))
     }
 }
 

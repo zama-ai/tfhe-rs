@@ -86,7 +86,7 @@ impl TryFrom<JsValue> for I256 {
 // FheUint types which maps to a type that is not native
 // to wasm-bindgen such as u128 (rust native) and our U256
 // and requires conversions using TryFrom
-macro_rules! create_wrapper_type_non_native_type(
+macro_rules! create_wrapper_type_non_native_type (
     (
         {
             type_name: $type_name:ident,
@@ -408,6 +408,13 @@ macro_rules! create_wrapper_type_non_native_type(
 
 create_wrapper_type_non_native_type!(
     {
+        type_name: FheUint160,
+        compressed_type_name: CompressedFheUint160,
+        compact_type_name: CompactFheUint160,
+        compact_list_type_name: CompactFheUint160List,
+        rust_type: U256,
+    },
+    {
         type_name: FheUint128,
         compressed_type_name: CompressedFheUint128,
         compact_type_name: CompactFheUint128,
@@ -421,12 +428,20 @@ create_wrapper_type_non_native_type!(
         compact_list_type_name: CompactFheUint256List,
         rust_type: U256,
     },
+    // Signed
     {
         type_name: FheInt128,
         compressed_type_name: CompressedFheInt128,
         compact_type_name: CompactFheInt128,
         compact_list_type_name: CompactFheInt128List,
         rust_type: i128,
+    },
+    {
+        type_name: FheInt160,
+        compressed_type_name: CompressedFheInt160,
+        compact_type_name: CompactFheInt160,
+        compact_list_type_name: CompactFheInt160List,
+        rust_type: I256,
     },
     {
         type_name: FheInt256,
@@ -439,8 +454,8 @@ create_wrapper_type_non_native_type!(
 
 // We use this macro to define wasm wrapper for
 // FheUint types which maps to an unsigned integer type
-// that is natively compative to wasm (u8, u16, etc)
-macro_rules! create_wrapper_type_that_has_native_type(
+// that is natively compatible to wasm (u8, u16, etc)
+macro_rules! create_wrapper_type_that_has_native_type (
     (
         {
             type_name: $type_name:ident,
@@ -668,18 +683,6 @@ macro_rules! create_wrapper_type_that_has_native_type(
         #[wasm_bindgen]
         impl $compact_list_type_name {
             #[wasm_bindgen]
-            pub fn encrypt_with_compact_public_key(
-                values: Vec<$native_type>,
-                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
-            ) -> Result<$compact_list_type_name, JsError> {
-                catch_panic_result(|| {
-                    crate::high_level_api::$compact_list_type_name::try_encrypt(&values, &public_key.0)
-                        .map($compact_list_type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
             pub fn expand(
                 &self,
             ) -> Result<Vec<JsValue>, JsError> {
@@ -736,11 +739,60 @@ macro_rules! create_wrapper_type_that_has_native_type(
 
 create_wrapper_type_that_has_native_type!(
     {
+        type_name: FheBool,
+        compressed_type_name: CompressedFheBool,
+        compact_type_name: CompactFheBool,
+        compact_list_type_name: CompactFheBoolList,
+        native_type: bool,
+    },
+    {
+        type_name: FheUint2,
+        compressed_type_name: CompressedFheUint2,
+        compact_type_name: CompactFheUint2,
+        compact_list_type_name: CompactFheUint2List,
+        native_type: u8,
+    },
+    {
+        type_name: FheUint4,
+        compressed_type_name: CompressedFheUint4,
+        compact_type_name: CompactFheUint4,
+        compact_list_type_name: CompactFheUint4List,
+        native_type: u8,
+    },
+    {
+        type_name: FheUint6,
+        compressed_type_name: CompressedFheUint6,
+        compact_type_name: CompactFheUint6,
+        compact_list_type_name: CompactFheUint6List,
+        native_type: u8,
+    },
+    {
         type_name: FheUint8,
         compressed_type_name: CompressedFheUint8,
         compact_type_name: CompactFheUint8,
         compact_list_type_name: CompactFheUint8List,
         native_type: u8,
+    },
+    {
+        type_name: FheUint10,
+        compressed_type_name: CompressedFheUint10,
+        compact_type_name: CompactFheUint10,
+        compact_list_type_name: CompactFheUint10List,
+        native_type: u16,
+    },
+    {
+        type_name: FheUint12,
+        compressed_type_name: CompressedFheUint12,
+        compact_type_name: CompactFheUint12,
+        compact_list_type_name: CompactFheUint12List,
+        native_type: u16,
+    },
+    {
+        type_name: FheUint14,
+        compressed_type_name: CompressedFheUint14,
+        compact_type_name: CompactFheUint14,
+        compact_list_type_name: CompactFheUint14List,
+        native_type: u16,
     },
     {
         type_name: FheUint16,
@@ -763,12 +815,55 @@ create_wrapper_type_that_has_native_type!(
         compact_list_type_name: CompactFheUint64List,
         native_type: u64,
     },
+    // Signed
+    {
+        type_name: FheInt2,
+        compressed_type_name: CompressedFheInt2,
+        compact_type_name: CompactFheInt2,
+        compact_list_type_name: CompactFheInt2List,
+        native_type: i8,
+    },
+    {
+        type_name: FheInt4,
+        compressed_type_name: CompressedFheInt4,
+        compact_type_name: CompactFheInt4,
+        compact_list_type_name: CompactFheInt4List,
+        native_type: i8,
+    },
+    {
+        type_name: FheInt6,
+        compressed_type_name: CompressedFheInt6,
+        compact_type_name: CompactFheInt6,
+        compact_list_type_name: CompactFheInt6List,
+        native_type: i8,
+    },
     {
         type_name: FheInt8,
         compressed_type_name: CompressedFheInt8,
         compact_type_name: CompactFheInt8,
         compact_list_type_name: CompactFheInt8List,
         native_type: i8,
+    },
+    {
+        type_name: FheInt10,
+        compressed_type_name: CompressedFheInt10,
+        compact_type_name: CompactFheInt10,
+        compact_list_type_name: CompactFheInt10List,
+        native_type: i16,
+    },
+    {
+        type_name: FheInt12,
+        compressed_type_name: CompressedFheInt12,
+        compact_type_name: CompactFheInt12,
+        compact_list_type_name: CompactFheInt12List,
+        native_type: i16,
+    },
+    {
+        type_name: FheInt14,
+        compressed_type_name: CompressedFheInt14,
+        compact_type_name: CompactFheInt14,
+        compact_list_type_name: CompactFheInt14List,
+        native_type: i16,
     },
     {
         type_name: FheInt16,
@@ -792,3 +887,85 @@ create_wrapper_type_that_has_native_type!(
         native_type: i64,
     },
 );
+
+// Note this used to be defined in "create_wrapper_type_that_has_native_type",
+// however, 'bool' does not implement JsObject which seems to prohibit having Vec<bool> as input
+// param.
+//
+// So this was moved out
+macro_rules! define_encrypt_list_with_compact_public_key {
+    (
+        $(
+            {$compact_list_type_name:ident, $native_type:ty}
+        ),*
+        $(,)?
+    ) => {
+        $(
+            #[wasm_bindgen]
+            impl $compact_list_type_name {
+
+                #[wasm_bindgen]
+                pub fn encrypt_with_compact_public_key(
+                    values: Vec<$native_type>,
+                    public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
+                ) -> Result<$compact_list_type_name, JsError> {
+                    catch_panic_result(|| {
+                        $crate::high_level_api::$compact_list_type_name::try_encrypt(&values, &public_key.0)
+                            .map($compact_list_type_name)
+                            .map_err(into_js_error)
+                    })
+                }
+            }
+        )*
+    };
+}
+
+define_encrypt_list_with_compact_public_key!(
+    {CompactFheUint2List, u8},
+    {CompactFheUint4List, u8},
+    {CompactFheUint6List, u8},
+    {CompactFheUint8List, u8},
+    {CompactFheUint12List, u16},
+    {CompactFheUint14List, u16},
+    {CompactFheUint16List, u16},
+    {CompactFheUint32List, u32},
+    {CompactFheUint64List, u64},
+    // Signed
+    {CompactFheInt2List, i8},
+    {CompactFheInt4List, i8},
+    {CompactFheInt6List, i8},
+    {CompactFheInt8List, i8},
+    {CompactFheInt12List, i16},
+    {CompactFheInt14List, i16},
+    {CompactFheInt16List, i16},
+    {CompactFheInt32List, i32},
+    {CompactFheInt64List, i64},
+);
+
+// Since Vec<bool> is not wasm compatible, we handle conversions ourselves
+// clippy has some complaints to make, but we can't fulfill them, otherwise
+// wasm_bindgen fails to compile
+#[allow(clippy::use_self)]
+#[allow(clippy::needless_pass_by_value)]
+#[wasm_bindgen]
+impl CompactFheBoolList {
+    #[wasm_bindgen]
+    pub fn encrypt_with_compact_public_key(
+        values: Vec<JsValue>,
+        public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
+    ) -> Result<CompactFheBoolList, JsError> {
+        catch_panic_result(|| {
+            let booleans = values
+                .iter()
+                .map(|jsvalue| {
+                    jsvalue
+                        .as_bool()
+                        .ok_or_else(|| JsError::new("Value is not a boolean"))
+                })
+                .collect::<Result<Vec<_>, JsError>>()?;
+            crate::high_level_api::CompactFheBoolList::try_encrypt(&booleans, &public_key.0)
+                .map(CompactFheBoolList)
+                .map_err(into_js_error)
+        })
+    }
+}

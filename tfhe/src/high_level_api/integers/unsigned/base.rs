@@ -16,8 +16,8 @@ use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::{CompressedPublicKey, InternalServerKey};
 use crate::high_level_api::traits::{
     DivRem, FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt,
-    FheTryEncrypt, FheTryTrivialEncrypt, OverflowingAdd, OverflowingSub, RotateLeft,
-    RotateLeftAssign, RotateRight, RotateRightAssign,
+    FheTryEncrypt, FheTryTrivialEncrypt, OverflowingAdd, OverflowingMul, OverflowingSub,
+    RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
 };
 use crate::high_level_api::{global_state, ClientKey, Device, PublicKey};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
@@ -1033,6 +1033,88 @@ where
     /// ```
     fn overflowing_sub(self, other: Clear) -> (Self::Output, FheBool) {
         <&Self as OverflowingSub<Clear>>::overflowing_sub(&self, other)
+    }
+}
+
+impl<Id> OverflowingMul<Self> for &FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = FheUint<Id>;
+
+    /// Multiplies two [FheUint] and returns a boolean indicating overflow.
+    ///
+    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * On overflow the [FheBool] is true, otherwise false
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use tfhe::prelude::*;
+    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    /// #
+    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3434u16, &client_key);
+    /// let b = FheUint16::encrypt(54u16, &client_key);
+    ///
+    /// let (result, overflowed) = (&a).overflowing_mul(&b);
+    /// let (expected_result, expected_overflowed) = 3434u16.overflowing_mul(54u16);
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, expected_result);
+    /// assert_eq!(overflowed.decrypt(&client_key), expected_overflowed);
+    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// ```
+    fn overflowing_mul(self, other: Self) -> (Self::Output, FheBool) {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let (result, overflow) = cpu_key.key.unsigned_overflowing_mul_parallelized(
+                    &self.ciphertext.on_cpu(),
+                    &other.ciphertext.on_cpu(),
+                );
+                (FheUint::new(result), FheBool::new(overflow))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                todo!("Cuda devices do not support overflowing_mul");
+            }
+        })
+    }
+}
+
+impl<Id> OverflowingMul<&Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    /// Multiplies two [FheUint] and returns a boolean indicating overflow.
+    ///
+    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * On overflow the [FheBool] is true, otherwise false
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use tfhe::prelude::*;
+    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    /// #
+    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3434u16, &client_key);
+    /// let b = FheUint16::encrypt(54u16, &client_key);
+    ///
+    /// let (result, overflowed) = a.overflowing_mul(&b);
+    /// let (expected_result, expected_overflowed) = 3434u16.overflowing_mul(54u16);
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, expected_result);
+    /// assert_eq!(overflowed.decrypt(&client_key), expected_overflowed);
+    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// ```
+    fn overflowing_mul(self, other: &Self) -> (Self::Output, FheBool) {
+        <&Self as OverflowingMul<&Self>>::overflowing_mul(&self, other)
     }
 }
 
@@ -2157,6 +2239,9 @@ macro_rules! generic_integer_impl_scalar_div_rem {
 generic_integer_impl_scalar_div_rem!(
     key_method: scalar_div_rem_parallelized,
     fhe_and_scalar_type:
+        (super::FheUint2, u8),
+        (super::FheUint4, u8),
+        (super::FheUint6, u8),
         (super::FheUint8, u8),
         (super::FheUint10, u16),
         (super::FheUint12, u16),
@@ -2165,6 +2250,7 @@ generic_integer_impl_scalar_div_rem!(
         (super::FheUint32, u32),
         (super::FheUint64, u64),
         (super::FheUint128, u128),
+        (super::FheUint160, U256),
         (super::FheUint256, U256),
 );
 

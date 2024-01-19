@@ -173,3 +173,9 @@ pub trait OverflowingSub<Rhs> {
 
     fn overflowing_sub(self, rhs: Rhs) -> (Self::Output, FheBool);
 }
+
+pub trait OverflowingMul<Rhs> {
+    type Output;
+
+    fn overflowing_mul(self, rhs: Rhs) -> (Self::Output, FheBool);
+}
