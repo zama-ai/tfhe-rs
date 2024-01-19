@@ -95,7 +95,10 @@ jobs:
           echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
-      - name: Run all tests
+      - name: Run clippy checks
         run: |
           make clippy_gpu
+
+      - name: Run all tests
+        run: |
           make test_gpu
