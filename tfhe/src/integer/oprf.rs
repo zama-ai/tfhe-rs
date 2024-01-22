@@ -120,8 +120,8 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec_result: i64 = cks.decrypt_signed(&ct_res);
-    /// assert!(dec_result < 1 << (2 * size));
-    /// assert!(dec_result >= -(1 << (2 * size)));
+    /// assert!(dec_result < 1 << (2 * size - 1));
+    /// assert!(dec_result >= -(1 << (2 * size - 1)));
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
