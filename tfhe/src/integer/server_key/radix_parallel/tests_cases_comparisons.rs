@@ -1,3 +1,4 @@
+use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{IntegerKeyKind, ServerKey, I256, U256};
@@ -1276,12 +1277,12 @@ create_parametrized_test!(integer_unchecked_scalar_comparisons_edge {
 
 fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = divide_ceil(128usize, param.message_modulus.0.ilog2() as usize);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
 
-    let clear_0 = rng.gen::<u128>();
-    let ct = cks.encrypt_radix(clear_0, num_block);
+    let clear_unsigned = rng.gen::<u128>();
+    let ct = cks.encrypt_radix(clear_unsigned, num_block);
 
     // Positive scalars
     {
@@ -1327,6 +1328,16 @@ fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
         let scalar = I256::from(i128::MIN) - I256::from(i128::MAX);
         let res = sks.is_scalar_out_of_bounds(&ct, scalar);
         assert_eq!(res, Some(std::cmp::Ordering::Less));
+    }
+
+    // Negative scalar
+    {
+        // Case where scalar will have less blocks when decomposed than
+        // the ciphertext has
+        let bigger_ct = cks.encrypt_signed_radix(-1i128, num_block);
+        let scalar = i64::MIN;
+        let res = sks.is_scalar_out_of_bounds(&bigger_ct, scalar);
+        assert_eq!(res, None);
     }
 }
 
