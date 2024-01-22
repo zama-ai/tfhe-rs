@@ -1,0 +1,142 @@
+# Run PBS benchmarks on an AWS instance with CUDA and return parsed results to Slab CI bot.
+name: PBS GPU benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_id:
+        description: "Instance ID"
+        type: string
+      instance_image_id:
+        description: "Instance AMI ID"
+        type: string
+      instance_type:
+        description: "Instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+      request_id:
+        description: "Slab request ID"
+        type: string
+      # This input is not used in this workflow but still mandatory since a calling workflow could
+      # use it. If a triggering command include a user_inputs field, then the triggered workflow
+      # must include this very input, otherwise the workflow won't be called.
+      # See start_full_benchmarks.yml as example.
+      user_inputs:
+        description: "Type of benchmarks to run"
+        type: string
+        default: "weekly_benchmarks"
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  run-pbs-benchmarks:
+    name: Execute PBS benchmarks in EC2
+    runs-on: ${{ github.event.inputs.runner_name }}
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Instance configuration used
+        run: |
+          echo "IDs: ${{ inputs.instance_id }}"
+          echo "AMI: ${{ inputs.instance_image_id }}"
+          echo "Type: ${{ inputs.instance_type }}"
+          echo "Request ID: ${{ inputs.request_id }}"
+
+      - name: Get benchmark date
+        run: |
+          echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
+
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+
+      - name: Set up home
+        # "Install rust" step require root user to have a HOME directory which is not set.
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
+        with:
+          toolchain: nightly
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Run benchmarks with AVX512
+        run: |
+          make AVX512_SUPPORT=ON bench_pbs_gpu
+
+      - name: Parse results
+        run: |
+          COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
+          COMMIT_HASH="$(git describe --tags --dirty)"
+          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --database tfhe_rs \
+          --hardware ${{ inputs.instance_type }} \
+          --backend gpu \
+          --project-version "${COMMIT_HASH}" \
+          --branch ${{ github.ref_name }} \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${{ env.BENCH_DATE }}" \
+          --name-suffix avx512 \
+          --walk-subdirs \
+          --throughput
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@1eb3cb2b3e0f29609092a73eb033bb759a334595
+        with:
+          name: ${{ github.sha }}_pbs
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          echo "Computing HMac on downloaded artifact"
+          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
+          echo "Sending results to Slab..."
+          curl -v -k \
+          -H "Content-Type: application/json" \
+          -H "X-Slab-Repository: ${{ github.repository }}" \
+          -H "X-Slab-Command: store_data_v2" \
+          -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
+          -d @${{ env.RESULTS_FILENAME }} \
+          ${{ secrets.SLAB_URL }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "PBS GPU benchmarks failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

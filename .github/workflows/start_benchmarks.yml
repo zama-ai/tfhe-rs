@@ -36,6 +36,10 @@ on:
         description: "Run PBS benches"
         type: boolean
         default: true
+      pbs_gpu_bench:
+        description: "Run PBS benches on GPU"
+        type: boolean
+        default: true
       wasm_client_bench:
         description: "Run WASM client benches"
         type: boolean
@@ -50,7 +54,7 @@ jobs:
                    integer_bench, integer_multi_bit_bench,
                    signed_integer_bench, signed_integer_multi_bit_bench,
                    integer_gpu_bench, integer_multi_bit_gpu_bench,
-                   pbs_bench, wasm_client_bench ]
+                   pbs_bench, pbs_gpu_bench, wasm_client_bench ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs
