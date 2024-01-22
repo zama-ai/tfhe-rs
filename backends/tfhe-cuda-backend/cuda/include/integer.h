@@ -32,34 +32,6 @@ enum COMPARISON_TYPE {
 };
 enum IS_RELATIONSHIP { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
 
-/*
- *  generate bivariate accumulator for device pointer
- *    v_stream - cuda stream
- *    acc - device pointer for bivariate accumulator
- *    ...
- *    f - wrapping function with two Torus inputs
- */
-template <typename Torus>
-void generate_device_accumulator_bivariate(
-    cuda_stream_t *stream, Torus *acc_bivariate, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    std::function<Torus(Torus, Torus)> f);
-
-/*
- *  generate univariate accumulator for device pointer
- *    v_stream - cuda stream
- *    acc - device pointer for univariate accumulator
- *    ...
- *    f - evaluating function with one Torus input
- */
-template <typename Torus>
-void generate_device_accumulator(cuda_stream_t *stream, Torus *acc,
-                                 uint32_t glwe_dimension,
-                                 uint32_t polynomial_size,
-                                 uint32_t message_modulus,
-                                 uint32_t carry_modulus,
-                                 std::function<Torus(Torus)> f);
-
 extern "C" {
 void scratch_cuda_full_propagation_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t lwe_dimension,
@@ -226,6 +198,34 @@ void cleanup_cuda_propagate_single_carry_low_latency(cuda_stream_t *stream,
                                                      int8_t **mem_ptr_void);
 }
 
+/*
+ *  generate bivariate accumulator for device pointer
+ *    v_stream - cuda stream
+ *    acc_bivariate - device pointer for bivariate accumulator
+ *    ...
+ *    f - wrapping function with two Torus inputs
+ */
+template <typename Torus>
+void generate_device_accumulator_bivariate(
+    cuda_stream_t *stream, Torus *acc_bivariate, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f);
+
+/*
+ *  generate univariate accumulator for device pointer
+ *    v_stream - cuda stream
+ *    acc - device pointer for univariate accumulator
+ *    ...
+ *    f - evaluating function with one Torus input
+ */
+template <typename Torus>
+void generate_device_accumulator(cuda_stream_t *stream, Torus *acc,
+                                 uint32_t glwe_dimension,
+                                 uint32_t polynomial_size,
+                                 uint32_t message_modulus,
+                                 uint32_t carry_modulus,
+                                 std::function<Torus(Torus)> f);
+
 struct int_radix_params {
   PBS_TYPE pbs_type;
   uint32_t glwe_dimension;
@@ -326,7 +326,7 @@ template <typename Torus> struct int_radix_lut {
     if (allocate_gpu_memory) {
       // Allocate LUT
       // LUT is used as a trivial encryption and must be initialized outside
-      // this contructor
+      // this constructor
       lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size, stream);
 
       lut_indexes = (Torus *)cuda_malloc_async(lut_indexes_size, stream);
