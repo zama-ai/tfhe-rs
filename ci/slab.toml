@@ -138,6 +138,11 @@ workflow = "pbs_benchmark.yml"
 profile = "bench"
 check_run_name = "PBS CPU AWS Benchmarks"
 
+[command.pbs_gpu_bench]
+workflow = "pbs_gpu_benchmark.yml"
+profile = "gpu-bench"
+check_run_name = "PBS GPU AWS Benchmarks"
+
 [command.wasm_client_bench]
 workflow = "wasm_client_benchmark.yml"
 profile = "cpu-small"
