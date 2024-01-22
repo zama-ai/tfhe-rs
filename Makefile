@@ -144,7 +144,7 @@ fmt: install_rs_check_toolchain
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
-	cd backends/tfhe-cuda-backend/implementation/ && ./format_tfhe_cuda_backend.sh
+	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh
 
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
