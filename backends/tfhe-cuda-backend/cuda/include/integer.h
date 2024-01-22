@@ -199,7 +199,7 @@ void cleanup_cuda_propagate_single_carry_low_latency(cuda_stream_t *stream,
 }
 
 /*
- *  generate bivariate accumulator for device pointer
+ *  generate bivariate accumulator (lut) for device pointer
  *    v_stream - cuda stream
  *    acc_bivariate - device pointer for bivariate accumulator
  *    ...
@@ -212,7 +212,7 @@ void generate_device_accumulator_bivariate(
     std::function<Torus(Torus, Torus)> f);
 
 /*
- *  generate univariate accumulator for device pointer
+ *  generate univariate accumulator (lut) for device pointer
  *    v_stream - cuda stream
  *    acc - device pointer for univariate accumulator
  *    ...
@@ -408,7 +408,7 @@ template <typename Torus> struct int_radix_lut {
     return &lut[ind * (params.glwe_dimension + 1) * params.polynomial_size];
   }
 
-  Torus *get_tvi(size_t ind) { return &lut_indexes[ind]; }
+  Torus *get_lut_indexes(size_t ind) { return &lut_indexes[ind]; }
   void release(cuda_stream_t *stream) {
     cuda_drop_async(lut_indexes, stream);
     cuda_drop_async(lwe_indexes, stream);
@@ -437,10 +437,10 @@ template <typename Torus> struct int_sc_prop_memory {
   Torus *generates_or_propagates;
   Torus *step_output;
 
-  // test_vector_array[2] = {lut_does_block_generate_carry,
+  // luts_array[2] = {lut_does_block_generate_carry,
   // lut_does_block_generate_or_propagate}
-  int_radix_lut<Torus> *test_vector_array;
-  int_radix_lut<Torus> *lut_carry_propagation_sum;
+  int_radix_lut<Torus> *luts_array;
+  int_radix_lut<Torus> *luts_carry_propagation_sum;
   int_radix_lut<Torus> *message_acc;
 
   int_radix_params params;
@@ -461,7 +461,7 @@ template <typename Torus> struct int_sc_prop_memory {
     step_output = (Torus *)cuda_malloc_async(
         num_radix_blocks * big_lwe_size_bytes, stream);
 
-    // declare functions for test vector generation
+    // declare functions for lut generation
     auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {
       if (x >= message_modulus)
         return OUTPUT_CARRY::GENERATED;
@@ -477,7 +477,7 @@ template <typename Torus> struct int_sc_prop_memory {
       return OUTPUT_CARRY::NONE;
     };
 
-    auto f_lut_carry_propagation_sum = [](Torus msb, Torus lsb) -> Torus {
+    auto f_luts_carry_propagation_sum = [](Torus msb, Torus lsb) -> Torus {
       if (msb == OUTPUT_CARRY::PROPAGATED)
         return lsb;
       return msb;
@@ -487,18 +487,18 @@ template <typename Torus> struct int_sc_prop_memory {
       return x % message_modulus;
     };
 
-    // create test vector objects
-    test_vector_array = new int_radix_lut<Torus>(
+    // create lut objects
+    luts_array = new int_radix_lut<Torus>(
         stream, params, 2, num_radix_blocks, allocate_gpu_memory);
-    lut_carry_propagation_sum = new struct int_radix_lut<Torus>(
+    luts_carry_propagation_sum = new struct int_radix_lut<Torus>(
         stream, params, 1, num_radix_blocks, allocate_gpu_memory);
     message_acc = new struct int_radix_lut<Torus>(
         stream, params, 1, num_radix_blocks, allocate_gpu_memory);
 
-    auto lut_does_block_generate_carry = test_vector_array->get_lut(0);
-    auto lut_does_block_generate_or_propagate = test_vector_array->get_lut(1);
+    auto lut_does_block_generate_carry = luts_array->get_lut(0);
+    auto lut_does_block_generate_or_propagate = luts_array->get_lut(1);
 
-    // generate test vectors
+    // generate luts (aka accumulators)
     generate_device_accumulator<Torus>(
         stream, lut_does_block_generate_carry, glwe_dimension, polynomial_size,
         message_modulus, carry_modulus, f_lut_does_block_generate_carry);
@@ -507,12 +507,12 @@ template <typename Torus> struct int_sc_prop_memory {
         polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_or_propagate);
     cuda_set_value_async<Torus>(&(stream->stream),
-                                test_vector_array->get_tvi(1), 1,
+                                luts_array->get_lut_indexes(1), 1,
                                 num_radix_blocks - 1);
 
     generate_device_accumulator_bivariate<Torus>(
-        stream, lut_carry_propagation_sum->lut, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_lut_carry_propagation_sum);
+        stream, luts_carry_propagation_sum->lut, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_luts_carry_propagation_sum);
 
     generate_device_accumulator<Torus>(stream, message_acc->lut, glwe_dimension,
                                        polynomial_size, message_modulus,
@@ -523,12 +523,12 @@ template <typename Torus> struct int_sc_prop_memory {
     cuda_drop_async(generates_or_propagates, stream);
     cuda_drop_async(step_output, stream);
 
-    test_vector_array->release(stream);
-    lut_carry_propagation_sum->release(stream);
+    luts_array->release(stream);
+    luts_carry_propagation_sum->release(stream);
     message_acc->release(stream);
 
-    delete test_vector_array;
-    delete lut_carry_propagation_sum;
+    delete luts_array;
+    delete luts_carry_propagation_sum;
     delete message_acc;
   }
 };
@@ -538,9 +538,9 @@ template <typename Torus> struct int_mul_memory {
   Torus *block_mul_res;
   Torus *small_lwe_vector;
   Torus *lwe_pbs_out_array;
-  int_radix_lut<Torus> *test_vector_array; // lsb msb
-  int_radix_lut<Torus> *test_vector_message;
-  int_radix_lut<Torus> *test_vector_carry;
+  int_radix_lut<Torus> *luts_array; // lsb msb
+  int_radix_lut<Torus> *luts_message;
+  int_radix_lut<Torus> *luts_carry;
   int_sc_prop_memory<Torus> *scp_mem;
   int_radix_params params;
 
@@ -583,18 +583,18 @@ template <typename Torus> struct int_mul_memory {
                                    stream);
 
     // create int_radix_lut objects for lsb, msb, message, carry
-    // test_vector_array -> lut = {lsb_acc, msb_acc}
-    test_vector_array = new int_radix_lut<Torus>(
+    // luts_array -> lut = {lsb_acc, msb_acc}
+    luts_array = new int_radix_lut<Torus>(
         stream, params, 2, total_block_count, allocate_gpu_memory);
-    test_vector_message = new int_radix_lut<Torus>(
-        stream, params, 1, total_block_count, test_vector_array);
-    test_vector_carry = new int_radix_lut<Torus>(
-        stream, params, 1, total_block_count, test_vector_array);
+    luts_message = new int_radix_lut<Torus>(
+        stream, params, 1, total_block_count, luts_array);
+    luts_carry = new int_radix_lut<Torus>(
+        stream, params, 1, total_block_count, luts_array);
 
-    auto lsb_acc = test_vector_array->get_lut(0);
-    auto msb_acc = test_vector_array->get_lut(1);
-    auto message_acc = test_vector_message->get_lut(0);
-    auto carry_acc = test_vector_carry->get_lut(0);
+    auto lsb_acc = luts_array->get_lut(0);
+    auto msb_acc = luts_array->get_lut(1);
+    auto message_acc = luts_message->get_lut(0);
+    auto carry_acc = luts_carry->get_lut(0);
 
     // define functions for each accumulator
     auto lut_f_lsb = [message_modulus](Torus x, Torus y) -> Torus {
@@ -624,12 +624,12 @@ template <typename Torus> struct int_mul_memory {
         stream, msb_acc, glwe_dimension, polynomial_size, message_modulus,
         carry_modulus, lut_f_msb);
 
-    // tvi for test_vector_array should be reinitialized
+    // lut_indexes for luts_array should be reinitialized
     // first lsb_vector_block_count value should reference to lsb_acc
     // last msb_vector_block_count values should reference to msb_acc
-    // for message and carry default tvi is fine
+    // for message and carry default lut_indexes is fine
     cuda_set_value_async<Torus>(
-        &(stream->stream), test_vector_array->get_tvi(lsb_vector_block_count),
+        &(stream->stream), luts_array->get_lut_indexes(lsb_vector_block_count),
         1, msb_vector_block_count);
   }
 
@@ -639,15 +639,15 @@ template <typename Torus> struct int_mul_memory {
     cuda_drop_async(small_lwe_vector, stream);
     cuda_drop_async(lwe_pbs_out_array, stream);
 
-    test_vector_array->release(stream);
-    test_vector_message->release(stream);
-    test_vector_carry->release(stream);
+    luts_array->release(stream);
+    luts_message->release(stream);
+    luts_carry->release(stream);
 
     scp_mem->release(stream);
 
-    delete test_vector_array;
-    delete test_vector_message;
-    delete test_vector_carry;
+    delete luts_array;
+    delete luts_message;
+    delete luts_carry;
 
     delete scp_mem;
   }
@@ -681,12 +681,12 @@ template <typename Torus> struct int_shift_buffer {
       // LUT
       // pregenerate lut vector and indexes
       // lut for left shift
-      // here we generate 'num_bits_in_block' times test_vector
+      // here we generate 'num_bits_in_block' times lut
       // one for each 'shift_within_block' = 'shift' % 'num_bits_in_block'
-      // even though test_vector_left contains 'num_bits_in_block' lut
-      // tvi will have indexes for single lut only and those indexes will be 0
+      // even though lut_left contains 'num_bits_in_block' lut
+      // lut_indexes will have indexes for single lut only and those indexes will be 0
       // it means for pbs corresponding lut should be selected and pass along
-      // tvi filled with zeros
+      // lut_indexes filled with zeros
 
       // calculate bivariate lut for each 'shift_within_block'
       for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
@@ -738,11 +738,11 @@ template <typename Torus> struct int_shift_buffer {
         lut_buffers_bivariate.push_back(cur_lut_bivariate);
       }
 
-      // here we generate 'message_modulus' times test_vector
+      // here we generate 'message_modulus' times lut
       // one for each 'shift'
-      // tvi will have indexes for single lut only and those indexes will be 0
+      // lut_indexes will have indexes for single lut only and those indexes will be 0
       // it means for pbs corresponding lut should be selected and pass along
-      // tvi filled with zeros
+      // lut_indexes filled with zeros
 
       // calculate lut for each 'shift'
       for (int shift = 0; shift < params.message_modulus; shift++) {

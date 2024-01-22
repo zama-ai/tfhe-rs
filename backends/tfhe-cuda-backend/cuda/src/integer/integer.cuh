@@ -22,7 +22,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
                  uint32_t lwe_dimension, uint32_t polynomial_size,
                  uint32_t base_log, uint32_t level_count,
                  uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
-                 uint32_t num_lut_vectors, uint32_t lwe_idx,
+                 uint32_t num_luts, uint32_t lwe_idx,
                  uint32_t max_shared_memory, PBS_TYPE pbs_type) {
   if (sizeof(Torus) == sizeof(uint32_t)) {
     // 32 bits
@@ -37,7 +37,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_lut_vectors, lwe_idx, max_shared_memory);
+          num_luts, lwe_idx, max_shared_memory);
       break;
     case AMORTIZED:
       cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
@@ -45,7 +45,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_lut_vectors, lwe_idx, max_shared_memory);
+          num_luts, lwe_idx, max_shared_memory);
       break;
     default:
       break;
@@ -59,7 +59,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, grouping_factor, base_log, level_count,
-          input_lwe_ciphertext_count, num_lut_vectors, lwe_idx,
+          input_lwe_ciphertext_count, num_luts, lwe_idx,
           max_shared_memory);
       break;
     case LOW_LAT:
@@ -68,7 +68,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_lut_vectors, lwe_idx, max_shared_memory);
+          num_luts, lwe_idx, max_shared_memory);
       break;
     case AMORTIZED:
       cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
@@ -76,7 +76,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_lut_vectors, lwe_idx, max_shared_memory);
+          num_luts, lwe_idx, max_shared_memory);
       break;
     default:
       break;
@@ -303,7 +303,7 @@ void generate_device_accumulator_bivariate(
   generate_lookup_table_bivariate<Torus>(h_lut, glwe_dimension, polynomial_size,
                                          message_modulus, carry_modulus, f);
 
-  // copy host lut and tvi to device
+  // copy host lut and lut_indexes to device
   cuda_memcpy_async_to_gpu(
       acc_bivariate, h_lut,
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream);
@@ -335,7 +335,7 @@ void generate_device_accumulator(cuda_stream_t *stream, Torus *acc,
   generate_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
                                message_modulus, carry_modulus, f);
 
-  // copy host lut and tvi to device
+  // copy host lut and lut_indexes to device
   cuda_memcpy_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream);
@@ -370,13 +370,13 @@ void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
   auto generates_or_propagates = mem->generates_or_propagates;
   auto step_output = mem->step_output;
 
-  auto test_vector_array = mem->test_vector_array;
-  auto lut_carry_propagation_sum = mem->lut_carry_propagation_sum;
+  auto luts_array = mem->luts_array;
+  auto luts_carry_propagation_sum = mem->luts_carry_propagation_sum;
   auto message_acc = mem->message_acc;
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       stream, generates_or_propagates, lwe_array, bsk, ksk, num_blocks,
-      test_vector_array);
+      luts_array);
 
   // compute prefix sum with hillis&steele
 
@@ -392,7 +392,7 @@ void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         stream, cur_blocks, cur_blocks, prev_blocks, bsk, ksk, cur_total_blocks,
-        lut_carry_propagation_sum);
+        luts_carry_propagation_sum);
 
     cuda_memcpy_async_gpu_to_gpu(&generates_or_propagates[space * big_lwe_size],
                                  cur_blocks,
@@ -414,7 +414,7 @@ void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
 /*
  * input_blocks: input radix ciphertext propagation will happen inplace
  * acc_message_carry: list of two lut s, [(message_acc), (carry_acc)]
- * tvi_message_carry: tvi for message and carry, should always be  {0, 1}
+ * lut_indexes_message_carry: lut_indexes for message and carry, should always be  {0, 1}
  * small_lwe_vector: output of keyswitch should have
  *     size = 2 * (lwe_dimension + 1) * sizeof(Torus)
  * big_lwe_vector: output of pbs should have

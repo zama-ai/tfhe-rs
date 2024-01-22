@@ -206,7 +206,7 @@ __host__ void host_fast_multi_bit_pbs(
     Torus *lwe_input_indexes, uint64_t *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_lut_vectors, uint32_t lwe_idx,
+    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(stream->gpu_index);
 
