@@ -1,5 +1,3 @@
-use std::ops::Rem;
-
 use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
@@ -43,7 +41,6 @@ impl ServerKey {
     pub fn smart_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -85,7 +82,6 @@ impl ServerKey {
     pub fn smart_scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -135,7 +131,6 @@ impl ServerKey {
     pub fn scalar_rotate_right_parallelized<T, Scalar>(&self, ct_right: &T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct_right.clone();
@@ -174,7 +169,6 @@ impl ServerKey {
     pub fn scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -224,7 +218,6 @@ impl ServerKey {
     pub fn unchecked_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
@@ -275,7 +268,6 @@ impl ServerKey {
         n: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to
@@ -290,9 +282,7 @@ impl ServerKey {
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_message * ct.blocks().len() as u64;
 
-        let n = n % Scalar::cast_from(total_num_bits);
-        let n = u64::cast_from(n);
-
+        let n = u64::cast_from(n) % total_num_bits;
         if n == 0 {
             return;
         }
@@ -382,7 +372,6 @@ impl ServerKey {
     pub fn smart_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -424,7 +413,6 @@ impl ServerKey {
     pub fn smart_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -474,7 +462,6 @@ impl ServerKey {
     pub fn scalar_rotate_left_parallelized<T, Scalar>(&self, ct_left: &T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct_left.clone();
@@ -513,7 +500,6 @@ impl ServerKey {
     pub fn scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -563,7 +549,6 @@ impl ServerKey {
     pub fn unchecked_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
@@ -611,7 +596,6 @@ impl ServerKey {
     pub fn unchecked_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to
@@ -626,9 +610,7 @@ impl ServerKey {
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_message * ct.blocks().len() as u64;
 
-        let n = u64::cast_from(n);
-        let n = n % total_num_bits;
-
+        let n = u64::cast_from(n) % total_num_bits;
         if n == 0 {
             return;
         }

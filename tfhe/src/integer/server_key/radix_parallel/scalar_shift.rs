@@ -1,5 +1,3 @@
-use std::ops::Rem;
-
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
@@ -50,7 +48,6 @@ impl ServerKey {
     pub fn unchecked_scalar_right_shift_parallelized<T, Scalar>(&self, ct: &T, shift: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
@@ -97,7 +94,6 @@ impl ServerKey {
         shift: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if T::IS_SIGNED {
@@ -116,7 +112,6 @@ impl ServerKey {
     ) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
@@ -130,7 +125,6 @@ impl ServerKey {
         shift: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to shift
@@ -147,8 +141,7 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = shift % Scalar::cast_from(total_num_bits);
-        let shift = u64::cast_from(shift);
+        let shift = u64::cast_from(shift) % total_num_bits;
         if shift == 0 {
             return;
         }
@@ -249,7 +242,6 @@ impl ServerKey {
         shift: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to shift
@@ -266,8 +258,7 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = shift % Scalar::cast_from(total_num_bits);
-        let shift = u64::cast_from(shift);
+        let shift = u64::cast_from(shift) % total_num_bits;
         if shift == 0 {
             return;
         }
@@ -405,7 +396,6 @@ impl ServerKey {
     pub fn scalar_right_shift_parallelized<T, Scalar>(&self, ct: &T, shift: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
@@ -451,7 +441,6 @@ impl ServerKey {
     pub fn scalar_right_shift_assign_parallelized<T, Scalar>(&self, ct: &mut T, shift: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
@@ -507,7 +496,6 @@ impl ServerKey {
     ) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct_left.clone();
@@ -556,7 +544,6 @@ impl ServerKey {
         shift: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to shift
@@ -573,8 +560,7 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = shift % Scalar::cast_from(total_num_bits);
-        let shift = u64::cast_from(shift);
+        let shift = u64::cast_from(shift) % total_num_bits;
         if shift == 0 {
             return;
         }
@@ -686,7 +672,6 @@ impl ServerKey {
     pub fn scalar_left_shift_parallelized<T, Scalar>(&self, ct_left: &T, shift: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         let mut result = ct_left.clone();
@@ -732,7 +717,6 @@ impl ServerKey {
     pub fn scalar_left_shift_assign_parallelized<T, Scalar>(&self, ct: &mut T, shift: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
         u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {

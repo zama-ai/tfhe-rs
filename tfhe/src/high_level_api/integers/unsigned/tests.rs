@@ -809,3 +809,31 @@ fn test_if_then_else() {
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
 }
+
+#[test]
+fn test_scalar_shift_when_clear_type_is_small() {
+    // This is a regression tests
+    // The goal is to make sure that doing a scalar shift / rotate
+    // with a clear type that does not have enough bits to represent
+    // the number of bits of the fhe type correctly works.
+
+    let config = ConfigBuilder::default().build();
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
+
+    let mut a = FheUint256::encrypt(U256::ONE, &client_key);
+    // The fhe type has 256 bits, the clear type is u8,
+    // a u8 cannot represent the value '256'.
+    // This used to result in the shift/rotate panicking
+    let clear = 1u8;
+
+    let _ = &a << clear;
+    let _ = &a >> clear;
+    let _ = (&a).rotate_left(clear);
+    let _ = (&a).rotate_right(clear);
+
+    a <<= clear;
+    a >>= clear;
+    a.rotate_left_assign(clear);
+    a.rotate_right_assign(clear);
+}
