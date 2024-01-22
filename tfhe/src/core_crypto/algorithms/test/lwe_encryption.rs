@@ -167,24 +167,30 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
 
             let plaintext = Plaintext(msg * delta);
 
-            encrypt_lwe_ciphertext(
-                &lwe_sk,
-                &mut ct,
-                plaintext,
-                lwe_modular_std_dev,
-                &mut rsc.encryption_random_generator,
-            );
+            // This may look silly, but this is to catch a regression where the previous content of
+            // the ciphertext was wrongly used during encryption, re-encrypting in a ciphertext
+            // where we already encrypted allows to check the encryption is valid even if the
+            // destination LWE is dirty
+            for _ in 0..2 {
+                encrypt_lwe_ciphertext(
+                    &lwe_sk,
+                    &mut ct,
+                    plaintext,
+                    lwe_modular_std_dev,
+                    &mut rsc.encryption_random_generator,
+                );
 
-            assert!(check_encrypted_content_respects_mod(
-                &ct,
-                ciphertext_modulus
-            ));
+                assert!(check_encrypted_content_respects_mod(
+                    &ct,
+                    ciphertext_modulus
+                ));
 
-            let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
+                let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
-            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            assert_eq!(msg, decoded);
+                assert_eq!(msg, decoded);
+            }
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
