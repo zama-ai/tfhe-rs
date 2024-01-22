@@ -19,7 +19,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_lut_vectors, uint32_t lwe_idx,
+    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
 
   checks_multi_bit_pbs(polynomial_size);
@@ -38,7 +38,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<256>>(
@@ -50,7 +50,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -67,7 +67,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<512>>(
@@ -79,7 +79,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -96,7 +96,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<1024>>(
@@ -108,7 +108,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -125,7 +125,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<2048>>(
@@ -137,7 +137,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -154,7 +154,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<4096>>(
@@ -166,7 +166,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -183,7 +183,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<8192>>(
@@ -195,7 +195,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
@@ -212,7 +212,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     } else {
       host_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<16384>>(
@@ -224,7 +224,7 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<uint64_t *>(bootstrapping_key), pbs_buffer,
           glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-          base_log, level_count, num_samples, num_lut_vectors, lwe_idx,
+          base_log, level_count, num_samples, num_luts, lwe_idx,
           max_shared_memory, lwe_chunk_size);
     }
     break;
