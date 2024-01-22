@@ -94,10 +94,8 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     // generate an error from the normal distribution described by std_dev
     let noise = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
     // compute the multisum between the secret key and the mask
-    let mask_key_dot_product = (*output_body.data).wrapping_add(slice_wrapping_dot_product(
-        output_mask.as_ref(),
-        lwe_secret_key.as_ref(),
-    ));
+    let mask_key_dot_product =
+        slice_wrapping_dot_product(output_mask.as_ref(), lwe_secret_key.as_ref());
 
     // Store sum(ai * si) + delta * m + e in the body
     *output_body.data = mask_key_dot_product
