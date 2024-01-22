@@ -12,7 +12,7 @@ fn main() {
                 Only Ubuntu is supported by tfhe-cuda-backend at this time. Build may fail\n"
             );
         }
-        let dest = cmake::build("../implementation");
+        let dest = cmake::build("cuda");
         println!("cargo:rustc-link-search=native={}", dest.display());
         println!("cargo:rustc-link-lib=static=tfhe_cuda_backend");
         println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
