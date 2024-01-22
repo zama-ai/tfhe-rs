@@ -368,7 +368,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory) {
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
 
   checks_bootstrap_low_latency(32, glwe_dimension, level_count, base_log,
                                polynomial_size, num_samples);
@@ -387,7 +387,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<256>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -398,7 +398,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 512:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -413,7 +413,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<512>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -424,7 +424,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 1024:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -439,7 +439,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<1024>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -450,7 +450,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 2048:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -465,7 +465,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<2048>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -476,7 +476,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 4096:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -491,7 +491,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<4096>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -502,7 +502,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 8192:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -517,7 +517,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<8192>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -528,7 +528,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 16384:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<
@@ -543,7 +543,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint32_t, Degree<16384>>(
           stream, static_cast<uint32_t *>(lwe_array_out),
@@ -554,7 +554,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           static_cast<uint32_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   default:
     break;
@@ -572,11 +572,11 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
  * - `gpu_index` is the index of the GPU to be used in the kernel launch
  *  - lwe_array_out: output batch of num_samples bootstrapped ciphertexts c =
  * (a0,..an-1,b) where n is the LWE dimension
- *  - lut_vector: should hold as many test vectors of size polynomial_size
+ *  - lut_vector: should hold as many luts of size polynomial_size
  * as there are input ciphertexts, but actually holds
- * num_lut_vectors vectors to reduce memory usage
+ * num_luts vectors to reduce memory usage
  *  - lut_vector_indexes: stores the index corresponding to
- * which test vector to use for each sample in
+ * which lut to use for each sample in
  * lut_vector
  *  - lwe_array_in: input batch of num_samples LWE ciphertexts, containing n
  * mask values + 1 body value
@@ -588,7 +588,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
  * bsk is thus a tensor of size (k+1)^2.l.N.n
  * where l is the number of decomposition levels and
  * k is the GLWE dimension, N is the polynomial size for
- * GLWE. The polynomial size for GLWE and the test vector
+ * GLWE. The polynomial size for GLWE and the lut
  * are the same because they have to be in the same ring
  * to be multiplied.
  * - lwe_dimension: size of the Torus vector used to encrypt the input
@@ -596,12 +596,12 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
  * - glwe_dimension: size of the polynomial vector used to encrypt the LUT
  * GLWE ciphertexts - referred to as k above. Only the value 1 is supported for
  * this parameter.
- * - polynomial_size: size of the test polynomial (test vector) and size of the
+ * - polynomial_size: size of the test polynomial (lut) and size of the
  * GLWE polynomial (~1024)
  * - base_log: log base used for the gadget matrix - B = 2^base_log (~8)
  * - level_count: number of decomposition levels in the gadget matrix (~4)
  * - num_samples: number of encrypted input messages
- * - num_lut_vectors: parameter to set the actual number of test vectors to be
+ * - num_luts: parameter to set the actual number of luts to be
  * used
  * - lwe_idx: the index of the LWE input to consider for the GPU of index
  * gpu_index. In case of multi-GPU computing, it is assumed that only a part of
@@ -643,7 +643,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory) {
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
   checks_bootstrap_low_latency(64, glwe_dimension, level_count, base_log,
                                polynomial_size, num_samples);
 
@@ -661,7 +661,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<256>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -672,7 +672,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 512:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
@@ -687,7 +687,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<512>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -698,7 +698,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 1024:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -713,7 +713,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<1024>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -724,7 +724,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 2048:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -739,7 +739,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<2048>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -750,7 +750,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 4096:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -765,7 +765,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<4096>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -776,7 +776,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 8192:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint32_t,
@@ -791,7 +791,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<8192>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -802,7 +802,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     break;
   case 16384:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<
@@ -817,7 +817,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
     else
       host_bootstrap_low_latency<uint64_t, Degree<16384>>(
           stream, static_cast<uint64_t *>(lwe_array_out),
@@ -828,7 +828,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<uint64_t *>(lwe_input_indexes),
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-          num_lut_vectors, max_shared_memory);
+          num_luts, max_shared_memory);
   default:
     break;
   }

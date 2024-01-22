@@ -24,10 +24,10 @@ template <typename Torus, class params, sharedMemDegree SMD>
  * Uses shared memory to increase performance
  *  - lwe_array_out: output batch of num_samples bootstrapped ciphertexts c =
  * (a0,..an-1,b) where n is the LWE dimension
- *  - lut_vector: should hold as many test vectors of size polynomial_size
+ *  - lut_vector: should hold as many luts of size polynomial_size
  * as there are input ciphertexts, but actually holds
- * num_lut_vectors vectors to reduce memory usage
- *  - lut_vector_indexes: stores the index corresponding to which test vector
+ * num_luts vectors to reduce memory usage
+ *  - lut_vector_indexes: stores the index corresponding to which lut
  * to use for each sample in lut_vector
  *  - lwe_array_in: input batch of num_samples LWE ciphertexts, containing n
  * mask values + 1 body value
@@ -37,7 +37,7 @@ template <typename Torus, class params, sharedMemDegree SMD>
  * == NOSM or PARTIALSM)
  *  - lwe_dimension: size of the Torus vector used to encrypt the input
  * LWE ciphertexts - referred to as n above (~ 600)
- *  - polynomial_size: size of the test polynomial (test vector) and size of the
+ *  - polynomial_size: size of the test polynomial (lut) and size of the
  * GLWE polynomial (~1024)
  *  - base_log: log base used for the gadget matrix - B = 2^base_log (~8)
  *  - level_count: number of decomposition levels in the gadget matrix (~4)
@@ -288,7 +288,7 @@ __host__ void host_bootstrap_amortized(
     Torus *lwe_input_indexes, double2 *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t num_lut_vectors,
+    uint32_t input_lwe_ciphertext_count, uint32_t num_luts,
     uint32_t lwe_idx, uint32_t max_shared_memory) {
 
   cudaSetDevice(stream->gpu_index);

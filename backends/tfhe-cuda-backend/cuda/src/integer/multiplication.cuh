@@ -282,21 +282,21 @@ __host__ void host_integer_mult_radix_kb(
   // glwe_dimension * polynomial_size + 1 coefficients
   auto lwe_pbs_out_array = mem_ptr->lwe_pbs_out_array;
 
-  // it contains two test vector, first for lsb extraction,
+  // it contains two lut, first for lsb extraction,
   // second for msb extraction, with total length =
   // 2 * (glwe_dimension + 1) * polynomial_size
-  auto test_vector_array = mem_ptr->test_vector_array;
+  auto luts_array = mem_ptr->luts_array;
 
   // accumulator to extract message
   // with length (glwe_dimension + 1) * polynomial_size
-  auto test_vector_message = mem_ptr->test_vector_message;
+  auto luts_message = mem_ptr->luts_message;
 
   // accumulator to extract carry
   // with length (glwe_dimension + 1) * polynomial_size
-  auto test_vector_carry = mem_ptr->test_vector_carry;
+  auto luts_carry = mem_ptr->luts_carry;
 
   // to be used as default indexing
-  auto lwe_indexes = test_vector_array->lwe_indexes;
+  auto lwe_indexes = luts_array->lwe_indexes;
 
   auto vector_result_lsb = &vector_result_sb[0];
   auto vector_result_msb =
@@ -316,7 +316,7 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       stream, block_mul_res, block_mul_res, vector_result_sb, bsk, ksk,
-      total_block_count, test_vector_array);
+      total_block_count, luts_array);
 
   vector_result_lsb = &block_mul_res[0];
   vector_result_msb = &block_mul_res[lsb_vector_block_count *
@@ -409,17 +409,17 @@ __host__ void host_integer_mult_radix_kb(
         mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, total_copied);
 
     execute_pbs<Torus>(
-        stream, message_blocks_vector, lwe_indexes, test_vector_message->lut,
-        test_vector_message->lut_indexes, small_lwe_vector, lwe_indexes, bsk,
-        test_vector_message->pbs_buffer, glwe_dimension, lwe_dimension,
+        stream, message_blocks_vector, lwe_indexes, luts_message->lut,
+        luts_message->lut_indexes, small_lwe_vector, lwe_indexes, bsk,
+        luts_message->pbs_buffer, glwe_dimension, lwe_dimension,
         polynomial_size, mem_ptr->params.pbs_base_log,
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
         message_count, 1, 0, max_shared_memory, mem_ptr->params.pbs_type);
 
     execute_pbs<Torus>(stream, carry_blocks_vector, lwe_indexes,
-                       test_vector_carry->lut, test_vector_carry->lut_indexes,
+                       luts_carry->lut, luts_carry->lut_indexes,
                        &small_lwe_vector[message_count * (lwe_dimension + 1)],
-                       lwe_indexes, bsk, test_vector_carry->pbs_buffer,
+                       lwe_indexes, bsk, luts_carry->pbs_buffer,
                        glwe_dimension, lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, carry_count, 1, 0,
@@ -455,10 +455,10 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       stream, vector_result_sb, radix_lwe_out, bsk, ksk, num_blocks,
-      test_vector_message);
+      luts_message);
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       stream, &block_mul_res[big_lwe_size], radix_lwe_out, bsk, ksk, num_blocks,
-      test_vector_carry);
+      luts_carry);
 
   cuda_memset_async(block_mul_res, 0, big_lwe_size * sizeof(Torus), stream);
 
@@ -544,16 +544,16 @@ void apply_lookup_table(Torus *input_ciphertexts, Torus *output_ciphertexts,
     // when message and carry have tobe extracted
     //  for first message_count blocks we need message_acc
     //  for last carry_count blocks we need carry_acc
-    Torus *cur_tvi;
+    Torus *cur_lut_indexes;
     if (lsb_msb_mode) {
-      cur_tvi = (big_lwe_start_index < lsb_message_blocks_count)
-                    ? mem_ptr->tvi_lsb_multi_gpu[i]
-                    : mem_ptr->tvi_msb_multi_gpu[i];
+      cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
+                    ? mem_ptr->lut_indexes_lsb_multi_gpu[i]
+                    : mem_ptr->lut_indexes_msb_multi_gpu[i];
 
     } else {
-      cur_tvi = (big_lwe_start_index < lsb_message_blocks_count)
-                    ? mem_ptr->tvi_message_multi_gpu[i]
-                    : mem_ptr->tvi_carry_multi_gpu[i];
+      cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
+                    ? mem_ptr->lut_indexes_message_multi_gpu[i]
+                    : mem_ptr->lut_indexes_carry_multi_gpu[i];
     }
 
     // execute keyswitch on a current gpu with corresponding input and output
@@ -568,7 +568,7 @@ void apply_lookup_table(Torus *input_ciphertexts, Torus *output_ciphertexts,
     // execute pbs on a current gpu with corresponding input and output
     cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
         this_stream, i, mem_ptr->pbs_output_multi_gpu[i],
-        mem_ptr->test_vector_multi_gpu[i], cur_tvi,
+        mem_ptr->lut_multi_gpu[i], cur_lut_indexes,
         mem_ptr->pbs_input_multi_gpu[i], mem_ptr->bsk_multi_gpu[i],
         mem_ptr->pbs_buffer_multi_gpu[i], lwe_dimension, glwe_dimension,
         polynomial_size, grouping_factor, pbs_base_log, pbs_level,

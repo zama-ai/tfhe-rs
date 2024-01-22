@@ -40,7 +40,7 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
 void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
@@ -48,7 +48,7 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
 void cleanup_cuda_bootstrap_amortized(cuda_stream_t *stream,
                                       int8_t **pbs_buffer);
@@ -71,7 +71,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
 void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
@@ -79,7 +79,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_lut_vectors, uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
 void cleanup_cuda_bootstrap_low_latency(cuda_stream_t *stream,
                                         int8_t **pbs_buffer);
