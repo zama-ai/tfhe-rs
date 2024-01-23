@@ -32,11 +32,17 @@ mod test_cpu_doc {
         "../docs/how_to/overflow_operations.md",
         how_to_detect_overflow
     );
+    doctest!(
+        "../docs/how_to/rayon_crate.md",
+        how_to_rayon_crate
+    );
+
     //FINE GRAINED API
     doctest!(
         "../docs/fine_grained_api/quick_start.md",
         fine_grained_api_quick_start
     );
+    
     // fine_grained_api/Boolean
     doctest!(
         "../docs/fine_grained_api/Boolean/operations.md",
