@@ -4,6 +4,7 @@ env:
   CARGO_TERM_COLOR: always
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.

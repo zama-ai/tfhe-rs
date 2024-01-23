@@ -6,6 +6,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
