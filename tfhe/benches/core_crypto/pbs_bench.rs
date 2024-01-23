@@ -128,6 +128,7 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_4_KS_PBS,
         ]
         .iter()
         .map(|params| {
@@ -311,30 +312,32 @@ fn multi_bit_pbs<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let id = format!("{bench_name}_{name}_parallelized");
-        bench_group.bench_function(&id, |b| {
-            b.iter(|| {
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &lwe_ciphertext_in,
-                    &mut out_pbs_ct,
-                    &accumulator.as_view(),
-                    &multi_bit_bsk,
-                    ThreadCount(10),
-                );
-                black_box(&mut out_pbs_ct);
-            })
-        });
+        for thread_count in 10..25 {
+            let id = format!("{bench_name}_{name}_parallelized_{thread_count}_threads");
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator.as_view(),
+                        &multi_bit_bsk,
+                        ThreadCount(thread_count),
+                    );
+                    black_box(&mut out_pbs_ct);
+                })
+            });
 
-        let bit_size = params.message_modulus.unwrap().ilog2();
-        write_to_json(
-            &id,
-            *params,
-            name,
-            "pbs",
-            &OperatorType::Atomic,
-            bit_size,
-            vec![bit_size],
-        );
+            let bit_size = params.message_modulus.unwrap().ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "pbs",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
     }
 }
 

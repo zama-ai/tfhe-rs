@@ -208,6 +208,28 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameter
         deterministic_execution: false,
     };
 
+// Group 4
+//   p,log(nu),  k,  N,    n, br_l,br_b, ks_l,ks_b,  cost
+//   2,      2,  3,  9,  772,    1,  17,    2,   6, 20775164
+pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_4_KS_PBS: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(772),
+        glwe_dimension: GlweDimension(3),
+        polynomial_size: PolynomialSize(512),
+        lwe_modular_std_dev: StandardDev(0.000005915594083804978),
+        glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+        pbs_base_log: DecompositionBaseLog(17),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(6),
+        ks_level: DecompositionLevelCount(2),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(2),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(4),
+        deterministic_execution: false,
+    };
+
 // Convenience aliases
 pub const DEFAULT_MULTI_BIT_GROUP_2: MultiBitPBSParameters =
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
