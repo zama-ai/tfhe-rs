@@ -138,8 +138,10 @@ libraries.
 
 ## Need support?
 <a target="_blank" href="https://community.zama.ai">
-  <img src="https://user-images.githubusercontent.com/5758427/231115030-21195b55-2629-4c01-9809-be5059243999.png">
+  <img src="https://github.com/zama-ai/tfhe-rs/assets/157474013/33d856dc-f25d-454b-a010-af12bff2aa7d">
 </a>
+
+
 
 ## Citing TFHE-rs
 
