@@ -27,6 +27,7 @@
 * [Use the C API](how_to/c_api.md)
 * [Use the JS on WASM API](how_to/js_on_wasm_api.md)
 * [Use multi-threading using the rayon crate](how_to/rayon_crate.md)
+* [Debug](how_to/debug.md)
 
 ## Fine-grained APIs
 * [Quick Start](fine_grained_api/quick_start.md)
