@@ -60,10 +60,9 @@ jobs:
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install latest stable
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
         with:
           toolchain: stable
-          default: true
 
       - name: Run concrete-csprng tests
         run: |
