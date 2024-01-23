@@ -1,16 +1,16 @@
-# Making rayon and tfhe-rs work together
+# Making Rayon And TFHE-RS Work Together
 
-[rayon](https://crates.io/crates/rayon) is a popular create to easily write multi-threaded code in Rust.
+[rayon](https://crates.io/crates/rayon) is a popular crate to easily write multi-threaded code in Rust.
 
-It is possible to use rayon to write multi-threaded tfhe-rs code. However due to internal details of `rayon` and
-`tfhe-rs`, there is some special setup that needs to be done.
+It is possible to use rayon to write multi-threaded TFHE-rs code. However due to internal details of `rayon` and
+`TFHE-rs`, there is some special setup that needs to be done.
 
 ## Single Client Application
 
-### The problem 
+### The Problem 
 
 The high level api requires to call `set_server_key` on each thread where computations needs to be done.
-So a first attempt at using rayon with tfhe-rs might look like this:
+So a first attempt at using rayon with `TFHE-rs` might look like this:
 
 ```rust
 use rayon::prelude::*;
@@ -46,10 +46,10 @@ fn main() {
 }
 ```
 
-However, due to rayon's work stealing mechanism and tfhe-rs's internals, this may create `BorrowMutError'.
+However, due to rayon's work stealing mechanism and TFHE-rs's internals, this may create `BorrowMutError'.
 
 
-### Working example
+### Working Example
 
 The correct way is to call `rayon::broadcast`
 
@@ -85,13 +85,18 @@ fn main() {
           &xs[1] + &ys[1]
       }
     );
+
+    let a: u8 = a.decrypt(&cks);
+    let b: u8 = b.decrypt(&cks);
+    assert_eq!(a, 4u8);
+    assert_eq!(b, 6u8);
 }
 ```
 
 
 ## Multi-Client Applications
 
-If you application needs to operate on data from different clients concurently, and that you want each client to use 
+If your application needs to operate on data from different clients concurrently, and that you want each client to use 
 multiple threads, you will need to create different rayon thread pools
 
 ```rust
@@ -128,29 +133,39 @@ fn main() {
     client_1_pool.broadcast(|_| set_server_key(sks1.clone()));
     client_2_pool.broadcast(|_| set_server_key(sks2.clone()));
     
-    rayon::join(|| {
+    let ((a1, b1), (a2, b2)) = rayon::join(|| {
         client_1_pool.install(|| {
-            let (a1, b1) = rayon::join(
+            rayon::join(
                 || {
                     &xs1[0] + &ys1[0]
                 },
                 || {
                     &xs1[1] + &ys1[1]
                 }
-            );
-        });
+            )
+        })
     }, || {
         client_2_pool.install(|| {
-            let (a2, b2) = rayon::join(
+            rayon::join(
                 || {
                     &xs2[0] + &ys2[0]
                 },
                 || {
                     &xs2[1] + &ys2[1]
                 }
-            );
+            )
         })
     });
+    
+    let a1: u8 = a1.decrypt(&cks1);
+    let b1: u8 = b1.decrypt(&cks1);
+    assert_eq!(a1, 4u8);
+    assert_eq!(b1, 6u8);
+
+    let a2: u8 = a2.decrypt(&cks2);
+    let b2: u8 = b2.decrypt(&cks2);
+    assert_eq!(a2, 203u8);
+    assert_eq!(b2, 148u8);
 }
 ```
 
