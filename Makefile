@@ -54,7 +54,7 @@ REGEX_STRING?=''
 REGEX_PATTERN?=''
 
 # tfhe-cuda-backend
-TFHECUDA_SRC="backends/tfhe-cuda-backend/implementation"
+TFHECUDA_SRC="backends/tfhe-cuda-backend/cuda"
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # Exclude these files from coverage reports
