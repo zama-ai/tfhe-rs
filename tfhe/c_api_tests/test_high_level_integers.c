@@ -509,30 +509,29 @@ int uint8_compressed(const ClientKey *client_key) {
   return ok;
 }
 
-void test_try_decrypt_trivial(const ClientKey *client_key)
-{
-    const uint16_t clear = UINT16_MAX - 2;
+void test_try_decrypt_trivial(const ClientKey *client_key) {
+  const uint16_t clear = UINT16_MAX - 2;
 
-    FheUint16 *trivial = NULL;
-    int status = fhe_uint16_try_encrypt_trivial_u16(clear, &trivial);
-    assert(status == 0);
+  FheUint16 *trivial = NULL;
+  int status = fhe_uint16_try_encrypt_trivial_u16(clear, &trivial);
+  assert(status == 0);
 
-    FheUint16 *non_trivial = NULL;
-    status = fhe_uint16_try_encrypt_with_client_key_u16(clear, client_key, &non_trivial);
-    assert(status == 0);
+  FheUint16 *non_trivial = NULL;
+  status = fhe_uint16_try_encrypt_with_client_key_u16(clear, client_key, &non_trivial);
+  assert(status == 0);
 
-    /* Example of decrypting a trivial */
-    uint16_t decrypted;
-    status = fhe_uint16_try_decrypt_trivial(trivial, &decrypted);
-    assert(status == 0);
-    assert(decrypted == clear);
+  /* Example of decrypting a trivial */
+  uint16_t decrypted;
+  status = fhe_uint16_try_decrypt_trivial(trivial, &decrypted);
+  assert(status == 0);
+  assert(decrypted == clear);
 
-    /* Example of trying to trivial decrypt a ciphertext that is not trivial */
-    status = fhe_uint16_try_decrypt_trivial(non_trivial, &decrypted);
-    assert(status == 1); // Returns that its an error
+  /* Example of trying to trivial decrypt a ciphertext that is not trivial */
+  status = fhe_uint16_try_decrypt_trivial(non_trivial, &decrypted);
+  assert(status == 1); // Returns that its an error
 
-    fhe_uint16_destroy(trivial);
-    fhe_uint16_destroy(non_trivial);
+  fhe_uint16_destroy(trivial);
+  fhe_uint16_destroy(non_trivial);
 }
 
 int main(void) {
