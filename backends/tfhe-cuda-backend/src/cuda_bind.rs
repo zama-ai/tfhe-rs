@@ -61,7 +61,7 @@ extern "C" {
     pub fn cuda_drop_async(ptr: *mut c_void, v_stream: *const c_void) -> i32;
 
     /// Free memory for pointer `ptr` on GPU `gpu_index` synchronously
-    pub fn cuda_drop(ptr: *mut c_void) -> i32;
+    pub fn cuda_drop(ptr: *mut c_void, gpu_index: u32) -> i32;
 
     /// Get the maximum amount of shared memory on GPU `gpu_index`
     pub fn cuda_get_max_shared_memory(gpu_index: u32) -> i32;
