@@ -34,13 +34,14 @@ The Cuda project held in `tfhe-cuda-backend` can be compiled independently from 
 following way:
 ```
 git clone git@github.com:zama-ai/tfhe-rs
-cd backends/tfhe-cuda-backend/implementation
+cd backends/tfhe-cuda-backend/cuda
 mkdir build
 cd build
 cmake ..
 make
 ```
 The compute capability is detected automatically (with the first GPU information) and set accordingly.
+If your machine does not have an available Nvidia GPU, the compilation will work if you have the nvcc compiler installed. The generated executable will target a 7.0 compute capability (sm_70).
 
 ## Links
 
