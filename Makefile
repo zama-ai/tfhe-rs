@@ -487,6 +487,12 @@ test_user_doc: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) \
 		-- test_user_docs::
 
+.PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
+test_user_doc_gpu: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu -p $(TFHE_SPEC) \
+		-- test_user_docs::
+
 .PHONY: test_regex_engine # Run tests for regex_engine example
 test_regex_engine: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \

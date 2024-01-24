@@ -102,3 +102,7 @@ jobs:
       - name: Run all tests
         run: |
           make test_gpu
+
+      - name: Run user docs tests
+        run: |
+          make test_user_doc_gpu
