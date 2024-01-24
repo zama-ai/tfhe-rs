@@ -18,11 +18,13 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
         stream: &CudaStream,
     ) -> Self {
         // Allocate memory in the device
-        let d_vec = stream.malloc_async(
-            (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
-                * glwe_ciphertext_count.0) as u32,
-        );
-
+        let d_vec = unsafe {
+            stream.malloc_async(
+                (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
+                    * glwe_ciphertext_count.0) as u32,
+            )
+        };
+        stream.synchronize();
         let cuda_glwe_list = CudaGlweList {
             d_vec,
             glwe_ciphertext_count,
@@ -43,13 +45,17 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
         let polynomial_size = h_ct.polynomial_size();
         let ciphertext_modulus = h_ct.ciphertext_modulus();
 
-        let mut d_vec = stream.malloc_async(
-            (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
-                * glwe_ciphertext_count.0) as u32,
-        );
-
+        let mut d_vec = unsafe {
+            stream.malloc_async(
+                (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
+                    * glwe_ciphertext_count.0) as u32,
+            )
+        };
         // Copy to the GPU
-        stream.copy_to_gpu_async(&mut d_vec, h_ct.as_ref());
+        unsafe {
+            stream.copy_to_gpu_async(&mut d_vec, h_ct.as_ref());
+            stream.synchronize();
+        }
 
         let cuda_glwe_list = CudaGlweList {
             d_vec,
@@ -70,8 +76,10 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
             * glwe_ciphertext_size(self.0.glwe_dimension.to_glwe_size(), self.0.polynomial_size);
         let mut container: Vec<T> = vec![T::ZERO; glwe_ct_size];
 
-        stream.copy_to_cpu_async(container.as_mut_slice(), &self.0.d_vec);
-        stream.synchronize();
+        unsafe {
+            stream.copy_to_cpu_async(container.as_mut_slice(), &self.0.d_vec);
+            stream.synchronize();
+        }
 
         GlweCiphertextList::from_container(
             container,
@@ -90,14 +98,20 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
         let polynomial_size = h_ct.polynomial_size();
         let ciphertext_modulus = h_ct.ciphertext_modulus();
 
-        let mut d_vec = stream.malloc_async(
-            (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
-                * glwe_ciphertext_count.0) as u32,
-        );
+        let mut d_vec = unsafe {
+            stream.malloc_async(
+                (glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
+                    * glwe_ciphertext_count.0) as u32,
+            )
+        };
 
         // Copy to the GPU
         let h_input = h_ct.as_view().into_container();
-        stream.copy_to_gpu_async(&mut d_vec, h_input.as_ref());
+        stream.synchronize();
+        unsafe {
+            stream.copy_to_gpu_async(&mut d_vec, h_input.as_ref());
+        }
+        stream.synchronize();
 
         let cuda_glwe_list = CudaGlweList {
             d_vec,

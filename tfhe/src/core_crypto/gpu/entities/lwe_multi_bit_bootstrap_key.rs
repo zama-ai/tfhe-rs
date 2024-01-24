@@ -41,26 +41,30 @@ impl CudaLweMultiBitBootstrapKey {
         let grouping_factor = bsk.grouping_factor();
 
         // Allocate memory
-        let mut d_vec = stream.malloc_async::<u64>(
-            lwe_multi_bit_bootstrap_key_size(
-                input_lwe_dimension,
-                glwe_dimension.to_glwe_size(),
-                polynomial_size,
-                decomp_level_count,
-                grouping_factor,
+        let mut d_vec = unsafe {
+            stream.malloc_async::<u64>(
+                lwe_multi_bit_bootstrap_key_size(
+                    input_lwe_dimension,
+                    glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_level_count,
+                    grouping_factor,
+                )
+                .unwrap() as u32,
             )
-            .unwrap() as u32,
-        );
+        };
         // Copy to the GPU
-        stream.convert_lwe_multi_bit_bootstrap_key_async(
-            &mut d_vec,
-            bsk.as_ref(),
-            input_lwe_dimension,
-            glwe_dimension,
-            decomp_level_count,
-            polynomial_size,
-            grouping_factor,
-        );
+        unsafe {
+            stream.convert_lwe_multi_bit_bootstrap_key_async(
+                &mut d_vec,
+                bsk.as_ref(),
+                input_lwe_dimension,
+                glwe_dimension,
+                decomp_level_count,
+                polynomial_size,
+                grouping_factor,
+            );
+        }
         stream.synchronize();
         Self {
             d_vec,
