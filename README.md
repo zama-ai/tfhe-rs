@@ -4,12 +4,16 @@
 </p>
 <hr/>
 <p align="center">
-  <a href="https://docs.zama.ai/tfhe-rs"> 📒 Read documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a>
+  <a href="https://docs.zama.ai/tfhe-rs"> 📒 Read documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources</a>
 </p>
 <p align="center">
 <!-- Version badge using shields.io -->
   <a href="https://github.com/zama-ai/tfhe-rs/releases">
     <img src="https://img.shields.io/github/v/release/zama-ai/tfhe-rs?style=flat-square">
+  </a>
+  <!-- Link to tutorials badge using shields.io -->
+  <a href="#license">
+    <img src="https://img.shields.io/badge/License-BSD--3--Clause--Clear-orange?style=flat-square">
   </a>
 <!-- Zama Bounty Program -->
   <a href="https://github.com/zama-ai/bounty-program">
