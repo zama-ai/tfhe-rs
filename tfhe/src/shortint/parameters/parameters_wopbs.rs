@@ -687,24 +687,3 @@ pub const WOPBS_PARAM_MESSAGE_8_NORM2_6_KS_PBS: WopbsParameters = WopbsParameter
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-
-pub const PARAM_4_BITS_5_BLOCKS: WopbsParameters = WopbsParameters {
-    lwe_dimension: LweDimension(667),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.0000000004168323308734758),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000004905643852600863),
-    pbs_base_log: DecompositionBaseLog(7),
-    pbs_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(1),
-    ks_level: DecompositionLevelCount(14),
-    pfks_level: DecompositionLevelCount(6),
-    pfks_base_log: DecompositionBaseLog(7),
-    pfks_modular_std_dev: StandardDev(0.00000000000000000000000000000004905643852600863),
-    cbs_level: DecompositionLevelCount(7),
-    cbs_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
