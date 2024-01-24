@@ -1,7 +1,6 @@
 # Managing Data Through Various TFHE-rs Versions
 
-In what follows, the process to manage data when upgrading the TFHE-rs version (starting from the 0.4.2 release) is given. This details the method to make data, which have initially been generated with an older version of TFHE-rs, usable with a newer version.
-
+In what follows, the process to manage data when upgrading the TFHE-rs version (starting from the 0.4.2 release) is given. This page details the methods to make data, which have initially been generated with an older version of TFHE-rs, usable with a newer version.
 
 ## Forward Compatibility Strategy
 
@@ -9,9 +8,9 @@ The current strategy that has been adopted for TFHE-rs is the following:
 
 - TFHE-rs has a global `SERIALIZATION_VERSION` constant;
 - When breaking serialization changes are introduced, this global version is bumped;
-- Using dedicated serialization primitives which check this constant. If the data is incompatible, these primitives return an error.
+- Safe serialization primitives check this constant upon deserialization, if the data is incompatible, these primitives return an error.
 
-To be able to use older serialized data with newer versions, the following is done on new major releases:
+To be able to use older serialized data with newer versions, the following is done on new major TFHE-rs releases:
 
 - A minor update is done to the previously released branch to add the new release as an optional dependency;
 - Conversion code is added to the previous branch to be able to load old data and convert it to the new data format.
@@ -44,12 +43,12 @@ Example timeline of the data migration or `Bulk Data Migration`:
 - The updated version of the `Application` is compiled with the 0.5.0 release of TFHE-rs and put in production;
 - Service is resumed with the updated `Application` (if relevant).
 
-The above case is describing a simple use case, where only a single version of data has to be managed. Moreover, it not relevant in the case where the data is so large that migrating it in one go is not doable, or if the service cannot suffer any interruption.
+The above case is describing a simple use case, where only a single version of data has to be managed. Moreover, the above strategy is not relevant in the case where the data is so large that migrating it in one go is not doable, or if the service cannot suffer any interruption.
 
-In order to manage more complicated cases, another method called `Migrate On Read`. 
+In order to manage more complicated cases, another method called `Migrate On Read` can be used.
 
-Here is an example timeline where data is migrated only as needed `Migrate On Read`:
-- A new version of the `Application` is compiled, it has tfhe@0.4.2 as dependency (the dependency will need to be renamed to avoid conflicts, a possible name is to use the major version like `tfhe_0_4`) and tfhe@0.5.0 which will not be renamed and can be accessed as `tfhe`
+Here is an example timeline where data is migrated only as needed with the `Migrate On Read` approach:
+- A new version of the `Application` is compiled, it has tfhe@0.4.2 as dependency (the dependency will have to be renamed to avoid conflicts, a possible name is to use the major version like `tfhe_0_4`) and tfhe@0.5.0 which will not be renamed and can be accessed as `tfhe`
 - Code to manage reading the data is added to the `Application`:
 - The code determines whether the data was saved with the 0.4 `Application` or the 0.5 `Application`, if the data is already up to date with the 0.5 format it can be loaded right away, if it's in the 0.4 format the `Application` can check if an updated version of the data is already available in the 0.5 format and loads that if it's available, otherwise it converts the data to 0.5, saves the converted data to avoid having to convert it every time it is accessed and continue processing with the 0.5 data
 
@@ -58,7 +57,7 @@ The above is more complicated to manage as data will be present on disk with sev
 Also, if required, several version of TFHE-rs can be "chained" to upgrade very old data to newer formats.
 The above pattern can be extended to have `tfhe_0_4` (tfhe@0.4.2 renamed), `tfhe_0_5` (tfhe@0.5.0 renamed) and `tfhe` being tfhe@0.6.0, this will require special handling from the developers so that their protocol can handle data from 0.4.2, 0.5.0 and 0.6.0 using all the conversion tooling from the relevant version.
 
-E.g., if some computation requires version data from version 0.4.2 a conversion function could be called `upgrade_data_from_0_4_to_0_6` and do:
+E.g., if some computation requires data from version 0.4.2 a conversion function could be called `upgrade_data_from_0_4_to_0_6` and do:
 
 - read data from 0.4.2
 - convert to 0.5.0 format using `tfhe_0_4`
@@ -134,7 +133,7 @@ This will output:
 NoiseLevel(18446744073709551615)
 ```
 
-The noise level here is set at usize::MAX on a 64 bits system, it corresponds to the constant `NoiseLevel::UNKNOWN` from shortint, as the noise level was not a value that was directly tracked in TFHE-rs the noise level is set to this unknown constant when migrating the ciphertext. It is recommended to first apply a PBS to reset the noise level to a known nominal level as some algorithms will always clean ciphertexts which are not at the nominal noise level.
+The noise level here is set at `usize::MAX` on a 64 bits system, it corresponds to the constant `NoiseLevel::UNKNOWN` from shortint, as the noise level was not a value that was directly tracked in TFHE-rs the noise level is set to this unknown constant when migrating the ciphertext. It is recommended to first apply a PBS to reset the noise level to a known nominal level as some algorithms will always clean ciphertexts which are not at the nominal noise level.
 
 ## Breaking changes and additional migration information
 
