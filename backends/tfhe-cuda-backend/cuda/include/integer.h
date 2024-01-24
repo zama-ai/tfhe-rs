@@ -487,9 +487,9 @@ template <typename Torus> struct int_sc_prop_memory {
     luts_array = new int_radix_lut<Torus>(stream, params, 2, num_radix_blocks,
                                           allocate_gpu_memory);
     luts_carry_propagation_sum = new struct int_radix_lut<Torus>(
-        stream, params, 1, num_radix_blocks, allocate_gpu_memory);
-    message_acc = new struct int_radix_lut<Torus>(
-        stream, params, 1, num_radix_blocks, allocate_gpu_memory);
+        stream, params, 1, num_radix_blocks, luts_array);
+    message_acc = new struct int_radix_lut<Torus>(stream, params, 1,
+                                                  num_radix_blocks, luts_array);
 
     auto lut_does_block_generate_carry = luts_array->get_lut(0);
     auto lut_does_block_generate_or_propagate = luts_array->get_lut(1);
