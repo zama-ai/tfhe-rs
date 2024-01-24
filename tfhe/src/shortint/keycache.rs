@@ -238,7 +238,6 @@ named_params_impl!( ShortintParameterSet =>
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6_KS_PBS,
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7_KS_PBS,
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8_KS_PBS,
-    PARAM_4_BITS_5_BLOCKS,
 );
 
 impl NamedParam for ClassicPBSParameters {

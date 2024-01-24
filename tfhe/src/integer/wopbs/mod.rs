@@ -436,13 +436,13 @@ impl WopbsKey {
     /// # Example
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::integer::parameters::PARAM_4_BITS_5_BLOCKS;
     /// use tfhe::integer::wopbs::WopbsKey;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     ///
     /// let basis: Vec<u64> = vec![9, 11];
     /// let msg_space: u64 = basis.iter().copied().product();
     ///
-    /// let param = PARAM_4_BITS_5_BLOCKS;
+    /// let param = WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_crt(param, basis);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
@@ -638,13 +638,13 @@ impl WopbsKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::integer::parameters::PARAM_4_BITS_5_BLOCKS;
     /// use tfhe::integer::wopbs::WopbsKey;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     ///
     /// let basis: Vec<u64> = vec![9, 11];
     /// let msg_space: u64 = basis.iter().copied().product();
     ///
-    /// let param = PARAM_4_BITS_5_BLOCKS;
+    /// let param = WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_crt(param, basis);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
@@ -941,13 +941,13 @@ impl WopbsKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::integer::parameters::PARAM_4_BITS_5_BLOCKS;
     /// use tfhe::integer::wopbs::WopbsKey;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     ///
     /// let basis: Vec<u64> = vec![9, 11];
     /// let msg_space: u64 = basis.iter().copied().product();
     ///
-    /// let param = PARAM_4_BITS_5_BLOCKS;
+    /// let param = WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_crt(param, basis);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
@@ -1011,13 +1011,13 @@ impl WopbsKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::integer::parameters::PARAM_4_BITS_5_BLOCKS;
     /// use tfhe::integer::wopbs::WopbsKey;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     ///
     /// let basis: Vec<u64> = vec![9, 11];
     /// let msg_space: u64 = basis.iter().copied().product();
     ///
-    /// let param = PARAM_4_BITS_5_BLOCKS;
+    /// let param = WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_crt(param, basis);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);

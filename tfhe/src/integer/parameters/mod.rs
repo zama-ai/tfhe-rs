@@ -3,7 +3,6 @@ use crate::conformance::ListSizeConstraint;
 use crate::shortint::PBSParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
 
-pub use crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextListConformanceParams,
     EncryptionKeyChoice, MessageModulus,
