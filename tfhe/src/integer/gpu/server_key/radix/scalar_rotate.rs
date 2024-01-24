@@ -253,7 +253,6 @@ impl CudaServerKey {
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_rotate_left_assign(&mut result, shift, stream);
-        stream.synchronize();
         result
     }
 
@@ -269,7 +268,6 @@ impl CudaServerKey {
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_rotate_right_assign(&mut result, shift, stream);
-        stream.synchronize();
         result
     }
 }

@@ -120,4 +120,5 @@ pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
             stream,
         );
     }
+    stream.synchronize();
 }

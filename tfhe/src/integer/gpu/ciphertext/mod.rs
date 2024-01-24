@@ -468,10 +468,13 @@ impl CudaRadixCiphertext {
             .flat_map(|block| block.ct.clone().into_container())
             .collect::<Vec<_>>();
 
-        stream.copy_to_gpu_async(
-            &mut self.d_blocks.0.d_vec,
-            h_radix_ciphertext.as_mut_slice(),
-        );
+        unsafe {
+            stream.copy_to_gpu_async(
+                &mut self.d_blocks.0.d_vec,
+                h_radix_ciphertext.as_mut_slice(),
+            );
+        }
+        stream.synchronize();
 
         self.info = CudaRadixCiphertextInfo {
             blocks: radix
@@ -592,8 +595,10 @@ impl CudaRadixCiphertext {
         let mut self_container: Vec<u64> = vec![0; self_size];
         let mut other_container: Vec<u64> = vec![0; other_size];
 
-        stream.copy_to_cpu_async(self_container.as_mut_slice(), &self.d_blocks.0.d_vec);
-        stream.copy_to_cpu_async(other_container.as_mut_slice(), &other.d_blocks.0.d_vec);
+        unsafe {
+            stream.copy_to_cpu_async(self_container.as_mut_slice(), &self.d_blocks.0.d_vec);
+            stream.copy_to_cpu_async(other_container.as_mut_slice(), &other.d_blocks.0.d_vec);
+        }
         stream.synchronize();
 
         self_container == other_container
