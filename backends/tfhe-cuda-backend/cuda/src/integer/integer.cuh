@@ -363,7 +363,6 @@ void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
-  auto message_modulus = params.message_modulus;
   auto big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 

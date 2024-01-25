@@ -59,8 +59,11 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
         rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
 
     // create trivial assign for value = 0
-    cuda_memset_async(rotated_buffer, 0, rotations * big_lwe_size_bytes,
-                      stream);
+    if (rotations > 0) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(rotated_buffer, 0, rotations * big_lwe_size_bytes,
+                        stream);
+    }
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, stream);
 
@@ -93,8 +96,12 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
-    cuda_memset_async(rotated_buffer + (num_blocks - rotations) * big_lwe_size,
-                      0, rotations * big_lwe_size_bytes, stream);
+    if (rotations > 0) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(
+          rotated_buffer + (num_blocks - rotations) * big_lwe_size,
+          0, rotations * big_lwe_size_bytes, stream);
+    }
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, stream);
 

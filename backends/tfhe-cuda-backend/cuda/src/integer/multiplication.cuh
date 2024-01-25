@@ -109,8 +109,10 @@ void extract_message_carry_to_full_radix(cuda_stream_t *stream, Torus *src,
 
     if (!is_message) {
       int zero_block_count = num_blocks - number_of_unit;
-      cuda_memset_async(cur_dst_radix, 0,
-                        zero_block_count * unit_size * sizeof(Torus), stream);
+      if (zero_block_count != 0) {
+        cuda_memset_async(cur_dst_radix, 0,
+                          zero_block_count * unit_size * sizeof(Torus), stream);
+      }
       s_index = zero_block_count;
     }
 
@@ -277,11 +279,6 @@ __host__ void host_integer_mult_radix_kb(
   // lwe_dimension +1 coefficients
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
 
-  // buffer to keep pbs result for num_blocks^2 lwe_ciphertext
-  // in total it has num_blocks^2 big lwe ciphertexts with
-  // glwe_dimension * polynomial_size + 1 coefficients
-  auto lwe_pbs_out_array = mem_ptr->lwe_pbs_out_array;
-
   // it contains two lut, first for lsb extraction,
   // second for msb extraction, with total length =
   // 2 * (glwe_dimension + 1) * polynomial_size
@@ -362,9 +359,13 @@ __host__ void host_integer_mult_radix_kb(
     ch_amount = r / chunk_size;
     dim3 add_grid(ch_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
-    cuda_memset_async(new_blocks, 0,
-                      ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
-                      stream);
+    if (ch_amount != 0) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(
+          new_blocks, 0,
+          ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
+          stream);
+    }
 
     tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
         new_blocks, old_blocks, chunk_size, num_blocks);
@@ -448,7 +449,7 @@ __host__ void host_integer_mult_radix_kb(
 
   dim3 add_grid(1, num_blocks, 1);
   size_t sm_size = big_lwe_size * sizeof(Torus);
-  cuda_memset_async(radix_lwe_out, 0, num_blocks * big_lwe_size * sizeof(Torus),
+  cuda_memset_async(radix_lwe_out, 0, num_blocks * big_lwe_size * sizeof(Torus), 
                     stream);
   tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
       radix_lwe_out, old_blocks, r, num_blocks);

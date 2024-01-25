@@ -66,9 +66,13 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
 
     // The result will be in the two first block. Everything else is
     //  garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      big_lwe_size_bytes * (total_num_radix_blocks - 1),
-                      stream);
+    if (total_num_radix_blocks > 1) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(
+          lwe_array_out + big_lwe_size, 0,
+          big_lwe_size_bytes * (total_num_radix_blocks - 1),
+          stream);
+    }
 
   } else if (total_num_scalar_blocks < total_num_radix_blocks) {
     // We have to handle both part of the work described above
@@ -156,9 +160,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
         1, lut);
 
     // The result will be in the first block. Everything else is garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      (total_num_radix_blocks - 1) * big_lwe_size_bytes,
-                      stream);
+    if (total_num_radix_blocks > 1) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                        (total_num_radix_blocks - 1) * big_lwe_size_bytes,
+                        stream);
+    }
   } else {
     // We only have to do the regular comparison
     // And not the part where we compare most significant blocks with zeros
@@ -196,9 +203,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
                         ksk, num_lsb_radix_blocks);
 
     // The result will be in the first block. Everything else is garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      (total_num_radix_blocks - 1) * big_lwe_size_bytes,
-                      stream);
+    if (total_num_radix_blocks > 1) {
+      // cuda_memset with size 0 is invalid, so avoid it
+      cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                        (total_num_radix_blocks - 1) * big_lwe_size_bytes,
+                        stream);
+    }
   }
 }
 

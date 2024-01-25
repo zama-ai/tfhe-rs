@@ -19,7 +19,6 @@ __host__ void host_integer_radix_scalar_bitop_kb(
 
   if (num_clear_blocks == 0) {
     if (op == SCALAR_BITAND) {
-      auto lwe_array_out_block = lwe_array_out + num_clear_blocks * lwe_size;
       cuda_memset_async(lwe_array_out, 0,
                         num_radix_blocks * lwe_size * sizeof(Torus), stream);
     } else {
@@ -28,7 +27,6 @@ __host__ void host_integer_radix_scalar_bitop_kb(
                                    stream);
     }
   } else {
-    auto lut_buffer = lut->lut;
     // We have all possible LUTs pre-computed and we use the decomposed scalar
     // as index to recover the right one
     cuda_memcpy_async_gpu_to_gpu(lut->lut_indexes, clear_blocks,
@@ -38,7 +36,7 @@ __host__ void host_integer_radix_scalar_bitop_kb(
         stream, lwe_array_out, lwe_array_input, bsk, ksk, num_clear_blocks,
         lut);
 
-    if (op == SCALAR_BITAND) {
+    if (op == SCALAR_BITAND && num_clear_blocks < num_radix_blocks) {
       auto lwe_array_out_block = lwe_array_out + num_clear_blocks * lwe_size;
       cuda_memset_async(lwe_array_out_block, 0,
                         (num_radix_blocks - num_clear_blocks) * lwe_size *

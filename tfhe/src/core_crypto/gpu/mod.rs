@@ -90,12 +90,15 @@ impl CudaStream {
         T: Numeric + Into<u64>,
     {
         let dest_size = dest.len() * std::mem::size_of::<T>();
-        cuda_memset_async(
-            dest.as_mut_c_ptr(),
-            value.into(),
-            dest_size as u64,
-            self.as_c_ptr(),
-        );
+        // We have to check that dest is not empty, because cuda_memset with size 0 is invalid
+        if dest_size > 0 {
+            cuda_memset_async(
+                dest.as_mut_c_ptr(),
+                value.into(),
+                dest_size as u64,
+                self.as_c_ptr(),
+            );
+        }
     }
 
     /// Copies data from slice into GPU pointer
@@ -112,12 +115,16 @@ impl CudaStream {
         let src_size = std::mem::size_of_val(src);
         assert!(dest.len() * std::mem::size_of::<T>() >= src_size);
 
-        cuda_memcpy_async_to_gpu(
-            dest.as_mut_c_ptr(),
-            src.as_ptr().cast(),
-            src_size as u64,
-            self.as_c_ptr(),
-        );
+        // We have to check that src is not empty, because Rust slice with size 0 results in an
+        // invalid pointer being passed to copy_to_gpu_async
+        if src_size > 0 {
+            cuda_memcpy_async_to_gpu(
+                dest.as_mut_c_ptr(),
+                src.as_ptr().cast(),
+                src_size as u64,
+                self.as_c_ptr(),
+            );
+        }
     }
 
     /// Copies data between different arrays in the GPU
@@ -133,13 +140,16 @@ impl CudaStream {
         T: Numeric,
     {
         assert!(dest.len() >= src.len());
-        let size = dest.len() * std::mem::size_of::<T>();
-        cuda_memcpy_async_gpu_to_gpu(
-            dest.as_mut_c_ptr(),
-            src.as_c_ptr(),
-            size as u64,
-            self.as_c_ptr(),
-        );
+        let size = src.len() * std::mem::size_of::<T>();
+        // We check that src is not empty to avoid invalid pointers
+        if size > 0 {
+            cuda_memcpy_async_gpu_to_gpu(
+                dest.as_mut_c_ptr(),
+                src.as_c_ptr(),
+                size as u64,
+                self.as_c_ptr(),
+            );
+        }
     }
 
     /// Copies data from GPU pointer into slice
@@ -153,15 +163,19 @@ impl CudaStream {
     where
         T: Numeric,
     {
-        let dest_size = std::mem::size_of_val(dest);
-        assert!(dest_size >= src.len() * std::mem::size_of::<T>());
+        let src_size = src.len() * std::mem::size_of::<T>();
+        assert!(std::mem::size_of_val(dest) >= src_size);
 
-        cuda_memcpy_async_to_cpu(
-            dest.as_mut_ptr().cast(),
-            src.as_c_ptr(),
-            dest_size as u64,
-            self.as_c_ptr(),
-        );
+        // We have to check that src is not empty, because Rust slice with size 0 results in an
+        // invalid pointer being passed to copy_to_cpu_async
+        if src_size > 0 {
+            cuda_memcpy_async_to_cpu(
+                dest.as_mut_ptr().cast(),
+                src.as_c_ptr(),
+                src_size as u64,
+                self.as_c_ptr(),
+            );
+        }
     }
 
     /// Discarding bootstrap on a vector of LWE ciphertexts
