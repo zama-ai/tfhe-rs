@@ -361,10 +361,6 @@ template <typename Torus> struct int_radix_lut {
     this->params = params;
     this->num_blocks = num_radix_blocks;
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus big_size =
-        (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-    Torus small_size =
-        (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
     Torus lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
@@ -537,7 +533,6 @@ template <typename Torus> struct int_mul_memory {
   Torus *vector_result_sb;
   Torus *block_mul_res;
   Torus *small_lwe_vector;
-  Torus *lwe_pbs_out_array;
   int_radix_lut<Torus> *luts_array; // lsb msb
   int_radix_lut<Torus> *luts_message;
   int_radix_lut<Torus> *luts_carry;
@@ -577,10 +572,6 @@ template <typename Torus> struct int_mul_memory {
         stream);
     small_lwe_vector = (Torus *)cuda_malloc_async(
         total_block_count * (lwe_dimension + 1) * sizeof(Torus), stream);
-    lwe_pbs_out_array =
-        (Torus *)cuda_malloc_async((glwe_dimension * polynomial_size + 1) *
-                                       total_block_count * sizeof(Torus),
-                                   stream);
 
     // create int_radix_lut objects for lsb, msb, message, carry
     // luts_array -> lut = {lsb_acc, msb_acc}
@@ -637,7 +628,6 @@ template <typename Torus> struct int_mul_memory {
     cuda_drop_async(vector_result_sb, stream);
     cuda_drop_async(block_mul_res, stream);
     cuda_drop_async(small_lwe_vector, stream);
-    cuda_drop_async(lwe_pbs_out_array, stream);
 
     luts_array->release(stream);
     luts_message->release(stream);
@@ -834,8 +824,6 @@ template <typename Torus> struct int_cmux_buffer {
     if (allocate_gpu_memory) {
       Torus big_size =
           (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-      Torus small_size =
-          (params.small_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
 
       tmp_true_ct = (Torus *)cuda_malloc_async(big_size, stream);
       tmp_false_ct = (Torus *)cuda_malloc_async(big_size, stream);
@@ -1046,13 +1034,6 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         return lsb;
       else
         return msb;
-    };
-
-    auto last_leaf_noop_lut_f = [this](Torus x) -> Torus {
-      int msb = (x >> 2) & 3;
-      int lsb = x & 3;
-
-      return this->block_selector_f(msb, lsb);
     };
 
     if (allocate_gpu_memory) {

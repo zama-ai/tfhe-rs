@@ -6,8 +6,8 @@ extern "C" {
     /// Create a new Cuda stream on GPU `gpu_index`
     pub fn cuda_create_stream(gpu_index: u32) -> *mut c_void;
 
-    /// Destroy the Cuda stream `v_stream` on GPU `gpu_index`
-    pub fn cuda_destroy_stream(v_stream: *mut c_void) -> i32;
+    /// Destroy the Cuda stream `v_stream`
+    pub fn cuda_destroy_stream(v_stream: *mut c_void);
 
     /// Allocate `size` memory on GPU `gpu_index` asynchronously
     pub fn cuda_malloc_async(size: u64, v_stream: *const c_void) -> *mut c_void;
@@ -19,7 +19,7 @@ extern "C" {
         src: *const c_void,
         size: u64,
         v_stream: *const c_void,
-    ) -> i32;
+    );
 
     /// Copy `size` memory asynchronously from `src` on CPU to `dest` on GPU `gpu_index` using
     /// the Cuda stream `v_stream`.
@@ -28,7 +28,7 @@ extern "C" {
         src: *const c_void,
         size: u64,
         v_stream: *const c_void,
-    ) -> i32;
+    );
 
     /// Copy `size` memory asynchronously from `src` to `dest` on the same GPU `gpu_index` using
     /// the Cuda stream `v_stream`.
@@ -37,31 +37,26 @@ extern "C" {
         src: *const c_void,
         size: u64,
         v_stream: *const c_void,
-    ) -> i32;
+    );
 
     /// Copy `size` memory asynchronously from `src` on CPU to `dest` on GPU `gpu_index` using
     /// the Cuda stream `v_stream`.
-    pub fn cuda_memset_async(
-        dest: *mut c_void,
-        value: u64,
-        size: u64,
-        v_stream: *const c_void,
-    ) -> i32;
+    pub fn cuda_memset_async(dest: *mut c_void, value: u64, size: u64, v_stream: *const c_void);
 
     /// Get the total number of Nvidia GPUs detected on the platform
     pub fn cuda_get_number_of_gpus() -> i32;
 
     /// Synchronize all streams on GPU `gpu_index`
-    pub fn cuda_synchronize_device(gpu_index: u32) -> i32;
+    pub fn cuda_synchronize_device(gpu_index: u32);
 
     /// Synchronize Cuda stream
-    pub fn cuda_synchronize_stream(v_stream: *const c_void) -> i32;
+    pub fn cuda_synchronize_stream(v_stream: *const c_void);
 
     /// Free memory for pointer `ptr` on GPU `gpu_index` asynchronously, using stream `v_stream`
-    pub fn cuda_drop_async(ptr: *mut c_void, v_stream: *const c_void) -> i32;
+    pub fn cuda_drop_async(ptr: *mut c_void, v_stream: *const c_void);
 
     /// Free memory for pointer `ptr` on GPU `gpu_index` synchronously
-    pub fn cuda_drop(ptr: *mut c_void, gpu_index: u32) -> i32;
+    pub fn cuda_drop(ptr: *mut c_void, gpu_index: u32);
 
     /// Get the maximum amount of shared memory on GPU `gpu_index`
     pub fn cuda_get_max_shared_memory(gpu_index: u32) -> i32;

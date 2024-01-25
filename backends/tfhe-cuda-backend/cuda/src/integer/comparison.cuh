@@ -202,8 +202,10 @@ __host__ void host_compare_with_zero_equality(
 
   // The result will be in the two first block. Everything else is
   //  garbage.
-  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                    big_lwe_size_bytes * (num_radix_blocks - 1), stream);
+  if (num_radix_blocks > 1) {
+    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                      big_lwe_size_bytes * (num_radix_blocks - 1), stream);
+  }
 }
 
 template <typename Torus>
