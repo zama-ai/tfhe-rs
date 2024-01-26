@@ -24,19 +24,20 @@ macro_rules! expand_pub_use_fhe_type(
 );
 
 pub use crate::core_crypto::commons::math::random::Seed;
+pub use crate::integer::oprf::SignedRandomizationSpec;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
+
+pub use integers::{
+    CompactFheInt, CompactFheIntList, CompactFheUint, CompactFheUintList, CompressedFheInt,
+    CompressedFheUint, FheInt, FheUint, IntegerId,
+};
 #[cfg(feature = "gpu")]
 pub use keys::CudaServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
     CompressedServerKey, KeySwitchingKey, PublicKey, ServerKey,
-};
-
-pub use integers::{
-    CompactFheInt, CompactFheIntList, CompactFheUint, CompactFheUintList, CompressedFheInt,
-    CompressedFheUint, FheInt, FheUint,
 };
 
 #[cfg(test)]
