@@ -12,7 +12,7 @@ use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
+use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::keycache::NamedParam;
 
 use tfhe::integer::U256;
@@ -561,6 +561,65 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             bit_size as u32,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
+    }
+
+    bench_group.finish()
+}
+
+fn ciphertexts_sum_parallelized(c: &mut Criterion) {
+    let bench_name = "integer::sum_ciphertexts_parallelized";
+    let display_name = "sum_ctxts";
+
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        let param_name = param.name();
+        let max_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
+
+        for len in [5, 10, 20] {
+            let bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
+                let cks = RadixClientKey::from((cks, nb_ctxt));
+
+                let encrypt_values = || {
+                    let clears = (0..len)
+                        .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
+                        .collect::<Vec<_>>();
+
+                    // encryption of integers
+                    let ctxts = clears
+                        .iter()
+                        .copied()
+                        .map(|clear| cks.encrypt(clear))
+                        .collect::<Vec<_>>();
+
+                    ctxts
+                };
+
+                b.iter_batched(
+                    encrypt_values,
+                    |ctxts| sks.sum_ciphertexts_parallelized(&ctxts),
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
     }
 
     bench_group.finish()
@@ -1927,6 +1986,7 @@ criterion_group!(
     right_shift_parallelized,
     rotate_left_parallelized,
     rotate_right_parallelized,
+    ciphertexts_sum_parallelized,
 );
 
 criterion_group!(
