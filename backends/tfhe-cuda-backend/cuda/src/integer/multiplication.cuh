@@ -7,15 +7,11 @@
 #endif
 
 #include "bootstrap.h"
-#include "bootstrap_multibit.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.h"
 #include "integer/integer.cuh"
 #include "linear_algebra.h"
-#include "pbs/bootstrap_amortized.cuh"
-#include "pbs/bootstrap_low_latency.cuh"
-#include "pbs/bootstrap_multibit.cuh"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
