@@ -1,16 +1,15 @@
+use crate::c_api::high_level_api::booleans::FheBool;
+use crate::c_api::high_level_api::i128::I128;
+use crate::c_api::high_level_api::i256::I256;
 use crate::c_api::high_level_api::keys::CompactPublicKey;
+use crate::c_api::high_level_api::u128::U128;
+use crate::c_api::high_level_api::u256::U256;
+use crate::c_api::utils::*;
 use crate::high_level_api::prelude::*;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
-
-use crate::c_api::high_level_api::booleans::FheBool;
-use crate::c_api::high_level_api::i128::I128;
-use crate::c_api::high_level_api::i256::I256;
-use crate::c_api::high_level_api::u128::U128;
-use crate::c_api::high_level_api::u256::U256;
-use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 macro_rules! define_all_cast_into_for_integer_type {
@@ -659,3 +658,134 @@ pub unsafe extern "C" fn compact_fhe_int256_list_try_encrypt_with_compact_public
 }
 
 define_all_cast_into_for_integer_type!(FheBool);
+
+macro_rules! impl_oprf_for_uint {
+    (
+        name: $name:ident
+    ) => {
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_ $name:snake>](
+                out_result: *mut *mut $name,
+                seed_low_bytes: u64,
+                seed_high_bytes: u64,
+            ) -> c_int {
+                use crate::high_level_api::IntegerId;
+                $crate::c_api::utils::catch_panic(|| {
+                    let seed_low_bytes: u128 = seed_low_bytes.into();
+                    let seed_high_bytes: u128 = seed_high_bytes.into();
+                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+
+                    let result = crate::FheUint::generate_oblivious_pseudo_random(
+                        seed,
+                        <crate::[<$name Id>] as IntegerId>::num_bits() as u64
+                    );
+                    *out_result = Box::into_raw(Box::new($name(result)));
+                })
+            }
+        }
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bits_ $name:snake>](
+                out_result: *mut *mut $name,
+                seed_low_bytes: u64,
+                seed_high_bytes: u64,
+                random_bits_count: u64,
+            ) -> c_int {
+
+                $crate::c_api::utils::catch_panic(|| {
+                    let seed_low_bytes: u128 = seed_low_bytes.into();
+                    let seed_high_bytes: u128 = seed_high_bytes.into();
+                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+
+                    let result = crate::FheUint::generate_oblivious_pseudo_random(seed, random_bits_count);
+                    *out_result = Box::into_raw(Box::new($name(result)));
+                })
+            }
+        }
+    };
+}
+
+macro_rules! impl_oprf_for_int {
+    (
+        name: $name:ident
+    ) => {
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_unsigned_ $name:snake>](
+                out_result: *mut *mut $name,
+                seed_low_bytes: u64,
+                seed_high_bytes: u64,
+                random_bits_count: u64,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let seed_low_bytes: u128 = seed_low_bytes.into();
+                    let seed_high_bytes: u128 = seed_high_bytes.into();
+                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+
+                    let result =
+                        crate::FheInt::generate_oblivious_pseudo_random(
+                            seed,
+                            crate::high_level_api::SignedRandomizationSpec::Unsigned {
+                                random_bits_count
+                            },
+                        );
+                    *out_result = Box::into_raw(Box::new($name(result)));
+                })
+            }
+        }
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_full_signed_range_ $name:snake>](
+                out_result: *mut *mut $name,
+                seed_low_bytes: u64,
+                seed_high_bytes: u64,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let seed_low_bytes: u128 = seed_low_bytes.into();
+                    let seed_high_bytes: u128 = seed_high_bytes.into();
+                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+
+                    let result = crate::FheInt::generate_oblivious_pseudo_random(
+                        seed,
+                        crate::high_level_api::SignedRandomizationSpec::FullSigned,
+                    );
+                    *out_result = Box::into_raw(Box::new($name(result)));
+
+                })
+            }
+        }
+    };
+}
+
+impl_oprf_for_uint!(name: FheUint2);
+impl_oprf_for_uint!(name: FheUint4);
+impl_oprf_for_uint!(name: FheUint6);
+impl_oprf_for_uint!(name: FheUint8);
+impl_oprf_for_uint!(name: FheUint10);
+impl_oprf_for_uint!(name: FheUint12);
+impl_oprf_for_uint!(name: FheUint14);
+impl_oprf_for_uint!(name: FheUint16);
+impl_oprf_for_uint!(name: FheUint32);
+impl_oprf_for_uint!(name: FheUint64);
+impl_oprf_for_uint!(name: FheUint128);
+impl_oprf_for_uint!(name: FheUint160);
+impl_oprf_for_uint!(name: FheUint256);
+
+impl_oprf_for_int!(name: FheInt2);
+impl_oprf_for_int!(name: FheInt4);
+impl_oprf_for_int!(name: FheInt6);
+impl_oprf_for_int!(name: FheInt8);
+impl_oprf_for_int!(name: FheInt10);
+impl_oprf_for_int!(name: FheInt12);
+impl_oprf_for_int!(name: FheInt14);
+impl_oprf_for_int!(name: FheInt16);
+impl_oprf_for_int!(name: FheInt32);
+impl_oprf_for_int!(name: FheInt64);
+impl_oprf_for_int!(name: FheInt128);
+impl_oprf_for_int!(name: FheInt160);
+impl_oprf_for_int!(name: FheInt256);

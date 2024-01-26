@@ -534,6 +534,54 @@ void test_try_decrypt_trivial(const ClientKey *client_key) {
   fhe_uint16_destroy(non_trivial);
 }
 
+void test_oprf(const ClientKey *client_key) {
+  {
+    FheUint8 *ct = NULL;
+
+    int status = generate_oblivious_pseudo_random_fhe_uint8(&ct, 0, 0);
+    assert(status == 0);
+
+    uint8_t decrypted;
+    status = fhe_uint8_decrypt(ct, client_key, &decrypted);
+    // nothing to assert here, as decrypted can be any uint8_t value
+
+    fhe_uint8_destroy(ct);
+
+    status = generate_oblivious_pseudo_random_bits_fhe_uint8(&ct, 0, 0, 2);
+    assert(status == 0);
+
+    status = fhe_uint8_decrypt(ct, client_key, &decrypted);
+    assert(status == 0);
+
+    assert(decrypted < 4);
+
+    fhe_uint8_destroy(ct);
+  }
+
+  {
+    FheInt8 *ct = NULL;
+
+    int status = generate_oblivious_pseudo_random_full_signed_range_fhe_int8(&ct, 0, 0);
+    assert(status == 0);
+
+    int8_t decrypted;
+    status = fhe_int8_decrypt(ct, client_key, &decrypted);
+    assert(status == 0);
+    // nothing to assert here, as decrypted can be any int8_t value
+
+    fhe_int8_destroy(ct);
+
+    status = generate_oblivious_pseudo_random_unsigned_fhe_int8(&ct, 0, 0, 2);
+    assert(status == 0);
+
+    status = fhe_int8_decrypt(ct, client_key, &decrypted);
+    assert(status == 0);
+
+    assert(decrypted < 4);
+    assert(decrypted >= 0);
+  }
+}
+
 int main(void) {
   int ok = 0;
   {
@@ -575,6 +623,7 @@ int main(void) {
     test_int8_overflowing_sub(client_key);
     test_int8_overflowing_mul(client_key);
     test_try_decrypt_trivial(client_key);
+    test_oprf(client_key);
 
     client_key_destroy(client_key);
     public_key_destroy(public_key);
