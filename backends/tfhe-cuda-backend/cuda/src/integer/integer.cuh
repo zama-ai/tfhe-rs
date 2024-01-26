@@ -1,87 +1,16 @@
 #ifndef CUDA_INTEGER_CUH
 #define CUDA_INTEGER_CUH
 
+#include "bootstrap.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.h"
 #include "integer/scalar_addition.cuh"
 #include "linear_algebra.h"
 #include "linearalgebra/addition.cuh"
-#include "pbs/bootstrap_low_latency.cuh"
-#include "pbs/bootstrap_multibit.cuh"
 #include "polynomial/functions.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <functional>
-
-template <typename Torus>
-void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
-                 Torus *lwe_output_indexes, Torus *lut_vector,
-                 Torus *lut_vector_indexes, Torus *lwe_array_in,
-                 Torus *lwe_input_indexes, void *bootstrapping_key,
-                 int8_t *pbs_buffer, uint32_t glwe_dimension,
-                 uint32_t lwe_dimension, uint32_t polynomial_size,
-                 uint32_t base_log, uint32_t level_count,
-                 uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
-                 uint32_t num_luts, uint32_t lwe_idx,
-                 uint32_t max_shared_memory, PBS_TYPE pbs_type) {
-  if (sizeof(Torus) == sizeof(uint32_t)) {
-    // 32 bits
-    switch (pbs_type) {
-    case MULTI_BIT:
-      printf("multibit\n");
-      printf("Error: 32-bit multibit PBS is not supported.\n");
-      break;
-    case LOW_LAT:
-      cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    case AMORTIZED:
-      cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    default:
-      break;
-    }
-  } else {
-    // 64 bits
-    switch (pbs_type) {
-    case MULTI_BIT:
-      cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, grouping_factor, base_log, level_count,
-          input_lwe_ciphertext_count, num_luts, lwe_idx, max_shared_memory);
-      break;
-    case LOW_LAT:
-      cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    case AMORTIZED:
-      cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    default:
-      break;
-    }
-  }
-}
 
 // function rotates right  radix ciphertext with specific value
 // grid is one dimensional
@@ -187,12 +116,12 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       lut->lwe_indexes, ksk, big_lwe_dimension, small_lwe_dimension,
       ks_base_log, ks_level, num_radix_blocks);
 
-  execute_pbs(stream, lwe_array_out, lut->lwe_indexes, lut->lut,
-              lut->lut_indexes, lut->tmp_lwe_after_ks, lut->lwe_indexes, bsk,
-              lut->pbs_buffer, glwe_dimension, small_lwe_dimension,
-              polynomial_size, pbs_base_log, pbs_level, grouping_factor,
-              num_radix_blocks, 1, 0,
-              cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
+  execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes, lut->lut,
+                     lut->lut_indexes, lut->tmp_lwe_after_ks, lut->lwe_indexes,
+                     bsk, lut->pbs_buffer, glwe_dimension, small_lwe_dimension,
+                     polynomial_size, pbs_base_log, pbs_level, grouping_factor,
+                     num_radix_blocks, 1, 0,
+                     cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
 }
 
 template <typename Torus>
@@ -471,31 +400,12 @@ void scratch_cuda_full_propagation(
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory) {
 
-  // PBS
   int8_t *pbs_buffer;
-  if (pbs_type == MULTI_BIT) {
-    uint32_t lwe_chunk_size = get_average_lwe_chunk_size(
-        lwe_dimension, pbs_level, glwe_dimension, num_radix_blocks);
-    // Only 64 bits is supported
-    scratch_cuda_multi_bit_pbs_64(stream, &pbs_buffer, lwe_dimension,
-                                  glwe_dimension, polynomial_size, pbs_level,
-                                  grouping_factor, num_radix_blocks,
-                                  cuda_get_max_shared_memory(stream->gpu_index),
-                                  allocate_gpu_memory, lwe_chunk_size);
-  } else {
-    // Classic
-    // We only use low latency for classic mode
-    if (sizeof(Torus) == sizeof(uint32_t))
-      scratch_cuda_bootstrap_low_latency_32(
-          stream, &pbs_buffer, glwe_dimension, polynomial_size, pbs_level,
-          num_radix_blocks, cuda_get_max_shared_memory(stream->gpu_index),
-          allocate_gpu_memory);
-    else
-      scratch_cuda_bootstrap_low_latency_64(
-          stream, &pbs_buffer, glwe_dimension, polynomial_size, pbs_level,
-          num_radix_blocks, cuda_get_max_shared_memory(stream->gpu_index),
-          allocate_gpu_memory);
-  }
+  execute_scratch_pbs<Torus>(stream, &pbs_buffer, glwe_dimension, lwe_dimension,
+                             polynomial_size, pbs_level, grouping_factor,
+                             num_radix_blocks,
+                             cuda_get_max_shared_memory(stream->gpu_index),
+                             pbs_type, allocate_gpu_memory);
 
   // LUT
   Torus *lut_buffer;

@@ -3,7 +3,6 @@
 
 #include "bootstrap.h"
 #include "bootstrap_multibit.cuh"
-#include "bootstrap_multibit.h"
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/ggsw.cuh"

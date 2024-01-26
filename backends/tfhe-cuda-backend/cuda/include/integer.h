@@ -3,6 +3,7 @@
 
 #include "bootstrap.h"
 #include "bootstrap_multibit.h"
+#include "pbs/bootstrap.cuh"
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -297,31 +298,11 @@ template <typename Torus> struct int_radix_lut {
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
     ///////////////
-    // PBS
-    if (params.pbs_type == MULTI_BIT) {
-      // Only 64 bits is supported
-      static_assert(
-          sizeof(Torus) == 8,
-          "Error (GPU multi bit PBS): only 64 bits Torus is supported");
-      scratch_cuda_multi_bit_pbs_64(
-          stream, &pbs_buffer, params.small_lwe_dimension,
-          params.glwe_dimension, params.polynomial_size, params.pbs_level,
-          params.grouping_factor, num_radix_blocks,
-          cuda_get_max_shared_memory(stream->gpu_index), allocate_gpu_memory);
-    } else {
-      // Classic
-      // We only use low latency for classic mode
-      if (sizeof(Torus) == sizeof(uint32_t))
-        scratch_cuda_bootstrap_low_latency_32(
-            stream, &pbs_buffer, params.glwe_dimension, params.polynomial_size,
-            params.pbs_level, num_radix_blocks,
-            cuda_get_max_shared_memory(stream->gpu_index), allocate_gpu_memory);
-      else
-        scratch_cuda_bootstrap_low_latency_64(
-            stream, &pbs_buffer, params.glwe_dimension, params.polynomial_size,
-            params.pbs_level, num_radix_blocks,
-            cuda_get_max_shared_memory(stream->gpu_index), allocate_gpu_memory);
-    }
+    execute_scratch_pbs<Torus>(
+        stream, &pbs_buffer, params.glwe_dimension, params.small_lwe_dimension,
+        params.polynomial_size, params.pbs_level, params.grouping_factor,
+        num_radix_blocks, cuda_get_max_shared_memory(stream->gpu_index),
+        params.pbs_type, allocate_gpu_memory);
 
     if (allocate_gpu_memory) {
       // Allocate LUT
