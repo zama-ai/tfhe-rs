@@ -436,6 +436,8 @@ fn test_signed_unchecked_function<UncheckedFn, ClearF>(
         (1i128, -1i128),
         (-1i128, -2i128),
         (-2i128, -1i128),
+        (0i128, -1i128),
+        (i128::MAX, 0i128),
     ];
     for (clear_a, clear_b) in pairs {
         let a = cks.encrypt_signed_radix(clear_a, num_block);
@@ -1171,7 +1173,7 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..4 {
-        let clear_a = rng.gen::<u128>();
+        let clear_a = rng.gen_range((u128::from(u64::MAX) + 1)..=u128::MAX);
         let smaller_clear = rng.gen::<u64>();
         let bigger_clear = rng.gen::<U256>();
 
@@ -1372,6 +1374,26 @@ fn test_signed_unchecked_scalar_function<UncheckedFn, ClearF>(
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    // Some hard coded tests
+    let pairs = [
+        (1i128, 2i128),
+        (2i128, 1i128),
+        (-1i128, 1i128),
+        (1i128, -1i128),
+        (-1i128, -2i128),
+        (-2i128, -1i128),
+        (0i128, -1i128),
+        (i128::MAX, 0i128),
+    ];
+    for (clear_a, clear_b) in pairs {
+        let a = cks.encrypt_signed_radix(clear_a, num_block);
+
+        let result = unchecked_comparison_method(&sks, &a, clear_b);
+        let decrypted: i128 = cks.decrypt_signed_radix(&result);
+        let expected_result = clear_fn(clear_a, clear_b);
+        assert_eq!(decrypted, expected_result);
+    }
 
     for _ in 0..num_test {
         let clear_a = rng.gen::<i128>();
