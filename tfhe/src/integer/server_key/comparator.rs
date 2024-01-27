@@ -24,6 +24,24 @@ enum MinMaxSelector {
     Min,
 }
 
+/// This function encodes how to reduce the ordering of two blocks.
+///
+/// It is used to generate the necessary lookup table.
+///
+/// `x` is actually two ordering values packed
+/// where in the first 2 lsb bits there is the ordering value of the less significant block,
+/// and the 2 msb bits of x contains the ordering of the more significant block.
+fn reduce_two_orderings_function(x: u64) -> u64 {
+    let msb = (x >> 2) & 3;
+    let lsb = x & 3;
+
+    if msb == Comparator::IS_EQUAL {
+        lsb
+    } else {
+        msb
+    }
+}
+
 /// struct to compare integers
 ///
 /// This struct keeps in memory the LUTs that are used
@@ -57,47 +75,10 @@ impl<'a> Comparator<'a> {
 
         let message_modulus = server_key.key.message_modulus.0 as u64;
         let sign_lut = server_key.key.generate_lookup_table(|x| u64::from(x != 0));
-        // Comparison encoding
-        // -------------------
-        // x > y -> 2 = 10
-        // x = y -> 1 = 01
-        // x < y -> 0 = 00
 
-        // Prev   Curr   Res
-        // ----   ----   ---
-        //   00     00    00
-        //   00     01    00
-        //   00     10    00
-        //   00     11    -- (unused)
-        //
-        //   01     00    00
-        //   01     01    01
-        //   01     10    10
-        //   01     11    -- (unused)
-        //
-        //   10     00    10
-        //   10     01    10
-        //   10     10    10
-        let comparison_reduction_lut = server_key.key.generate_lookup_table(|x| {
-            [
-                Self::IS_INFERIOR,
-                Self::IS_INFERIOR,
-                Self::IS_INFERIOR,
-                Self::IS_INFERIOR,
-                Self::IS_INFERIOR,
-                Self::IS_EQUAL,
-                Self::IS_SUPERIOR,
-                Self::IS_SUPERIOR,
-                Self::IS_SUPERIOR,
-                Self::IS_SUPERIOR,
-                Self::IS_SUPERIOR,
-            ]
-            .get(x as usize)
-            .copied()
-            // This accumulator / LUT will be used in a context
-            // where we know the values are <= 12
-            .unwrap_or(0)
-        });
+        let comparison_reduction_lut = server_key
+            .key
+            .generate_lookup_table(reduce_two_orderings_function);
 
         let comparison_result_to_offset_lut = server_key.key.generate_lookup_table(|sign| {
             if sign == Self::IS_INFERIOR {
@@ -254,12 +235,61 @@ impl<'a> Comparator<'a> {
     /// Reduces a vec containing shortint blocks that encrypts a sign
     /// (inferior, equal, superior) to one single shortint block containing the
     /// final sign
-    fn reduce_signs_parallelized(
+    fn reduce_signs<F>(
+        &self,
+        mut sign_blocks: Vec<Ciphertext>,
+        sign_result_handler_fn: F,
+    ) -> Ciphertext
+    where
+        F: Fn(u64) -> u64,
+    {
+        while sign_blocks.len() > 2 {
+            let mut sign_blocks_2: Vec<_> = sign_blocks
+                .chunks_exact(2)
+                .map(|chunk| {
+                    let (low, high) = (&chunk[0], &chunk[1]);
+                    let mut high = high.clone();
+                    self.reduce_two_sign_blocks_assign(&mut high, low);
+                    high
+                })
+                .collect();
+
+            if (sign_blocks.len() % 2) == 1 {
+                sign_blocks_2.push(sign_blocks[sign_blocks.len() - 1].clone());
+            }
+
+            std::mem::swap(&mut sign_blocks_2, &mut sign_blocks);
+        }
+
+        let final_lut = self.server_key.key.generate_lookup_table(|x| {
+            let final_sign = reduce_two_orderings_function(x);
+            sign_result_handler_fn(final_sign)
+        });
+
+        // We don't use pack_block_assign as the offset '4' does not depend on params
+        let mut result = self.server_key.key.unchecked_scalar_mul(&sign_blocks[1], 4);
+        self.server_key
+            .key
+            .unchecked_add_assign(&mut result, &sign_blocks[0]);
+        self.server_key
+            .key
+            .apply_lookup_table_assign(&mut result, &final_lut);
+        result
+    }
+
+    /// Reduces a vec containing shortint blocks that encrypts a sign
+    /// (inferior, equal, superior) to one single shortint block containing the
+    /// final sign
+    fn reduce_signs_parallelized<F>(
         &self,
         mut sign_blocks: Vec<crate::shortint::Ciphertext>,
-    ) -> crate::shortint::Ciphertext {
+        sign_result_handler_fn: F,
+    ) -> crate::shortint::Ciphertext
+    where
+        F: Fn(u64) -> u64,
+    {
         let mut sign_blocks_2 = Vec::with_capacity(sign_blocks.len() / 2);
-        while sign_blocks.len() != 1 {
+        while sign_blocks.len() > 2 {
             sign_blocks
                 .par_chunks_exact(2)
                 .map(|chunk| {
@@ -276,7 +306,30 @@ impl<'a> Comparator<'a> {
 
             std::mem::swap(&mut sign_blocks_2, &mut sign_blocks);
         }
-        sign_blocks.into_iter().next().unwrap()
+
+        if sign_blocks.len() == 2 {
+            let final_lut = self.server_key.key.generate_lookup_table(|x| {
+                let final_sign = reduce_two_orderings_function(x);
+                sign_result_handler_fn(final_sign)
+            });
+            // We don't use pack_block_assign as the offset '4' does not depend on params
+            let mut result = self.server_key.key.unchecked_scalar_mul(&sign_blocks[1], 4);
+            self.server_key
+                .key
+                .unchecked_add_assign(&mut result, &sign_blocks[0]);
+            self.server_key
+                .key
+                .apply_lookup_table_assign(&mut result, &final_lut);
+            result
+        } else {
+            let final_lut = self
+                .server_key
+                .key
+                .generate_lookup_table(sign_result_handler_fn);
+            self.server_key
+                .key
+                .apply_lookup_table(&sign_blocks[0], &final_lut)
+        }
     }
 
     /// returns:
@@ -288,9 +341,15 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_compare<T>(&self, lhs: &T, rhs: &T) -> crate::shortint::Ciphertext
+    fn unchecked_compare<T, F>(
+        &self,
+        lhs: &T,
+        rhs: &T,
+        sign_result_handler_fn: F,
+    ) -> crate::shortint::Ciphertext
     where
         T: IntegerRadixCiphertext,
+        F: Fn(u64) -> u64,
     {
         assert_eq!(lhs.blocks().len(), rhs.blocks().len());
 
@@ -371,22 +430,7 @@ impl<'a> Comparator<'a> {
             compare_blocks_fn(self, lhs.blocks(), rhs.blocks(), &mut comparisons);
         }
 
-        // Iterate block from most significant to less significant
-        let mut selection = comparisons.last().cloned().unwrap();
-        for comparison in comparisons[0..comparisons.len() - 1].iter().rev() {
-            self.server_key
-                .key
-                .unchecked_scalar_mul_assign(&mut selection, 4);
-            self.server_key
-                .key
-                .unchecked_add_assign(&mut selection, comparison);
-
-            self.server_key
-                .key
-                .apply_lookup_table_assign(&mut selection, &self.comparison_reduction_lut);
-        }
-
-        selection
+        self.reduce_signs(comparisons, sign_result_handler_fn)
     }
 
     /// Expects the carry buffers to be empty
@@ -399,9 +443,15 @@ impl<'a> Comparator<'a> {
     /// (Self::IS_INFERIOR, Self::IS_EQUAL, Self::IS_SUPERIOR)
     ///
     /// The output len may be shorter as blocks may be packed
-    fn unchecked_compare_parallelized<T>(&self, lhs: &T, rhs: &T) -> crate::shortint::Ciphertext
+    fn unchecked_compare_parallelized<T, F>(
+        &self,
+        lhs: &T,
+        rhs: &T,
+        sign_result_handler_fn: F,
+    ) -> crate::shortint::Ciphertext
     where
         T: IntegerRadixCiphertext,
+        F: Fn(u64) -> u64,
     {
         assert_eq!(lhs.blocks().len(), rhs.blocks().len());
 
@@ -488,7 +538,7 @@ impl<'a> Comparator<'a> {
             compare_blocks_fn(self, lhs.blocks(), rhs.blocks(), &mut comparisons);
         }
 
-        self.reduce_signs_parallelized(comparisons)
+        self.reduce_signs_parallelized(comparisons, sign_result_handler_fn)
     }
 
     /// This functions takes two slices:
@@ -530,20 +580,32 @@ impl<'a> Comparator<'a> {
     ///
     /// * The ciphertext can be unsigned or signed
     /// * The clear value can be positive or negative
-    fn unchecked_scalar_compare_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> Ciphertext
+    fn unchecked_scalar_compare_parallelized<T, Scalar, F>(
+        &self,
+        lhs: &T,
+        rhs: Scalar,
+        sign_result_handler_fn: F,
+    ) -> Ciphertext
     where
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
+        F: Fn(u64) -> u64,
     {
         if T::IS_SIGNED {
             match self.server_key.is_scalar_out_of_bounds(lhs, rhs) {
                 Some(std::cmp::Ordering::Greater) => {
                     // Scalar is greater than the bounds, so ciphertext is smaller
-                    return self.server_key.key.create_trivial(Self::IS_INFERIOR);
+                    return self
+                        .server_key
+                        .key
+                        .create_trivial(sign_result_handler_fn(Self::IS_INFERIOR));
                 }
                 Some(std::cmp::Ordering::Less) => {
                     // Scalar is smaller than the bounds, so ciphertext is bigger
-                    return self.server_key.key.create_trivial(Self::IS_SUPERIOR);
+                    return self
+                        .server_key
+                        .key
+                        .create_trivial(sign_result_handler_fn(Self::IS_SUPERIOR));
                 }
                 Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),
                 None => {
@@ -555,30 +617,37 @@ impl<'a> Comparator<'a> {
                 self.signed_unchecked_scalar_compare_with_positive_scalar_parallelized(
                     lhs.blocks(),
                     rhs,
+                    sign_result_handler_fn,
                 )
             } else {
                 let scalar_as_trivial: T = self
                     .server_key
                     .create_trivial_radix(rhs, lhs.blocks().len());
-                self.unchecked_compare_parallelized(lhs, &scalar_as_trivial)
+                self.unchecked_compare_parallelized(lhs, &scalar_as_trivial, sign_result_handler_fn)
             }
         } else {
-            self.unsigned_unchecked_scalar_compare_blocks_parallelized(lhs.blocks(), rhs)
+            self.unsigned_unchecked_scalar_compare_blocks_parallelized(
+                lhs.blocks(),
+                rhs,
+                sign_result_handler_fn,
+            )
         }
     }
 
-    /// This function compute the sign of a signed integer ciphertext with
+    /// This function computes the sign of a signed integer ciphertext with
     /// a positive clear value
     ///
     /// Scalar **must** be >= 0
     /// Scalar must be <= the max value possible for lhs
-    fn signed_unchecked_scalar_compare_with_positive_scalar_parallelized<Scalar>(
+    fn signed_unchecked_scalar_compare_with_positive_scalar_parallelized<Scalar, F>(
         &self,
         lhs_blocks: &[Ciphertext],
         rhs: Scalar,
+        sign_result_handler_fn: F,
     ) -> Ciphertext
     where
         Scalar: DecomposableInto<u64>,
+        F: Fn(u64) -> u64,
     {
         assert!(!lhs_blocks.is_empty());
         assert!(rhs >= Scalar::ZERO);
@@ -594,104 +663,141 @@ impl<'a> Comparator<'a> {
         let (least_significant_blocks, most_significant_blocks) =
             lhs_blocks.split_at(scalar_blocks.len());
 
-        let (lsb_sign, msb_sign) = rayon::join(
-            || {
-                if least_significant_blocks.is_empty() {
-                    None
-                } else if most_significant_blocks.is_empty() {
-                    // If most_significant_blocks is empty, then,
-                    // least_significant_blocks contain the block that has the sign bit
-                    let n = least_significant_blocks.len();
-
-                    let (mut signs, sign_block_sign) = rayon::join(
-                        || {
-                            self.unchecked_scalar_block_slice_compare_parallelized(
-                                &least_significant_blocks[..n - 1],
-                                &scalar_blocks[..n - 1],
-                            )
-                        },
-                        || {
-                            let trivial_sign_block = self
-                                .server_key
-                                .key
-                                .create_trivial(scalar_blocks[n - 1] as u64);
-                            self.compare_blocks_with_sign_bit(
-                                &least_significant_blocks[n - 1],
-                                &trivial_sign_block,
-                            )
-                        },
-                    );
-
-                    signs.push(sign_block_sign);
-                    Some(self.reduce_signs_parallelized(signs))
-                } else {
-                    let signs = self.unchecked_scalar_block_slice_compare_parallelized(
-                        least_significant_blocks,
-                        &scalar_blocks,
-                    );
-                    Some(self.reduce_signs_parallelized(signs))
-                }
-            },
-            || {
-                if most_significant_blocks.is_empty() {
-                    return None;
-                }
-
-                // If most_significant_blocks is non empty, then is _will_
-                // contain the block that has the sign bit
-
-                let (sign, mut sign_block_sign) = rayon::join(
+        match (
+            least_significant_blocks.is_empty(),
+            most_significant_blocks.is_empty(),
+        ) {
+            (false, false) => {
+                // We have to handle both part of the work
+                // And the sign bit is located in the most_significant_blocks
+                let (lsb_sign, msb_sign) = rayon::join(
                     || {
-                        let msb_cmp_zero = self.server_key.compare_blocks_with_zero(
-                            &most_significant_blocks[..most_significant_blocks.len() - 1],
-                            ZeroComparisonType::Equality,
+                        let lsb_signs = self.unchecked_scalar_block_slice_compare_parallelized(
+                            least_significant_blocks,
+                            &scalar_blocks[..least_significant_blocks.len()],
                         );
-                        let are_all_msb_equal_to_zero =
-                            self.server_key.are_all_comparisons_block_true(msb_cmp_zero);
-                        let lut = self.server_key.key.generate_lookup_table(|x| {
-                            if x == 1 {
-                                Self::IS_EQUAL
-                            } else {
-                                Self::IS_SUPERIOR
-                            }
-                        });
-                        self.server_key
-                            .key
-                            .apply_lookup_table(&are_all_msb_equal_to_zero, &lut)
+                        self.reduce_signs_parallelized(lsb_signs, |x| x)
                     },
                     || {
+                        // most_significant_blocks has the sign block, which must be handled
+                        let are_all_msb_equal_to_zero = self.server_key.are_all_blocks_zero(
+                            &most_significant_blocks[..most_significant_blocks.len() - 1],
+                        );
                         let sign_bit_pos = self.server_key.key.message_modulus.0.ilog2() - 1;
-                        let lut2 = self.server_key.key.generate_lookup_table(|x| {
-                            let x = x % self.server_key.key.message_modulus.0 as u64;
-                            let sign_bit_is_set = (x >> sign_bit_pos) == 1;
-                            if sign_bit_is_set {
-                                Self::IS_INFERIOR
-                            } else if x != 0 {
-                                Self::IS_SUPERIOR
-                            } else {
-                                Self::IS_EQUAL
-                            }
-                        });
-                        self.server_key.key.apply_lookup_table(
-                            &most_significant_blocks[most_significant_blocks.len() - 1],
-                            &lut2,
+
+                        // This LUT is the fusion of manu LUT.
+                        // It defines the ordering given by the sign block (known scalar is >= 0)
+                        // It defines the ordering given by the result of are_all_msb_blocks_zeros
+                        // and finally reduces these two previous ordering to produce one final
+                        // ordering for the considered blocks
+                        let lut = self.server_key.key.generate_lookup_table_bivariate(
+                            |sign_block, msb_are_zeros| {
+                                let sign_bit_is_set = (sign_block >> sign_bit_pos) == 1;
+                                let sign_block_ordering = if sign_bit_is_set {
+                                    Self::IS_INFERIOR
+                                } else if sign_block != 0 {
+                                    Self::IS_SUPERIOR
+                                } else {
+                                    Self::IS_EQUAL
+                                };
+                                let msb_ordering = if msb_are_zeros == 1 {
+                                    Self::IS_EQUAL
+                                } else {
+                                    Self::IS_SUPERIOR
+                                };
+
+                                reduce_two_orderings_function(
+                                    sign_block_ordering << 2 | msb_ordering,
+                                )
+                            },
+                        );
+                        self.server_key.key.unchecked_apply_lookup_table_bivariate(
+                            most_significant_blocks.last().as_ref().unwrap(),
+                            &are_all_msb_equal_to_zero,
+                            &lut,
                         )
                     },
                 );
 
-                self.reduce_two_sign_blocks_assign(&mut sign_block_sign, &sign);
-                Some(sign_block_sign)
-            },
-        );
-
-        match (lsb_sign, msb_sign) {
-            (None, Some(sign)) => sign,
-            (Some(sign), None) => sign,
-            (Some(lsb_sign), Some(mut msb_sign)) => {
-                self.reduce_two_sign_blocks_assign(&mut msb_sign, &lsb_sign);
-                msb_sign
+                // parallelized not needed as there are 2 blocks
+                self.reduce_signs(vec![lsb_sign, msb_sign], sign_result_handler_fn)
             }
-            (None, None) => {
+            (false, true) => {
+                // This means lhs_blocks.len() == scalar_blocks.len()
+                // We have to do only the regular block comparisons.
+                // We again have to split in two, to handle the sign bit
+                let n = least_significant_blocks.len();
+                let (mut signs, sign_block_sign) = rayon::join(
+                    || {
+                        self.unchecked_scalar_block_slice_compare_parallelized(
+                            &least_significant_blocks[..n - 1],
+                            &scalar_blocks[..n - 1],
+                        )
+                    },
+                    || {
+                        let trivial_sign_block = self
+                            .server_key
+                            .key
+                            .create_trivial(scalar_blocks[n - 1] as u64);
+                        self.compare_blocks_with_sign_bit(
+                            &least_significant_blocks[n - 1],
+                            &trivial_sign_block,
+                        )
+                    },
+                );
+
+                signs.push(sign_block_sign);
+                self.reduce_signs_parallelized(signs, sign_result_handler_fn)
+            }
+            (true, false) => {
+                // We only have to compare blocks with zero
+                // (means scalar is zero)
+                // This also means scalar_block.len() == 0, i.e scalar == 0
+
+                let n = most_significant_blocks.len();
+                let are_all_msb_zeros = self
+                    .server_key
+                    .are_all_blocks_zero(&most_significant_blocks[..n - 1]);
+
+                let sign_bit_pos = self.server_key.key.message_modulus.0.ilog2() - 1;
+
+                let sign_block_ordering_with_respect_to_zero = |sign_block| {
+                    let sign_block = sign_block % self.server_key.key.message_modulus.0 as u64;
+                    let sign_bit_is_set = (sign_block >> sign_bit_pos) == 1;
+                    if sign_bit_is_set {
+                        Self::IS_INFERIOR
+                    } else if sign_block != 0 {
+                        Self::IS_SUPERIOR
+                    } else {
+                        Self::IS_EQUAL
+                    }
+                };
+
+                // Fuse multiple LUT into one
+                // Use the previously defined function to get ordering of sign block
+                // Define ordering for comparison with zero
+                // reduce these two ordering to get the final one
+                let lut = self.server_key.key.generate_lookup_table_bivariate(
+                    |are_all_zeros, sign_block| {
+                        // "re-code" are_all_zeros as an ordering value
+                        let are_all_zeros = if are_all_zeros == 1 {
+                            Self::IS_EQUAL
+                        } else {
+                            Self::IS_SUPERIOR
+                        };
+
+                        let x = (sign_block_ordering_with_respect_to_zero(sign_block) << 2)
+                            + are_all_zeros;
+                        sign_result_handler_fn(reduce_two_orderings_function(x))
+                    },
+                );
+                self.server_key.key.unchecked_apply_lookup_table_bivariate(
+                    &are_all_msb_zeros,
+                    &most_significant_blocks[n - 1],
+                    &lut,
+                )
+            }
+            (true, true) => {
                 // assert should have  been hit earlier
                 unreachable!("Empty input ciphertext")
             }
@@ -703,19 +809,24 @@ impl<'a> Comparator<'a> {
     ///
     /// * lhs_blocks **must** represent positive values
     /// * rhs can be positive of negative
-    fn unsigned_unchecked_scalar_compare_blocks_parallelized<Scalar>(
+    fn unsigned_unchecked_scalar_compare_blocks_parallelized<Scalar, F>(
         &self,
         lhs_blocks: &[Ciphertext],
         rhs: Scalar,
+        sign_result_handler_fn: F,
     ) -> Ciphertext
     where
         Scalar: DecomposableInto<u64>,
+        F: Fn(u64) -> u64,
     {
         assert!(!lhs_blocks.is_empty());
 
         if rhs < Scalar::ZERO {
             // lhs_blocks represent an unsigned (always >= 0)
-            return self.server_key.key.create_trivial(Self::IS_SUPERIOR);
+            return self
+                .server_key
+                .key
+                .create_trivial(sign_result_handler_fn(Self::IS_SUPERIOR));
         }
 
         let message_modulus = self.server_key.key.message_modulus.0;
@@ -732,7 +843,10 @@ impl<'a> Comparator<'a> {
             .get(lhs_blocks.len()..)
             .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
         if is_scalar_obviously_bigger {
-            return self.server_key.key.create_trivial(Self::IS_INFERIOR);
+            return self
+                .server_key
+                .key
+                .create_trivial(sign_result_handler_fn(Self::IS_INFERIOR));
         }
         // If we are sill here, that means scalar_blocks above
         // num_blocks are 0s, we can remove them
@@ -754,66 +868,97 @@ impl<'a> Comparator<'a> {
         // - The other part is to compare the ciphertext blocks not considered for the sign
         //   computation with zero, and create a single sign block from that.
         //
-        // The smaller the scalar value is comparaed to the ciphertext num bits encrypted,
+        // The smaller the scalar value is compared to the ciphertext num bits encrypted,
         // the more the comparisons with zeros we have to do,
         // and the less signs block we will have to reduce.
         //
         // This will create a speedup as comparing a bunch of blocks with 0
         // is faster
-        let (lsb_sign, msb_sign) = rayon::join(
-            || {
-                if least_significant_blocks.is_empty() {
-                    None
-                } else {
-                    let signs = self.unchecked_scalar_block_slice_compare_parallelized(
-                        least_significant_blocks,
-                        &scalar_blocks,
-                    );
-                    Some(self.reduce_signs_parallelized(signs))
-                }
-            },
-            || {
-                if most_significant_blocks.is_empty() {
-                    return None;
-                }
-                let msb_cmp_zero = self.server_key.compare_blocks_with_zero(
-                    most_significant_blocks,
-                    ZeroComparisonType::Equality,
+
+        match (
+            least_significant_blocks.is_empty(),
+            most_significant_blocks.is_empty(),
+        ) {
+            (false, false) => {
+                // We have to handle both part of the work described above
+
+                let (lsb_sign, are_all_msb_equal_to_zero) = rayon::join(
+                    || {
+                        let lsb_signs = self.unchecked_scalar_block_slice_compare_parallelized(
+                            least_significant_blocks,
+                            &scalar_blocks,
+                        );
+                        self.reduce_signs_parallelized(lsb_signs, |x| x)
+                    },
+                    || self.server_key.are_all_blocks_zero(most_significant_blocks),
                 );
+
+                // Reduce the two blocks into one final
+                let lut = self
+                    .server_key
+                    .key
+                    .generate_lookup_table_bivariate(|lsb, msb| {
+                        // "re-code" are_all_msb_equal_to_zero as an ordering value
+                        let msb = if msb == 1 {
+                            Self::IS_EQUAL
+                        } else {
+                            Self::IS_SUPERIOR
+                        };
+
+                        let x = (msb << 2) + lsb;
+                        let final_sign = reduce_two_orderings_function(x);
+                        sign_result_handler_fn(final_sign)
+                    });
+
+                self.server_key.key.unchecked_apply_lookup_table_bivariate(
+                    &lsb_sign,
+                    &are_all_msb_equal_to_zero,
+                    &lut,
+                )
+            }
+            (false, true) => {
+                // We only have to do the regular comparison
+                // And not the part where we compare most significant blocks with zeros
+                let signs = self.unchecked_scalar_block_slice_compare_parallelized(
+                    least_significant_blocks,
+                    &scalar_blocks,
+                );
+                self.reduce_signs_parallelized(signs, sign_result_handler_fn)
+            }
+            (true, false) => {
+                // We only have to compare blocks with zero
+                // means scalar is zero
                 let are_all_msb_equal_to_zero =
-                    self.server_key.are_all_comparisons_block_true(msb_cmp_zero);
+                    self.server_key.are_all_blocks_zero(most_significant_blocks);
                 let lut = self.server_key.key.generate_lookup_table(|x| {
-                    if x == 1 {
+                    // "re-code" x as an ordering value
+                    let x = if x == 1 {
                         Self::IS_EQUAL
                     } else {
                         Self::IS_SUPERIOR
-                    }
+                    };
+                    sign_result_handler_fn(x)
                 });
-                let sign = self
-                    .server_key
+                self.server_key
                     .key
-                    .apply_lookup_table(&are_all_msb_equal_to_zero, &lut);
-                Some(sign)
-            },
-        );
-
-        match (lsb_sign, msb_sign) {
-            (None, Some(sign)) => sign,
-            (Some(sign), None) => sign,
-            (Some(lsb_sign), Some(mut msb_sign)) => {
-                self.reduce_two_sign_blocks_assign(&mut msb_sign, &lsb_sign);
-                msb_sign
+                    .apply_lookup_table(&are_all_msb_equal_to_zero, &lut)
             }
-            (None, None) => {
+            (true, true) => {
                 // assert should have  been hit earlier
                 unreachable!("Empty input ciphertext")
             }
         }
     }
 
-    fn smart_compare<T>(&self, lhs: &mut T, rhs: &mut T) -> crate::shortint::Ciphertext
+    fn smart_compare<T, F>(
+        &self,
+        lhs: &mut T,
+        rhs: &mut T,
+        sign_result_handler_fn: F,
+    ) -> crate::shortint::Ciphertext
     where
         T: IntegerRadixCiphertext,
+        F: Fn(u64) -> u64,
     {
         if !lhs.block_carries_are_empty() {
             self.server_key.full_propagate(lhs);
@@ -821,12 +966,18 @@ impl<'a> Comparator<'a> {
         if !rhs.block_carries_are_empty() {
             self.server_key.full_propagate(rhs);
         }
-        self.unchecked_compare(lhs, rhs)
+        self.unchecked_compare(lhs, rhs, sign_result_handler_fn)
     }
 
-    fn smart_compare_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> crate::shortint::Ciphertext
+    fn smart_compare_parallelized<T, F>(
+        &self,
+        lhs: &mut T,
+        rhs: &mut T,
+        sign_result_handler_fn: F,
+    ) -> crate::shortint::Ciphertext
     where
         T: IntegerRadixCiphertext,
+        F: Fn(u64) -> u64,
     {
         rayon::join(
             || {
@@ -840,7 +991,7 @@ impl<'a> Comparator<'a> {
                 }
             },
         );
-        self.unchecked_compare_parallelized(lhs, rhs)
+        self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn)
     }
 
     /// Expects the carry buffers to be empty
@@ -854,7 +1005,7 @@ impl<'a> Comparator<'a> {
         };
         let num_block = lhs.blocks().len();
 
-        let mut offset = self.unchecked_compare(lhs, rhs);
+        let mut offset = self.unchecked_compare(lhs, rhs, |x| x);
         self.server_key
             .key
             .apply_lookup_table_assign(&mut offset, &self.comparison_result_to_offset_lut);
@@ -879,7 +1030,7 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        let sign = self.unchecked_compare_parallelized(lhs, rhs);
+        let sign = self.unchecked_compare_parallelized(lhs, rhs, |x| x);
         let do_clean_message = true;
         match selector {
             MinMaxSelector::Max => self
@@ -913,7 +1064,7 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        let sign = self.unchecked_scalar_compare_parallelized(lhs, rhs);
+        let sign = self.unchecked_scalar_compare_parallelized(lhs, rhs, |x| x);
         let rhs = self
             .server_key
             .create_trivial_radix(rhs, lhs.blocks().len());
@@ -977,64 +1128,6 @@ impl<'a> Comparator<'a> {
         self.unchecked_min_or_max_parallelized(lhs, rhs, selector)
     }
 
-    /// Takes a block encrypting a sign resulting from
-    /// unchecked_sign / unchecked_sign_parallelized.
-    ///
-    /// And use the given `sign_result_handler_fn`
-    /// to convert it to a radix ciphertext that encrypts
-    /// a boolean value.
-    fn map_sign_result<F>(
-        &self,
-        comparison: &crate::shortint::Ciphertext,
-        sign_result_handler_fn: F,
-    ) -> BooleanBlock
-    where
-        F: Fn(u64) -> bool,
-    {
-        let acc = self
-            .server_key
-            .key
-            .generate_lookup_table(|x| u64::from(sign_result_handler_fn(x)));
-        let result_block = self.server_key.key.apply_lookup_table(comparison, &acc);
-        BooleanBlock::new_unchecked(result_block)
-    }
-
-    /// Helper function to implement unchecked_lt, unchecked_ge, etc
-    ///
-    /// Expects the carry buffers to be empty
-    fn unchecked_comparison_impl<'b, T, CmpFn, F>(
-        &self,
-        comparison_fn: CmpFn,
-        sign_result_handler_fn: F,
-        lhs: &'b T,
-        rhs: &'b T,
-    ) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        CmpFn: Fn(&Self, &'b T, &'b T) -> crate::shortint::Ciphertext,
-        F: Fn(u64) -> bool,
-    {
-        let comparison = comparison_fn(self, lhs, rhs);
-        self.map_sign_result(&comparison, sign_result_handler_fn)
-    }
-
-    /// Helper function to implement smart_lt, smart_ge, etc
-    fn smart_comparison_impl<T, CmpFn, F>(
-        &self,
-        smart_comparison_fn: CmpFn,
-        sign_result_handler_fn: F,
-        lhs: &mut T,
-        rhs: &mut T,
-    ) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        CmpFn: Fn(&Self, &mut T, &mut T) -> crate::shortint::Ciphertext,
-        F: Fn(u64) -> bool,
-    {
-        let comparison = smart_comparison_fn(self, lhs, rhs);
-        self.map_sign_result(&comparison, sign_result_handler_fn)
-    }
-
     //======================================
     // Unchecked Single-Threaded operations
     //======================================
@@ -1043,48 +1136,36 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
+        let comparison = self.unchecked_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_ge<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
+        let comparison = self.unchecked_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_lt<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
+        let comparison = self.unchecked_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_le<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
+        let comparison = self.unchecked_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_max<T>(&self, lhs: &T, rhs: &T) -> T
@@ -1109,48 +1190,36 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
+        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
+        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
+        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
+        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
@@ -1175,38 +1244,36 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(Self::smart_compare, |x| x == Self::IS_SUPERIOR, lhs, rhs)
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
+        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_ge<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare,
-            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
+        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_lt<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(Self::smart_compare, |x| x == Self::IS_INFERIOR, lhs, rhs)
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
+        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_le<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare,
-            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
+        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_max<T>(&self, lhs: &mut T, rhs: &mut T) -> T
@@ -1231,48 +1298,36 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare_parallelized,
-            |x| x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
+        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare_parallelized,
-            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
+        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare_parallelized,
-            |x| x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
+        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_comparison_impl(
-            Self::smart_compare_parallelized,
-            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
-            lhs,
-            rhs,
-        )
+        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
+        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn smart_max_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
@@ -1503,10 +1558,11 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
-        F: Fn(u64) -> bool + Sync,
+        F: Fn(u64) -> u64 + Sync,
     {
-        let sign_block = self.unchecked_scalar_compare_parallelized(lhs, rhs);
-        self.map_sign_result(&sign_block, sign_result_handler_fn)
+        let comparison =
+            self.unchecked_scalar_compare_parallelized(lhs, rhs, sign_result_handler_fn);
+        BooleanBlock::new_unchecked(comparison)
     }
 
     pub fn unchecked_scalar_gt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1514,7 +1570,9 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+        self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| {
+            u64::from(x == Self::IS_SUPERIOR)
+        })
     }
 
     pub fn unchecked_scalar_ge_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1523,7 +1581,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| {
-            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_SUPERIOR || x == Self::IS_EQUAL)
         })
     }
 
@@ -1532,7 +1590,9 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| x == Self::IS_INFERIOR)
+        self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| {
+            u64::from(x == Self::IS_INFERIOR)
+        })
     }
 
     pub fn unchecked_scalar_le_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1541,7 +1601,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, |x| {
-            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_INFERIOR || x == Self::IS_EQUAL)
         })
     }
 
@@ -1574,7 +1634,7 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
-        F: Fn(u64) -> bool + Sync,
+        F: Fn(u64) -> u64 + Sync,
     {
         if !lhs.block_carries_are_empty() {
             self.server_key.full_propagate_parallelized(lhs);
@@ -1587,7 +1647,7 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.smart_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| u64::from(x == Self::IS_SUPERIOR))
     }
 
     pub fn smart_scalar_ge_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
@@ -1596,7 +1656,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.smart_scalar_compare_parallelized(lhs, rhs, |x| {
-            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_SUPERIOR || x == Self::IS_EQUAL)
         })
     }
 
@@ -1605,7 +1665,7 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.smart_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_INFERIOR)
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| u64::from(x == Self::IS_INFERIOR))
     }
 
     pub fn smart_scalar_le_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
@@ -1614,7 +1674,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.smart_scalar_compare_parallelized(lhs, rhs, |x| {
-            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_INFERIOR || x == Self::IS_EQUAL)
         })
     }
 
@@ -1653,7 +1713,7 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
-        F: Fn(u64) -> bool + Sync,
+        F: Fn(u64) -> u64 + Sync,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1671,7 +1731,7 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.default_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| u64::from(x == Self::IS_SUPERIOR))
     }
 
     pub fn scalar_ge_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1680,7 +1740,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.default_scalar_compare_parallelized(lhs, rhs, |x| {
-            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_SUPERIOR || x == Self::IS_EQUAL)
         })
     }
 
@@ -1689,7 +1749,7 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
-        self.default_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_INFERIOR)
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| u64::from(x == Self::IS_INFERIOR))
     }
 
     pub fn scalar_le_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1698,7 +1758,7 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         self.default_scalar_compare_parallelized(lhs, rhs, |x| {
-            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+            u64::from(x == Self::IS_INFERIOR || x == Self::IS_EQUAL)
         })
     }
 
