@@ -141,6 +141,12 @@ impl ServerKey {
         self.key.unchecked_add_assign(high, low);
     }
 
+    pub(crate) fn are_all_blocks_zero(&self, ciphertexts: &[Ciphertext]) -> Ciphertext {
+        let block_comparisons =
+            self.compare_blocks_with_zero(ciphertexts, ZeroComparisonType::Equality);
+        self.are_all_comparisons_block_true(block_comparisons)
+    }
+
     /// This takes a Vec of shortint blocks, where each block is
     /// either 0 or 1.
     ///
