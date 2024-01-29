@@ -19,7 +19,7 @@ This function returns a Boolean that will be either `true` or `false` so that th
 # Cargo.toml
 
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.5.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.5.1", features = ["integer", "x86_64-unix"]}
 ```
 
 Other configurations can be found [here](../getting_started/installation.md).
