@@ -28,7 +28,6 @@ jobs:
         with:
           allow-repeats: true
           message: |
-            @slab-ci cpu_fast_test
             @slab-ci gpu_test
 
       - name: Add approved label
