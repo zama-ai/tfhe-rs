@@ -609,7 +609,7 @@ impl<'a> Comparator<'a> {
                 }
                 Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),
                 None => {
-                    // scalar is is range, fallthrough
+                    // scalar is in range, fallthrough
                 }
             }
 

@@ -1458,6 +1458,11 @@ where
     /// If you need both the quotient and remainder, then `div_rem` is better
     /// than computing them separately using `/` and `%`.
     ///
+    /// When the divisor is 0, remainder will have the same value as the numerator, and,
+    /// if the numerator is < 0, quotient will be -1 else 1
+    ///
+    /// This behaviour should not be relied on.
+    ///
     /// # Example
     ///
     /// ```rust

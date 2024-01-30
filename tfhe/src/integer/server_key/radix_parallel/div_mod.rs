@@ -99,7 +99,7 @@ impl ServerKey {
             divisor.blocks.len(),
             "numerator and divisor must have same number of blocks"
         );
-        // Pseudo-code of the school-book / long-division algorithm:
+        // Pseudocode of the school-book / long-division algorithm:
         //
         //
         // div(N/D):
@@ -188,7 +188,7 @@ impl ServerKey {
 
             // All blocks starting from the first_trivial_block are known to be trivial
             // So we can avoid work.
-            // Note that, these are always non-emtpy (i.e there is always at least one non trivial
+            // Note that, these are always non-emtpy (i.e. there is always at least one non trivial
             // block)
             let mut interesting_remainder1 =
                 RadixCiphertext::from(remainder1.blocks[..=last_non_trivial_block].to_vec());
@@ -240,7 +240,7 @@ impl ServerKey {
                 {
                     return;
                 }
-                // As above, we need to zero out some bits, but here its in the
+                // As above, we need to zero out some bits, but here it's in the
                 // first block of most significant blocks of the divisor.
                 // The block has the same value as the last block of interesting_divisor.
                 // Here we will zero out the bits that the trim_last_interesting_divisor_bits
@@ -274,7 +274,7 @@ impl ServerKey {
             // We could to that by left shifting, R by one, then unchecked_add the correct numerator
             // bit.
             //
-            // However to keep the remainder clean (noise wise), what we do is that we put the
+            // However, to keep the remainder clean (noise wise), what we do is that we put the
             // remainder block from which we need to extract the bit, as the LSB of the
             // Remainder, so that left shifting will pull the bit we need.
             let mut left_shift_interesting_remainder1 = || {
@@ -295,7 +295,7 @@ impl ServerKey {
                 let numerator_block = interesting_remainder1.blocks.pop().unwrap();
                 if pos_in_block != 0 {
                     // We have not yet extracted all the bits from this numerator
-                    // so we put it back on the front so that it gets taken next iteration
+                    // so, we put it back on the front so that it gets taken next iteration
                     numerator_block_stack.push(numerator_block);
                 }
             };
@@ -568,6 +568,18 @@ impl ServerKey {
 
     /// Computes homomorphically the quotient and remainder of the division between two ciphertexts
     ///
+    /// # Notes
+    ///
+    /// When the divisor is 0:
+    ///
+    /// - For unsigned operands, the returned quotient will be the max value (i.e. all bits set to
+    ///   1),
+    /// the remainder will have the value of the numerator.
+    ///
+    /// - For signed operands, remainder will have the same value as the numerator, and,
+    /// if the numerator is < 0, quotient will be -1 else 1
+    ///
+    /// This behaviour should not be relied on.
     ///
     /// # Example
     ///
@@ -723,7 +735,7 @@ impl ServerKey {
     ///
     /// # Note
     ///
-    /// If you need both the quotien and remainder use [Self::div_rem_parallelized].
+    /// If you need both the quotient and remainder use [Self::div_rem_parallelized].
     ///
     /// # Example
     ///
@@ -830,7 +842,7 @@ impl ServerKey {
     ///
     /// # Note
     ///
-    /// If you need both the quotien and remainder use [Self::div_rem_parallelized].
+    /// If you need both the quotient and remainder use [Self::div_rem_parallelized].
     ///
     /// # Example
     ///
@@ -862,4 +874,5 @@ impl ServerKey {
         let (_q, r) = self.div_rem_parallelized(numerator, divisor);
         r
     }
+
 }
