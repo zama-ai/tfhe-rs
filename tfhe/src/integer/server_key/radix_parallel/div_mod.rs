@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::comparator::ZeroComparisonType;
-use crate::integer::{IntegerCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, IntegerCiphertext, ServerKey};
 
 use crate::shortint::MessageModulus;
 use rayon::prelude::*;
@@ -597,7 +597,7 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// // Compute homomorphically an addition:
+    /// // Compute homomorphically the quotient and remainder:
     /// let (q_res, r_res) = sks.div_rem_parallelized(&ct1, &ct2);
     ///
     /// // Decrypt:
@@ -753,7 +753,7 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// // Compute homomorphically an addition:
+    /// // Compute homomorphically a division:
     /// let ct_res = sks.div_parallelized(&ct1, &ct2);
     ///
     /// // Decrypt:
@@ -860,7 +860,7 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// // Compute homomorphically an addition:
+    /// // Compute homomorphically the remainder:
     /// let ct_res = sks.rem_parallelized(&ct1, &ct2);
     ///
     /// // Decrypt:
@@ -875,4 +875,141 @@ impl ServerKey {
         r
     }
 
+    /// Computes homomorphically the quotient and remainder of the division between two ciphertexts
+    ///
+    /// Returns an additional flag indicating if the divisor was 0
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 97u8;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(0u8);
+    ///
+    /// // Compute homomorphically a division:
+    /// let (ct_q, ct_r, div_by_0) = sks.checked_div_rem_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let div_by_0 = cks.decrypt_bool(&div_by_0);
+    /// assert_eq!(div_by_0, true);
+    ///
+    /// let q: u8 = cks.decrypt(&ct_q);
+    /// assert_eq!(u8::MAX, q);
+    ///
+    /// let r: u8 = cks.decrypt(&ct_r);
+    /// assert_eq!(msg, r);
+    /// ```
+    pub fn checked_div_rem_parallelized<T>(
+        &self,
+        numerator: &T,
+        divisor: &T,
+    ) -> (T, T, BooleanBlock)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let ((q, r), div_by_0) = rayon::join(
+            || self.div_rem_parallelized(numerator, divisor),
+            || self.are_all_blocks_zero(divisor.blocks()),
+        );
+
+        (q, r, BooleanBlock::new_unchecked(div_by_0))
+    }
+
+    /// Computes homomorphically the quotient of the division between two ciphertexts
+    ///
+    /// Returns an additional flag indicating if the divisor was 0
+    ///
+    /// # Note
+    ///
+    /// If you need both the quotient and remainder use [Self::div_rem_parallelized].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 97u8;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(0u8);
+    ///
+    /// // Compute homomorphically a division:
+    /// let (ct_res, div_by_0) = sks.checked_div_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let div_by_0 = cks.decrypt_bool(&div_by_0);
+    /// assert_eq!(div_by_0, true);
+    ///
+    /// let dec_result: u8 = cks.decrypt(&ct_res);
+    /// assert_eq!(u8::MAX, dec_result);
+    /// ```
+    pub fn checked_div_parallelized<T>(&self, numerator: &T, divisor: &T) -> (T, BooleanBlock)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let (q, div_by_0) = rayon::join(
+            || self.div_parallelized(numerator, divisor),
+            || self.are_all_blocks_zero(divisor.blocks()),
+        );
+
+        (q, BooleanBlock::new_unchecked(div_by_0))
+    }
+
+    /// Computes homomorphically the remainder (rest) of the division between two ciphertexts
+    ///
+    /// Returns an additional flag indicating if the divisor was 0
+    ///
+    /// # Note
+    ///
+    /// If you need both the quotient and remainder use [Self::checked_div_rem_parallelized].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 97u8;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(0u8);
+    ///
+    /// // Compute homomorphically the remainder:
+    /// let (ct_res, rem_by_0) = sks.checked_rem_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let rem_by_0 = cks.decrypt_bool(&rem_by_0);
+    /// assert_eq!(rem_by_0, true);
+    ///
+    /// let dec_result: u8 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, msg);
+    /// ```
+    pub fn checked_rem_parallelized<T>(&self, numerator: &T, divisor: &T) -> (T, BooleanBlock)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let (r, rem_by_0) = rayon::join(
+            || self.rem_parallelized(numerator, divisor),
+            || self.are_all_blocks_zero(divisor.blocks()),
+        );
+
+        (r, BooleanBlock::new_unchecked(rem_by_0))
+    }
 }
