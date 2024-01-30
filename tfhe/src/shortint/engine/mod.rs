@@ -11,6 +11,7 @@ use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ContainerMut;
 use crate::core_crypto::seeders::new_seeder;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -153,6 +154,88 @@ pub(crate) fn fill_accumulator_no_encoding<F, C>(
     for (i, value) in accumulator_u64.iter_mut().enumerate() {
         *value = f(i as u64);
     }
+}
+
+/// Fills a GlweCiphertext for use in a ManyLookupTable setting
+pub(crate) fn fill_many_lut_accumulator<C>(
+    accumulator: &mut GlweCiphertext<C>,
+    server_key: &ServerKey,
+    functions: &[&dyn Fn(u64) -> u64],
+) -> (MaxDegree, usize, Vec<Degree>)
+where
+    C: ContainerMut<Element = u64>,
+{
+    assert_eq!(
+        accumulator.polynomial_size(),
+        server_key.bootstrapping_key.polynomial_size()
+    );
+    assert_eq!(
+        accumulator.glwe_size(),
+        server_key.bootstrapping_key.glwe_size()
+    );
+
+    let mut accumulator_view = accumulator.as_mut_view();
+
+    accumulator_view.get_mut_mask().as_mut().fill(0);
+
+    // Modulus of the msg contained in the msg bits and operations buffer
+    let modulus_sup = server_key.message_modulus.0 * server_key.carry_modulus.0;
+
+    // N/(p/2) = size of each block
+    let box_size = server_key.bootstrapping_key.polynomial_size().0 / modulus_sup;
+
+    // Value of the delta we multiply our messages by
+    let delta = (1_u64 << 63) / (modulus_sup as u64);
+
+    let mut body = accumulator_view.get_mut_body();
+    let accumulator_u64 = body.as_mut();
+    // Clear in case we don't fill the full accumulator so that the remainder part is 0
+    accumulator_u64.as_mut().fill(0u64);
+
+    let fn_counts = functions.len();
+
+    assert!(
+        fn_counts <= modulus_sup / 2,
+        "Cannot generate many lut accumulator for {fn_counts} functions, maximum possible is {}",
+        modulus_sup / 2
+    );
+
+    // Max valid degree for a ciphertext when using the LUT we generate
+    let max_degree = MaxDegree::new(modulus_sup / fn_counts - 1);
+
+    let mut per_fn_output_degree = vec![Degree::new(0); fn_counts];
+
+    // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1 boxes
+    let single_function_sub_lut_size = (max_degree.get() + 1) * box_size;
+
+    for ((function_sub_lut, output_degree), function) in accumulator_u64
+        .chunks_mut(single_function_sub_lut_size)
+        .zip(per_fn_output_degree.iter_mut())
+        .zip(functions)
+    {
+        for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
+            let msg_value = msg_value as u64;
+            let function_eval = function(msg_value);
+            *output_degree = Degree::new((function_eval as usize).max(output_degree.get()));
+            sub_lut_box.fill(function_eval * delta);
+        }
+    }
+
+    let half_box_size = box_size / 2;
+
+    // Negate the first half_box_size coefficients
+    for a_i in accumulator_u64[0..half_box_size].iter_mut() {
+        *a_i = (*a_i).wrapping_neg();
+    }
+
+    // Rotate the accumulator
+    accumulator_u64.rotate_left(half_box_size);
+
+    (
+        max_degree,
+        single_function_sub_lut_size,
+        per_fn_output_degree,
+    )
 }
 
 /// Simple wrapper around [`std::error::Error`] to be able to

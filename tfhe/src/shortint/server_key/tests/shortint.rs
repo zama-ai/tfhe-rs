@@ -1,7 +1,7 @@
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::server_key::LookupTableOwned;
+use crate::shortint::server_key::{LookupTableOwned, ManyLookupTableOwned};
 use paste::paste;
 use rand::Rng;
 
@@ -175,6 +175,7 @@ create_parametrized_test!(shortint_encrypt_with_message_modulus_decrypt);
 create_parametrized_test!(shortint_encrypt_decrypt_without_padding);
 create_parametrized_test!(shortint_keyswitch_bootstrap);
 create_parametrized_test!(shortint_keyswitch_programmable_bootstrap);
+create_parametrized_test!(shortint_keyswitch_programmable_bootstrap_many_lut);
 create_parametrized_test!(shortint_carry_extract);
 create_parametrized_test!(shortint_message_extract);
 create_parametrized_test!(shortint_generate_lookup_table);
@@ -214,6 +215,7 @@ create_parametrized_test!(shortint_default_scalar_bitand);
 create_parametrized_test!(shortint_default_scalar_bitor);
 create_parametrized_test!(shortint_default_scalar_bitxor);
 create_parametrized_test!(shortint_trivial_pbs);
+create_parametrized_test!(shortint_trivial_pbs_many_lut);
 
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
@@ -426,6 +428,63 @@ where
 
         // assert
         assert_eq!(clear_0, dec_res);
+    }
+}
+
+fn shortint_keyswitch_programmable_bootstrap_many_lut<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let carry_modulus = cks.parameters.carry_modulus().0 as u64;
+    let modulus_sup = msg_modulus * carry_modulus;
+
+    let f1 = |x: u64| x * x % msg_modulus;
+    let f2 = |x: u64| (x.count_ones() as u64) % msg_modulus;
+    let f3 = |x: u64| (x.wrapping_add(1)) % msg_modulus;
+    let f4 = |x: u64| (x.wrapping_sub(1)) % msg_modulus;
+    let f5 = |x: u64| (x * 2) % msg_modulus;
+    let f6 = |x: u64| (x * 3) % msg_modulus;
+    let f7 = |x: u64| (x / 2) % msg_modulus;
+    let f8 = |x: u64| (x / 3) % msg_modulus;
+
+    let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2, &f3, &f4, &f5, &f6, &f7, &f8];
+    let max_fn_count = functions.len().min(modulus_sup as usize / 2);
+    let per_fn_tests = (NB_TESTS / max_fn_count).max(1);
+    for fn_count in 1..=max_fn_count {
+        let functions = &functions[..fn_count];
+
+        // Depending on how many functions we are evaluating the maximum valid message modulus is
+        // lower than what the parameters support
+        let effective_msg_modulus = msg_modulus.min(modulus_sup / fn_count as u64);
+
+        // Generate the many lut once for the current set of functions
+        let acc = sks.generate_many_lookup_table(functions);
+        for _ in 0..per_fn_tests {
+            let clear_0 = rng.gen::<u64>() % effective_msg_modulus;
+
+            // encryption of an integer
+            let ctxt_0 = cks.encrypt(clear_0);
+
+            // Apply the many luts
+            let vec_res = sks.apply_many_lookup_table(&ctxt_0, &acc);
+
+            for (fn_idx, (res, function)) in vec_res.iter().zip(functions).enumerate() {
+                let dec = cks.decrypt(res);
+                let function_eval = function(clear_0);
+
+                assert_eq!(
+                    dec, function_eval,
+                    "Evaluation of function #{fn_idx} on {clear_0} failed, \
+                    got {dec}, expected {function_eval}",
+                );
+            }
+        }
     }
 }
 
@@ -3281,6 +3340,88 @@ where
     } else {
         for f in functions {
             let lut = sks.generate_lookup_table(f);
+
+            // Test 'normal' behaviour (i.e. padding bit set to 0)
+            for clear_with_clean_padding_bit in 0..full_modulus {
+                check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
+            }
+
+            // Test behaviour when padding bit set to 1
+            for clear_with_dirty_padding_bit in full_modulus..(full_modulus * 2) {
+                check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
+            }
+        }
+    }
+}
+
+fn shortint_trivial_pbs_many_lut<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let param = param.into();
+    let msg_modulus = param.message_modulus().0 as u64;
+    let full_modulus = param.message_modulus().0 as u64 * param.carry_modulus().0 as u64;
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let check_trivial_bootstrap = |clear, lut: &ManyLookupTableOwned| {
+        let trivial_ct = sks.unchecked_create_trivial(clear);
+        let non_trivial_ct = cks.unchecked_encrypt(clear);
+
+        let trivial_res = sks.apply_many_lookup_table(&trivial_ct, lut);
+        let non_trivial_res = sks.apply_many_lookup_table(&non_trivial_ct, lut);
+        assert!(trivial_res
+            .iter()
+            .all(crate::shortint::ciphertext::Ciphertext::is_trivial));
+        assert!(non_trivial_res
+            .iter()
+            .all(|ct| !ct.is_trivial() && ct.noise_level() == NoiseLevel::NOMINAL));
+
+        for (fn_idx, (trivial, non_trivial)) in
+            trivial_res.iter().zip(non_trivial_res.iter()).enumerate()
+        {
+            let trivial = cks.decrypt_message_and_carry(trivial);
+            let non_trivial = cks.decrypt_message_and_carry(non_trivial);
+            assert_eq!(
+                trivial, non_trivial,
+                "Invalid trivial PBS result got '{trivial}', got non trivial '{non_trivial}' \
+                for input {clear} evaluating function #{fn_idx}"
+            );
+        }
+    };
+
+    let f1 = |x: u64| x * x % msg_modulus;
+    let f2 = |x: u64| (x.count_ones() as u64) % msg_modulus;
+    let f3 = |x: u64| (x.wrapping_add(1)) % msg_modulus;
+    let f4 = |x: u64| (x.wrapping_sub(1)) % msg_modulus;
+    let f5 = |x: u64| (x * 2) % msg_modulus;
+    let f6 = |x: u64| (x * 3) % msg_modulus;
+    let f7 = |x: u64| (x / 2) % msg_modulus;
+    let f8 = |x: u64| (x / 3) % msg_modulus;
+
+    let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2, &f3, &f4, &f5, &f6, &f7, &f8];
+    let max_fn_count = functions.len().min(full_modulus as usize / 2);
+
+    // Test will be too expensive
+    if full_modulus >= 64 {
+        let mut rng = rand::thread_rng();
+        // at least do one test
+        for _ in 0..(NB_TESTS / max_fn_count).max(1) {
+            for fn_count in 1..=max_fn_count {
+                let functions = &functions[..fn_count];
+                let lut = sks.generate_many_lookup_table(functions);
+
+                let clear_with_clean_padding_bit = rng.gen_range(0..full_modulus);
+                check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
+
+                let clear_with_dirty_padding_bit = rng.gen_range(full_modulus..2 * full_modulus);
+                check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
+            }
+        }
+    } else {
+        for fn_count in 1..=max_fn_count {
+            let functions = &functions[..fn_count];
+            let lut = sks.generate_many_lookup_table(functions);
 
             // Test 'normal' behaviour (i.e. padding bit set to 0)
             for clear_with_clean_padding_bit in 0..full_modulus {

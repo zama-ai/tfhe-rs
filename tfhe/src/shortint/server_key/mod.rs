@@ -27,8 +27,8 @@ mod tests;
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
-    ThreadCount,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
+    PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -36,7 +36,9 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
-use crate::shortint::engine::{fill_accumulator, fill_accumulator_no_encoding, ShortintEngine};
+use crate::shortint::engine::{
+    fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator, ShortintEngine,
+};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
@@ -355,6 +357,25 @@ pub type LookupTableOwned = LookupTable<Vec<u64>>;
 pub type LookupTableMutView<'a> = LookupTable<&'a mut [u64]>;
 pub type LookupTableView<'a> = LookupTable<&'a [u64]>;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use]
+pub struct ManyLookupTable<C: Container<Element = u64>> {
+    pub acc: GlweCiphertext<C>,
+    pub input_max_degree: MaxDegree,
+    pub sample_extraction_stride: usize,
+    pub per_function_output_degree: Vec<Degree>,
+}
+
+pub type ManyLookupTableOwned = ManyLookupTable<Vec<u64>>;
+pub type ManyLookupTableMutView<'a> = ManyLookupTable<&'a mut [u64]>;
+pub type ManyLookupTableView<'a> = ManyLookupTable<&'a [u64]>;
+
+impl<C: Container<Element = u64>> ManyLookupTable<C> {
+    pub fn function_count(&self) -> usize {
+        self.per_function_output_degree.len()
+    }
+}
+
 impl ServerKey {
     /// Generate a server key.
     ///
@@ -589,6 +610,86 @@ impl ServerKey {
         self.generate_lookup_table(|x| f(x % modulus.0 as u64) % modulus.0 as u64)
     }
 
+    /// Constructs the lookup table given a set of function as input.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    /// };
+    ///
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    ///     let msg = 3;
+    ///
+    ///     let ct = cks.encrypt(msg);
+    ///
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    ///
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (res, function) in vec_res.iter().zip(functions) {
+    ///         let dec = cks.decrypt(res);
+    ///         assert_eq!(dec, function(msg));
+    ///     }
+    /// }
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///
+    ///     let msg = 3;
+    ///
+    ///     let ct = cks.encrypt(msg);
+    ///
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    ///
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (res, function) in vec_res.iter().zip(functions) {
+    ///         let dec = cks.decrypt(res);
+    ///         assert_eq!(dec, function(msg));
+    ///     }
+    /// }
+    /// ```
+    pub fn generate_many_lookup_table(
+        &self,
+        functions: &[&dyn Fn(u64) -> u64],
+    ) -> ManyLookupTableOwned {
+        let mut acc = GlweCiphertext::new(
+            0,
+            self.bootstrapping_key.glwe_size(),
+            self.bootstrapping_key.polynomial_size(),
+            self.ciphertext_modulus,
+        );
+        let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
+            fill_many_lut_accumulator(&mut acc, self, functions);
+
+        ManyLookupTableOwned {
+            acc,
+            input_max_degree,
+            sample_extraction_stride,
+            per_function_output_degree,
+        }
+    }
+
     /// Compute a keyswitch and programmable bootstrap.
     ///
     /// # Example
@@ -632,6 +733,81 @@ impl ServerKey {
             }
         };
     }
+
+    /// Compute a keyswitch and programmable bootstrap applying several functions on an input
+    /// ciphertext, returning each result in a fresh ciphertext.
+    ///
+    /// This requires the input ciphertext to have a degree inferior to the max degree stored in the
+    /// [`ManyLookupTable`] returned by [`Self::generate_many_lookup_table`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    /// };
+    ///
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    ///     let msg = 3;
+    ///
+    ///     let ct = cks.encrypt(msg);
+    ///
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    ///
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (res, function) in vec_res.iter().zip(functions) {
+    ///         let dec = cks.decrypt(res);
+    ///         assert_eq!(dec, function(msg));
+    ///     }
+    /// }
+    /// {
+    ///     // Generate the client key and the server key:
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///
+    ///     let msg = 3;
+    ///
+    ///     let ct = cks.encrypt(msg);
+    ///
+    ///     // Generate the lookup table for the functions
+    ///     // f1: x -> x*x mod 4
+    ///     // f2: x -> count_ones(x as binary) mod 4
+    ///     let f1 = |x: u64| x.pow(2) % 4;
+    ///     let f2 = |x: u64| x.count_ones() as u64 % 4;
+    ///     // Easy to use for generation
+    ///     let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    ///     let vec_res = sks.apply_many_lookup_table(&ct, &luts);
+    ///
+    ///     // Need to manually help Rust to iterate over them easily
+    ///     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    ///     for (res, function) in vec_res.iter().zip(functions) {
+    ///         let dec = cks.decrypt(res);
+    ///         assert_eq!(dec, function(msg));
+    ///     }
+    /// }
+    /// ```
+    pub fn apply_many_lookup_table(
+        &self,
+        ct: &Ciphertext,
+        acc: &ManyLookupTableOwned,
+    ) -> Vec<Ciphertext> {
+        match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.keyswitch_programmable_bootstrap_many_lut(ct, acc),
+            PBSOrder::BootstrapKeyswitch => self.programmable_bootstrap_keyswitch_many_lut(ct, acc),
+        }
+    }
+
     /// Applies the given function to the message of a ciphertext
     /// The input is reduced to the message space before the funciton application
     /// Thee output of the function is also rduced to the message space such that the carry bits are
@@ -938,6 +1114,59 @@ impl ServerKey {
         ct.degree = acc.degree;
     }
 
+    fn trivial_pbs_many_lut(&self, ct: &Ciphertext, lut: &ManyLookupTableOwned) -> Vec<Ciphertext> {
+        assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
+        let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let ct_value = *ct.ct.get_body().data / delta;
+
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
+
+        let padding_bit_set = ct_value >= modulus_sup as u64;
+        let first_result_index_in_lut = {
+            let ct_value = ct_value % modulus_sup as u64;
+            ct_value as usize * box_size
+        };
+
+        let function_count = lut.function_count();
+        let mut outputs = Vec::with_capacity(function_count);
+
+        let polynomial_size = lut.acc.polynomial_size();
+
+        for (fn_idx, output_degree) in lut.per_function_output_degree.iter().enumerate() {
+            let (index_in_lut, negation_due_to_wrap_around) = {
+                let mut index_in_lut =
+                    first_result_index_in_lut + fn_idx * lut.sample_extraction_stride;
+                let mut negation_due_to_wrap_around = false;
+
+                let cycles = index_in_lut / polynomial_size.0;
+                if cycles % 2 == 1 {
+                    // We wrapped around an odd number of times
+                    negation_due_to_wrap_around = true;
+                }
+
+                index_in_lut %= polynomial_size.0;
+                (index_in_lut, negation_due_to_wrap_around)
+            };
+            let has_to_negate = padding_bit_set ^ negation_due_to_wrap_around;
+            let result = {
+                let mut result = lut.acc.get_body().as_ref()[index_in_lut];
+                if has_to_negate {
+                    result = result.wrapping_neg();
+                }
+
+                result
+            };
+
+            let mut shortint_ct = ct.clone();
+            *shortint_ct.ct.get_mut_body().data = result;
+            shortint_ct.degree = *output_degree;
+            outputs.push(shortint_ct);
+        }
+
+        outputs
+    }
+
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &self,
         ct: &mut Ciphertext,
@@ -1087,6 +1316,183 @@ impl ServerKey {
 
         ct.degree = acc.degree;
         ct.set_noise_level(NoiseLevel::NOMINAL);
+    }
+
+    pub(crate) fn keyswitch_programmable_bootstrap_many_lut(
+        &self,
+        ct: &Ciphertext,
+        lut: &ManyLookupTableOwned,
+    ) -> Vec<Ciphertext> {
+        if ct.is_trivial() {
+            return self.trivial_pbs_many_lut(ct, lut);
+        }
+
+        let mut acc = lut.acc.clone();
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            // Compute the programmable bootstrapping with fixed test polynomial
+            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+
+            // Compute a key switch
+            keyswitch_lwe_ciphertext(
+                &self.key_switching_key,
+                &ct.ct,
+                &mut ciphertext_buffers.buffer_lwe_after_ks,
+            );
+
+            match &self.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                    let fft = fft.as_view();
+                    buffers.resize(
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                            fourier_bsk.glwe_size(),
+                            fourier_bsk.polynomial_size(),
+                            fft,
+                        )
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                    );
+                    let stack = buffers.stack();
+
+                    // Compute the blind rotation
+                    blind_rotate_assign_mem_optimized(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut acc,
+                        fourier_bsk,
+                        fft,
+                        stack,
+                    );
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => {
+                    if *deterministic_execution {
+                        multi_bit_deterministic_blind_rotate_assign(
+                            &ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    } else {
+                        multi_bit_blind_rotate_assign(
+                            &ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    }
+                }
+            };
+        });
+
+        // The accumulator has been rotated, we can now proceed with the various sample extractions
+        let function_count = lut.function_count();
+        let mut outputs = Vec::with_capacity(function_count);
+
+        for (fn_idx, output_degree) in lut.per_function_output_degree.iter().enumerate() {
+            let monomial_degree = MonomialDegree(fn_idx * lut.sample_extraction_stride);
+            let mut output_shortint_ct = ct.clone();
+
+            extract_lwe_sample_from_glwe_ciphertext(
+                &acc,
+                &mut output_shortint_ct.ct,
+                monomial_degree,
+            );
+
+            output_shortint_ct.degree = *output_degree;
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            outputs.push(output_shortint_ct);
+        }
+
+        outputs
+    }
+
+    pub(crate) fn programmable_bootstrap_keyswitch_many_lut(
+        &self,
+        ct: &Ciphertext,
+        lut: &ManyLookupTableOwned,
+    ) -> Vec<Ciphertext> {
+        if ct.is_trivial() {
+            return self.trivial_pbs_many_lut(ct, lut);
+        }
+
+        let mut acc = lut.acc.clone();
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            // Compute the programmable bootstrapping with fixed test polynomial
+            let (_, buffers) = engine.get_buffers(self);
+
+            match &self.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                    let fft = fft.as_view();
+                    buffers.resize(
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                            fourier_bsk.glwe_size(),
+                            fourier_bsk.polynomial_size(),
+                            fft,
+                        )
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                    );
+                    let stack = buffers.stack();
+
+                    // Compute the blind rotation
+                    blind_rotate_assign_mem_optimized(&ct.ct, &mut acc, fourier_bsk, fft, stack);
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => {
+                    if *deterministic_execution {
+                        multi_bit_deterministic_blind_rotate_assign(
+                            &ct.ct,
+                            &mut acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    } else {
+                        multi_bit_blind_rotate_assign(&ct.ct, &mut acc, fourier_bsk, *thread_count);
+                    }
+                }
+            };
+        });
+
+        // The accumulator has been rotated, we can now proceed with the various sample extractions
+        let function_count = lut.function_count();
+        let mut outputs = Vec::with_capacity(function_count);
+
+        let mut tmp_lwe_ciphertext = LweCiphertext::new(
+            0u64,
+            self.key_switching_key
+                .input_key_lwe_dimension()
+                .to_lwe_size(),
+            self.key_switching_key.ciphertext_modulus(),
+        );
+
+        for (fn_idx, output_degree) in lut.per_function_output_degree.iter().enumerate() {
+            let monomial_degree = MonomialDegree(fn_idx * lut.sample_extraction_stride);
+            extract_lwe_sample_from_glwe_ciphertext(&acc, &mut tmp_lwe_ciphertext, monomial_degree);
+
+            let mut output_shortint_ct = ct.clone();
+
+            // Compute a key switch
+            keyswitch_lwe_ciphertext(
+                &self.key_switching_key,
+                &tmp_lwe_ciphertext,
+                &mut output_shortint_ct.ct,
+            );
+
+            output_shortint_ct.degree = *output_degree;
+            output_shortint_ct.set_noise_level(NoiseLevel::NOMINAL);
+            outputs.push(output_shortint_ct);
+        }
+
+        outputs
     }
 }
 
