@@ -2151,6 +2151,13 @@ where
     /// If you need both the quotient and remainder, then `div_rem` is better
     /// than computing them separately using `/` and `%`.
     ///
+    /// # Notes
+    ///
+    /// When the divisor is 0, the returned quotient will be the max value (i.e. all bits set to 1),
+    /// the remainder will be the value of the numerator.
+    ///
+    /// This behaviour should not be relied on.
+    ///
     /// # Example
     ///
     /// ```rust
@@ -2552,6 +2559,10 @@ generic_integer_impl_operation!(
    /// If you need both the quotient and remainder, then prefer to use
    /// [FheUint::div_rem], instead of using `/` and `%` separately.
    ///
+   /// When the divisor is 0, the returned quotient will be the max value (i.e. all bits set to 1).
+   ///
+   /// This behaviour should not be relied on.
+   ///
    /// # Example
    ///
    /// ```rust
@@ -2593,6 +2604,10 @@ generic_integer_impl_operation!(
    ///
    /// If you need both the quotient and remainder, then prefer to use
    /// [FheUint::div_rem], instead of using `/` and `%` separately.
+   ///
+   /// When the divisor is 0, the returned remainder will have the value of the numerator.
+   ///
+   /// This behaviour should not be relied on.
    ///
    /// # Example
    ///

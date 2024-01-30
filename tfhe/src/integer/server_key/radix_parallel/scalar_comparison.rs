@@ -150,7 +150,7 @@ impl ServerKey {
     /// This takes a Vec of shortint blocks, where each block is
     /// either 0 or 1.
     ///
-    /// It return a shortint block encrypting 1 if all input blocks are 1
+    /// It returns a shortint block encrypting 1 if all input blocks are 1
     /// otherwise the block encrypts 0
     ///
     /// if the vec is empty, a trivial 1 is returned
@@ -203,7 +203,7 @@ impl ServerKey {
     /// This takes a Vec of shortint blocks, where each block is
     /// either 0 or 1.
     ///
-    /// It return a shortint block encrypting 1 if at least input blocks is 1
+    /// It returns a shortint block encrypting 1 if at least input blocks is 1
     /// otherwise the block encrypts 0 (all blocks encrypts 0)
     ///
     /// if the vec is empty, a trivial 1 is returned
@@ -249,14 +249,14 @@ impl ServerKey {
     /// It will compare blocks with 0, for either equality or difference.
     ///
     /// This returns a Vec of block, where each block encrypts 1 or 0
-    /// depending of if all blocks matched with the comparison type with 0.
+    /// depending on if all blocks matched with the comparison type with 0.
     ///
     /// E.g. For ZeroComparisonType::Equality, if all input blocks are zero
     /// than all returned block will encrypt 1
     ///
     /// The returned Vec will have less block than the number of input blocks.
     /// The returned blocks potentially needs to be 'reduced' to one block
-    /// with eg are_all_comparisons_block_true.
+    /// with e.g. are_all_comparisons_block_true.
     ///
     /// This function exists because sometimes it is faster to concatenate
     /// multiple vec of 'boolean' shortint block before reducing them with

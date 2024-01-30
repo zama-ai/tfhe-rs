@@ -2312,7 +2312,7 @@ where
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..NB_TESTS_SMALLER {
-            // Add non zero scalar to have non clean ciphertexts
+            // Add non-zero scalar to have non-clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
 
@@ -2622,6 +2622,21 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     executor.setup(&cks, sks.clone());
+
+    // Test case of division by 0
+    // This is mainly to show we know the behaviour of division by 0
+    // using the current algorithm
+    for clear_0 in [0, rng.gen::<u64>() % modulus] {
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(0u64);
+
+        let (q_res, r_res) = sks.div_rem_parallelized(&ctxt_0, &ctxt_1);
+        let q: u64 = cks.decrypt(&q_res);
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert_eq!(r, clear_0);
+        assert_eq!(q, modulus - 1);
+    }
 
     for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<u64>() % modulus;
