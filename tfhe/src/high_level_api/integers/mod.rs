@@ -19,6 +19,7 @@ use crate::shortint::MessageModulus;
 pub use signed::{CompactFheInt, CompactFheIntList, CompressedFheInt, FheInt};
 pub use unsigned::{CompactFheUint, CompactFheUintList, CompressedFheUint, FheUint};
 
+pub mod oprf;
 mod signed;
 mod unsigned;
 
