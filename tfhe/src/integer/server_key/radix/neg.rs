@@ -52,7 +52,7 @@ impl ServerKey {
     /// This function computes the opposite of a message without checking if it exceeds the
     /// capacity of the ciphertext.
     ///
-    /// The result is assigned to the `ct_left` ciphertext.
+    /// The result is assigned to the input ciphertext.
     pub fn unchecked_neg_assign<T>(&self, ctxt: &mut T)
     where
         T: IntegerRadixCiphertext,
@@ -240,5 +240,42 @@ impl ServerKey {
         }
         self.is_neg_possible(ctxt).unwrap();
         self.unchecked_neg(ctxt)
+    }
+
+    /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
+    ///
+    /// The result is assigned to the input ciphertext.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    ///
+    /// let msg = 1u64;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ctxt = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a negation
+    /// sks.smart_neg_assign(&mut ctxt);
+    ///
+    /// // Decrypt
+    /// let dec: u64 = cks.decrypt(&ctxt);
+    /// assert_eq!(255, dec);
+    /// ```
+    pub fn smart_neg_assign<T>(&self, ctxt: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if self.is_neg_possible(ctxt).is_err() {
+            self.full_propagate(ctxt);
+        }
+        self.is_neg_possible(ctxt).unwrap();
+        self.unchecked_neg_assign(ctxt);
     }
 }
