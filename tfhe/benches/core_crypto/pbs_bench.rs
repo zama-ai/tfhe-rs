@@ -104,15 +104,18 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
                 PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS,
             ]
         } else {
             vec![
                 PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS,
             ]
         };
 

@@ -15,6 +15,8 @@ use tfhe::shortint::parameters::{
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS,
 };
 use tfhe::shortint::{CompressedServerKey, PBSParameters};
 
@@ -33,9 +35,11 @@ fn client_server_key_sizes(results_file: &Path) {
         PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS.into(),
         PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into(),
         PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS.into(),
+        PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS.into(),
         PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS.into(),
         PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into(),
         PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS.into(),
+        PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS.into(),
     ];
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()

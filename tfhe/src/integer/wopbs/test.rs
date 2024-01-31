@@ -16,7 +16,7 @@ use paste::paste;
 const NB_TESTS: usize = 10;
 
 macro_rules! create_parametrized_test{
-    ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
+    ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* $(,)? }) => {
         paste! {
             $(
             #[test]

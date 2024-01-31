@@ -83,13 +83,15 @@ impl MultiBitPBSParameters {
 }
 
 /// Vector containing all [`MultiBitPBSParameters`] parameter sets
-pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 6] = [
+pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 8] = [
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS,
 ];
 
 // Group 2
@@ -150,6 +152,25 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameter
         deterministic_execution: false,
     };
 
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(1052),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(32768),
+        lwe_modular_std_dev: StandardDev(0.000000029779789543501806),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(4),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(16),
+        carry_modulus: CarryModulus(16),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(2),
+        deterministic_execution: false,
+    };
+
 // Group 3
 pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
@@ -202,6 +223,25 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameter
         ks_level: DecompositionLevelCount(3),
         message_modulus: MessageModulus(8),
         carry_modulus: CarryModulus(8),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(3),
+        deterministic_execution: false,
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(1098),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(32768),
+        lwe_modular_std_dev: StandardDev(0.000000012752307213087621),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(5),
+        ks_level: DecompositionLevelCount(4),
+        message_modulus: MessageModulus(16),
+        carry_modulus: CarryModulus(16),
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(3),
