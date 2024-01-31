@@ -17,6 +17,7 @@ FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=20
+FORWARD_COMPAT?=OFF
 # sed: -n, do not print input stream, -e means a script/expression
 # 1,/version/ indicates from the first line, to the line matching version at the start of the line
 # p indicates to print, so we keep only the start of the Cargo.toml until we hit the first version
@@ -47,6 +48,12 @@ ifeq ($(GEN_KEY_CACHE_COVERAGE_ONLY),TRUE)
 		COVERAGE_ONLY=--coverage-only
 else
 		COVERAGE_ONLY=
+endif
+
+ifeq ($(FORWARD_COMPAT),ON)
+		FORWARD_COMPAT_FEATURE=forward_compatibility
+else
+		FORWARD_COMPAT_FEATURE=
 endif
 
 # Variables used only for regex_engine example
@@ -286,15 +293,16 @@ symlink_c_libs_without_fingerprint:
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4 \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
+	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
@@ -397,14 +405,14 @@ test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)"
+		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
@@ -424,7 +432,8 @@ test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)"
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
+		--tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
 test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
@@ -432,7 +441,7 @@ test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--unsigned-only
+		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_signed_integer_ci # Run the tests for signed integer ci
 test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
@@ -440,14 +449,15 @@ test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--signed-only
+		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)"
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
+		--tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
 test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
@@ -455,7 +465,7 @@ test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nex
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--unsigned-only
+		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_signed_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
 test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
@@ -463,7 +473,7 @@ test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nexte
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--signed-only
+		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
