@@ -154,7 +154,7 @@ check_fmt: install_rs_check_toolchain
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),integer,shortint,gpu \
-		-p tfhe -- --no-deps -D warnings
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
@@ -354,16 +354,16 @@ test_gpu: test_core_crypto_gpu test_integer_gpu
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- integer::gpu::server_key::
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- integer::gpu::server_key::
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
@@ -536,7 +536,7 @@ docs: doc
 lint_doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p $(TFHE_SPEC) --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
@@ -627,7 +627,7 @@ bench_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p tfhe --
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
@@ -651,7 +651,7 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p tfhe --
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
@@ -665,11 +665,11 @@ bench_oprf: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-shortint-bench \
-	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
 
 
 
