@@ -16,5 +16,10 @@ mod compressed;
 mod static_;
 mod wopbs;
 
+mod encrypt;
+mod inner;
+mod ops;
+mod overflowing_ops;
+mod scalar_ops;
 #[cfg(test)]
 mod tests;
