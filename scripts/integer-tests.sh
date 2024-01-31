@@ -12,6 +12,7 @@ function usage() {
     echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
     echo "--cargo-profile           The cargo profile used to build tests"
     echo "--avx512-support          Set to ON to enable avx512"
+    echo "--tfhe-package            The package spec like tfhe@0.4.2, default=tfhe"
     echo
 }
 
@@ -23,6 +24,7 @@ signed=""
 not_signed=""
 cargo_profile="release"
 avx512_feature=""
+tfhe_package="tfhe"
 
 while [ -n "$1" ]
 do
@@ -62,6 +64,11 @@ do
             if [[ "$1" == "ON" ]]; then
                 avx512_feature=nightly-avx512
             fi
+            ;;
+
+        "--tfhe-package" )
+            shift
+            tfhe_package="$1"
             ;;
 
         *)
@@ -153,7 +160,7 @@ fi
 cargo "${RUST_TOOLCHAIN}" nextest run \
     --tests \
     --cargo-profile "${cargo_profile}" \
-    --package tfhe \
+    --package "${tfhe_package}" \
     --profile ci \
     --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
     --test-threads "${test_threads}" \
@@ -162,7 +169,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
 if [[ "${multi_bit}" == "" ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
-        --package tfhe \
+        --package "${tfhe_package}" \
         --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
         --doc \
         -- --test-threads="${doctest_threads}" integer::

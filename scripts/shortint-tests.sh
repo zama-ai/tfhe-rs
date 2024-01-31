@@ -9,12 +9,14 @@ function usage() {
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
     echo "--cargo-profile           The cargo profile used to build tests"
+    echo "--tfhe-package            The package spec like tfhe@0.4.2, default=tfhe"
     echo
 }
 
 RUST_TOOLCHAIN="+stable"
 multi_bit=""
 cargo_profile="release"
+tfhe_package="tfhe"
 
 while [ -n "$1" ]
 do
@@ -36,6 +38,11 @@ do
         "--cargo-profile" )
             shift
             cargo_profile="$1"
+            ;;
+
+        "--tfhe-package" )
+            shift
+            tfhe_package="$1"
             ;;
 
         *)
@@ -111,7 +118,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
-        --package tfhe \
+        --package "${tfhe_package}" \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
         --test-threads "${n_threads_small}" \
@@ -128,7 +135,7 @@ and not test(~smart_add_and_mul)"""
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
-        --package tfhe \
+        --package "${tfhe_package}" \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
         --test-threads "${n_threads_big}" \
@@ -137,7 +144,7 @@ and not test(~smart_add_and_mul)"""
         if [[ "${multi_bit}" == "" ]]; then
             cargo "${RUST_TOOLCHAIN}" test \
                 --profile "${cargo_profile}" \
-                --package tfhe \
+                --package "${tfhe_package}" \
                 --features="${ARCH_FEATURE}",shortint,internal-keycache \
                 --doc \
                 -- shortint::
@@ -177,7 +184,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
-        --package tfhe \
+        --package "${tfhe_package}" \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
         --test-threads "$(${nproc_bin})" \
@@ -186,7 +193,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
             --profile "${cargo_profile}" \
-            --package tfhe \
+            --package "${tfhe_package}" \
             --features="${ARCH_FEATURE}",shortint,internal-keycache \
             --doc \
             -- --test-threads="$(${nproc_bin})" shortint::
