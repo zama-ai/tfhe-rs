@@ -30,11 +30,22 @@ pub use parameters_wopbs::WopbsParameters;
 use super::ciphertext::{Degree, NoiseLevel};
 use super::PBSOrder;
 
-/// The number of bits on which the message will be encoded.
+/// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
+/// $m = p\bmod{MessageModulus}$ and so $0 <= m < MessageModulus$.
+///
+/// # Note
+///
+/// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct MessageModulus(pub usize);
 
-/// The number of bits on which the carry will be encoded.
+/// The modulus of the carry space. For a given plaintext $p$ we have the carry $c$ defined as
+/// $c = \frac{p}{MessageModulus}$ and so $0 <= c < CarryModulus$ as the total plaintext modulus is
+/// given by $MessageModulus \times CarryModulus$
+///
+/// # Note
+///
+/// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct CarryModulus(pub usize);
 
