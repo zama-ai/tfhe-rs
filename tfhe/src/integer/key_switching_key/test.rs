@@ -5,7 +5,7 @@ use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::IntegerKeyKind;
 
 #[test]
-fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
+fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     let num_block = 4;
 
     // We generate a set of client/server keys, using the default parameters:
@@ -37,7 +37,7 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
 }
 
 #[test]
-fn gen_multi_keys_test_crtinteger_to_crtinteger() {
+fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
     // We generate a set of client/server keys, using the default parameters:
@@ -72,7 +72,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger() {
 #[should_panic(
     expected = "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry"
 )]
-fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
+fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
     // We generate a set of client/server keys, using the default parameters:
@@ -96,7 +96,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
 }
 
 #[test]
-fn gen_multi_keys_test_integer_to_integer() {
+fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_1, server_key_1) =
         crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
