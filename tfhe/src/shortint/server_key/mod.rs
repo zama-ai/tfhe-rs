@@ -532,8 +532,8 @@ impl ServerKey {
     ///
     /// // Generate the lookup table for the function f: x -> x*x mod 4
     /// let f = |x: u64| x.pow(2) % 4;
-    /// let acc = sks.generate_lookup_table(f);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let lut = sks.generate_lookup_table(f);
+    /// let ct_res = sks.apply_lookup_table(&ct, &lut);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3**2 mod 4 = 1
@@ -596,8 +596,8 @@ impl ServerKey {
     /// // Generate the lookup table on message for the function f: x -> x*x
     /// let f = |x: u64| x.pow(2);
     ///
-    /// let acc = sks.generate_msg_lookup_table(f, ct.message_modulus);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let lut = sks.generate_msg_lookup_table(f, ct.message_modulus);
+    /// let ct_res = sks.apply_lookup_table(&ct, &lut);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^2 mod 4 = 1
@@ -706,8 +706,8 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the lookup table for the function f: x -> x*x*x mod 4
-    /// let acc = sks.generate_lookup_table(|x| x * x * x % modulus);
-    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    /// let lut = sks.generate_lookup_table(|x| x * x * x % modulus);
+    /// let ct_res = sks.apply_lookup_table(&ct, &lut);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // (3*3*3) mod 4 = 3
