@@ -6,15 +6,22 @@
 
 To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`.
 
-If you are using an `x86` machine:
+If you are using an `x86_64` machine running a Unix-like OS:
 ```toml
 tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
 ```
 
-If you are using an `ARM` machine:
+If you are using an `ARM` machine running a Unix-like OS:
 ```toml
 tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
 ```
+
+If you are using an `x86_64` machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
+
+```toml
+tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
+```
+
 
 {% hint style="info" %}
 You need to use a Rust version >= 1.72 to compile TFHE-rs.

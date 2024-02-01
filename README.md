@@ -51,15 +51,14 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64-un
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "integer", "aarch64-unix"] }
 ```
-Note: users with ARM devices must compile `TFHE-rs` using a stable toolchain with version >= 1.72.
 
-
-+ For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) 
-running Windows:
++ For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
 
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
 ```
+
+Note: You need to use a Rust version >= 1.72 to compile TFHE-rs.
 
 Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
 
