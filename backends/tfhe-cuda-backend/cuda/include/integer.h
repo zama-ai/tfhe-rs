@@ -467,10 +467,10 @@ template <typename Torus> struct int_sc_prop_memory {
     // create lut objects
     luts_array = new int_radix_lut<Torus>(stream, params, 2, num_radix_blocks,
                                           allocate_gpu_memory);
-    luts_carry_propagation_sum = new struct int_radix_lut<Torus>(
+    luts_carry_propagation_sum = new int_radix_lut<Torus>(
         stream, params, 1, num_radix_blocks, luts_array);
-    message_acc = new struct int_radix_lut<Torus>(stream, params, 1,
-                                                  num_radix_blocks, luts_array);
+    message_acc = new int_radix_lut<Torus>(stream, params, 1, num_radix_blocks,
+                                           luts_array);
 
     auto lut_does_block_generate_carry = luts_array->get_lut(0);
     auto lut_does_block_generate_or_propagate = luts_array->get_lut(1);
@@ -935,6 +935,8 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
   int_are_all_block_true_buffer<Torus> *are_all_block_true_buffer;
 
+  int_radix_lut<Torus> *scalar_comparison_luts;
+
   int_comparison_eq_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                            int_radix_params params, uint32_t num_radix_blocks,
                            bool allocate_gpu_memory) {
@@ -977,6 +979,22 @@ template <typename Torus> struct int_comparison_eq_buffer {
           stream, is_non_zero_lut->lut, params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           is_non_zero_lut_f);
+
+      // Scalar may have up to num_radix_blocks blocks
+      scalar_comparison_luts = new int_radix_lut<Torus>(
+          stream, params, total_modulus, num_radix_blocks, allocate_gpu_memory);
+
+      for (int i = 0; i < total_modulus; i++) {
+        auto lut_f = [i, operator_f](Torus x) -> Torus {
+          return operator_f(i, x);
+        };
+
+        Torus *lut = scalar_comparison_luts->lut +
+                     i * (params.glwe_dimension + 1) * params.polynomial_size;
+        generate_device_accumulator<Torus>(
+            stream, lut, params.glwe_dimension, params.polynomial_size,
+            params.message_modulus, params.carry_modulus, lut_f);
+      }
     }
   }
 
@@ -988,6 +1006,9 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
     are_all_block_true_buffer->release(stream);
     delete are_all_block_true_buffer;
+
+    scalar_comparison_luts->release(stream);
+    delete scalar_comparison_luts;
   }
 };
 
@@ -1064,13 +1085,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
   std::function<Torus(Torus)> operator_f;
 
-  int_radix_lut<Torus> *is_zero_lut;
-
   int_tree_sign_reduction_buffer<Torus> *tree_buffer;
-
-  // Used for scalar comparisons
-  cuda_stream_t *lsb_stream;
-  cuda_stream_t *msb_stream;
 
   int_comparison_diff_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                              int_radix_params params, uint32_t num_radix_blocks,
@@ -1095,8 +1110,6 @@ template <typename Torus> struct int_comparison_diff_buffer {
     };
 
     if (allocate_gpu_memory) {
-      lsb_stream = cuda_create_stream(stream->gpu_index);
-      msb_stream = cuda_create_stream(stream->gpu_index);
 
       Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
@@ -1106,36 +1119,17 @@ template <typename Torus> struct int_comparison_diff_buffer {
       tmp_packed_right =
           (Torus *)cuda_malloc_async(big_size * (num_radix_blocks / 2), stream);
 
-      // LUTs
-      uint32_t total_modulus = params.message_modulus * params.carry_modulus;
-      auto is_zero_f = [total_modulus](Torus x) -> Torus {
-        return (x % total_modulus) == 0;
-      };
-
-      is_zero_lut = new int_radix_lut<Torus>(
-          stream, params, 1, num_radix_blocks, allocate_gpu_memory);
-
-      generate_device_accumulator<Torus>(
-          stream, is_zero_lut->lut, params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          is_zero_f);
-
       tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
           stream, operator_f, params, num_radix_blocks, allocate_gpu_memory);
     }
   }
 
   void release(cuda_stream_t *stream) {
-    is_zero_lut->release(stream);
-    delete is_zero_lut;
     tree_buffer->release(stream);
     delete tree_buffer;
 
     cuda_drop_async(tmp_packed_left, stream);
     cuda_drop_async(tmp_packed_right, stream);
-
-    cuda_destroy_stream(lsb_stream);
-    cuda_destroy_stream(msb_stream);
   }
 };
 
@@ -1148,14 +1142,23 @@ template <typename Torus> struct int_comparison_buffer {
   int_radix_lut<Torus> *cleaning_lut;
   std::function<Torus(Torus)> cleaning_lut_f;
 
+  int_radix_lut<Torus> *is_zero_lut;
+
   int_comparison_eq_buffer<Torus> *eq_buffer;
   int_comparison_diff_buffer<Torus> *diff_buffer;
 
   Torus *tmp_block_comparisons;
+  Torus *tmp_lwe_array_out;
+
+  // Scalar EQ / NE
+  Torus *tmp_packed_input;
 
   // Max Min
-  Torus *tmp_lwe_array_out;
   int_cmux_buffer<Torus> *cmux_buffer;
+
+  // Used for scalar comparisons
+  cuda_stream_t *lsb_stream;
+  cuda_stream_t *msb_stream;
 
   int_comparison_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
@@ -1166,7 +1169,14 @@ template <typename Torus> struct int_comparison_buffer {
     cleaning_lut_f = [](Torus x) -> Torus { return x; };
 
     if (allocate_gpu_memory) {
+      lsb_stream = cuda_create_stream(stream->gpu_index);
+      msb_stream = cuda_create_stream(stream->gpu_index);
+
       tmp_lwe_array_out = (Torus *)cuda_malloc_async(
+          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
+          stream);
+
+      tmp_packed_input = (Torus *)cuda_malloc_async(
           (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
           stream);
 
@@ -1183,6 +1193,19 @@ template <typename Torus> struct int_comparison_buffer {
           stream, cleaning_lut->lut, params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           cleaning_lut_f);
+
+      uint32_t total_modulus = params.message_modulus * params.carry_modulus;
+      auto is_zero_f = [total_modulus](Torus x) -> Torus {
+        return (x % total_modulus) == 0;
+      };
+
+      is_zero_lut = new int_radix_lut<Torus>(
+          stream, params, 1, num_radix_blocks, allocate_gpu_memory);
+
+      generate_device_accumulator<Torus>(
+          stream, is_zero_lut->lut, params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          is_zero_f);
 
       switch (op) {
       case COMPARISON_TYPE::MAX:
@@ -1227,8 +1250,14 @@ template <typename Torus> struct int_comparison_buffer {
       break;
     }
     cleaning_lut->release(stream);
+    is_zero_lut->release(stream);
+    delete is_zero_lut;
     cuda_drop_async(tmp_lwe_array_out, stream);
     cuda_drop_async(tmp_block_comparisons, stream);
+    cuda_drop_async(tmp_packed_input, stream);
+
+    cuda_destroy_stream(lsb_stream);
+    cuda_destroy_stream(msb_stream);
   }
 };
 

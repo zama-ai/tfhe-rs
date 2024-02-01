@@ -46,6 +46,13 @@ __host__ void accumulate_all_blocks(cuda_stream_t *stream, Torus *output,
   check_cuda_error(cudaGetLastError());
 }
 
+/* This takes an array of lwe ciphertexts, where each is an encryption of
+ * either 0 or 1.
+ *
+ * It writes in lwe_array_out a single lwe ciphertext encrypting 1 if all input
+ * blocks are 1 otherwise the block encrypts 0
+ *
+ */
 template <typename Torus>
 __host__ void
 are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
@@ -122,6 +129,60 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
   }
 }
 
+/* This takes an array of lwe ciphertexts, where each is an encryption of
+ * either 0 or 1.
+ *
+ * It writes in lwe_array_out a single lwe ciphertext encrypting 1 if at least
+ * one input ciphertext encrypts 1 otherwise encrypts 0
+ */
+template <typename Torus>
+__host__ void is_at_least_one_comparisons_block_true(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *bsk, Torus *ksk,
+    uint32_t num_radix_blocks) {
+  auto params = mem_ptr->params;
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+
+  auto buffer = mem_ptr->eq_buffer->are_all_block_true_buffer;
+
+  uint32_t total_modulus = message_modulus * carry_modulus;
+  uint32_t max_value = total_modulus - 1;
+
+  cuda_memcpy_async_gpu_to_gpu(
+      lwe_array_out, lwe_array_in,
+      num_radix_blocks * (big_lwe_dimension + 1) * sizeof(Torus), stream);
+
+  uint32_t remaining_blocks = num_radix_blocks;
+  while (remaining_blocks > 1) {
+    // Split in max_value chunks
+    uint32_t chunk_length = std::min(max_value, remaining_blocks);
+    int num_chunks = remaining_blocks / chunk_length;
+
+    // Since all blocks encrypt either 0 or 1, we can sum max_value of them
+    // as in the worst case we will be adding `max_value` ones
+    auto input_blocks = lwe_array_out;
+    auto accumulator = buffer->tmp_block_accumulated;
+    for (int i = 0; i < num_chunks; i++) {
+      accumulate_all_blocks(stream, accumulator, input_blocks,
+                            big_lwe_dimension, chunk_length);
+
+      accumulator += (big_lwe_dimension + 1);
+      remaining_blocks -= (chunk_length - 1);
+      input_blocks += (big_lwe_dimension + 1) * chunk_length;
+    }
+    accumulator = buffer->tmp_block_accumulated;
+
+    // Selects a LUT
+    int_radix_lut<Torus> *lut = mem_ptr->eq_buffer->is_non_zero_lut;
+
+    // Applies the LUT
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        stream, lwe_array_out, accumulator, bsk, ksk, num_chunks, lut);
+  }
+}
+
 // This takes an input slice of blocks.
 //
 // Each block can encrypt any value as long as its < message_modulus.
@@ -145,7 +206,7 @@ template <typename Torus>
 __host__ void host_compare_with_zero_equality(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *bsk, Torus *ksk,
-    int32_t num_radix_blocks) {
+    int32_t num_radix_blocks, int_radix_lut<Torus> *zero_comparison) {
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -175,7 +236,6 @@ __host__ void host_compare_with_zero_equality(
     num_sum_blocks = 1;
   } else {
     uint32_t remainder_blocks = num_radix_blocks;
-
     auto sum_i = sum;
     auto chunk = lwe_array_in;
     while (remainder_blocks > 1) {
@@ -194,9 +254,8 @@ __host__ void host_compare_with_zero_equality(
     }
   }
 
-  auto is_equal_to_zero_lut = mem_ptr->diff_buffer->is_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      stream, sum, sum, bsk, ksk, num_sum_blocks, is_equal_to_zero_lut);
+      stream, sum, sum, bsk, ksk, num_sum_blocks, zero_comparison);
   are_all_comparisons_block_true(stream, lwe_array_out, sum, mem_ptr, bsk, ksk,
                                  num_sum_blocks);
 

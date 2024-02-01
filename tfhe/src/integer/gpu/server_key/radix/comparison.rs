@@ -357,7 +357,7 @@ impl CudaServerKey {
 
     /// Compares for equality 2 ciphertexts
     ///
-    /// Returns a ciphertext containing 1 if lhs == rhs, otherwise 0
+    /// Returns a ciphertext containing 1 if lhs != rhs, otherwise 0
     ///
     /// Requires carry bits to be empty
     ///

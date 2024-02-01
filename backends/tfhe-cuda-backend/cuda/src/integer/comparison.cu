@@ -70,7 +70,7 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
         static_cast<uint64_t *>(ksk), lwe_ciphertext_count);
     break;
   default:
-    printf("Not implemented\n");
+    PANIC("Cuda error: integer operation not supported");
   }
 }
 

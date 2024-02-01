@@ -124,6 +124,226 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_scalar_eq_async<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::EQ, stream)
+    }
+
+    pub fn unchecked_scalar_eq<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let result = unsafe { self.unchecked_scalar_eq_async(ct, scalar, stream) };
+        stream.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn scalar_eq_async<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let mut tmp_lhs;
+        let lhs = if ct.block_carries_are_empty() {
+            ct
+        } else {
+            tmp_lhs = ct.duplicate_async(stream);
+            self.full_propagate_assign_async(&mut tmp_lhs, stream);
+            &tmp_lhs
+        };
+
+        self.unchecked_scalar_eq_async(lhs, scalar, stream)
+    }
+
+    /// Compares for equality 2 ciphertexts
+    ///
+    /// Returns a ciphertext containing 1 if lhs == rhs, otherwise 0
+    ///
+    /// Requires carry bits to be empty
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let gpu_index = 0;
+    /// let device = CudaDevice::new(gpu_index);
+    /// let mut stream = CudaStream::new_unchecked(device);
+    ///
+    /// let size = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &stream);
+    ///
+    /// let msg1 = 14u64;
+    /// let msg2 = 97u64;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    ///
+    /// // Copy to GPU
+    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &stream);
+    ///
+    /// let d_ct_res = sks.scalar_eq(&d_ct1, msg2, &stream);
+    ///
+    /// // Copy the result back to CPU
+    /// let ct_res: RadixCiphertext = d_ct_res.to_radix_ciphertext(&stream);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, u64::from(msg1 == msg2));
+    /// ```
+    pub fn scalar_eq<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let result = unsafe { self.scalar_eq_async(ct, scalar, stream) };
+        stream.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn scalar_ne_async<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let mut tmp_lhs;
+        let lhs = if ct.block_carries_are_empty() {
+            ct
+        } else {
+            tmp_lhs = ct.duplicate_async(stream);
+            self.full_propagate_assign_async(&mut tmp_lhs, stream);
+            &tmp_lhs
+        };
+
+        self.unchecked_scalar_ne_async(lhs, scalar, stream)
+    }
+
+    /// Compares for equality 2 ciphertexts
+    ///
+    /// Returns a ciphertext containing 1 if lhs != rhs, otherwise 0
+    ///
+    /// Requires carry bits to be empty
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let gpu_index = 0;
+    /// let device = CudaDevice::new(gpu_index);
+    /// let mut stream = CudaStream::new_unchecked(device);
+    ///
+    /// let size = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &stream);
+    ///
+    /// let msg1 = 14u64;
+    /// let msg2 = 97u64;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    ///
+    /// // Copy to GPU
+    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &stream);
+    ///
+    /// let d_ct_res = sks.scalar_ne(&d_ct1, msg2, &stream);
+    ///
+    /// // Copy the result back to CPU
+    /// let ct_res: RadixCiphertext = d_ct_res.to_radix_ciphertext(&stream);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, u64::from(msg1 != msg2));
+    /// ```
+    pub fn scalar_ne<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let result = unsafe { self.scalar_ne_async(ct, scalar, stream) };
+        stream.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_scalar_ne_async<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::NE, stream)
+    }
+
+    pub fn unchecked_scalar_ne<T>(
+        &self,
+        ct: &CudaRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) -> CudaRadixCiphertext
+    where
+        T: DecomposableInto<u64>,
+    {
+        let result = unsafe { self.unchecked_scalar_ne_async(ct, scalar, stream) };
+        stream.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_scalar_gt_async<T>(
         &self,
         ct: &CudaRadixCiphertext,
@@ -277,6 +497,7 @@ impl CudaServerKey {
         stream.synchronize();
         result
     }
+
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -315,6 +536,7 @@ impl CudaServerKey {
         stream.synchronize();
         result
     }
+
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
