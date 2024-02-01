@@ -10,9 +10,7 @@ cuda_stream_t *cuda_create_stream(uint32_t gpu_index) {
 }
 
 /// Unsafe function to destroy CUDA stream, must check first the GPU exists
-void cuda_destroy_stream(cuda_stream_t *stream) {
-  stream->release();
-}
+void cuda_destroy_stream(cuda_stream_t *stream) { stream->release(); }
 
 /// Unsafe function that will try to allocate even if gpu_index is invalid
 /// or if there's not enough memory. A safe wrapper around it must call
@@ -57,7 +55,8 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
   if (size > free_mem) {
     PANIC("Cuda error: not enough memory on device. "
-            "Available: %zu vs Requested: %lu", free_mem, size);
+          "Available: %zu vs Requested: %lu",
+          free_mem, size);
   }
 }
 
@@ -67,14 +66,14 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
 bool cuda_check_support_cooperative_groups() {
   int cooperative_groups_supported = 0;
   check_cuda_error(cudaDeviceGetAttribute(&cooperative_groups_supported,
-                         cudaDevAttrCooperativeLaunch, 0));
+                                          cudaDevAttrCooperativeLaunch, 0));
 
   return cooperative_groups_supported > 0;
 }
 
 /// Copy memory to the GPU asynchronously
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
-                             cuda_stream_t *stream) {
+                              cuda_stream_t *stream) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
@@ -108,7 +107,7 @@ void cuda_memcpy_to_cpu(void *dest, void *src, uint64_t size) {
 
 /// Copy memory within a GPU asynchronously
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
-                                 cuda_stream_t *stream) {
+                                  cuda_stream_t *stream) {
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   if (attr_dest.device != stream->gpu_index &&
@@ -137,7 +136,7 @@ void cuda_synchronize_device(uint32_t gpu_index) {
 }
 
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
-                      cuda_stream_t *stream) {
+                       cuda_stream_t *stream) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (size == 0) {
@@ -164,8 +163,8 @@ void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
   int num_blocks = (n + block_size - 1) / block_size;
 
   // Launch the kernel
-  cuda_set_value_kernel<<<num_blocks, block_size, 0, *stream>>>
-      (d_array, value, n);
+  cuda_set_value_kernel<<<num_blocks, block_size, 0, *stream>>>(d_array, value,
+                                                                n);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -177,7 +176,7 @@ template void cuda_set_value_async(cudaStream_t *stream, uint32_t *d_array,
 
 /// Copy memory to the CPU asynchronously
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
-                             cuda_stream_t *stream) {
+                              cuda_stream_t *stream) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, src));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
@@ -238,6 +237,4 @@ int cuda_get_max_shared_memory(uint32_t gpu_index) {
   return max_shared_memory;
 }
 
-void cuda_synchronize_stream(cuda_stream_t *stream) {
-  stream->synchronize();
-}
+void cuda_synchronize_stream(cuda_stream_t *stream) { stream->synchronize(); }

@@ -361,10 +361,9 @@ __host__ void host_integer_mult_radix_kb(
     size_t sm_size = big_lwe_size * sizeof(Torus);
     if (ch_amount != 0) {
       // cuda_memset with size 0 is invalid, so avoid it
-      cuda_memset_async(
-          new_blocks, 0,
-          ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
-          stream);
+      cuda_memset_async(new_blocks, 0,
+                        ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
+                        stream);
     }
 
     tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
@@ -420,8 +419,8 @@ __host__ void host_integer_mult_radix_kb(
     execute_pbs<Torus>(stream, carry_blocks_vector, lwe_indexes,
                        luts_carry->lut, luts_carry->lut_indexes,
                        &small_lwe_vector[message_count * (lwe_dimension + 1)],
-                       lwe_indexes, bsk, luts_carry->pbs_buffer,
-                       glwe_dimension, lwe_dimension, polynomial_size,
+                       lwe_indexes, bsk, luts_carry->pbs_buffer, glwe_dimension,
+                       lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, carry_count, 1, 0,
                        max_shared_memory, mem_ptr->params.pbs_type);
@@ -449,7 +448,7 @@ __host__ void host_integer_mult_radix_kb(
 
   dim3 add_grid(1, num_blocks, 1);
   size_t sm_size = big_lwe_size * sizeof(Torus);
-  cuda_memset_async(radix_lwe_out, 0, num_blocks * big_lwe_size * sizeof(Torus), 
+  cuda_memset_async(radix_lwe_out, 0, num_blocks * big_lwe_size * sizeof(Torus),
                     stream);
   tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
       radix_lwe_out, old_blocks, r, num_blocks);
@@ -548,13 +547,13 @@ void apply_lookup_table(Torus *input_ciphertexts, Torus *output_ciphertexts,
     Torus *cur_lut_indexes;
     if (lsb_msb_mode) {
       cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
-                    ? mem_ptr->lut_indexes_lsb_multi_gpu[i]
-                    : mem_ptr->lut_indexes_msb_multi_gpu[i];
+                            ? mem_ptr->lut_indexes_lsb_multi_gpu[i]
+                            : mem_ptr->lut_indexes_msb_multi_gpu[i];
 
     } else {
       cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
-                    ? mem_ptr->lut_indexes_message_multi_gpu[i]
-                    : mem_ptr->lut_indexes_carry_multi_gpu[i];
+                            ? mem_ptr->lut_indexes_message_multi_gpu[i]
+                            : mem_ptr->lut_indexes_carry_multi_gpu[i];
     }
 
     // execute keyswitch on a current gpu with corresponding input and output

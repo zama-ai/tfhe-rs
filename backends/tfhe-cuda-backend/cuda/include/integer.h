@@ -484,8 +484,8 @@ template <typename Torus> struct int_sc_prop_memory {
     };
 
     // create lut objects
-    luts_array = new int_radix_lut<Torus>(
-        stream, params, 2, num_radix_blocks, allocate_gpu_memory);
+    luts_array = new int_radix_lut<Torus>(stream, params, 2, num_radix_blocks,
+                                          allocate_gpu_memory);
     luts_carry_propagation_sum = new struct int_radix_lut<Torus>(
         stream, params, 1, num_radix_blocks, allocate_gpu_memory);
     message_acc = new struct int_radix_lut<Torus>(
@@ -507,8 +507,9 @@ template <typename Torus> struct int_sc_prop_memory {
                                 num_radix_blocks - 1);
 
     generate_device_accumulator_bivariate<Torus>(
-        stream, luts_carry_propagation_sum->lut, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, f_luts_carry_propagation_sum);
+        stream, luts_carry_propagation_sum->lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        f_luts_carry_propagation_sum);
 
     generate_device_accumulator<Torus>(stream, message_acc->lut, glwe_dimension,
                                        polynomial_size, message_modulus,
@@ -575,12 +576,12 @@ template <typename Torus> struct int_mul_memory {
 
     // create int_radix_lut objects for lsb, msb, message, carry
     // luts_array -> lut = {lsb_acc, msb_acc}
-    luts_array = new int_radix_lut<Torus>(
-        stream, params, 2, total_block_count, allocate_gpu_memory);
-    luts_message = new int_radix_lut<Torus>(
-        stream, params, 1, total_block_count, luts_array);
-    luts_carry = new int_radix_lut<Torus>(
-        stream, params, 1, total_block_count, luts_array);
+    luts_array = new int_radix_lut<Torus>(stream, params, 2, total_block_count,
+                                          allocate_gpu_memory);
+    luts_message = new int_radix_lut<Torus>(stream, params, 1,
+                                            total_block_count, luts_array);
+    luts_carry = new int_radix_lut<Torus>(stream, params, 1, total_block_count,
+                                          luts_array);
 
     auto lsb_acc = luts_array->get_lut(0);
     auto msb_acc = luts_array->get_lut(1);
@@ -674,9 +675,9 @@ template <typename Torus> struct int_shift_buffer {
       // here we generate 'num_bits_in_block' times lut
       // one for each 'shift_within_block' = 'shift' % 'num_bits_in_block'
       // even though lut_left contains 'num_bits_in_block' lut
-      // lut_indexes will have indexes for single lut only and those indexes will be 0
-      // it means for pbs corresponding lut should be selected and pass along
-      // lut_indexes filled with zeros
+      // lut_indexes will have indexes for single lut only and those indexes
+      // will be 0 it means for pbs corresponding lut should be selected and
+      // pass along lut_indexes filled with zeros
 
       // calculate bivariate lut for each 'shift_within_block'
       for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
@@ -730,9 +731,9 @@ template <typename Torus> struct int_shift_buffer {
 
       // here we generate 'message_modulus' times lut
       // one for each 'shift'
-      // lut_indexes will have indexes for single lut only and those indexes will be 0
-      // it means for pbs corresponding lut should be selected and pass along
-      // lut_indexes filled with zeros
+      // lut_indexes will have indexes for single lut only and those indexes
+      // will be 0 it means for pbs corresponding lut should be selected and
+      // pass along lut_indexes filled with zeros
 
       // calculate lut for each 'shift'
       for (int shift = 0; shift < params.message_modulus; shift++) {
