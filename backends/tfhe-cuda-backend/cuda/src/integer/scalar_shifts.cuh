@@ -98,9 +98,9 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
     // create trivial assign for value = 0
     if (rotations > 0) {
       // cuda_memset with size 0 is invalid, so avoid it
-      cuda_memset_async(
-          rotated_buffer + (num_blocks - rotations) * big_lwe_size,
-          0, rotations * big_lwe_size_bytes, stream);
+      cuda_memset_async(rotated_buffer +
+                            (num_blocks - rotations) * big_lwe_size,
+                        0, rotations * big_lwe_size_bytes, stream);
     }
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, stream);

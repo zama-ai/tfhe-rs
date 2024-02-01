@@ -68,10 +68,9 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     //  garbage.
     if (total_num_radix_blocks > 1) {
       // cuda_memset with size 0 is invalid, so avoid it
-      cuda_memset_async(
-          lwe_array_out + big_lwe_size, 0,
-          big_lwe_size_bytes * (total_num_radix_blocks - 1),
-          stream);
+      cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                        big_lwe_size_bytes * (total_num_radix_blocks - 1),
+                        stream);
     }
 
   } else if (total_num_scalar_blocks < total_num_radix_blocks) {

@@ -59,8 +59,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, grouping_factor, base_log, level_count,
-          input_lwe_ciphertext_count, num_luts, lwe_idx,
-          max_shared_memory);
+          input_lwe_ciphertext_count, num_luts, lwe_idx, max_shared_memory);
       break;
     case LOW_LAT:
       cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
@@ -413,10 +412,9 @@ void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
 /*
  * input_blocks: input radix ciphertext propagation will happen inplace
  * acc_message_carry: list of two lut s, [(message_acc), (carry_acc)]
- * lut_indexes_message_carry: lut_indexes for message and carry, should always be  {0, 1}
- * small_lwe_vector: output of keyswitch should have
- *     size = 2 * (lwe_dimension + 1) * sizeof(Torus)
- * big_lwe_vector: output of pbs should have
+ * lut_indexes_message_carry: lut_indexes for message and carry, should always
+ * be  {0, 1} small_lwe_vector: output of keyswitch should have size = 2 *
+ * (lwe_dimension + 1) * sizeof(Torus) big_lwe_vector: output of pbs should have
  *     size = 2 * (glwe_dimension * polynomial_size + 1) * sizeof(Torus)
  */
 template <typename Torus, typename STorus, class params>

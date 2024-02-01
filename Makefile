@@ -157,8 +157,13 @@ fmt_gpu: install_rs_check_toolchain
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 
-.PHONY: clippy_gpu # Run clippy lints on the gpu backend
-clippy_gpu: install_rs_check_toolchain
+.PHONY: check_fmt_gpu # Check rust and cuda code format
+check_fmt_gpu: install_rs_check_toolchain
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
+	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh -c
+
+.PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
+clippy_gpu: install_rs_check_toolchain clippy_cuda_backend
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),integer,shortint,gpu \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
@@ -245,6 +250,11 @@ clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_triviu
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
 clippy_concrete_csprng
+
+.PHONY: clippy_cuda_backend # Run clippy lints on the tfhe-cuda-backend
+clippy_cuda_backend: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		-p tfhe-cuda-backend -- --no-deps -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain

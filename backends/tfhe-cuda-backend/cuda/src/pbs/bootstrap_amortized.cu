@@ -159,8 +159,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 512:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<512>>(
@@ -168,8 +168,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 1024:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<1024>>(
@@ -177,8 +177,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 2048:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<2048>>(
@@ -186,8 +186,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 4096:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<4096>>(
@@ -195,8 +195,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 8192:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<8192>>(
@@ -204,8 +204,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 16384:
     host_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
@@ -213,8 +213,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
         (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   default:
     break;
@@ -303,8 +303,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 512:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<512>>(
@@ -312,8 +312,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 1024:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<1024>>(
@@ -321,8 +321,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 2048:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<2048>>(
@@ -330,8 +330,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 4096:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<4096>>(
@@ -339,8 +339,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 8192:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<8192>>(
@@ -348,8 +348,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   case 16384:
     host_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
@@ -357,8 +357,8 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
         (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
         (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts,
-        lwe_idx, max_shared_memory);
+        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory);
     break;
   default:
     break;
