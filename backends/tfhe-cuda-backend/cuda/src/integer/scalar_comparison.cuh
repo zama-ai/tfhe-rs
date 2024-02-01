@@ -46,9 +46,9 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
   if (total_num_scalar_blocks == 0) {
     // We only have to compare blocks with zero
     // means scalar is zero
-    host_compare_with_zero_equality(stream, mem_ptr->tmp_lwe_array_out,
-                                    lwe_array_in, mem_ptr, bsk, ksk,
-                                    total_num_radix_blocks);
+    host_compare_with_zero_equality(
+        stream, mem_ptr->tmp_lwe_array_out, lwe_array_in, mem_ptr, bsk, ksk,
+        total_num_radix_blocks, mem_ptr->is_zero_lut);
 
     auto scalar_last_leaf_lut_f = [sign_handler_f](Torus x) -> Torus {
       x = (x == 1 ? IS_EQUAL : IS_SUPERIOR);
@@ -84,8 +84,8 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     auto lwe_array_msb_out = lwe_array_lsb_out + big_lwe_size;
 
     cuda_synchronize_stream(stream);
-    auto lsb_stream = diff_buffer->lsb_stream;
-    auto msb_stream = diff_buffer->msb_stream;
+    auto lsb_stream = mem_ptr->lsb_stream;
+    auto msb_stream = mem_ptr->msb_stream;
 
 #pragma omp parallel sections
     {
@@ -128,8 +128,8 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
         //////////////
         // msb
         host_compare_with_zero_equality(msb_stream, lwe_array_msb_out, msb,
-                                        mem_ptr, bsk, ksk,
-                                        num_msb_radix_blocks);
+                                        mem_ptr, bsk, ksk, num_msb_radix_blocks,
+                                        mem_ptr->is_zero_lut);
       }
     }
     cuda_synchronize_stream(lsb_stream);
@@ -210,16 +210,7 @@ scalar_compare_radix_blocks_kb(cuda_stream_t *stream, Torus *lwe_array_out,
                                Torus *ksk, uint32_t num_radix_blocks) {
 
   auto params = mem_ptr->params;
-  auto pbs_type = params.pbs_type;
   auto big_lwe_dimension = params.big_lwe_dimension;
-  auto small_lwe_dimension = params.small_lwe_dimension;
-  auto ks_level = params.ks_level;
-  auto ks_base_log = params.ks_base_log;
-  auto pbs_level = params.pbs_level;
-  auto pbs_base_log = params.pbs_base_log;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
-  auto grouping_factor = params.grouping_factor;
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
@@ -294,5 +285,116 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
   host_integer_radix_cmux_kb(
       stream, lwe_array_out, mem_ptr->tmp_lwe_array_out, lwe_array_left,
       lwe_array_right, mem_ptr->cmux_buffer, bsk, ksk, total_num_radix_blocks);
+}
+
+template <typename Torus>
+__host__ void host_integer_radix_scalar_equality_check_kb(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_in,
+    Torus *scalar_blocks, int_comparison_buffer<Torus> *mem_ptr, void *bsk,
+    Torus *ksk, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+
+  auto params = mem_ptr->params;
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto message_modulus = params.message_modulus;
+
+  auto eq_buffer = mem_ptr->eq_buffer;
+
+  size_t big_lwe_size = big_lwe_dimension + 1;
+  size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+  auto scalar_comparison_luts = eq_buffer->scalar_comparison_luts;
+
+  uint32_t num_halved_scalar_blocks =
+      (num_scalar_blocks / 2) + (num_scalar_blocks % 2);
+
+  uint32_t num_lsb_radix_blocks =
+      std::min(num_radix_blocks, 2 * num_halved_scalar_blocks);
+  uint32_t num_msb_radix_blocks = num_radix_blocks - num_lsb_radix_blocks;
+  uint32_t num_halved_lsb_radix_blocks =
+      (num_lsb_radix_blocks / 2) + (num_lsb_radix_blocks % 2);
+
+  auto lsb = lwe_array_in;
+  auto msb = lwe_array_in + big_lwe_size * num_lsb_radix_blocks;
+
+  auto lwe_array_lsb_out = mem_ptr->tmp_lwe_array_out;
+  auto lwe_array_msb_out =
+      lwe_array_lsb_out + big_lwe_size * num_halved_lsb_radix_blocks;
+
+  cuda_synchronize_stream(stream);
+
+  auto lsb_stream = mem_ptr->lsb_stream;
+  auto msb_stream = mem_ptr->msb_stream;
+
+#pragma omp parallel sections
+  {
+    // Both sections may be executed in parallel
+#pragma omp section
+    {
+      if (num_halved_scalar_blocks > 0) {
+        auto packed_blocks = mem_ptr->tmp_packed_input;
+        auto packed_scalar =
+            packed_blocks + big_lwe_size * num_halved_lsb_radix_blocks;
+
+        pack_blocks(lsb_stream, packed_blocks, lsb, big_lwe_dimension,
+                    num_lsb_radix_blocks, message_modulus);
+        pack_blocks(lsb_stream, packed_scalar, scalar_blocks, 0,
+                    num_scalar_blocks, message_modulus);
+
+        cuda_memcpy_async_gpu_to_gpu(
+            scalar_comparison_luts->lut_indexes, packed_scalar,
+            num_halved_scalar_blocks * sizeof(Torus), lsb_stream);
+
+        integer_radix_apply_univariate_lookup_table_kb(
+            lsb_stream, lwe_array_lsb_out, packed_blocks, bsk, ksk,
+            num_halved_lsb_radix_blocks, scalar_comparison_luts);
+      }
+    }
+#pragma omp section
+    {
+      //////////////
+      // msb
+      if (num_msb_radix_blocks > 0) {
+        int_radix_lut<Torus> *msb_lut;
+        switch (mem_ptr->op) {
+        case COMPARISON_TYPE::EQ:
+          msb_lut = mem_ptr->is_zero_lut;
+          break;
+        case COMPARISON_TYPE::NE:
+          msb_lut = mem_ptr->eq_buffer->is_non_zero_lut;
+          break;
+        default:
+          PANIC("Cuda error: integer operation not supported");
+        }
+
+        host_compare_with_zero_equality(msb_stream, lwe_array_msb_out, msb,
+                                        mem_ptr, bsk, ksk, num_msb_radix_blocks,
+                                        msb_lut);
+      }
+    }
+  }
+
+  cuda_synchronize_stream(lsb_stream);
+  cuda_synchronize_stream(msb_stream);
+
+  switch (mem_ptr->op) {
+  case COMPARISON_TYPE::EQ:
+    are_all_comparisons_block_true(
+        stream, lwe_array_out, lwe_array_lsb_out, mem_ptr, bsk, ksk,
+        num_halved_scalar_blocks + (num_msb_radix_blocks > 0));
+    break;
+  case COMPARISON_TYPE::NE:
+    is_at_least_one_comparisons_block_true(
+        stream, lwe_array_out, lwe_array_lsb_out, mem_ptr, bsk, ksk,
+        num_halved_scalar_blocks + (num_msb_radix_blocks > 0));
+    break;
+  default:
+    PANIC("Cuda error: integer operation not supported");
+  }
+
+  // The result will be in the two first block. Everything else is
+  //  garbage.
+  if (num_radix_blocks > 1)
+    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                      big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 #endif
