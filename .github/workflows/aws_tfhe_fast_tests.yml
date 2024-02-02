@@ -112,7 +112,7 @@ jobs:
 
   teardown-ec2:
     name: Teardown EC2 instance (fast-tests)
-    if: ${{ always() }}
+    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
     needs: [ setup-ec2, fast-tests ]
     runs-on: ubuntu-latest
     steps:
