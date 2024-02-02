@@ -34,15 +34,12 @@ jobs:
     name: Fast CPU tests
     needs: setup-ec2
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
+      group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
-        with:
-          repository: ${{ inputs.fork_repo }}
-          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
