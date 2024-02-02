@@ -92,6 +92,9 @@ pub mod integer;
 /// cbindgen:ignore
 pub mod shortint;
 
+#[cfg(feature = "pbs-stats")]
+pub use shortint::server_key::pbs_stats::*;
+
 #[cfg(feature = "__wasm_api")]
 /// cbindgen:ignore
 mod js_on_wasm_api;

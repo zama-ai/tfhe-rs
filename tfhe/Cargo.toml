@@ -88,6 +88,8 @@ integer = ["shortint"]
 internal-keycache = ["dep:lazy_static", "dep:fs2"]
 gpu = ["tfhe-cuda-backend"]
 
+pbs-stats = []
+
 # Experimental section
 experimental = []
 experimental-force_fft_algo_dif4 = []
@@ -288,6 +290,10 @@ required-features = ["boolean"]
 [[example]]
 name = "sha256"
 required-features = ["integer"]
+
+[[example]]
+name = "pbs_count"
+required-features = ["integer", "pbs-stats"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
