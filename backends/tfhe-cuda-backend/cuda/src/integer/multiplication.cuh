@@ -105,10 +105,8 @@ void extract_message_carry_to_full_radix(cuda_stream_t *stream, Torus *src,
 
     if (!is_message) {
       int zero_block_count = num_blocks - number_of_unit;
-      if (zero_block_count != 0) {
-        cuda_memset_async(cur_dst_radix, 0,
-                          zero_block_count * unit_size * sizeof(Torus), stream);
-      }
+      cuda_memset_async(cur_dst_radix, 0,
+                        zero_block_count * unit_size * sizeof(Torus), stream);
       s_index = zero_block_count;
     }
 
@@ -355,12 +353,9 @@ __host__ void host_integer_mult_radix_kb(
     ch_amount = r / chunk_size;
     dim3 add_grid(ch_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
-    if (ch_amount != 0) {
-      // cuda_memset with size 0 is invalid, so avoid it
-      cuda_memset_async(new_blocks, 0,
-                        ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
-                        stream);
-    }
+    cuda_memset_async(new_blocks, 0,
+                      ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
+                      stream);
 
     tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
         new_blocks, old_blocks, chunk_size, num_blocks);
