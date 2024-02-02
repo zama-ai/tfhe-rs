@@ -136,7 +136,7 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
 }
 
 fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
-    let bench_name = "PBS_mem-optimized";
+    let bench_name = "core_crypto::pbs_mem_optimized";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -243,7 +243,7 @@ fn multi_bit_pbs<
 >(
     c: &mut Criterion,
 ) {
-    let bench_name = "multi_bits_PBS";
+    let bench_name = "core_crypto::multi_bit_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -332,7 +332,7 @@ fn multi_bit_deterministic_pbs<
 >(
     c: &mut Criterion,
 ) {
-    let bench_name = "multi_bits_deterministic_PBS";
+    let bench_name = "core_crypto::multi_bit_deterministic_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -419,7 +419,7 @@ fn multi_bit_deterministic_pbs<
 fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serialize>(
     c: &mut Criterion,
 ) {
-    let bench_name = "PBS_throughput";
+    let bench_name = "core_crypto::pbs_throughput";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -554,7 +554,7 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
 
     fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
-        let bench_name = "cuda::pbs";
+        let bench_name = "core_crypto::cuda::pbs";
         let mut bench_group = c.benchmark_group(bench_name);
 
         // Create the PRNG
@@ -672,7 +672,7 @@ mod cuda {
     >(
         c: &mut Criterion,
     ) {
-        let bench_name = "cuda::pbs";
+        let bench_name = "core_crypto::cuda::multi_bit_pbs";
         let mut bench_group = c.benchmark_group(bench_name);
 
         // Create the PRNG
