@@ -726,6 +726,18 @@ bench_pbs_gpu: install_rs_check_toolchain
 	--bench pbs-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
 
+.PHONY: bench_ks # Run benchmarks for keyswitch
+bench_ks: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ks-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+
+.PHONY: bench_ks_gpu # Run benchmarks for PBS on GPU backend
+bench_ks_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ks-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+
 .PHONY: bench_web_js_api_parallel # Run benchmarks for the web wasm api
 bench_web_js_api_parallel: build_web_js_api_parallel
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench

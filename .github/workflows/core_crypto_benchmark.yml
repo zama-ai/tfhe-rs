@@ -1,5 +1,5 @@
-# Run PBS benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: PBS benchmarks
+# Run core crypto benchmarks on an AWS instance and return parsed results to Slab CI bot.
+name: Core crypto benchmarks
 
 on:
   workflow_dispatch:
@@ -35,8 +35,8 @@ env:
   RUST_BACKTRACE: "full"
 
 jobs:
-  run-pbs-benchmarks:
-    name: Execute PBS benchmarks in EC2
+  run-core-crypto-benchmarks:
+    name: Execute core crypto benchmarks in EC2
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
     steps:
@@ -69,6 +69,7 @@ jobs:
       - name: Run benchmarks with AVX512
         run: |
           make AVX512_SUPPORT=ON bench_pbs
+          make AVX512_SUPPORT=ON bench_ks
 
       - name: Parse results
         run: |
