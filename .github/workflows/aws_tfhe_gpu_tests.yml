@@ -10,37 +10,33 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-    # All the inputs are provided by Slab
-    inputs:
-      instance_id:
-        description: "AWS instance ID"
-        type: string
-      instance_image_id:
-        description: "AWS instance AMI ID"
-        type: string
-      instance_type:
-        description: "AWS instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: 'Slab request ID'
-        type: string
-      fork_repo:
-        description: 'Name of forked repo as user/repo'
-        type: string
-      fork_git_sha:
-        description: 'Git SHA to checkout from fork'
-        type: string
+  pull_request:
 
 jobs:
-  run-cuda-tests-linux:
+  setup-ec2:
+    name: Setup EC2 instance (cuda-tests)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+      instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@ab65ad70bb9f9e9251e4915ea5612bcad23cd9b1
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: gpu-test
+
+  cuda-tests-linux:
+    name: CUDA tests
+    needs: setup-ec2
     concurrency:
-      group: tfhe_cuda_backend_test-${{ github.ref }}
+      group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    name: Test code in EC2
-    runs-on: ${{ inputs.runner_name }}
+    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -53,21 +49,8 @@ jobs:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
 
     steps:
-      # Step used for log purpose.
-      - name: Instance configuration used
-        run: |
-          echo "ID: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
-          echo "Fork repo: ${{ inputs.fork_repo }}"
-          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
-
       - name: Checkout tfhe-rs
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
-        with:
-          repository: ${{ inputs.fork_repo }}
-          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
@@ -110,3 +93,32 @@ jobs:
       - name: Run user docs tests
         run: |
           make test_user_doc_gpu
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "CUDA AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-ec2:
+    name: Teardown EC2 instance (cuda-tests)
+    if: ${{ always() }}
+    needs: [ setup-ec2, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@ab65ad70bb9f9e9251e4915ea5612bcad23cd9b1
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: gpu-test
+          label: ${{ needs.setup-ec2.outputs.runner-name }}

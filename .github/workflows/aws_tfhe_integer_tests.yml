@@ -9,52 +9,38 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-    # All the inputs are provided by Slab
-    inputs:
-      instance_id:
-        description: "AWS instance ID"
-        type: string
-      instance_image_id:
-        description: "AWS instance AMI ID"
-        type: string
-      instance_type:
-        description: "AWS instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: "Slab request ID"
-        type: string
-      fork_repo:
-        description: "Name of forked repo as user/repo"
-        type: string
-      fork_git_sha:
-        description: "Git SHA to checkout from fork"
-        type: string
+  pull_request:
+    types: [ labeled ]
 
 jobs:
-  integer-tests:
-    concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
-      cancel-in-progress: true
-    runs-on: ${{ inputs.runner_name }}
+  setup-ec2:
+    name: Setup EC2 instance (unsigned-integer-tests)
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+      instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
     steps:
-      # Step used for log purpose.
-      - name: Instance configuration used
-        run: |
-          echo "ID: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
-          echo "Fork repo: ${{ inputs.fork_repo }}"
-          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@ab65ad70bb9f9e9251e4915ea5612bcad23cd9b1
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: cpu-big
 
+  unsigned-integer-tests:
+    name: Unsigned integer tests
+    needs: setup-ec2
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
-        with:
-          repository: ${{ inputs.fork_repo }}
-          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
@@ -89,6 +75,23 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "Integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Unsigned Integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-ec2:
+    name: Teardown EC2 instance (unsigned-integer-tests)
+    if: ${{ always() }}
+    needs: [ setup-ec2, unsigned-integer-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@ab65ad70bb9f9e9251e4915ea5612bcad23cd9b1
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: cpu-big
+          label: ${{ needs.setup-ec2.outputs.runner-name }}

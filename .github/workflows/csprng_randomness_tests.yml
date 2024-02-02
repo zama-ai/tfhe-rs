@@ -1,4 +1,4 @@
-name: AWS Tests on CPU
+name: CSPRNG randomness testing Workflow
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,9 +12,10 @@ on:
   pull_request:
     types: [ labeled ]
 
+
 jobs:
   setup-ec2:
-    name: Setup EC2 instance (cpu-tests)
+    name: Setup EC2 instance (csprng-randomness-tests)
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
     runs-on: ubuntu-latest
     outputs:
@@ -29,10 +30,10 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          profile: cpu-big
+          profile: cpu-small
 
-  cpu-tests:
-    name: CPU tests
+  csprng-randomness-tests:
+    name: CSPRNG randomness tests
     needs: setup-ec2
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
@@ -51,64 +52,26 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run concrete-csprng tests
+      - name: Dieharder randomness test suite
         run: |
-          make test_concrete_csprng
-
-      - name: Run core tests
-        run: |
-          AVX512_SUPPORT=ON make test_core_crypto
-
-      - name: Run boolean tests
-        run: |
-          make test_boolean
-
-      - name: Run C API tests
-        run: |
-          make test_c_api
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc
-
-      - name: Gen Keys if required
-        run: |
-          make gen_key_cache
-
-      - name: Run shortint tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
-
-      - name: Run high-level API tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api
-
-      - name: Run example tests
-        run: |
-          make test_examples
-          make dark_market
-
-      - name: Run apps tests
-        run: |
-          make test_trivium
-          make test_kreyvium
+          make dieharder_csprng
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "CPU tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "concrete-csprng randomness check finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   teardown-ec2:
-    name: Teardown EC2 instance (cpu-tests)
+    name: Teardown EC2 instance (csprng-randomness-tests)
     if: ${{ always() }}
-    needs: [ setup-ec2, cpu-tests ]
+    needs: [ setup-ec2, csprng-randomness-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -119,5 +82,5 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          profile: cpu-big
+          profile: cpu-small
           label: ${{ needs.setup-ec2.outputs.runner-name }}
