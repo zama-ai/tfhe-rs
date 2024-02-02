@@ -74,6 +74,8 @@ bool cuda_check_support_cooperative_groups() {
 /// Copy memory to the GPU asynchronously
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cuda_stream_t *stream) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
@@ -87,6 +89,8 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
 
 /// Copy memory to the GPU synchronously
 void cuda_memcpy_to_gpu(void *dest, void *src, uint64_t size) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.type != cudaMemoryTypeDevice) {
@@ -97,6 +101,8 @@ void cuda_memcpy_to_gpu(void *dest, void *src, uint64_t size) {
 
 /// Copy memory to the CPU synchronously
 void cuda_memcpy_to_cpu(void *dest, void *src, uint64_t size) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, src));
   if (attr.type != cudaMemoryTypeDevice) {
@@ -108,6 +114,8 @@ void cuda_memcpy_to_cpu(void *dest, void *src, uint64_t size) {
 /// Copy memory within a GPU asynchronously
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
                                   cuda_stream_t *stream) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   if (attr_dest.device != stream->gpu_index &&
@@ -137,11 +145,10 @@ void cuda_synchronize_device(uint32_t gpu_index) {
 
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
                        cuda_stream_t *stream) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
-  if (size == 0) {
-    PANIC("Cuda error: invalid zero size in cuda_memset_async.");
-  }
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid dest device pointer in cuda memset.");
   }
@@ -159,6 +166,11 @@ __global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
                           Torus n) {
+  cudaPointerAttributes attr;
+  check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
+  if (attr.type != cudaMemoryTypeDevice) {
+    PANIC("Cuda error: invalid dest device pointer in cuda set value.");
+  }
   int block_size = 256;
   int num_blocks = (n + block_size - 1) / block_size;
 
@@ -177,6 +189,8 @@ template void cuda_set_value_async(cudaStream_t *stream, uint32_t *d_array,
 /// Copy memory to the CPU asynchronously
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cuda_stream_t *stream) {
+  if (size == 0)
+    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, src));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {

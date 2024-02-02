@@ -202,11 +202,8 @@ __host__ void host_compare_with_zero_equality(
 
   // The result will be in the two first block. Everything else is
   //  garbage.
-  if (num_radix_blocks > 1) {
-    // cuda_memset with size 0 is invalid, so avoid it
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      big_lwe_size_bytes * (num_radix_blocks - 1), stream);
-  }
+  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                    big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 
 template <typename Torus>
@@ -236,11 +233,8 @@ __host__ void host_integer_radix_equality_check_kb(
   // Zero all blocks but the first
   size_t big_lwe_size = big_lwe_dimension + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  if (num_radix_blocks > 1) {
-    // cuda_memset with size 0 is invalid, so avoid it
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      big_lwe_size_bytes * (num_radix_blocks - 1), stream);
-  }
+  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                    big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 
 template <typename Torus>
@@ -439,12 +433,8 @@ __host__ void host_integer_radix_difference_check_kb(
   // The result will be in the first block. Everything else is garbage.
   size_t big_lwe_size = big_lwe_dimension + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  if (total_num_radix_blocks > 1) {
-    // cuda_memset with size 0 is invalid, so avoid it
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      (total_num_radix_blocks - 1) * big_lwe_size_bytes,
-                      stream);
-  }
+  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
+                    (total_num_radix_blocks - 1) * big_lwe_size_bytes, stream);
 }
 
 template <typename Torus>
