@@ -46,6 +46,23 @@ use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
+#[cfg(feature = "pbs-stats")]
+pub mod pbs_stats {
+    use std::sync::atomic::AtomicU64;
+    pub use std::sync::atomic::Ordering;
+    pub static PBS_COUNT: AtomicU64 = AtomicU64::new(0);
+
+    pub fn get_pbs_count() -> u64 {
+        PBS_COUNT.load(Ordering::Relaxed)
+    }
+
+    pub fn reset_pbs_count() {
+        PBS_COUNT.store(0, Ordering::Relaxed);
+    }
+}
+#[cfg(feature = "pbs-stats")]
+pub use pbs_stats::*;
+
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
 pub enum CheckError {
@@ -1172,6 +1189,9 @@ impl ServerKey {
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) {
+        #[cfg(feature = "pbs-stats")]
+        let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
+
         if ct.is_trivial() {
             self.trivial_pbs_assign(ct, acc);
             return;
@@ -1248,6 +1268,9 @@ impl ServerKey {
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) {
+        #[cfg(feature = "pbs-stats")]
+        let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
+
         if ct.is_trivial() {
             self.trivial_pbs_assign(ct, acc);
             return;
