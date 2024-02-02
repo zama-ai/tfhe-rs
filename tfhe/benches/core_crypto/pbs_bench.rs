@@ -629,7 +629,7 @@ mod cuda {
             unsafe {
                 stream.copy_to_gpu_async(&mut d_input_indexes, h_indexes.as_ref());
                 stream.copy_to_gpu_async(&mut d_output_indexes, h_indexes.as_ref());
-                stream.copy_to_gpu_async(&mut d_input_indexes, h_indexes.as_ref());
+                stream.copy_to_gpu_async(&mut d_lut_indexes, h_indexes.as_ref());
             }
             stream.synchronize();
 
