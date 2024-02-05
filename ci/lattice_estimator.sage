@@ -33,6 +33,18 @@ def check_security(filename):
 
         print(f"\t{param.tag}...\t", end= "")
 
+        is_n_size_too_low = param.n <= 450
+        is_noise_level_too_low = param.Xe.stddev < 4.0
+        if is_n_size_too_low :
+            reason = f"n size is too low {param.n} minimum is 450"
+        elif is_noise_level_too_low:
+            reason = f"noise level is too low {round(param.Xe.stddev,3)} minimum is 4.0"
+
+        if is_n_size_too_low or is_noise_level_too_low:
+            print(f"FAIL\t{reason}")
+            to_update.append((param, reason))
+            continue
+
         try:
             # The lattice estimator is not able to manage such large dimension.
             # If we have the security for smaller `n` then we have security for larger ones.
@@ -70,7 +82,7 @@ if __name__ == "__main__":
         print("Some parameters need update")
         print("----------------------------")
         for param, reason in params_to_update:
-            print(f"[{param.tag}] reason: {reason} (param)")
+            print(f"[{param.tag}] reason: {reason} (param: {param})")
         sys.exit(int(1))  # Explicit conversion is needed to make this call work
     else:
         print("All parameters passed the security check")
