@@ -75,6 +75,7 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
             PARAM_MESSAGE_1_CARRY_1_KS_PBS,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
         ]
         .iter()
         .map(|params| {
