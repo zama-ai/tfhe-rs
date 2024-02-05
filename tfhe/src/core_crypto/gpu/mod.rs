@@ -82,7 +82,6 @@ impl CudaStream {
     ///
     /// # Safety
     ///
-    /// - `dest` __must__ be a valid pointer to the GPU global memory
     /// - [CudaStream::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
     pub unsafe fn memset_async<T>(&self, dest: &mut CudaVec<T>, value: T)
@@ -105,7 +104,6 @@ impl CudaStream {
     ///
     /// # Safety
     ///
-    /// - `dest` __must__ be a valid pointer to the GPU global memory
     /// - [CudaStream::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
     pub unsafe fn copy_to_gpu_async<T>(&self, dest: &mut CudaVec<T>, src: &[T])
@@ -131,8 +129,6 @@ impl CudaStream {
     ///
     /// # Safety
     ///
-    /// - `src` __must__ be a valid pointer to the GPU global memory
-    /// - `dest` __must__ be a valid pointer to the GPU global memory
     /// - [CudaStream::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
     pub unsafe fn copy_gpu_to_gpu_async<T>(&self, dest: &mut CudaVec<T>, src: &CudaVec<T>)
@@ -152,11 +148,66 @@ impl CudaStream {
         }
     }
 
+    /// Copies data between two CudaVec, selecting a range of `src` as target
+    ///
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// as soon as synchronization is required
+    pub unsafe fn copy_src_range_gpu_to_gpu_async<R, T>(
+        &self,
+        range: R,
+        dest: &mut CudaVec<T>,
+        src: &CudaVec<T>,
+    ) where
+        R: std::ops::RangeBounds<usize>,
+        T: Numeric,
+    {
+        let (start, end) = src.range_bounds_to_start_end(range).into_inner();
+        // size is > 0 thanks to this check
+        if end < start {
+            return;
+        }
+        assert!(end < src.len());
+        assert!(end - start < dest.len());
+
+        let src_ptr = src.as_c_ptr().add(start * std::mem::size_of::<T>());
+        let size = (end - start + 1) * std::mem::size_of::<T>();
+        cuda_memcpy_async_gpu_to_gpu(dest.as_mut_c_ptr(), src_ptr, size as u64, self.as_c_ptr());
+    }
+
+    /// Copies data between two CudaVec, selecting a range of `dest` as target
+    ///
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// as soon as synchronization is required
+    pub unsafe fn copy_dest_range_gpu_to_gpu_async<R, T>(
+        &self,
+        range: R,
+        dest: &mut CudaVec<T>,
+        src: &CudaVec<T>,
+    ) where
+        R: std::ops::RangeBounds<usize>,
+        T: Numeric,
+    {
+        let (start, end) = dest.range_bounds_to_start_end(range).into_inner();
+        // size is > 0 thanks to this check
+        if end < start {
+            return;
+        }
+        assert!(end < dest.len());
+        assert!(end - start < src.len());
+
+        let dest_ptr = dest.as_mut_c_ptr().add(start * std::mem::size_of::<T>());
+        let size = (end - start + 1) * std::mem::size_of::<T>();
+        cuda_memcpy_async_gpu_to_gpu(dest_ptr, src.as_c_ptr(), size as u64, self.as_c_ptr());
+    }
+
     /// Copies data from GPU pointer into slice
     ///
     /// # Safety
     ///
-    /// - `src` __must__ be a valid pointer to the GPU global memory
     /// - [CudaStream::synchronize] __must__ be called as soon as synchronization is
     /// required
     pub unsafe fn copy_to_cpu_async<T>(&self, dest: &mut [T], src: &CudaVec<T>)

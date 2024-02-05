@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::{CudaDevice, CudaPtr, CudaStream};
 use crate::core_crypto::prelude::Numeric;
+use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 
@@ -65,6 +66,25 @@ impl<T: Numeric> CudaVec<T> {
     /// Returns `true` if the CudaVec contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    pub(crate) fn range_bounds_to_start_end<R>(&self, range: R) -> std::ops::RangeInclusive<usize>
+    where
+        R: std::ops::RangeBounds<usize>,
+    {
+        let start = match range.start_bound() {
+            Unbounded => 0usize,
+            Included(start) => *start,
+            Excluded(start) => *start + 1,
+        };
+
+        let end = match range.end_bound() {
+            Unbounded => self.len().saturating_sub(1),
+            Included(end) => *end,
+            Excluded(end) => end.saturating_sub(1),
+        };
+
+        start..=end
     }
 }
 

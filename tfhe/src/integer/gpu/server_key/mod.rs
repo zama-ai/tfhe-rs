@@ -1,20 +1,14 @@
-use crate::core_crypto::commons::traits::contiguous_entity_container::ContiguousEntityContainerMut;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
-    LweCiphertextCount, LweCiphertextList, LweMultiBitBootstrapKeyOwned,
-};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::gpu::ciphertext::{
-    CudaBlockInfo, CudaRadixCiphertext, CudaRadixCiphertextInfo,
+    LweMultiBitBootstrapKeyOwned,
 };
 use crate::integer::ClientKey;
-use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
+use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 
@@ -45,7 +39,7 @@ pub struct CudaServerKey {
 }
 
 impl CudaServerKey {
-    /// Generates a server key that stores keys in the device memopry.
+    /// Generates a server key that stores keys in the device memory.
     ///
     /// # Example
     ///
@@ -177,187 +171,4 @@ impl CudaServerKey {
     //         }
     //     };
     // }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub(crate) unsafe fn propagate_single_carry_assign_async(
-        &self,
-        ct: &mut CudaRadixCiphertext,
-        stream: &CudaStream,
-    ) {
-        let num_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.propagate_single_carry_classic_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    num_blocks,
-                    ct.info.blocks.first().unwrap().message_modulus,
-                    ct.info.blocks.first().unwrap().carry_modulus,
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.propagate_single_carry_multibit_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    d_multibit_bsk.grouping_factor,
-                    num_blocks,
-                    ct.info.blocks.first().unwrap().message_modulus,
-                    ct.info.blocks.first().unwrap().carry_modulus,
-                );
-            }
-        };
-        ct.info
-            .blocks
-            .iter_mut()
-            .for_each(|b| b.degree = Degree::new(b.message_modulus.0 - 1));
-    }
-
-    pub(crate) unsafe fn full_propagate_assign_async(
-        &self,
-        ct: &mut CudaRadixCiphertext,
-        stream: &CudaStream,
-    ) {
-        let num_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.full_propagate_classic_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    num_blocks,
-                    ct.info.blocks.first().unwrap().message_modulus,
-                    ct.info.blocks.first().unwrap().carry_modulus,
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.full_propagate_multibit_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    d_multibit_bsk.grouping_factor,
-                    num_blocks,
-                    ct.info.blocks.first().unwrap().message_modulus,
-                    ct.info.blocks.first().unwrap().carry_modulus,
-                );
-            }
-        };
-        ct.info
-            .blocks
-            .iter_mut()
-            .for_each(|b| b.degree = Degree::new(b.message_modulus.0 - 1));
-    }
-
-    /// Create a ciphertext filled with zeros
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
-    ///
-    /// let num_blocks = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
-    ///
-    /// let d_ctxt: CudaRadixCiphertext = sks.create_trivial_zero_radix(num_blocks, &mut stream);
-    /// let ctxt = d_ctxt.to_radix_ciphertext(&mut stream);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ctxt);
-    /// assert_eq!(0, dec);
-    /// ```
-    pub fn create_trivial_zero_radix(
-        &self,
-        num_blocks: usize,
-        stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
-        self.create_trivial_radix(0, num_blocks, stream)
-    }
-
-    pub fn create_trivial_radix<T>(
-        &self,
-        scalar: T,
-        num_blocks: usize,
-        stream: &CudaStream,
-    ) -> CudaRadixCiphertext
-    where
-        T: DecomposableInto<u64>,
-    {
-        let lwe_size = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_size(),
-            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_size(),
-        };
-
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-
-        let decomposer = BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-            .iter_as::<u64>()
-            .chain(std::iter::repeat(0))
-            .take(num_blocks);
-        let mut cpu_lwe_list = LweCiphertextList::new(
-            0,
-            lwe_size,
-            LweCiphertextCount(num_blocks),
-            self.ciphertext_modulus,
-        );
-        let mut info = Vec::with_capacity(num_blocks);
-        for (block_value, mut lwe) in decomposer.zip(cpu_lwe_list.iter_mut()) {
-            *lwe.get_mut_body().data = block_value * delta;
-            info.push(CudaBlockInfo {
-                degree: Degree::new(block_value as usize),
-                message_modulus: self.message_modulus,
-                carry_modulus: self.carry_modulus,
-                pbs_order: self.pbs_order,
-                noise_level: NoiseLevel::ZERO,
-            });
-        }
-
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&cpu_lwe_list, stream);
-
-        CudaRadixCiphertext {
-            d_blocks,
-            info: CudaRadixCiphertextInfo { blocks: info },
-        }
-    }
 }

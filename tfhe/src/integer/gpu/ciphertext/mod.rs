@@ -389,6 +389,70 @@ impl CudaRadixCiphertextInfo {
                 .collect(),
         }
     }
+
+    pub(crate) fn after_extend_radix_with_trivial_zero_blocks_lsb(
+        &self,
+        num_blocks: usize,
+    ) -> Self {
+        let mut new_block_info = Self {
+            blocks: Vec::with_capacity(self.blocks.len() + num_blocks),
+        };
+        for _ in 0..num_blocks {
+            new_block_info.blocks.push(CudaBlockInfo {
+                degree: Degree::new(0),
+                message_modulus: self.blocks.first().unwrap().message_modulus,
+                carry_modulus: self.blocks.first().unwrap().carry_modulus,
+                pbs_order: self.blocks.first().unwrap().pbs_order,
+                noise_level: NoiseLevel::ZERO,
+            });
+        }
+        for &b in self.blocks.iter() {
+            new_block_info.blocks.push(b);
+        }
+        new_block_info
+    }
+
+    pub(crate) fn after_extend_radix_with_trivial_zero_blocks_msb(
+        &self,
+        num_blocks: usize,
+    ) -> Self {
+        let mut new_block_info = Self {
+            blocks: Vec::with_capacity(self.blocks.len() + num_blocks),
+        };
+        for &b in self.blocks.iter() {
+            new_block_info.blocks.push(b);
+        }
+        for _ in 0..num_blocks {
+            new_block_info.blocks.push(CudaBlockInfo {
+                degree: Degree::new(0),
+                message_modulus: self.blocks.first().unwrap().message_modulus,
+                carry_modulus: self.blocks.first().unwrap().carry_modulus,
+                pbs_order: self.blocks.first().unwrap().pbs_order,
+                noise_level: NoiseLevel::ZERO,
+            });
+        }
+        new_block_info
+    }
+
+    pub(crate) fn after_trim_radix_blocks_lsb(&self, num_blocks: usize) -> Self {
+        let mut new_block_info = Self {
+            blocks: Vec::with_capacity(self.blocks.len().saturating_sub(num_blocks)),
+        };
+        new_block_info
+            .blocks
+            .extend(self.blocks[num_blocks..].iter().copied());
+        new_block_info
+    }
+
+    pub(crate) fn after_trim_radix_blocks_msb(&self, num_blocks: usize) -> Self {
+        let mut new_block_info = Self {
+            blocks: Vec::with_capacity(self.blocks.len().saturating_sub(num_blocks)),
+        };
+        new_block_info
+            .blocks
+            .extend(self.blocks[..num_blocks].iter().copied());
+        new_block_info
+    }
 }
 
 // #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -399,6 +463,9 @@ pub struct CudaRadixCiphertext {
 }
 
 impl CudaRadixCiphertext {
+    pub fn new(d_blocks: CudaLweCiphertextList<u64>, info: CudaRadixCiphertextInfo) -> Self {
+        Self { d_blocks, info }
+    }
     /// Copies a RadixCiphertext to the GPU memory
     ///
     /// # Example
