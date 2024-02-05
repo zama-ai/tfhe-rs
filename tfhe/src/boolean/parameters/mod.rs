@@ -191,4 +191,10 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
-pub const VEC_BOOLEAN_PARAM: [BooleanParameters; 2] = [DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS];
+pub const VEC_BOOLEAN_PARAM: [BooleanParameters; 5] = [
+    DEFAULT_PARAMETERS,
+    DEFAULT_PARAMETERS_KS_PBS,
+    PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+    PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+    TFHE_LIB_PARAMETERS,
+];
