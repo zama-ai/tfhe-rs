@@ -1,7 +1,7 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, OperatorType};
+use crate::utilities::{write_to_json, EnvConfig, OperatorType};
 use std::env;
 
 use criterion::{criterion_group, Criterion};
@@ -34,26 +34,12 @@ struct ParamsAndNumBlocksIter {
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
-            Ok(val) => val.to_lowercase() == "multi_bit",
-            Err(_) => false,
-        };
+        let env_config = EnvConfig::new();
 
-        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
-            Ok(val) => val.to_lowercase() == "true",
-            Err(_) => false,
-        };
-
-        if is_multi_bit {
+        if env_config.is_multi_bit {
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 
-            let bit_sizes = if is_fast_bench {
-                vec![32]
-            } else {
-                vec![8, 16, 32, 40, 64]
-            };
-
-            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
                 params_and_bit_sizes,
             }
@@ -66,13 +52,7 @@ impl Default for ParamsAndNumBlocksIter {
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
 
-            let bit_sizes = if is_fast_bench {
-                vec![32]
-            } else {
-                vec![8, 16, 32, 40, 64, 128, 256]
-            };
-
-            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
                 params_and_bit_sizes,
             }
@@ -1125,6 +1105,83 @@ criterion_group!(
     unchecked_scalar_min_parallelized,
 );
 
+fn bench_server_key_signed_cast_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    display_name: &str,
+    cast_op: F,
+) where
+    F: Fn(&ServerKey, SignedRadixCiphertext, usize),
+{
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(30));
+    let mut rng = rand::thread_rng();
+
+    let env_config = EnvConfig::new();
+
+    for (param, num_blocks, bit_size) in ParamsAndNumBlocksIter::default() {
+        let all_num_blocks = env_config
+            .bit_sizes()
+            .iter()
+            .copied()
+            .map(|bit| bit.div_ceil(param.message_modulus().0.ilog2() as usize))
+            .collect::<Vec<_>>();
+        let param_name = param.name();
+
+        for target_num_blocks in all_num_blocks.iter().copied() {
+            let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                let encrypt_one_value =
+                    || cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_blocks);
+
+                b.iter_batched(
+                    encrypt_one_value,
+                    |ct| {
+                        cast_op(&sks, ct, target_num_blocks);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_blocks],
+            );
+        }
+    }
+
+    bench_group.finish()
+}
+
+macro_rules! define_server_key_bench_cast_fn (
+  (method_name: $server_key_method:ident, display_name:$name:ident) => {
+      fn $server_key_method(c: &mut Criterion) {
+        bench_server_key_signed_cast_function(
+              c,
+              concat!("integer::signed::", stringify!($server_key_method)),
+              stringify!($name),
+              |server_key, lhs, rhs| {
+                server_key.$server_key_method(lhs, rhs);
+          })
+      }
+  }
+);
+
+define_server_key_bench_cast_fn!(method_name: cast_to_unsigned, display_name: cast_to_unsigned);
+define_server_key_bench_cast_fn!(method_name: cast_to_signed, display_name: cast_to_signed);
+
+criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
+
 fn main() {
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
@@ -1133,7 +1190,8 @@ fn main() {
                     default_parallelized_ops();
                     default_parallelized_ops_comp();
                     default_scalar_parallelized_ops();
-                    default_scalar_parallelized_ops_comp()
+                    default_scalar_parallelized_ops_comp();
+                    cast_ops()
                 }
                 "unchecked" => {
                     unchecked_ops();
@@ -1147,6 +1205,7 @@ fn main() {
         Err(_) => {
             default_parallelized_ops();
             default_scalar_parallelized_ops();
+            cast_ops()
         }
     };
 
