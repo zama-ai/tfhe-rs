@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::fs;
 use std::path::PathBuf;
+use std::{env, fs};
 #[cfg(feature = "boolean")]
 use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
@@ -224,6 +224,54 @@ pub fn write_to_json<
     params_directory.push("parameters.json");
 
     fs::write(params_directory, serde_json::to_string(&record).unwrap()).unwrap();
+}
+
+const FAST_BENCH_BIT_SIZES: [usize; 1] = [32];
+const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
+
+/// User configuration in which benchmarks must be run.
+#[derive(Default)]
+pub struct EnvConfig {
+    pub is_multi_bit: bool,
+    pub is_fast_bench: bool,
+}
+
+impl EnvConfig {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+            Ok(val) => val.to_lowercase() == "multi_bit",
+            Err(_) => false,
+        };
+
+        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
+            Ok(val) => val.to_lowercase() == "true",
+            Err(_) => false,
+        };
+
+        EnvConfig {
+            is_multi_bit,
+            is_fast_bench,
+        }
+    }
+
+    /// Get precisions values to benchmark.
+    #[allow(dead_code)]
+    pub fn bit_sizes(&self) -> Vec<usize> {
+        if self.is_multi_bit {
+            if self.is_fast_bench {
+                FAST_BENCH_BIT_SIZES.to_vec()
+            } else if cfg!(feature = "gpu") {
+                BENCH_BIT_SIZES.to_vec()
+            } else {
+                vec![8, 16, 32, 40, 64]
+            }
+        } else if self.is_fast_bench {
+            FAST_BENCH_BIT_SIZES.to_vec()
+        } else {
+            BENCH_BIT_SIZES.to_vec()
+        }
+    }
 }
 
 // Empty main to please clippy.

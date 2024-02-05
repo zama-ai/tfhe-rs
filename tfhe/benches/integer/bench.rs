@@ -3,7 +3,7 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, OperatorType};
+use crate::utilities::{write_to_json, EnvConfig, OperatorType};
 use std::env;
 
 use criterion::{criterion_group, Criterion};
@@ -28,9 +28,6 @@ use tfhe::shortint::parameters::{
 /// It must be as big as the largest bit size tested
 type ScalarType = U256;
 
-const FAST_BENCH_BIT_SIZES: [usize; 1] = [32];
-const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
-
 fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
     let clearlow = rng.gen::<u128>();
     let clearhigh = rng.gen::<u128>();
@@ -48,37 +45,15 @@ struct ParamsAndNumBlocksIter {
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
-            Ok(val) => val.to_lowercase() == "multi_bit",
-            Err(_) => false,
-        };
+        let env_config = EnvConfig::new();
 
-        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
-            Ok(val) => val.to_lowercase() == "true",
-            Err(_) => false,
-        };
-
-        let bit_sizes = if is_fast_bench {
-            FAST_BENCH_BIT_SIZES.to_vec()
-        } else {
-            BENCH_BIT_SIZES.to_vec()
-        };
-
-        if is_multi_bit {
+        if env_config.is_multi_bit {
             #[cfg(feature = "gpu")]
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
             #[cfg(not(feature = "gpu"))]
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 
-            let bit_sizes = if is_fast_bench {
-                vec![32]
-            } else if cfg!(feature = "gpu") {
-                BENCH_BIT_SIZES.to_vec()
-            } else {
-                vec![8, 16, 32, 40, 64]
-            };
-
-            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
                 params_and_bit_sizes,
             }
@@ -91,7 +66,7 @@ impl Default for ParamsAndNumBlocksIter {
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
 
-            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
                 params_and_bit_sizes,
             }
@@ -1094,12 +1069,6 @@ define_server_key_bench_unary_default_fn!(method_name: neg_parallelized, display
 define_server_key_bench_unary_default_fn!(method_name: abs_parallelized, display_name: abs);
 
 define_server_key_bench_unary_default_fn!(method_name: unchecked_abs_parallelized, display_name: abs);
-
-define_server_key_bench_unary_fn!(method_name: full_propagate, display_name: carry_propagation);
-define_server_key_bench_unary_fn!(
-    method_name: full_propagate_parallelized,
-    display_name: carry_propagation
-);
 
 define_server_key_bench_default_fn!(method_name: unchecked_max, display_name: max);
 define_server_key_bench_default_fn!(method_name: unchecked_min, display_name: min);
@@ -2146,6 +2115,92 @@ criterion_group!(
     unchecked_scalar_ge_parallelized,
 );
 
+//================================================================================
+//     Miscellaneous Benches
+//================================================================================
+
+fn bench_server_key_cast_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    display_name: &str,
+    cast_op: F,
+) where
+    F: Fn(&ServerKey, RadixCiphertext, usize),
+{
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(30));
+    let mut rng = rand::thread_rng();
+
+    let env_config = EnvConfig::new();
+
+    for (param, num_blocks, bit_size) in ParamsAndNumBlocksIter::default() {
+        let all_num_blocks = env_config
+            .bit_sizes()
+            .iter()
+            .copied()
+            .map(|bit| bit.div_ceil(param.message_modulus().0.ilog2() as usize))
+            .collect::<Vec<_>>();
+        let param_name = param.name();
+
+        for target_num_blocks in all_num_blocks.iter().copied() {
+            let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                let encrypt_one_value = || cks.encrypt_radix(gen_random_u256(&mut rng), num_blocks);
+
+                b.iter_batched(
+                    encrypt_one_value,
+                    |ct| {
+                        cast_op(&sks, ct, target_num_blocks);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_blocks],
+            );
+        }
+    }
+
+    bench_group.finish()
+}
+
+macro_rules! define_server_key_bench_cast_fn (
+  (method_name: $server_key_method:ident, display_name:$name:ident) => {
+      fn $server_key_method(c: &mut Criterion) {
+        bench_server_key_cast_function(
+              c,
+              concat!("integer::", stringify!($server_key_method)),
+              stringify!($name),
+              |server_key, lhs, rhs| {
+                server_key.$server_key_method(lhs, rhs);
+          })
+      }
+  }
+);
+
+define_server_key_bench_cast_fn!(method_name: cast_to_unsigned, display_name: cast_to_unsigned);
+define_server_key_bench_cast_fn!(method_name: cast_to_signed, display_name: cast_to_signed);
+
+criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
+
+define_server_key_bench_unary_fn!(method_name: full_propagate, display_name: carry_propagation);
+define_server_key_bench_unary_fn!(
+    method_name: full_propagate_parallelized,
+    display_name: carry_propagation
+);
+
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
 #[cfg(feature = "gpu")]
@@ -2169,7 +2224,8 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_parallelized_ops();
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp()
+            default_scalar_parallelized_ops_comp();
+            cast_ops()
         }
         "smart" => {
             smart_ops();
@@ -2203,7 +2259,8 @@ fn main() {
             default_parallelized_ops();
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp()
+            default_scalar_parallelized_ops_comp();
+            cast_ops()
         }
     };
 
