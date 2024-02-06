@@ -339,14 +339,14 @@ fn main() {
 
     let modulus = client_key.parameters.message_modulus().0;
 
-    // We use the private client key to encrypt two messages:
+    // We use the private client key to encrypt a message:
     let ct_1 = client_key.encrypt(msg1);
 
+    // Compute the lookup table for the univariate function:
     let acc = server_key.generate_lookup_table(|n| n.count_ones().into());
 
-    // add the two ciphertexts
+    // Apply the table lookup on the input message:
     let ct_res = server_key.apply_lookup_table(&ct_1, &acc);
-
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_res);
