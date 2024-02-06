@@ -16,7 +16,7 @@ This library is meant to be used both on the **server side** and the **client si
 
 ## Setup
 
-In the first step, the client creates two keys, the `client key` and the `server key`, with the `concrete_boolean::gen_keys` function:
+In the first step, the client creates two keys, the `client key` and the `server key`, with the `tfhe::boolean::gen_keys` function:
 
 ```rust
 use tfhe::boolean::prelude::*;

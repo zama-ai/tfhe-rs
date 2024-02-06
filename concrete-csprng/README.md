@@ -1,7 +1,7 @@
 # Concrete CSPRNG
 
 This crate contains a fast *Cryptographically Secure Pseudoramdon Number Generator*, used in the
-['concrete-core'](https://crates.io/crates/concrete-core) library, you can find it [here](../concrete-core/) in this repo.
+[TFHE-rs](https://crates.io/crates/tfhe) library, you can find it [here](../tfhe/) in this repo.
 
 The implementation is based on the AES blockcipher used in CTR mode, as described in the ISO/IEC
 18033-4 standard.

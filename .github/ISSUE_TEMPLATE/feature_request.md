@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for concrete
+about: Suggest an idea for TFHE-rs
 title: ''
 labels: feature_request
 assignees: ''

@@ -1,5 +1,5 @@
-# Compile and test Concrete-cuda on an AWS instance
-name: Concrete Cuda - Full tests
+# Compile and test tfhe-cuda-backend on an AWS instance
+name: TFHE Cuda Backend - Full tests
 
 env:
   CARGO_TERM_COLOR: always
