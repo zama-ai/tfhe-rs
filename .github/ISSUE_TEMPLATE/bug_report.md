@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with concrete
+about: Report a problem with TFHE-rs
 title: ''
 labels: triage_required
 assignees: ''

@@ -42,7 +42,7 @@
 //! ```
 //!
 //! # Warning
-//! This uses cryptographic parameters from the `concrete-shortint` crates.
+//! This uses cryptographic parameters from the [`shortint`](`crate::shortint`) module.
 //! Currently, the radix approach is only compatible with parameter sets such
 //! that the message and carry buffers have the same size.
 

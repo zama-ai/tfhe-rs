@@ -30,8 +30,7 @@ The cryptographic operations it provides are:
 
 ## Build
 
-The Cuda project held in `tfhe-cuda-backend` can be compiled independently from Concrete in the 
-following way:
+The Cuda project held in `tfhe-cuda-backend` can be compiled independently from TFHE-rs in the following way:
 ```
 git clone git@github.com:zama-ai/tfhe-rs
 cd backends/tfhe-cuda-backend/cuda
