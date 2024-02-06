@@ -133,7 +133,6 @@ mod cuda {
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaDevice, CudaStream};
     use tfhe::core_crypto::prelude::*;
-    use tfhe::keycache::NamedParam;
 
     fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         criterion: &mut Criterion,
@@ -240,7 +239,7 @@ mod cuda {
     criterion_group!(
         name = cuda_keyswitch_group;
         config = Criterion::default().sample_size(2000);
-        targets = cuda_keyswitch::<u64>, cuda_keyswitch::<u32>
+        targets = cuda_keyswitch::<u64>
     );
 }
 
