@@ -1,0 +1,17 @@
+[package]
+# see https://doc.rust-lang.org/cargo/reference/manifest.html
+name = "tfhe-noise-model"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tfhe-security-curves = { version = "0.1.0", path = "../parameter-curves/tfhe-security-curves" }
+
+[dev-dependencies]
+approx = "0.5"
+
+[build-dependencies]
+cbindgen = "0.26"
+
+[lib]
+crate-type = ["lib", "staticlib"]
