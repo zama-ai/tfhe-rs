@@ -44,6 +44,7 @@ env_logger = "0.10.0"
 log = "0.4.19"
 hex = "0.4.3"
 # End regex-engine deps
+tfhe-noise-model = { version = "0.1.0", path = "../tools/tfhe-noise-model/" }
 
 [build-dependencies]
 cbindgen = { version = "0.26.0", optional = true }

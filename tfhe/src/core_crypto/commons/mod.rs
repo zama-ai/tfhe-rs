@@ -76,7 +76,8 @@ pub mod test_tools {
 
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();
-        let mean = samples.iter().sum::<f64>() / (num_samples as f64);
+        // let mean = samples.iter().sum::<f64>() / (num_samples as f64);
+        let mean = 0.0f64;
         Variance(
             samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / ((num_samples - 1) as f64),
         )
