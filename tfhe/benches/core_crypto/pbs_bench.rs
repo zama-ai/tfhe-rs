@@ -104,7 +104,6 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
             vec![
                 PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
                 PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
             ]
         } else {
             vec![
@@ -615,7 +614,7 @@ mod cuda {
                 CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
             // Allocate the LweCiphertext to store the result of the PBS
-            let mut out_pbs_ct = LweCiphertext::new(
+            let out_pbs_ct = LweCiphertext::new(
                 Scalar::ZERO,
                 output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                 tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -737,7 +736,7 @@ mod cuda {
                 CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
             // Allocate the LweCiphertext to store the result of the PBS
-            let mut out_pbs_ct = LweCiphertext::new(
+            let out_pbs_ct = LweCiphertext::new(
                 Scalar::ZERO,
                 output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                 tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -752,7 +751,7 @@ mod cuda {
             unsafe {
                 stream.copy_to_gpu_async(&mut d_input_indexes, h_indexes.as_ref());
                 stream.copy_to_gpu_async(&mut d_output_indexes, h_indexes.as_ref());
-                stream.copy_to_gpu_async(&mut d_input_indexes, h_indexes.as_ref());
+                stream.copy_to_gpu_async(&mut d_lut_indexes, h_indexes.as_ref());
             }
             stream.synchronize();
 

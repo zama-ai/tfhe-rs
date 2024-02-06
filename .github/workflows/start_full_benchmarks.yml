@@ -26,7 +26,7 @@ jobs:
       matrix:
         command: [ boolean_bench, shortint_full_bench,
                    integer_full_bench, signed_integer_full_bench, integer_gpu_full_bench,
-                   pbs_bench, pbs_gpu_bench, wasm_client_bench ]
+                   core_crypto_bench, core_crypto_gpu_bench, wasm_client_bench ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs

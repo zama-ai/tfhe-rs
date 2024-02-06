@@ -38,6 +38,16 @@ jobs:
     name: Execute GPU core crypto benchmarks in EC2
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 9
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Instance configuration used
         run: |
@@ -106,7 +116,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8
         with:
-          name: ${{ github.sha }}_pbs
+          name: ${{ github.sha }}_core_crypto
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
