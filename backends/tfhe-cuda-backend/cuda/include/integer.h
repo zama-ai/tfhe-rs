@@ -646,7 +646,10 @@ template <typename Torus> struct int_shift_buffer {
       uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
       tmp_rotated = (Torus *)cuda_malloc_async(
-          max_amount_of_pbs * big_lwe_size_bytes, stream);
+          (max_amount_of_pbs + 2) * big_lwe_size_bytes, stream);
+
+      cuda_memset_async(tmp_rotated, 0,
+                        (max_amount_of_pbs + 2) * big_lwe_size_bytes, stream);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
@@ -708,34 +711,6 @@ template <typename Torus> struct int_shift_buffer {
             params.carry_modulus, shift_lut_f);
 
         lut_buffers_bivariate.push_back(cur_lut_bivariate);
-      }
-
-      // here we generate 'message_modulus' times lut
-      // one for each 'shift'
-      // lut_indexes will have indexes for single lut only and those indexes
-      // will be 0 it means for pbs corresponding lut should be selected and
-      // pass along lut_indexes filled with zeros
-
-      // calculate lut for each 'shift'
-      for (int shift = 0; shift < params.message_modulus; shift++) {
-        auto cur_lut =
-            new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
-
-        std::function<Torus(Torus)> shift_lut_f;
-        if (shift_type == LEFT_SHIFT)
-          shift_lut_f = [shift, params](Torus x) -> Torus {
-            return (x << shift) % params.message_modulus;
-          };
-        else
-          shift_lut_f = [shift, params](Torus x) -> Torus {
-            return (x >> shift) % params.message_modulus;
-          };
-
-        generate_device_accumulator<Torus>(
-            stream, cur_lut->lut, params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, shift_lut_f);
-
-        lut_buffers_univariate.push_back(cur_lut);
       }
     }
   }
