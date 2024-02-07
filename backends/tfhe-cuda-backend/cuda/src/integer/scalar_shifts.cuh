@@ -44,10 +44,10 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
-  Torus *rotated_buffer = mem->tmp_rotated;
+  Torus *full_rotated_buffer = mem->tmp_rotated;
+  Torus *rotated_buffer = &full_rotated_buffer[big_lwe_size];
 
   auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
-  auto lut_univariate = mem->lut_buffers_univariate[shift_within_block];
 
   // rotate right all the blocks in radix ciphertext
   // copy result in new buffer
@@ -68,23 +68,15 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
       return;
     }
 
-    // check if we have enough blocks for partial processing
-    if (rotations < num_blocks - 1) {
-      auto partial_current_blocks = &lwe_array[(rotations + 1) * big_lwe_size];
-      auto partial_previous_blocks = &lwe_array[rotations * big_lwe_size];
+    auto partial_current_blocks = &lwe_array[rotations * big_lwe_size];
+    auto partial_previous_blocks =
+        &full_rotated_buffer[rotations * big_lwe_size];
 
-      size_t partial_block_count = num_blocks - rotations - 1;
+    size_t partial_block_count = num_blocks - rotations;
 
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-          stream, partial_current_blocks, partial_current_blocks,
-          partial_previous_blocks, bsk, ksk, partial_block_count,
-          lut_bivariate);
-    }
-
-    auto rest = &lwe_array[rotations * big_lwe_size];
-
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        stream, rest, rest, bsk, ksk, 1, lut_univariate);
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        stream, partial_current_blocks, partial_current_blocks,
+        partial_previous_blocks, bsk, ksk, partial_block_count, lut_bivariate);
 
   } else {
     // right shift
@@ -102,23 +94,14 @@ __host__ void host_integer_radix_scalar_shift_kb_inplace(
       return;
     }
 
-    // check if we have enough blocks for partial processing
-    if (rotations < num_blocks - 1) {
-      auto partial_current_blocks = lwe_array;
-      auto partial_next_blocks = &lwe_array[big_lwe_size];
+    auto partial_current_blocks = lwe_array;
+    auto partial_next_blocks = &rotated_buffer[big_lwe_size];
 
-      size_t partial_block_count = num_blocks - rotations - 1;
+    size_t partial_block_count = num_blocks - rotations;
 
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-          stream, partial_current_blocks, partial_current_blocks,
-          partial_next_blocks, bsk, ksk, partial_block_count, lut_bivariate);
-    }
-
-    // The right-most block is done separately as it does not
-    // need to recuperate the shifted bits from its right neighbour.
-    auto last_block = &lwe_array[(num_blocks - rotations - 1) * big_lwe_size];
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        stream, last_block, last_block, bsk, ksk, 1, lut_univariate);
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        stream, partial_current_blocks, partial_current_blocks,
+        partial_next_blocks, bsk, ksk, partial_block_count, lut_bivariate);
   }
 }
 
