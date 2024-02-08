@@ -57,7 +57,13 @@
 #![allow(clippy::iter_with_drain)] // 2
 #![allow(clippy::large_stack_frames)] // 1
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
-#![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
+#![cfg_attr(
+    all(
+        feature = "nightly-avx512",
+        any(target_arch = "x86", target_arch = "x86_64")
+    ),
+    feature(avx512_target_feature, stdarch_x86_avx512)
+)]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 #![warn(rustdoc::broken_intra_doc_links)]
