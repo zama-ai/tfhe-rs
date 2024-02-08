@@ -260,7 +260,7 @@ clippy_cuda_backend: install_rs_check_toolchain
 build_core: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p $(TFHE_SPEC)
-	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+	if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 			--features=$(TARGET_ARCH_FEATURE),$(AVX512_FEATURE) -p $(TFHE_SPEC); \
 	fi
@@ -269,7 +269,7 @@ build_core: install_rs_build_toolchain install_rs_check_toolchain
 build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC)
-	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+	if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC); \
 	fi
@@ -296,7 +296,7 @@ build_tfhe_full: install_rs_build_toolchain
 
 .PHONY: symlink_c_libs_without_fingerprint # Link the .a and .so files without the changing hash part in target
 symlink_c_libs_without_fingerprint:
-	@./scripts/symlink_c_libs_without_fingerprint.sh \
+	./scripts/symlink_c_libs_without_fingerprint.sh \
 		--cargo-profile "$(CARGO_PROFILE)" \
 		--lib-name tfhe-c-api-dynamic-buffer
 
@@ -305,7 +305,7 @@ build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
-	@"$(MAKE)" symlink_c_libs_without_fingerprint
+	"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
@@ -319,7 +319,7 @@ build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
-	@"$(MAKE)" symlink_c_libs_without_fingerprint
+	"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
@@ -353,7 +353,7 @@ build_concrete_csprng: install_rs_build_toolchain
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) -- core_crypto::
-	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+	if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
 	fi
@@ -365,7 +365,7 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage \
 		-p $(TFHE_SPEC) -- core_crypto::
-	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+	if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
@@ -593,7 +593,7 @@ check_compile_tests:
 		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
 		-p $(TFHE_SPEC)
 
-	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
+	if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
 		./scripts/c_api_tests.sh --build-only; \
 	fi
@@ -631,11 +631,11 @@ ci_test_web_js_api_parallel: build_web_js_api_parallel
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
-	@./scripts/no_tfhe_typo.sh
+	./scripts/no_tfhe_typo.sh
 
 .PHONY: no_dbg_log # Check we did not leave dbg macro calls in the rust code
 no_dbg_log:
-	@./scripts/no_dbg_calls.sh
+	./scripts/no_dbg_calls.sh
 
 .PHONY: dieharder_csprng # Run the dieharder test suite on our CSPRNG implementation
 dieharder_csprng: install_dieharder build_concrete_csprng
