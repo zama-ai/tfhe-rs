@@ -7,6 +7,8 @@ if(NOT CARGO_PROFILE)
 endif()
 set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../target/${CARGO_PROFILE}")
 
+option(WITH_FEATURE_GPU "Enable if tfhe-rs C API was compiled with the 'gpu' feature activated" OFF)
+
 include_directories(${TFHE_C_API_RELEASE})
 # This one is to fetch the dynamic buffer header
 include_directories(${TFHE_C_API_RELEASE}/deps)
@@ -22,6 +24,11 @@ if(APPLE)
     endif()
 endif()
 
+if (WITH_FEATURE_GPU)
+    find_package(CUDAToolkit 10.0 REQUIRED)
+    find_package(OpenMP REQUIRED)
+endif()
+
 file(GLOB TEST_CASES test_*.c)
 foreach (testsourcefile ${TEST_CASES})
     get_filename_component(testname ${testsourcefile} NAME_WLE)
@@ -34,6 +41,12 @@ foreach (testsourcefile ${TEST_CASES})
     )
     target_include_directories(${testname} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${testname} LINK_PUBLIC Tfhe TfheDynamicBuffer m pthread dl)
+
+    if (WITH_FEATURE_GPU)
+        target_link_libraries(${testname} LINK_PUBLIC CUDA::cudart -lstdc++ OpenMP::OpenMP_CXX)
+        target_compile_definitions(${testname} PUBLIC -DWITH_FEATURE_GPU)
+    endif()
+
     if(APPLE)
         target_link_libraries(${testname} LINK_PUBLIC ${SECURITY_FRAMEWORK})
     endif()

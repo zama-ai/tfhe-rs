@@ -55,6 +55,8 @@ fn gen_c_api() {
         "shortint",
         #[cfg(feature = "integer")]
         "integer",
+        #[cfg(feature = "gpu")]
+        "gpu",
     ];
 
     let parse_expand_vec = if parse_expand_features_vec.is_empty() {
