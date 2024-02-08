@@ -63,7 +63,7 @@ impl CudaServerKey {
     ) {
         match scalar {
             0 => {
-                stream.memset_async(&mut ct.d_blocks.0.d_vec, 0);
+                ct.d_blocks.0.d_vec.memset_async(0, stream);
             }
             1 => {
                 // Multiplication by one is the identity

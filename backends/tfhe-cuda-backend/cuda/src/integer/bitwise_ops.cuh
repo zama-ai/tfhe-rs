@@ -44,6 +44,7 @@ __host__ void scratch_cuda_integer_radix_bitop_kb(
     uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
     bool allocate_gpu_memory) {
 
+  cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_bitop_buffer<Torus>(stream, op, params, num_radix_blocks,
                                          allocate_gpu_memory);
 }

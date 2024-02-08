@@ -30,6 +30,7 @@ __host__ void scratch_cuda_integer_radix_scalar_rotate_kb(
     uint32_t num_radix_blocks, int_radix_params params, SHIFT_TYPE shift_type,
     bool allocate_gpu_memory) {
 
+  cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_shift_buffer<Torus>(stream, shift_type, params,
                                          num_radix_blocks, allocate_gpu_memory);
 }
@@ -39,6 +40,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
     cuda_stream_t *stream, Torus *lwe_array, uint32_t n,
     int_shift_buffer<Torus> *mem, void *bsk, Torus *ksk, uint32_t num_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;

@@ -173,6 +173,7 @@ mod cuda {
     use serde::Serialize;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+    use tfhe::core_crypto::gpu::vec::CudaVec;
     use tfhe::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaDevice, CudaStream};
     use tfhe::core_crypto::prelude::*;
 
@@ -242,11 +243,11 @@ mod cuda {
             let mut output_ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &stream);
 
             let h_indexes = &[Scalar::ZERO];
-            let mut d_input_indexes = unsafe { stream.malloc_async::<Scalar>(1u32) };
-            let mut d_output_indexes = unsafe { stream.malloc_async::<Scalar>(1u32) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
             unsafe {
-                stream.copy_to_gpu_async(&mut d_input_indexes, h_indexes.as_ref());
-                stream.copy_to_gpu_async(&mut d_output_indexes, h_indexes.as_ref());
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
             }
             stream.synchronize();
 

@@ -325,8 +325,8 @@ template <typename Torus> struct int_radix_lut {
       for (int i = 0; i < num_radix_blocks; i++)
         h_lwe_indexes[i] = i;
 
-      cuda_memcpy_to_gpu(lwe_indexes, h_lwe_indexes,
-                         num_radix_blocks * sizeof(Torus));
+      cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes,
+                               num_radix_blocks * sizeof(Torus), stream);
       free(h_lwe_indexes);
 
       // Keyswitch
@@ -375,8 +375,9 @@ template <typename Torus> struct int_radix_lut {
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes[i] = i;
 
-    cuda_memcpy_to_gpu(lwe_indexes, h_lwe_indexes,
-                       num_radix_blocks * sizeof(Torus));
+    cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes,
+                             num_radix_blocks * sizeof(Torus), stream);
+    cuda_synchronize_stream(stream);
     free(h_lwe_indexes);
   }
 

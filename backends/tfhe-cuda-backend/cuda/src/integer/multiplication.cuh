@@ -78,6 +78,7 @@ void compress_device_array_with_map(cuda_stream_t *stream, Torus *src,
                                     Torus *dst, int *S, int *F, int num_blocks,
                                     uint32_t map_size, uint32_t unit_size,
                                     int &total_copied, bool is_message) {
+  cudaSetDevice(stream->gpu_index);
   for (int i = 0; i < map_size; i++) {
     int s_index = i * num_blocks + S[i];
     int number_of_unit = F[i] - S[i] + is_message;
@@ -96,6 +97,7 @@ void extract_message_carry_to_full_radix(cuda_stream_t *stream, Torus *src,
                                          int &total_copied,
                                          int &total_radix_copied,
                                          int num_blocks, bool is_message) {
+  cudaSetDevice(stream->gpu_index);
   size_t radix_size = unit_size * num_blocks;
   for (int i = 0; i < map_size; i++) {
     auto cur_dst_radix = &dst[total_radix_copied * radix_size];
@@ -223,6 +225,7 @@ __host__ void host_integer_mult_radix_kb(
     uint64_t *radix_lwe_right, void *bsk, uint64_t *ksk,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto lwe_dimension = mem_ptr->params.small_lwe_dimension;
@@ -465,6 +468,7 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     cuda_stream_t *stream, int_mul_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
+  cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_mul_memory<Torus>(stream, params, num_radix_blocks,
                                        allocate_gpu_memory);
 }

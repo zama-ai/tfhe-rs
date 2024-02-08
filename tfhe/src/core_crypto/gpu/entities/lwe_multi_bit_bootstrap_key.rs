@@ -42,7 +42,7 @@ impl CudaLweMultiBitBootstrapKey {
 
         // Allocate memory
         let mut d_vec = unsafe {
-            stream.malloc_async::<u64>(
+            CudaVec::<u64>::new_async(
                 lwe_multi_bit_bootstrap_key_size(
                     input_lwe_dimension,
                     glwe_dimension.to_glwe_size(),
@@ -50,7 +50,8 @@ impl CudaLweMultiBitBootstrapKey {
                     decomp_level_count,
                     grouping_factor,
                 )
-                .unwrap() as u32,
+                .unwrap(),
+                stream,
             )
         };
         // Copy to the GPU
