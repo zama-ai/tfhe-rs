@@ -1194,8 +1194,8 @@ mod cuda {
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
-    use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::integer::IntegerKeyKind;
+    use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::keycache::NamedParam;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(

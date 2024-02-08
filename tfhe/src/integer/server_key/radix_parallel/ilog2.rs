@@ -1116,7 +1116,7 @@ pub(crate) mod tests_unsigned {
 pub(crate) mod tests_signed {
     use super::*;
     use crate::integer::keycache::KEY_CACHE;
-    use crate::integer::server_key::radix_parallel::tests_signed::{
+    use crate::integer::server_key::radix_parallel::test_cases_signed::{
         random_non_zero_value, signed_add_under_modulus, NB_CTXT, NB_TESTS_SMALLER,
     };
     use crate::integer::{IntegerKeyKind, RadixClientKey, SignedRadixCiphertext};

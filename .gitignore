@@ -19,3 +19,6 @@ dieharder_run.log
 
 # Coverage reports
 /coverage/
+
+#Cuda backend debug build
+backends/tfhe-cuda-backend/cuda/cmake-build-debug/

@@ -19,10 +19,8 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::IntegerCiphertext;
 use crate::integer::U256;
 use crate::FheBool;
-use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
-};
+use std::ops::{Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign};
+use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
 
 impl<Id, Clear> FheEq<Clear> for FheUint<Id>
 where
@@ -132,9 +130,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let ct =  CudaUnsignedRadixCiphertext::from::<CudaRadixCiphertext>(self.ciphertext.on_gpu().into_owned());
                 let inner_result = cuda_key
                     .key
-                    .scalar_lt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_lt(&ct, rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -169,9 +168,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let ct =  CudaUnsignedRadixCiphertext::from(self.ciphertext.on_gpu().deref());
                 let inner_result = cuda_key
                     .key
-                    .scalar_le(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_le(&ct, rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -206,9 +206,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let ct =  CudaUnsignedRadixCiphertext::from(self.ciphertext.on_gpu());
                 let inner_result = cuda_key
                     .key
-                    .scalar_gt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_gt(&ct, rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -243,9 +244,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let ct =  CudaUnsignedRadixCiphertext::from(self.ciphertext.on_gpu());
                 let inner_result = cuda_key
                     .key
-                    .scalar_ge(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_ge(&ct, rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
