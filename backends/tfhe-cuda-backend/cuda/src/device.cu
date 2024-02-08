@@ -87,30 +87,6 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
       cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice, stream->stream));
 }
 
-/// Copy memory to the GPU synchronously
-void cuda_memcpy_to_gpu(void *dest, void *src, uint64_t size) {
-  if (size == 0)
-    return;
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, dest));
-  if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in copy to GPU.")
-  }
-  check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice));
-}
-
-/// Copy memory to the CPU synchronously
-void cuda_memcpy_to_cpu(void *dest, void *src, uint64_t size) {
-  if (size == 0)
-    return;
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, src));
-  if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in copy to CPU.")
-  }
-  check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost));
-}
-
 /// Copy memory within a GPU asynchronously
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
                                   cuda_stream_t *stream) {

@@ -37,6 +37,7 @@ __host__ void accumulate_all_blocks(cuda_stream_t *stream, Torus *output,
                                     Torus *input, uint32_t lwe_dimension,
                                     uint32_t num_radix_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -60,6 +61,7 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
                                int_comparison_buffer<Torus> *mem_ptr, void *bsk,
                                Torus *ksk, uint32_t num_radix_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
@@ -208,6 +210,7 @@ __host__ void host_compare_with_zero_equality(
     int_comparison_buffer<Torus> *mem_ptr, void *bsk, Torus *ksk,
     int32_t num_radix_blocks, int_radix_lut<Torus> *zero_comparison) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;
@@ -302,6 +305,7 @@ __host__ void scratch_cuda_integer_radix_equality_check_kb(
     uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
     bool allocate_gpu_memory) {
 
+  cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_comparison_buffer<Torus>(
       stream, op, params, num_radix_blocks, allocate_gpu_memory);
 }
@@ -361,6 +365,7 @@ tree_sign_reduction(cuda_stream_t *stream, Torus *lwe_array_out,
                     std::function<Torus(Torus)> sign_handler_f, void *bsk,
                     Torus *ksk, uint32_t num_radix_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = tree_buffer->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;

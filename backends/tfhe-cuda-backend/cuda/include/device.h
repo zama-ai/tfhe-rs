@@ -57,15 +57,11 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
 bool cuda_check_support_cooperative_groups();
 
-void cuda_memcpy_to_cpu(void *dest, const void *src, uint64_t size);
-
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cuda_stream_t *stream);
 
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
                                   cuda_stream_t *stream);
-
-void cuda_memcpy_to_gpu(void *dest, void *src, uint64_t size);
 
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cuda_stream_t *stream);

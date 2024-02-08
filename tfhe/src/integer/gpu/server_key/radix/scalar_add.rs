@@ -1,3 +1,4 @@
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
@@ -74,14 +75,14 @@ impl CudaServerKey {
                 BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
             let mut d_decomposed_scalar =
-                stream.malloc_async::<u64>(ct.d_blocks.lwe_ciphertext_count().0 as u32);
+                CudaVec::<u64>::new_async(ct.d_blocks.lwe_ciphertext_count().0, stream);
             let scalar64 = decomposer
                 .collect_vec()
                 .iter()
                 .map(|&x| x as u64)
                 .take(d_decomposed_scalar.len())
                 .collect_vec();
-            stream.copy_to_gpu_async(&mut d_decomposed_scalar, scalar64.as_slice());
+            d_decomposed_scalar.copy_from_cpu_async(scalar64.as_slice(), stream);
 
             let lwe_dimension = ct.d_blocks.lwe_dimension();
             // If the scalar is decomposed using less than the number of blocks our ciphertext

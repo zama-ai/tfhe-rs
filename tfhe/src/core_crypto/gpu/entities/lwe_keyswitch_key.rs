@@ -28,15 +28,14 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
         let ciphertext_modulus = h_ksk.ciphertext_modulus();
 
         // Allocate memory
-        let mut d_vec = unsafe {
-            stream.malloc_async::<T>(
-                (input_lwe_size.to_lwe_dimension().0
-                    * lwe_keyswitch_key_input_key_element_encrypted_size(
-                        decomp_level_count,
-                        output_lwe_size,
-                    )) as u32,
-            )
-        };
+        let mut d_vec = CudaVec::<T>::new(
+            input_lwe_size.to_lwe_dimension().0
+                * lwe_keyswitch_key_input_key_element_encrypted_size(
+                    decomp_level_count,
+                    output_lwe_size,
+                ),
+            stream,
+        );
 
         unsafe {
             stream.convert_lwe_keyswitch_key_async(&mut d_vec, h_ksk.as_ref());

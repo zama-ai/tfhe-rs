@@ -83,6 +83,7 @@ __host__ void pack_bivariate_blocks(cuda_stream_t *stream, Torus *lwe_array_out,
                                     uint32_t message_modulus,
                                     uint32_t num_radix_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   // Left message is shifted
   int num_blocks = 0, num_threads = 0;
   int num_entries = num_radix_blocks * (lwe_dimension + 1);
@@ -97,6 +98,7 @@ template <typename Torus>
 __host__ void integer_radix_apply_univariate_lookup_table_kb(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_in, void *bsk,
     Torus *ksk, uint32_t num_radix_blocks, int_radix_lut<Torus> *lut) {
+  cudaSetDevice(stream->gpu_index);
   // apply_lookup_table
   auto params = lut->params;
   auto pbs_type = params.pbs_type;
@@ -129,6 +131,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_1,
     Torus *lwe_array_2, void *bsk, Torus *ksk, uint32_t num_radix_blocks,
     int_radix_lut<Torus> *lut) {
+  cudaSetDevice(stream->gpu_index);
   // apply_lookup_table_bivariate
 
   auto params = lut->params;
@@ -528,7 +531,11 @@ template <typename Torus>
 __host__ void pack_blocks(cuda_stream_t *stream, Torus *lwe_array_out,
                           Torus *lwe_array_in, uint32_t lwe_dimension,
                           uint32_t num_radix_blocks, uint32_t factor) {
-  assert(lwe_array_out != lwe_array_in);
+  if (lwe_array_out == lwe_array_in)
+    PANIC("Cuda error in pack blocks: input and output pointers must be "
+          "different.");
+
+  cudaSetDevice(stream->gpu_index);
 
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
@@ -558,6 +565,7 @@ create_trivial_radix(cuda_stream_t *stream, Torus *lwe_array_out,
                      uint32_t num_radix_blocks, uint32_t num_scalar_blocks,
                      uint64_t message_modulus, uint64_t carry_modulus) {
 
+  cudaSetDevice(stream->gpu_index);
   size_t radix_size = (lwe_dimension + 1) * num_radix_blocks;
   cuda_memset_async(lwe_array_out, 0, radix_size * sizeof(Torus), stream);
 

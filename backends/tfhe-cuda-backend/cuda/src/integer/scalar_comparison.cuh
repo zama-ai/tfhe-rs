@@ -11,6 +11,7 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     std::function<Torus(Torus)> sign_handler_f, void *bsk, Torus *ksk,
     uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
@@ -209,6 +210,7 @@ scalar_compare_radix_blocks_kb(cuda_stream_t *stream, Torus *lwe_array_out,
                                int_comparison_buffer<Torus> *mem_ptr, void *bsk,
                                Torus *ksk, uint32_t num_radix_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;
@@ -258,6 +260,7 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
     Torus *ksk, uint32_t total_num_radix_blocks,
     uint32_t total_num_scalar_blocks) {
 
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
 
   // Calculates the difference sign between the ciphertext and the scalar

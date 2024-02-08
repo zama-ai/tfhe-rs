@@ -39,14 +39,15 @@ impl CudaLweBootstrapKey {
         let glwe_dimension = bsk.glwe_size().to_glwe_dimension();
 
         // Allocate memory
-        let mut d_vec = unsafe {
-            stream.malloc_async::<f64>(lwe_bootstrap_key_size(
+        let mut d_vec = CudaVec::<f64>::new(
+            lwe_bootstrap_key_size(
                 input_lwe_dimension,
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
                 decomp_level_count,
-            ) as u32)
-        };
+            ),
+            stream,
+        );
         // Copy to the GPU
         unsafe {
             stream.convert_lwe_bootstrap_key_async(

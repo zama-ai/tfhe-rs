@@ -10,6 +10,7 @@ __host__ void zero_out_if(cuda_stream_t *stream, Torus *lwe_array_out,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
                           int_radix_lut<Torus> *predicate, void *bsk,
                           Torus *ksk, uint32_t num_radix_blocks) {
+  cudaSetDevice(stream->gpu_index);
   auto params = mem_ptr->params;
 
   int big_lwe_size = params.big_lwe_dimension + 1;
@@ -94,6 +95,7 @@ __host__ void scratch_cuda_integer_radix_cmux_kb(
     std::function<Torus(Torus)> predicate_lut_f, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
 
+  cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_cmux_buffer<Torus>(stream, predicate_lut_f, params,
                                         num_radix_blocks, allocate_gpu_memory);
 }

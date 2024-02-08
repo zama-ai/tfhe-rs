@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
@@ -536,10 +537,10 @@ impl CudaRadixCiphertext {
             .collect::<Vec<_>>();
 
         unsafe {
-            stream.copy_to_gpu_async(
-                &mut self.d_blocks.0.d_vec,
-                h_radix_ciphertext.as_mut_slice(),
-            );
+            self.d_blocks
+                .0
+                .d_vec
+                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), stream);
         }
         stream.synchronize();
 
@@ -612,8 +613,8 @@ impl CudaRadixCiphertext {
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
 
-        let mut d_ct = stream.malloc_async(self.d_blocks.0.d_vec.len() as u32);
-        stream.copy_gpu_to_gpu_async(&mut d_ct, &self.d_blocks.0.d_vec);
+        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), stream);
+        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, stream);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
@@ -663,8 +664,15 @@ impl CudaRadixCiphertext {
         let mut other_container: Vec<u64> = vec![0; other_size];
 
         unsafe {
-            stream.copy_to_cpu_async(self_container.as_mut_slice(), &self.d_blocks.0.d_vec);
-            stream.copy_to_cpu_async(other_container.as_mut_slice(), &other.d_blocks.0.d_vec);
+            self.d_blocks
+                .0
+                .d_vec
+                .copy_to_cpu_async(self_container.as_mut_slice(), stream);
+            other
+                .d_blocks
+                .0
+                .d_vec
+                .copy_to_cpu_async(other_container.as_mut_slice(), stream);
         }
         stream.synchronize();
 

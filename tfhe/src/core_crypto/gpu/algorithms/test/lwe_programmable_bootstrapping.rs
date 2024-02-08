@@ -2,6 +2,7 @@ use super::*;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaDevice, CudaStream};
 use itertools::Itertools;
 
@@ -127,8 +128,8 @@ fn lwe_encrypt_pbs_decrypt<
             }
 
             let mut d_test_vector_indexes =
-                unsafe { stream.malloc_async::<Scalar>(number_of_messages as u32) };
-            unsafe { stream.copy_to_gpu_async(&mut d_test_vector_indexes, &test_vector_indexes) };
+                unsafe { CudaVec::<Scalar>::new_async(number_of_messages, &stream) };
+            unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream) };
 
             let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
             let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
@@ -136,11 +137,11 @@ fn lwe_encrypt_pbs_decrypt<
                 .iter()
                 .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
                 .collect_vec();
-            let mut d_output_indexes = unsafe { stream.malloc_async::<Scalar>(num_blocks as u32) };
-            let mut d_input_indexes = unsafe { stream.malloc_async::<Scalar>(num_blocks as u32) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
             unsafe {
-                stream.copy_to_gpu_async(&mut d_output_indexes, &lwe_indexes);
-                stream.copy_to_gpu_async(&mut d_input_indexes, &lwe_indexes);
+                d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
+                d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
             }
 
             cuda_programmable_bootstrap_lwe_ciphertext(

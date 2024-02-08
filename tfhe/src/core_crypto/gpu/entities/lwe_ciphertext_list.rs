@@ -19,7 +19,10 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
     ) -> Self {
         // Allocate memory in the device
         let d_vec = unsafe {
-            stream.malloc_async((lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0) as u32)
+            CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+                stream,
+            )
         };
         stream.synchronize();
 
@@ -43,13 +46,14 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
 
         // Copy to the GPU
         let h_input = h_ct.as_view().into_container();
-        let mut d_vec = unsafe {
-            stream.malloc_async((lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0) as u32)
-        };
+        let mut d_vec = CudaVec::new(
+            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+            stream,
+        );
         unsafe {
-            stream.copy_to_gpu_async(&mut d_vec, h_input.as_ref());
-            stream.synchronize();
+            d_vec.copy_from_cpu_async(h_input.as_ref(), stream);
         }
+        stream.synchronize();
         let cuda_lwe_list = CudaLweList {
             d_vec,
             lwe_ciphertext_count,
@@ -79,9 +83,11 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let mut container: Vec<T> = vec![T::ZERO; lwe_ct_size];
 
         unsafe {
-            stream.copy_to_cpu_async(container.as_mut_slice(), &self.0.d_vec);
-            stream.synchronize();
+            self.0
+                .d_vec
+                .copy_to_cpu_async(container.as_mut_slice(), stream);
         }
+        stream.synchronize();
 
         LweCiphertextList::from_container(
             container,
@@ -99,9 +105,9 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let ciphertext_modulus = h_ct.ciphertext_modulus();
 
         // Copy to the GPU
-        let mut d_vec = unsafe { stream.malloc_async((lwe_dimension.to_lwe_size().0) as u32) };
+        let mut d_vec = CudaVec::new(lwe_dimension.to_lwe_size().0, stream);
         unsafe {
-            stream.copy_to_gpu_async(&mut d_vec, h_ct.as_ref());
+            d_vec.copy_from_cpu_async(h_ct.as_ref(), stream);
         }
         stream.synchronize();
 
@@ -119,7 +125,9 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let mut container: Vec<T> = vec![T::ZERO; lwe_ct_size];
 
         unsafe {
-            stream.copy_to_cpu_async(container.as_mut_slice(), &self.0.d_vec);
+            self.0
+                .d_vec
+                .copy_to_cpu_async(container.as_mut_slice(), stream);
         }
         stream.synchronize();
 
@@ -158,9 +166,9 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         let ciphertext_modulus = self.ciphertext_modulus();
 
         // Copy to the GPU
-        let mut d_vec = unsafe { stream.malloc_async(self.0.d_vec.len() as u32) };
+        let mut d_vec = CudaVec::new(self.0.d_vec.len(), stream);
         unsafe {
-            stream.copy_gpu_to_gpu_async(&mut d_vec, &self.0.d_vec);
+            d_vec.copy_from_gpu_async(&self.0.d_vec, stream);
         }
         stream.synchronize();
 
