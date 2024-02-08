@@ -94,6 +94,11 @@ jobs:
         run: |
           make test_user_doc_gpu
 
+      - name: Test C API
+        run: |
+          make test_c_api_gpu
+
+
       - name: Slack Notification
         if: ${{ always() }}
         continue-on-error: true
