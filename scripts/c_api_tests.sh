@@ -7,11 +7,12 @@ function usage() {
     echo
     echo "--help                    Print this message"
     echo "--build-only              Pass to only build the tests without running them"
+    echo "--gpu                     Enable GPU support"
     echo
 }
 
 BUILD_ONLY=0
-
+WITH_FEATURE_GPU="OFF"
 while [ -n "$1" ]
 do
    case "$1" in
@@ -24,6 +25,9 @@ do
             BUILD_ONLY=1
             ;;
 
+        "--gpu" )
+            WITH_FEATURE_GPU="ON"
+            ;;
         *)
             echo "Unknown param : $1"
             exit 1
@@ -40,7 +44,7 @@ mkdir -p "${TFHE_BUILD_DIR}"
 
 cd "${TFHE_BUILD_DIR}"
 
-cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}"
+cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" -DWITH_FEATURE_GPU="${WITH_FEATURE_GPU}"
 
 make -j
 
@@ -55,5 +59,8 @@ if [[ $(uname) == "Darwin" ]]; then
     nproc_bin="sysctl -n hw.logicalcpu"
 fi
 
-# Let's go parallel
-ARGS="-j$(${nproc_bin})" make test
+if [ "${WITH_FEATURE_GPU}" == "ON" ]; then
+    ctest --output-on-failure --test-dir "." --parallel "$(${nproc_bin})" --tests-regex ".*cuda.*"
+else
+    ctest --output-on-failure --test-dir "." --parallel "$(${nproc_bin})" --exclude-regex ".*cuda.*"
+fi

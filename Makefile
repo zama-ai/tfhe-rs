@@ -297,6 +297,13 @@ build_c_api: install_rs_check_toolchain
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
+.PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
+build_c_api_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,gpu \
+		-p $(TFHE_SPEC)
+	@"$(MAKE)" symlink_c_libs_without_fingerprint
+
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
@@ -399,6 +406,10 @@ test_c_api_c: build_c_api
 
 .PHONY: test_c_api # Run all the tests for the C API
 test_c_api: test_c_api_rs test_c_api_c
+
+.PHONY: test_c_api_gpu # Run the C tests for the C API
+test_c_api_gpu: build_c_api_gpu
+	./scripts/c_api_tests.sh --gpu
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest

@@ -106,3 +106,7 @@ jobs:
       - name: Run user docs tests
         run: |
           make test_user_doc_gpu
+
+      - name: Test C API
+        run: |
+          make test_c_api_gpu
