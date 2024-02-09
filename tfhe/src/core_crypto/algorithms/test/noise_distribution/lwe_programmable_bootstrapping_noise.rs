@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::commons::test_tools::{normality_test_f64, torus_modular_diff, variance};
 use crate::core_crypto::commons::traits::CastFrom;
 use rayon::prelude::*;
-use tfhe_noise_model::gaussian_noise::noise::keyswitch::variance_keyswitch;
+use tfhe_noise_model::gaussian_noise::noise::blind_rotate::variance_blind_rotate;
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
@@ -11,7 +11,9 @@ const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_TESTS: usize = 1000;
 
-fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
+fn lwe_encrypt_pbs_decrypt_noise_distribution_custom_mod<
+    Scalar: UnsignedTorus + Send + Sync + CastFrom<usize>,
+>(
     params: ClassicTestParams<Scalar>,
 ) where
     usize: CastFrom<Scalar>,
@@ -24,8 +26,8 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let ks_decomp_base_log = params.ks_base_log;
-    let ks_decomp_level_count = params.ks_level;
+    let pbs_base_log = params.pbs_base_log;
+    let pbs_level = params.pbs_level;
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
@@ -35,21 +37,33 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
         ciphertext_modulus.get_custom_modulus().ilog2()
     };
 
-    let expected_variance = Variance(
-        variance_keyswitch(
-            glwe_dimension
-                .to_equivalent_lwe_dimension(polynomial_size)
-                .0 as u64,
-            ks_decomp_base_log.0 as u64,
-            ks_decomp_level_count.0 as u64,
-            ciphertext_modulus_log as u32,
-            lwe_modular_std_dev.get_variance(),
-        ) + glwe_modular_std_dev.get_variance(),
-    );
+    // Number of bits of mantissa
+    let fft_precision = 53;
+
+    let expected_variance = Variance(variance_blind_rotate(
+        lwe_dimension.0 as u64,
+        glwe_dimension.0 as u64,
+        polynomial_size.0 as u64,
+        pbs_base_log.0 as u64,
+        pbs_level.0 as u64,
+        ciphertext_modulus_log as u32,
+        fft_precision as u32,
+        glwe_modular_std_dev.get_variance(),
+    ));
 
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
+
+    let f = |x: Scalar| x;
+    let accumulator = generate_accumulator(
+        polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        msg_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );
 
     const NORMALITY_RUNS: usize = 1000;
     let repeats = divide_ceil(
@@ -70,33 +84,51 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
 
                 let mut rsc = TestResources::new();
 
-                let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+                let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                     lwe_dimension,
                     &mut rsc.secret_random_generator,
                 );
-
-                let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+                let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
                     glwe_dimension,
                     polynomial_size,
                     &mut rsc.secret_random_generator,
                 );
+                let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
 
-                let big_lwe_sk = glwe_sk.into_lwe_secret_key();
-
-                let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-                    &big_lwe_sk,
-                    &lwe_sk,
-                    ks_decomp_base_log,
-                    ks_decomp_level_count,
-                    lwe_modular_std_dev,
+                let mut bsk = LweBootstrapKey::new(
+                    Scalar::ZERO,
+                    glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    pbs_base_log,
+                    pbs_level,
+                    lwe_dimension,
                     ciphertext_modulus,
+                );
+
+                par_generate_lwe_bootstrap_key(
+                    &input_lwe_secret_key,
+                    &output_glwe_secret_key,
+                    &mut bsk,
+                    glwe_modular_std_dev,
                     &mut rsc.encryption_random_generator,
                 );
 
                 assert!(check_encrypted_content_respects_mod(
-                    &ksk_big_to_small,
+                    &*bsk,
                     ciphertext_modulus
                 ));
+
+                let mut fbsk = FourierLweBootstrapKey::new(
+                    lwe_dimension,
+                    glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    pbs_base_log,
+                    pbs_level,
+                );
+
+                par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+
+                drop(bsk);
 
                 let current_noise_samples: Vec<_> = (0..NB_TESTS)
                     .into_par_iter()
@@ -106,9 +138,9 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
                         let plaintext = Plaintext(msg * delta);
 
                         let ct = allocate_and_encrypt_new_lwe_ciphertext(
-                            &big_lwe_sk,
+                            &input_lwe_secret_key,
                             plaintext,
-                            glwe_modular_std_dev,
+                            lwe_modular_std_dev,
                             ciphertext_modulus,
                             &mut rsc.encryption_random_generator,
                         );
@@ -120,18 +152,23 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
 
                         let mut output_ct = LweCiphertext::new(
                             Scalar::ZERO,
-                            lwe_sk.lwe_dimension().to_lwe_size(),
+                            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                             ciphertext_modulus,
                         );
 
-                        keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
+                        programmable_bootstrap_lwe_ciphertext(
+                            &ct,
+                            &mut output_ct,
+                            &accumulator,
+                            &fbsk,
+                        );
 
                         assert!(check_encrypted_content_respects_mod(
                             &output_ct,
                             ciphertext_modulus
                         ));
 
-                        let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
+                        let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &output_ct);
 
                         let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
@@ -181,7 +218,15 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
 
     let failure_rate = failures / normality_noise_samples_sets.len() as f64;
 
+    println!();
+
     println!("failure_rate={failure_rate}");
+    println!(
+        "max acceptable failure rate {}",
+        0.065 * normality_noise_samples_sets.len() as f64
+    );
+
+    println!();
 
     assert!(
         var_abs_diff < tolerance_threshold,
@@ -194,4 +239,4 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     assert!(failure_rate <= 0.065 * normality_noise_samples_sets.len() as f64);
 }
 
-create_parametrized_test!(lwe_encrypt_ks_decrypt_noise_distribution_custom_mod);
+create_parametrized_test!(lwe_encrypt_pbs_decrypt_noise_distribution_custom_mod);
