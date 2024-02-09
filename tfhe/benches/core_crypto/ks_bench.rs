@@ -6,14 +6,38 @@ use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::{
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+};
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::PBSParameters;
+use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
 
 const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+];
+
+#[cfg(not(feature = "gpu"))]
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+];
+
+#[cfg(feature = "gpu")]
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -27,7 +51,7 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
 {
     if Scalar::BITS == 64 {
-        SHORTINT_BENCH_PARAMS
+        let classic = SHORTINT_BENCH_PARAMS
             .iter()
             .map(|params| {
                 (
@@ -37,7 +61,19 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
                         .into(),
                 )
             })
-            .collect()
+            .collect::<Vec<(String, CryptoParametersRecord<Scalar>)>>();
+        let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
+            .iter()
+            .map(|params| {
+                (
+                    params.name(),
+                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
+            .collect();
+        [classic, multi_bit].concat()
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
             .iter()
