@@ -221,10 +221,7 @@ fn lwe_encrypt_pbs_decrypt_noise_distribution_custom_mod<
     println!();
 
     println!("failure_rate={failure_rate}");
-    println!(
-        "max acceptable failure rate {}",
-        0.065 * normality_noise_samples_sets.len() as f64
-    );
+    println!("max acceptable failure rate 0.065",);
 
     println!();
 
@@ -236,7 +233,7 @@ fn lwe_encrypt_pbs_decrypt_noise_distribution_custom_mod<
         expected variance: {expected_variance:?}"
     );
 
-    assert!(failure_rate <= 0.065 * normality_noise_samples_sets.len() as f64);
+    assert!(failure_rate <= 0.065);
 }
 
 create_parametrized_test!(lwe_encrypt_pbs_decrypt_noise_distribution_custom_mod);

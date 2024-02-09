@@ -182,6 +182,7 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     let failure_rate = failures / normality_noise_samples_sets.len() as f64;
 
     println!("failure_rate={failure_rate}");
+    println!("max acceptable failure rate 0.065",);
 
     assert!(
         var_abs_diff < tolerance_threshold,
@@ -191,7 +192,7 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
         expected variance: {expected_variance:?}"
     );
 
-    assert!(failure_rate <= 0.065 * normality_noise_samples_sets.len() as f64);
+    assert!(failure_rate <= 0.065);
 }
 
 create_parametrized_test!(lwe_encrypt_ks_decrypt_noise_distribution_custom_mod);
