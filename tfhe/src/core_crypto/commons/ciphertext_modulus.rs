@@ -102,6 +102,38 @@ impl<'de, Scalar: UnsignedInteger> serde::Deserialize<'de> for CiphertextModulus
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CiphertextModulusCreationError {
+    ModulusTooBig,
+    CustomModuli64BitsOrLessOnly,
+}
+
+impl CiphertextModulusCreationError {
+    pub const fn const_err_msg(self) -> &'static str {
+        match self {
+            Self::ModulusTooBig => {
+                "Modulus is bigger than the maximum value of the associated Scalar type"
+            }
+            Self::CustomModuli64BitsOrLessOnly => {
+                "Non power of 2 moduli are not supported for types wider than u64"
+            }
+        }
+    }
+}
+
+impl From<CiphertextModulusCreationError> for &str {
+    fn from(value: CiphertextModulusCreationError) -> Self {
+        value.const_err_msg()
+    }
+}
+
+impl std::fmt::Debug for CiphertextModulusCreationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let err_str: &str = (*self).into();
+        write!(f, "{err_str}")
+    }
+}
+
 impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     pub const fn new_native() -> Self {
         Self {
@@ -111,13 +143,15 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     }
 
     #[track_caller]
-    pub const fn try_new_power_of_2(exponent: usize) -> Result<Self, &'static str> {
+    pub const fn try_new_power_of_2(
+        exponent: usize,
+    ) -> Result<Self, CiphertextModulusCreationError> {
         if exponent > Scalar::BITS {
-            Err("Modulus is bigger than the maximum value of the associated Scalar type")
+            Err(CiphertextModulusCreationError::ModulusTooBig)
         } else {
             let res = if let Some(modulus) = 1u128.checked_shl(exponent as u32) {
                 let Some(non_zero_modulus) = NonZeroU128::new(modulus) else {
-                    panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
+                    panic!("Got zero modulus for CiphertextModulusInner::Custom variant")
                 };
 
                 Self {
@@ -137,9 +171,9 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     }
 
     #[track_caller]
-    pub const fn try_new(modulus: u128) -> Result<Self, &'static str> {
+    pub const fn try_new(modulus: u128) -> Result<Self, CiphertextModulusCreationError> {
         if Scalar::BITS < 128 && modulus > (1 << Scalar::BITS) {
-            Err("Modulus is bigger than the maximum value of the associated Scalar type")
+            Err(CiphertextModulusCreationError::ModulusTooBig)
         } else {
             let res = match modulus {
                 0 => Self::new_native(),
@@ -155,7 +189,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             };
             let canonicalized_result = res.canonicalize();
             if Scalar::BITS > 64 && !canonicalized_result.is_compatible_with_native_modulus() {
-                return Err("Non power of 2 moduli are not supported for types wider than u64");
+                return Err(CiphertextModulusCreationError::CustomModuli64BitsOrLessOnly);
             }
             Ok(canonicalized_result)
         }
@@ -182,10 +216,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             0 => Self::new_native(),
             _ => match Self::try_new(modulus) {
                 Ok(ciphertext_modulus) => ciphertext_modulus,
-                Err(_) => panic!(
-                    "Error while building CiphertextModulus, \
-                modulus does not fit in the given UnsignedInteger Scalar type which is too small"
-                ),
+                Err(err) => panic!("{}", err.const_err_msg()),
             },
         };
         res.canonicalize()
@@ -311,6 +342,7 @@ impl<Scalar: UnsignedInteger> std::fmt::Debug for CiphertextModulus<Scalar> {
 
 #[cfg(test)]
 mod tests {
+    use super::CiphertextModulusCreationError;
     use crate::core_crypto::prelude::CiphertextModulus;
 
     #[test]
@@ -339,10 +371,7 @@ mod tests {
             assert!(bad_mod_32.is_err());
             match bad_mod_32 {
                 Ok(_) => unreachable!(),
-                Err(e) => assert_eq!(
-                    e,
-                    "Modulus is bigger than the maximum value of the associated Scalar type"
-                ),
+                Err(e) => assert_eq!(e, CiphertextModulusCreationError::ModulusTooBig),
             }
         }
 
