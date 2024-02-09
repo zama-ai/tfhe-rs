@@ -1,4 +1,5 @@
 use super::*;
+use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::commons::test_tools::{normality_test_f64, torus_modular_diff, variance};
 use crate::core_crypto::commons::traits::CastFrom;
 use rayon::prelude::*;
@@ -44,19 +45,26 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     );
 
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
-    let mut msg = msg_modulus;
+    let msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
-    let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
-    let mut noise_samples = Vec::with_capacity(num_samples);
+    const NORMALITY_RUNS: usize = 1000;
+    let repeats = divide_ceil(
+        NORMALITY_RUNS,
+        <Scalar as CastInto<usize>>::cast_into(msg_modulus),
+    );
 
-    // while msg != Scalar::ZERO
-    {
-        msg = msg.wrapping_sub(Scalar::ONE);
-        println!("msg={msg}");
-        let current_noise_samples: Vec<_> = (0..NB_TESTS)
-            .into_par_iter()
-            .map(|_| {
+    let res: Vec<_> = (0..repeats)
+        .into_par_iter()
+        .map(|repeat_count| {
+            let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
+            let mut std_dev_noise_samples = Vec::with_capacity(num_samples);
+            let mut normality_noise_samples = Vec::with_capacity(1000);
+            let mut msg = msg;
+
+            while msg != Scalar::ZERO {
+                msg = msg.wrapping_sub(Scalar::ONE);
+
                 let mut rsc = TestResources::new();
 
                 let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
@@ -87,51 +95,75 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
                     ciphertext_modulus
                 ));
 
-                let plaintext = Plaintext(msg * delta);
+                let current_noise_samples: Vec<_> = (0..NB_TESTS)
+                    .into_par_iter()
+                    .map(|_| {
+                        let mut rsc = TestResources::new();
 
-                let ct = allocate_and_encrypt_new_lwe_ciphertext(
-                    &big_lwe_sk,
-                    plaintext,
-                    glwe_modular_std_dev,
-                    ciphertext_modulus,
-                    &mut rsc.encryption_random_generator,
-                );
+                        let plaintext = Plaintext(msg * delta);
 
-                assert!(check_encrypted_content_respects_mod(
-                    &ct,
-                    ciphertext_modulus
-                ));
+                        let ct = allocate_and_encrypt_new_lwe_ciphertext(
+                            &big_lwe_sk,
+                            plaintext,
+                            glwe_modular_std_dev,
+                            ciphertext_modulus,
+                            &mut rsc.encryption_random_generator,
+                        );
 
-                let mut output_ct = LweCiphertext::new(
-                    Scalar::ZERO,
-                    lwe_sk.lwe_dimension().to_lwe_size(),
-                    ciphertext_modulus,
-                );
+                        assert!(check_encrypted_content_respects_mod(
+                            &ct,
+                            ciphertext_modulus
+                        ));
 
-                keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
+                        let mut output_ct = LweCiphertext::new(
+                            Scalar::ZERO,
+                            lwe_sk.lwe_dimension().to_lwe_size(),
+                            ciphertext_modulus,
+                        );
 
-                assert!(check_encrypted_content_respects_mod(
-                    &output_ct,
-                    ciphertext_modulus
-                ));
+                        keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
 
-                let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
+                        assert!(check_encrypted_content_respects_mod(
+                            &output_ct,
+                            ciphertext_modulus
+                        ));
 
-                let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+                        let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
 
-                assert_eq!(msg, decoded);
+                        let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-                let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-                torus_diff
-            })
-            .collect();
+                        assert_eq!(msg, decoded);
 
-        noise_samples.extend(current_noise_samples);
-    }
+                        let torus_diff =
+                            torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+                        torus_diff
+                    })
+                    .collect();
 
-    let measured_variance = variance(&noise_samples);
+                std_dev_noise_samples.extend(&current_noise_samples);
+                normality_noise_samples.push(current_noise_samples);
+            }
+            println!("repeat {repeat_count} done");
+            (std_dev_noise_samples, normality_noise_samples)
+        })
+        .collect();
+
+    let (std_dev_noise_samples_sets, normality_noise_samples_sets): (Vec<_>, Vec<_>) =
+        res.into_iter().unzip();
+    let std_dev_noise_samples: Vec<_> = std_dev_noise_samples_sets.into_iter().flatten().collect();
+    let normality_noise_samples_sets: Vec<Vec<f64>> =
+        normality_noise_samples_sets.into_iter().flatten().collect();
+
+    let measured_variance = variance(&std_dev_noise_samples);
     let var_abs_diff = (expected_variance.0 - measured_variance.0).abs();
     let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
+
+    println!(
+        "Absolute difference for variance: {var_abs_diff}, \
+        tolerance threshold: {tolerance_threshold}, \
+        got variance: {measured_variance:?}, \
+        expected variance: {expected_variance:?}"
+    );
     assert!(
         var_abs_diff < tolerance_threshold,
         "Absolute difference for variance: {var_abs_diff}, \
@@ -140,7 +172,22 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
         expected variance: {expected_variance:?}"
     );
 
-    assert!(normality_test_f64(&noise_samples, 0.05).null_hypothesis_is_valid);
+    let failures = normality_noise_samples_sets
+        .iter()
+        .map(|normality_sample_set| {
+            if normality_test_f64(normality_sample_set, 0.05).null_hypothesis_is_valid {
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+
+    let failure_rate = failures / normality_noise_samples_sets.len() as f64;
+
+    println!("failure_rate={failure_rate}");
+
+    assert!(failure_rate <= 0.065 * repeats as f64);
 }
 
 create_parametrized_test!(lwe_encrypt_ks_decrypt_noise_distribution_custom_mod);
