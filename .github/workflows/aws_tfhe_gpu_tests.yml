@@ -6,6 +6,10 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -100,11 +104,7 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "CUDA AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   teardown-ec2:
     name: Teardown EC2 instance (cuda-tests)
@@ -122,3 +122,11 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           profile: gpu-test
           label: ${{ needs.setup-ec2.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "EC2 teardown (cuda-tests) failed. (${{ env.ACTION_RUN_URL }})"
