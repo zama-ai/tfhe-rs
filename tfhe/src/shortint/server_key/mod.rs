@@ -363,7 +363,7 @@ impl ServerKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
     pub acc: GlweCiphertext<C>,
