@@ -4,6 +4,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use mpi::traits::*;
 use mpi::Tag;
 use std::collections::VecDeque;
+use thread_priority::{set_current_thread_priority, ThreadPriority, ThreadPriorityValue};
 use threadpool::ThreadPool;
 
 const MASTER_TO_WORKER: Tag = 0;
@@ -16,6 +17,11 @@ pub trait WorkGraph {
     fn is_finished(&self) -> bool;
 }
 
+struct ClusterCharge {
+    available_parallelism: usize,
+    charge: Vec<usize>,
+}
+
 impl Context {
     pub fn async_pbs_graph_queue_master<T: Sync + Clone + Send + 'static, U: WorkGraph>(
         &self,
@@ -26,23 +32,25 @@ impl Context {
         let (send_pbs, receive_pbs) = unbounded::<Vec<u8>>();
         let (send_result, receive_result) = unbounded::<Vec<u8>>();
 
-        let mut rank_for_next_request = 0;
-
         let mut sent_inputs = vec![];
 
+        let mut charge = ClusterCharge {
+            available_parallelism: std::thread::available_parallelism().unwrap().get(),
+            charge: vec![0; self.size],
+        };
+
         for buffer in work_graph.init() {
-            self.enqueue_request(
-                &mut rank_for_next_request,
-                &send_pbs,
-                buffer,
-                &mut sent_inputs,
-            );
+            self.enqueue_request(&mut charge, &send_pbs, buffer, &mut sent_inputs);
         }
 
         {
             let state = state.clone();
-            let n_workers = 15;
+            let n_workers = std::thread::available_parallelism().unwrap().get().max(1);
+            let priority =
+                ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(32).unwrap());
+
             launch_threadpool(
+                priority,
                 n_workers,
                 &receive_pbs,
                 &send_result,
@@ -53,7 +61,6 @@ impl Context {
                 },
             );
         }
-
         let mut receivers: Vec<_> = (1..self.size)
             .map(|rank| {
                 let process = self.world.process_at_rank(rank as i32);
@@ -63,25 +70,31 @@ impl Context {
 
         while !work_graph.is_finished() {
             for (i, receiver) in receivers.iter_mut().enumerate() {
-                let process = self.world.process_at_rank(i as i32 + 1);
+                let rank = i + 1;
+                let process = self.world.process_at_rank(rank as i32);
                 if let Some(buffer) = advance_receiving(receiver, &process, WORKER_TO_MASTER) {
                     self.handle_new_result(
                         work_graph,
                         buffer,
-                        &mut rank_for_next_request,
+                        &mut charge,
                         &send_pbs,
                         &mut sent_inputs,
                     );
+
+                    charge.charge[rank] -= 1;
+
                     // if receiver.is_none() && !work_graph.no_work_in_queue() &&
                     // process.is_not_working() {     *receiver =
                     // Some(Receiving::new(&process, WORKER_TO_MASTER)); }
                 }
             }
             if let Ok(buffer) = receive_result.try_recv() {
+                charge.charge[self.root_rank as usize] -= 1;
+
                 self.handle_new_result(
                     work_graph,
                     buffer,
-                    &mut rank_for_next_request,
+                    &mut charge,
                     &send_pbs,
                     &mut sent_inputs,
                 );
@@ -111,39 +124,47 @@ impl Context {
         &self,
         work_graph: &mut U,
         buffer: Vec<u8>,
-        rank_for_next_request: &mut i32,
+        charge: &mut ClusterCharge,
         send_pbs: &Sender<Vec<u8>>,
         sent_inputs: &mut Vec<Sending>,
     ) {
         let new_jobs = work_graph.commit_result(buffer);
 
         for buffer in new_jobs {
-            self.enqueue_request(rank_for_next_request, send_pbs, buffer, sent_inputs);
+            self.enqueue_request(charge, send_pbs, buffer, sent_inputs);
         }
     }
 
     fn enqueue_request(
         &self,
-        rank_for_request: &mut i32,
+        charge: &mut ClusterCharge,
         send_pbs: &Sender<Vec<u8>>,
         buffer: Vec<u8>,
         sent_inputs: &mut Vec<Sending>,
     ) {
-        let rank = *rank_for_request % self.size as i32;
-
-        //no work for master
-        // let rank = *rank_for_request % (self.size as i32 - 1) + 1;
-
-        *rank_for_request += 1;
-
-        if rank == self.root_rank {
+        if charge.charge[self.root_rank as usize] < charge.available_parallelism {
             send_pbs.send(buffer).unwrap();
+            charge.charge[self.root_rank as usize] += 1;
         } else {
-            sent_inputs.push(Sending::new(
-                buffer,
-                &self.world.process_at_rank(rank),
-                MASTER_TO_WORKER,
-            ));
+            let rank = charge
+                .charge
+                .iter()
+                .enumerate()
+                .min_by_key(|(_index, charge)| *charge)
+                .unwrap()
+                .0;
+
+            charge.charge[rank] += 1;
+
+            if rank == self.root_rank as usize {
+                send_pbs.send(buffer).unwrap();
+            } else {
+                sent_inputs.push(Sending::new(
+                    buffer,
+                    &self.world.process_at_rank(rank as i32),
+                    MASTER_TO_WORKER,
+                ));
+            }
         }
     }
 
@@ -158,8 +179,12 @@ impl Context {
         {
             let state = state.clone();
             let f = f.clone();
-            let n_workers = 1;
+            let n_workers = std::thread::available_parallelism().unwrap().get().max(1);
+            let priority =
+                ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(32).unwrap());
+
             launch_threadpool(
+                priority,
                 n_workers,
                 &receive_pbs,
                 &send_result,
@@ -218,6 +243,7 @@ impl Context {
 }
 
 fn launch_threadpool(
+    priority: ThreadPriority,
     n_workers: usize,
     receive_pbs: &Receiver<Vec<u8>>,
     send_result: &Sender<Vec<u8>>,
@@ -230,8 +256,12 @@ fn launch_threadpool(
         let send_result = send_result.clone();
         let function = function.clone();
 
-        pool.execute(move || loop {
-            function(&receive_pbs, &send_result);
+        pool.execute(move || {
+            set_current_thread_priority(priority).unwrap();
+
+            loop {
+                function(&receive_pbs, &send_result);
+            }
         });
     }
 }
