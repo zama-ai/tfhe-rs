@@ -216,17 +216,17 @@ fn test_normal_random_custom_mod_u128() {
 }
 
 #[test]
-fn test_normal_random_native_custom_mod_u32() {
+fn test_normal_random_native_mod_u32() {
     test_normal_random_custom_mod::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_normal_random_native_custom_mod_u64() {
+fn test_normal_random_native_mod_u64() {
     test_normal_random_custom_mod::<u64>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_normal_random_native_custom_mod_u128() {
+fn test_normal_random_native_mod_u128() {
     test_normal_random_custom_mod::<u128>(CiphertextModulus::new_native());
 }
 
@@ -377,17 +377,17 @@ fn test_normal_random_add_assign_custom_mod_u128() {
 }
 
 #[test]
-fn test_normal_random_add_assign_native_custom_mod_u32() {
+fn test_normal_random_add_assign_native_mod_u32() {
     test_normal_random_add_assign_custom_mod::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_normal_random_add_assign_native_custom_mod_u64() {
+fn test_normal_random_add_assign_native_mod_u64() {
     test_normal_random_add_assign_custom_mod::<u64>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_normal_random_add_assign_native_custom_mod_u128() {
+fn test_normal_random_add_assign_native_mod_u128() {
     test_normal_random_add_assign_custom_mod::<u128>(CiphertextModulus::new_native());
 }
 
@@ -469,6 +469,11 @@ fn test_uniform_random_custom_mod<
                 // CDF for the uniform distribution
                 let theoretical_cdf =
                     ((bin_idx + 1) * NUMBER_OF_SAMPLES_PER_VALUE) as f64 / number_of_samples;
+
+                if theoretical_cdf == 1.0 {
+                    assert_eq!(empirical_cdf, 1.0);
+                }
+
                 let diff = empirical_cdf - theoretical_cdf;
                 diff.abs()
             })
@@ -501,7 +506,7 @@ fn test_uniform_random_custom_mod<
 
 // This test takes care of all bigger native types, as underneath the CSPRNG outputs bytes
 #[test]
-fn test_uniform_random_native_custom_mod_u8() {
+fn test_uniform_random_native_mod_u8() {
     test_uniform_random_custom_mod::<u8>(CiphertextModulus::new_native());
 }
 
