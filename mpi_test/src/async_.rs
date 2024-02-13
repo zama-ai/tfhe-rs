@@ -45,7 +45,7 @@ impl Context {
 
         {
             let state = state.clone();
-            let n_workers = std::thread::available_parallelism().unwrap().get().max(1);
+            let n_workers = (std::thread::available_parallelism().unwrap().get() - 1).max(1);
             let priority =
                 ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(32).unwrap());
 
@@ -54,11 +54,12 @@ impl Context {
                 n_workers,
                 &receive_pbs,
                 &send_result,
-                move |receive_pbs, send_result| {
-                    let state = state.clone();
+                move |receive_pbs, send_result, state| {
+                    let f = f.clone();
 
-                    handle_request(receive_pbs, send_result, f.clone(), state)
+                    handle_request(receive_pbs, send_result, f, state)
                 },
+                state,
             );
         }
         let mut receivers: Vec<_> = (1..self.size)
@@ -99,6 +100,10 @@ impl Context {
                     &mut sent_inputs,
                 );
             }
+        }
+
+        for i in charge.charge {
+            assert_eq!(i, 0);
         }
 
         for receiver in receivers {
@@ -179,7 +184,7 @@ impl Context {
         {
             let state = state.clone();
             let f = f.clone();
-            let n_workers = std::thread::available_parallelism().unwrap().get().max(1);
+            let n_workers = (std::thread::available_parallelism().unwrap().get() - 1).max(1);
             let priority =
                 ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(32).unwrap());
 
@@ -188,12 +193,12 @@ impl Context {
                 n_workers,
                 &receive_pbs,
                 &send_result,
-                move |receive_pbs, send_result| {
+                move |receive_pbs, send_result, state| {
                     let f = f.clone();
-                    let state = state.clone();
 
                     handle_request(receive_pbs, send_result, f, state)
                 },
+                state,
             );
         }
 
@@ -242,12 +247,13 @@ impl Context {
     }
 }
 
-fn launch_threadpool(
+fn launch_threadpool<T: Clone + Send + 'static>(
     priority: ThreadPriority,
     n_workers: usize,
     receive_pbs: &Receiver<Vec<u8>>,
     send_result: &Sender<Vec<u8>>,
-    function: impl Fn(&Receiver<Vec<u8>>, &Sender<Vec<u8>>) + Send + Clone + 'static,
+    function: impl Fn(&Receiver<Vec<u8>>, &Sender<Vec<u8>>, &T) + Send + Clone + 'static,
+    state: T,
 ) {
     let pool = ThreadPool::new(n_workers);
 
@@ -256,11 +262,13 @@ fn launch_threadpool(
         let send_result = send_result.clone();
         let function = function.clone();
 
+        let state = state.clone();
+
         pool.execute(move || {
             set_current_thread_priority(priority).unwrap();
 
             loop {
-                function(&receive_pbs, &send_result);
+                function(&receive_pbs, &send_result, &state);
             }
         });
     }
@@ -270,11 +278,11 @@ fn handle_request<T>(
     receive_pbs: &Receiver<Vec<u8>>,
     send_result: &Sender<Vec<u8>>,
     f: impl Fn(&T, &[u8]) -> Vec<u8>,
-    state: T,
+    state: &T,
 ) {
     let input = receive_pbs.recv().unwrap();
 
-    let result = f(&state, &input);
+    let result = f(state, &input);
 
     send_result.send(result).unwrap();
 }
