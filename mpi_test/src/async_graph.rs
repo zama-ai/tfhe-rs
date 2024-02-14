@@ -108,6 +108,24 @@ impl FheGraph {
         }
         multisum_result
     }
+
+    fn multisum_and_serialize(&mut self, index: NodeIndex) -> Vec<u8> {
+        let multisum_result = self.compute_multisum(index, &self.sks);
+
+        let lut = match self.graph.node_weight(index) {
+            Some(Node::ToCompute { lookup_table }) => lookup_table.to_owned(),
+            _ => unreachable!(),
+        };
+
+        *self.graph.node_weight_mut(index).unwrap() = Node::BootsrapQueued;
+
+        bincode::serialize(&IndexedCtAndLut {
+            index: index.index(),
+            ct: multisum_result,
+            lut,
+        })
+        .unwrap()
+    }
 }
 
 impl WorkGraph for FheGraph {
@@ -137,23 +155,7 @@ impl WorkGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| {
-                let multisum_result = self.compute_multisum(index, &self.sks);
-
-                let lut = match self.graph.node_weight(index) {
-                    Some(Node::ToCompute { lookup_table }) => lookup_table.to_owned(),
-                    _ => unreachable!(),
-                };
-
-                *self.graph.node_weight_mut(index).unwrap() = Node::BootsrapQueued;
-
-                bincode::serialize(&IndexedCtAndLut {
-                    index: index.index(),
-                    ct: multisum_result,
-                    lut,
-                })
-                .unwrap()
-            })
+            .map(|index| self.multisum_and_serialize(index))
             .collect()
     }
 
@@ -196,23 +198,7 @@ impl WorkGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| {
-                let multisum_result = self.compute_multisum(index, &self.sks);
-
-                let lut = match self.graph.node_weight(index) {
-                    Some(Node::ToCompute { lookup_table }) => lookup_table.to_owned(),
-                    _ => unreachable!(),
-                };
-
-                *self.graph.node_weight_mut(index).unwrap() = Node::BootsrapQueued;
-
-                bincode::serialize(&IndexedCtAndLut {
-                    index: index.index(),
-                    ct: multisum_result,
-                    lut,
-                })
-                .unwrap()
-            })
+            .map(|index| self.multisum_and_serialize(index))
             .collect()
     }
 
