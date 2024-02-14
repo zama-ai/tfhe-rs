@@ -193,6 +193,11 @@ fn sum_blocks(
     let group_size = ((message_modulus * message_modulus - 1) / (message_modulus - 1)) as usize;
 
     loop {
+        assert!(!blocks_ref.is_empty());
+        if blocks_ref.len() == 1 {
+            break blocks_ref[0];
+        }
+
         if blocks_ref.len() <= group_size {
             break checked_add(graph, sks, blocks_ref, carries);
         }
@@ -225,7 +230,7 @@ fn checked_add(
     blocks_ref: &[NodeIndex],
     mut carries: Option<&mut Vec<NodeIndex>>,
 ) -> NodeIndex {
-    assert!(!blocks_ref.is_empty());
+    assert!(blocks_ref.len() > 1);
 
     let message_modulus = sks.message_modulus.0 as u64;
 

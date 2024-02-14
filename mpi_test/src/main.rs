@@ -16,7 +16,7 @@ fn main() {
 
     // context.async_small_mul();
 
-    context.run_local_mul_on_root(64);
+    // context.run_local_mul_on_root(64);
 
     context.async_mul(64);
 }
