@@ -20,7 +20,7 @@ instance_type = "hpc7a.96xlarge"
 
 [profile.gpu-test]
 region = "us-east-1"
-image_id = "ami-05b4b37bcbb24dc48"
+image_id = "ami-0c0bf195ca4c175b6"
 instance_type = "p3.2xlarge"
 # One spawn attempt every 30 seconds for 1 hour
 spawn_retry_attempts = 120
@@ -28,7 +28,7 @@ spawn_retry_duration = 60
 
 [profile.gpu-bench]
 region = "us-east-1"
-image_id = "ami-05b4b37bcbb24dc48"
+image_id = "ami-0c0bf195ca4c175b6"
 instance_type = "p4d.24xlarge"
 # One spawn attempt every 30 seconds for 6 hours
 spawn_retry_attempts = 720
@@ -37,7 +37,7 @@ max_spot_hourly_price = "100.0"
 
 [profile.gpu-bench-big]
 region = "us-east-1"
-image_id = "ami-05b4b37bcbb24dc48"
+image_id = "ami-0c0bf195ca4c175b6"
 instance_type = "p5.48xlarge"
 spawn_retry_attempts = 720
 spawn_retry_duration = 360
