@@ -129,18 +129,16 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
     /// ```rust
     /// use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweCiphertextList};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::CiphertextModulus;
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, LweCiphertextCount, LweCiphertextList, LweSize,
+    /// };
     ///
     /// let gpu_index = 0;
     /// let device = CudaDevice::new(gpu_index);
     /// let mut stream = CudaStream::new_unchecked(device);
     ///
-    /// let lwe_size = PARAM_MESSAGE_2_CARRY_2_KS_PBS.lwe_dimension.to_lwe_size();
-    /// let ciphertext_modulus = PARAM_MESSAGE_2_CARRY_2_KS_PBS.ciphertext_modulus;
+    /// let lwe_size = LweSize(743);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     /// let lwe_ciphertext_count = LweCiphertextCount(2);
     ///
     /// // Create a new LweCiphertextList
