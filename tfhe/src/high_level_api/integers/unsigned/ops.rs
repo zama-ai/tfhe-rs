@@ -1979,9 +1979,10 @@ where
                 FheUint::new(ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Not '!' is not yet supported by Cuda devices")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key.key.bitnot(&self.ciphertext.on_gpu(), stream);
+                FheUint::new(inner_result)
+            }),
         })
     }
 }
