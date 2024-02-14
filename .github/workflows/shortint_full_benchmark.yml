@@ -81,7 +81,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_shortint
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_shortint
 
       - name: Parse results
         run: |

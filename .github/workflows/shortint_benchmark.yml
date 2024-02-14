@@ -60,7 +60,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON bench_shortint
+          make bench_shortint
 
       - name: Parse results
         run: |

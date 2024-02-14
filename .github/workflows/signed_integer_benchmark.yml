@@ -61,7 +61,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON FAST_BENCH=TRUE bench_signed_integer
+          make FAST_BENCH=TRUE bench_signed_integer
 
       - name: Parse benchmarks to csv
         run: |

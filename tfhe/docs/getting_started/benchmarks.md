@@ -108,15 +108,17 @@ Using the same hpc7a.96xlarge machine as the one for tfhe-rs, the timings are:
 
 TFHE-rs benchmarks can be easily reproduced from [source](https://github.com/zama-ai/tfhe-rs).
 
+{% hint style="info" %}
+AVX512 is now enabled by default for benchmarks when available
+{% endhint %}
+
 ```shell
 #Boolean benchmarks:
-make AVX512_SUPPORT=ON bench_boolean
+make bench_boolean
 
 #Integer benchmarks:
-make AVX512_SUPPORT=ON bench_integer
+make bench_integer
 
 #Shortint benchmarks:
-make AVX512_SUPPORT=ON bench_shortint
+make bench_shortint
 ```
-
-If the host machine does not support AVX512, then turning on `AVX512_SUPPORT` will not provide any speed-up.
