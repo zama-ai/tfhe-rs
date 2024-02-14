@@ -30,6 +30,15 @@ pub enum Node {
     ToCompute { lookup_table: LookupTableOwned },
 }
 
+impl Node {
+    fn ct(&self) -> Option<&shortint::Ciphertext> {
+        match self {
+            Node::Computed(ct) => Some(ct),
+            _ => None,
+        }
+    }
+}
+
 impl std::fmt::Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -93,18 +102,24 @@ impl FheGraph {
     }
 
     fn compute_multisum(&self, index: NodeIndex, sks: &ServerKey) -> Ciphertext {
-        let mut multisum_result = sks.create_trivial(0);
+        let mut iterator = self.graph.neighbors_directed(index, Incoming);
 
-        for predecessor_index in self.graph.neighbors_directed(index, Incoming) {
+        let first_predecessor_index = iterator.next().unwrap();
+        let first_predecessor = self.graph[first_predecessor_index].ct().unwrap();
+
+        let first_scalar = self.graph[self
+            .graph
+            .find_edge(first_predecessor_index, index)
+            .unwrap()];
+
+        let mut multisum_result = sks.unchecked_scalar_mul(first_predecessor, first_scalar as u8);
+
+        for predecessor_index in iterator {
             let scalar = self.graph[self.graph.find_edge(predecessor_index, index).unwrap()];
 
-            let ct = match self.graph.node_weight(predecessor_index).unwrap() {
-                Node::Computed(ct) => ct,
-                _ => unreachable!(),
-            };
+            let ct = self.graph[predecessor_index].ct().unwrap();
 
-            let multiplied = sks.unchecked_scalar_mul(ct, scalar as u8);
-            sks.unchecked_add_assign(&mut multisum_result, &multiplied);
+            sks.unchecked_add_scalar_mul_assign(&mut multisum_result, ct, scalar as u8);
         }
         multisum_result
     }
