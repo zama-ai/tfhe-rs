@@ -53,6 +53,8 @@ impl FheGraph {
             .filter(|node| !matches!(&node, Node::Computed(_)))
             .count();
 
+        dbg!(not_computed_nodes_count);
+
         Self {
             graph,
             not_computed_nodes_count,
