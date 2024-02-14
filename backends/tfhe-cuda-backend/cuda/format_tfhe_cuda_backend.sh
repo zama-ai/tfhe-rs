@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 while getopts ":c" option; do
   case $option in
     c)
