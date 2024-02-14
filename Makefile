@@ -650,21 +650,21 @@ bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_signed_integer # Run benchmarks for signed integer
 bench_signed_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
 bench_integer_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
@@ -672,7 +672,7 @@ bench_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_signed_integer_multi_bit # Run benchmarks for signed integer using multi-bit parameters
 bench_signed_integer_multi_bit: install_rs_check_toolchain
@@ -680,7 +680,7 @@ bench_signed_integer_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit_gpu # Run benchmarks for integer on GPU backend using multi-bit parameters
 bench_integer_multi_bit_gpu: install_rs_check_toolchain
@@ -688,25 +688,25 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-bench \
-	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_oprf # Run benchmarks for shortint
 bench_oprf: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-shortint-bench \
-	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 
 
@@ -716,38 +716,38 @@ bench_shortint_multi_bit: install_rs_check_toolchain
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-bench \
-	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
 
 .PHONY: bench_boolean # Run benchmarks for boolean
 bench_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench boolean-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_ks_gpu # Run benchmarks for PBS on GPU backend
 bench_ks_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_web_js_api_parallel # Run benchmarks for the web wasm api
 bench_web_js_api_parallel: build_web_js_api_parallel
