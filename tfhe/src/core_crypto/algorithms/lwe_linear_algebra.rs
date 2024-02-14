@@ -563,6 +563,17 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
+pub fn lwe_ciphertext_add_cleartext_mul_assign<Scalar, InCont>(
+    lhs: &mut LweCiphertext<InCont>,
+    rhs: &LweCiphertext<InCont>,
+    scalar: Cleartext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_add_scalar_mul_assign(lhs.as_mut(), rhs.as_ref(), scalar.0);
+}
+
 /// Multiply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
 /// writing the result in the output [`LWE ciphertext`](`LweCiphertext`).
 ///
