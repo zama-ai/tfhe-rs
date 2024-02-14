@@ -207,6 +207,15 @@ impl ServerKey {
         unchecked_scalar_mul_assign(ct, scalar);
     }
 
+    pub fn unchecked_add_scalar_mul_assign(
+        &self,
+        ct: &mut Ciphertext,
+        scaled_ct: &Ciphertext,
+        scalar: u8,
+    ) {
+        unchecked_add_scalar_mul_assign(ct, scaled_ct, scalar);
+    }
+
     /// Multiply one ciphertext with a scalar in the case the carry space cannot fit the product
     /// applying the message space modulus in the process.
     ///
@@ -534,4 +543,18 @@ pub(crate) fn unchecked_scalar_mul_assign(ct: &mut Ciphertext, scalar: u8) {
             lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
         }
     }
+}
+
+pub(crate) fn unchecked_add_scalar_mul_assign(
+    ct: &mut Ciphertext,
+    scaled_ct: &Ciphertext,
+    scalar: u8,
+) {
+    ct.set_noise_level(ct.noise_level() + scaled_ct.noise_level() * scalar as usize);
+    ct.degree = Degree::new(ct.degree.get() + scaled_ct.degree.get() * scalar as usize);
+
+    let scalar = u64::from(scalar);
+    let cleartext_scalar = Cleartext(scalar);
+
+    lwe_ciphertext_add_cleartext_mul_assign(&mut ct.ct, &scaled_ct.ct, cleartext_scalar);
 }
