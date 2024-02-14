@@ -1245,7 +1245,7 @@ impl std::ops::Not for &FheBool {
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner = cuda_key
+                let mut inner = cuda_key
                     .key
                     .scalar_bitxor(&self.ciphertext.on_gpu(), 1, stream);
                 InnerBoolean::Cuda(inner)
