@@ -3,6 +3,8 @@ use crate::managers::{advance_receiving, Receiving, Sending};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use mpi::traits::*;
 use mpi::Tag;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::VecDeque;
 use thread_priority::{set_current_thread_priority, ThreadPriority, ThreadPriorityValue};
 use threadpool::ThreadPool;
@@ -10,9 +12,12 @@ use threadpool::ThreadPool;
 const MASTER_TO_WORKER: Tag = 0;
 const WORKER_TO_MASTER: Tag = 1;
 
-pub trait WorkGraph {
-    fn init(&mut self) -> Vec<Vec<u8>>;
-    fn commit_result(&mut self, result: Vec<u8>) -> Vec<Vec<u8>>;
+pub trait TaskGraph {
+    type Task;
+    type Result;
+
+    fn init(&mut self) -> Vec<Self::Task>;
+    fn commit_result(&mut self, result: Self::Result) -> Vec<Self::Task>;
     // fn no_work_in_queue(&self) -> bool;
     fn is_finished(&self) -> bool;
 }
@@ -23,14 +28,19 @@ struct ClusterCharge {
 }
 
 impl Context {
-    pub fn async_pbs_graph_queue_master<T: Sync + Clone + Send + 'static, U: WorkGraph>(
+    pub fn async_pbs_graph_queue_master<
+        T: Sync + Clone + Send + 'static,
+        U: TaskGraph<Task = Task, Result = Result>,
+        Task: Serialize + DeserializeOwned + Send + 'static,
+        Result: Serialize + DeserializeOwned + Send + 'static,
+    >(
         &self,
         work_graph: &mut U,
         state: T,
-        f: impl Fn(&T, &[u8]) -> Vec<u8> + Sync + Clone + Send + 'static,
+        f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
     ) {
-        let (send_pbs, receive_pbs) = unbounded::<Vec<u8>>();
-        let (send_result, receive_result) = unbounded::<Vec<u8>>();
+        let (send_pbs, receive_pbs) = unbounded::<Task>();
+        let (send_result, receive_result) = unbounded::<Result>();
 
         let mut sent_inputs = vec![];
 
@@ -39,8 +49,8 @@ impl Context {
             charge: vec![0; self.size],
         };
 
-        for buffer in work_graph.init() {
-            self.enqueue_request(&mut charge, &send_pbs, buffer, &mut sent_inputs);
+        for work in work_graph.init() {
+            self.enqueue_request(&mut charge, &send_pbs, work, &mut sent_inputs);
         }
 
         {
@@ -74,9 +84,11 @@ impl Context {
                 let rank = i + 1;
                 let process = self.world.process_at_rank(rank as i32);
                 if let Some(buffer) = advance_receiving(receiver, &process, WORKER_TO_MASTER) {
+                    let result = bincode::deserialize(&buffer).unwrap();
+
                     self.handle_new_result(
                         work_graph,
-                        buffer,
+                        result,
                         &mut charge,
                         &send_pbs,
                         &mut sent_inputs,
@@ -125,30 +137,32 @@ impl Context {
         std::mem::forget(send_pbs);
     }
 
-    fn handle_new_result<U: WorkGraph>(
+    fn handle_new_result<U: TaskGraph>(
         &self,
         work_graph: &mut U,
-        buffer: Vec<u8>,
+        result: U::Result,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<Vec<u8>>,
+        send_pbs: &Sender<U::Task>,
         sent_inputs: &mut Vec<Sending>,
-    ) {
-        let new_jobs = work_graph.commit_result(buffer);
+    ) where
+        U::Task: Serialize + DeserializeOwned,
+    {
+        let new_tasks = work_graph.commit_result(result);
 
-        for buffer in new_jobs {
-            self.enqueue_request(charge, send_pbs, buffer, sent_inputs);
+        for task in new_tasks {
+            self.enqueue_request(charge, send_pbs, task, sent_inputs);
         }
     }
 
-    fn enqueue_request(
+    fn enqueue_request<Task: Serialize + DeserializeOwned>(
         &self,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<Vec<u8>>,
-        buffer: Vec<u8>,
+        send_pbs: &Sender<Task>,
+        work: Task,
         sent_inputs: &mut Vec<Sending>,
     ) {
         if charge.charge[self.root_rank as usize] < charge.available_parallelism {
-            send_pbs.send(buffer).unwrap();
+            send_pbs.send(work).unwrap();
             charge.charge[self.root_rank as usize] += 1;
         } else {
             let rank = charge
@@ -162,8 +176,10 @@ impl Context {
             charge.charge[rank] += 1;
 
             if rank == self.root_rank as usize {
-                send_pbs.send(buffer).unwrap();
+                send_pbs.send(work).unwrap();
             } else {
+                let buffer = bincode::serialize(&work).unwrap();
+
                 sent_inputs.push(Sending::new(
                     buffer,
                     &self.world.process_at_rank(rank as i32),
@@ -173,11 +189,23 @@ impl Context {
         }
     }
 
-    pub fn async_pbs_graph_queue_worker<T: Sync + Clone + Send + 'static>(
+    pub fn async_pbs_graph_queue_worker<
+        T: Sync + Clone + Send + 'static,
+        Task: Serialize + DeserializeOwned + Send,
+        Result: Serialize + DeserializeOwned + Send,
+    >(
         &self,
         state: T,
-        f: impl Fn(&T, &[u8]) -> Vec<u8> + Sync + Clone + Send + 'static,
+        f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
     ) {
+        let f = move |state: &T, serialized_input: &Vec<u8>| {
+            let input = bincode::deserialize(serialized_input).unwrap();
+
+            let result = f(state, &input);
+
+            bincode::serialize(&result).unwrap()
+        };
+
         let (send_pbs, receive_pbs) = unbounded::<Vec<u8>>();
         let (send_result, receive_result) = unbounded::<Vec<u8>>();
 
@@ -247,12 +275,12 @@ impl Context {
     }
 }
 
-fn launch_threadpool<T: Clone + Send + 'static>(
+fn launch_threadpool<T: Clone + Send + 'static, U: Send + 'static, V: Send + 'static>(
     priority: ThreadPriority,
     n_workers: usize,
-    receive_pbs: &Receiver<Vec<u8>>,
-    send_result: &Sender<Vec<u8>>,
-    function: impl Fn(&Receiver<Vec<u8>>, &Sender<Vec<u8>>, &T) + Send + Clone + 'static,
+    receive_pbs: &Receiver<U>,
+    send_result: &Sender<V>,
+    function: impl Fn(&Receiver<U>, &Sender<V>, &T) + Send + Clone + 'static,
     state: T,
 ) {
     let pool = ThreadPool::new(n_workers);
@@ -274,10 +302,10 @@ fn launch_threadpool<T: Clone + Send + 'static>(
     }
 }
 
-fn handle_request<T>(
-    receive_pbs: &Receiver<Vec<u8>>,
-    send_result: &Sender<Vec<u8>>,
-    f: impl Fn(&T, &[u8]) -> Vec<u8>,
+fn handle_request<T, U, V>(
+    receive_pbs: &Receiver<U>,
+    send_result: &Sender<V>,
+    f: impl Fn(&T, &U) -> V,
     state: &T,
 ) {
     let input = receive_pbs.recv().unwrap();

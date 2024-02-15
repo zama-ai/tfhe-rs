@@ -1,4 +1,4 @@
-use crate::async_::WorkGraph;
+use crate::async_::TaskGraph;
 use crate::context::Context;
 use crate::managers::IndexedCt;
 use crate::N;
@@ -24,19 +24,22 @@ impl ListOfPbs {
     }
 }
 
-impl WorkGraph for ListOfPbs {
-    fn init(&mut self) -> Vec<Vec<u8>> {
+impl TaskGraph for ListOfPbs {
+    type Task = IndexedCt;
+
+    type Result = IndexedCt;
+
+    fn init(&mut self) -> Vec<IndexedCt> {
         self.inputs
             .clone()
             .into_iter()
             .enumerate()
-            .map(|(i, ct)| bincode::serialize(&IndexedCt { index: i, ct }).unwrap())
+            .map(|(i, ct)| IndexedCt { index: i, ct })
             .collect()
     }
 
-    fn commit_result(&mut self, result: Vec<u8>) -> Vec<Vec<u8>> {
-        let IndexedCt { index, ct } = bincode::deserialize(&result).unwrap();
-        self.outputs.insert(index, ct);
+    fn commit_result(&mut self, result: IndexedCt) -> Vec<IndexedCt> {
+        self.outputs.insert(result.index, result.ct);
 
         vec![]
     }
@@ -108,13 +111,9 @@ impl Context {
     }
 }
 
-fn run_pbs(input: &[u8], sks: &ServerKey, lookup_table: &LookupTableOwned) -> Vec<u8> {
-    let input: IndexedCt = bincode::deserialize(input).unwrap();
-
-    let result = IndexedCt {
+fn run_pbs(input: &IndexedCt, sks: &ServerKey, lookup_table: &LookupTableOwned) -> IndexedCt {
+    IndexedCt {
         ct: sks.apply_lookup_table(&input.ct, lookup_table),
         index: input.index,
-    };
-
-    bincode::serialize(&result).unwrap()
+    }
 }
