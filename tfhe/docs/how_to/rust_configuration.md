@@ -1,6 +1,6 @@
 # Using the right toolchain for TFHE-rs.
 
-TFHE-rs only requires a nightly toolchain for building the C API and using advanced SIMD instructions, otherwise you can use a stable toolchain (with version >= 1.72)
+TFHE-rs only requires a nightly toolchain for building the C API and using advanced SIMD instructions, otherwise you can use a stable toolchain (with version >= 1.73)
 Install the needed Rust toolchain:
 
 ```shell
