@@ -79,7 +79,7 @@ impl Context {
             }
             println!("All good 7");
 
-            println!("MPI 64 block mul in {}s", duration_sec);
+            println!("MPI {num_blocks} block mul in {}s", duration_sec);
 
             panic!();
         } else {
