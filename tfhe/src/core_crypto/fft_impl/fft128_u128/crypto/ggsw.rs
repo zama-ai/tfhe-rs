@@ -299,10 +299,10 @@ fn collect_next_term_split_avx512(
             let mod_b_mask_hi = simd.splat_u64x8(mod_b_mask_hi);
 
             let shift_minus_64 = simd.splat_u64x8(shift.wrapping_sub(64));
-            let _64_minus_shift = simd.splat_u64x8(64u64.wrapping_sub(shift));
+            let shift_complement = simd.splat_u64x8(64u64.wrapping_sub(shift));
             let shift = simd.splat_u64x8(shift);
             let base_log_minus_64 = simd.splat_u64x8(base_log.wrapping_sub(64));
-            let _64_minus_base_log = simd.splat_u64x8(64u64.wrapping_sub(base_log));
+            let base_log_complement = simd.splat_u64x8(64u64.wrapping_sub(base_log));
             let base_log = simd.splat_u64x8(base_log);
 
             for (out_lo, out_hi, state_lo, state_hi) in izip!(
@@ -320,7 +320,7 @@ fn collect_next_term_split_avx512(
                 vstate_lo = simd.or_u64x8(
                     simd.shr_dyn_u64x8(vstate_hi, base_log_minus_64),
                     simd.or_u64x8(
-                        simd.shl_dyn_u64x8(vstate_hi, _64_minus_base_log),
+                        simd.shl_dyn_u64x8(vstate_hi, base_log_complement),
                         simd.shr_dyn_u64x8(vstate_lo, base_log),
                     ),
                 );
@@ -338,7 +338,7 @@ fn collect_next_term_split_avx512(
                     simd.shr_dyn_u64x8(carry_hi, shift_minus_64),
                     simd.or_u64x8(
                         simd.shr_dyn_u64x8(carry_lo, shift),
-                        simd.shr_dyn_u64x8(carry_hi, _64_minus_shift),
+                        simd.shr_dyn_u64x8(carry_hi, shift_complement),
                     ),
                 );
                 carry_hi = simd.shr_dyn_u64x8(carry_hi, shift);
@@ -351,7 +351,7 @@ fn collect_next_term_split_avx512(
                 carry_hi = simd.or_u64x8(
                     simd.or_u64x8(
                         simd.shl_dyn_u64x8(carry_hi, base_log),
-                        simd.shr_dyn_u64x8(carry_lo, _64_minus_base_log),
+                        simd.shr_dyn_u64x8(carry_lo, base_log_complement),
                     ),
                     simd.shl_dyn_u64x8(carry_lo, base_log_minus_64),
                 );
@@ -433,10 +433,10 @@ fn collect_next_term_split_avx2(
             let mod_b_mask_hi = simd.splat_u64x4(mod_b_mask_hi);
 
             let shift_minus_64 = simd.splat_u64x4(shift.wrapping_sub(64));
-            let _64_minus_shift = simd.splat_u64x4(64u64.wrapping_sub(shift));
+            let shift_complement = simd.splat_u64x4(64u64.wrapping_sub(shift));
             let shift = simd.splat_u64x4(shift);
             let base_log_minus_64 = simd.splat_u64x4(base_log.wrapping_sub(64));
-            let _64_minus_base_log = simd.splat_u64x4(64u64.wrapping_sub(base_log));
+            let base_log_complement = simd.splat_u64x4(64u64.wrapping_sub(base_log));
             let base_log = simd.splat_u64x4(base_log);
 
             for (out_lo, out_hi, state_lo, state_hi) in izip!(
@@ -454,7 +454,7 @@ fn collect_next_term_split_avx2(
                 vstate_lo = simd.or_u64x4(
                     simd.shr_dyn_u64x4(vstate_hi, base_log_minus_64),
                     simd.or_u64x4(
-                        simd.shl_dyn_u64x4(vstate_hi, _64_minus_base_log),
+                        simd.shl_dyn_u64x4(vstate_hi, base_log_complement),
                         simd.shr_dyn_u64x4(vstate_lo, base_log),
                     ),
                 );
@@ -471,7 +471,7 @@ fn collect_next_term_split_avx2(
                     simd.shr_dyn_u64x4(carry_hi, shift_minus_64),
                     simd.or_u64x4(
                         simd.shr_dyn_u64x4(carry_lo, shift),
-                        simd.shr_dyn_u64x4(carry_hi, _64_minus_shift),
+                        simd.shr_dyn_u64x4(carry_hi, shift_complement),
                     ),
                 );
                 carry_hi = simd.shr_dyn_u64x4(carry_hi, shift);
@@ -484,7 +484,7 @@ fn collect_next_term_split_avx2(
                 carry_hi = simd.or_u64x4(
                     simd.or_u64x4(
                         simd.shl_dyn_u64x4(carry_hi, base_log),
-                        simd.shr_dyn_u64x4(carry_lo, _64_minus_base_log),
+                        simd.shr_dyn_u64x4(carry_lo, base_log_complement),
                     ),
                     simd.shl_dyn_u64x4(carry_lo, base_log_minus_64),
                 );

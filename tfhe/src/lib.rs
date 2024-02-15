@@ -62,7 +62,7 @@
         any(target_arch = "x86", target_arch = "x86_64"),
         feature = "nightly-avx512"
     ),
-    feature(avx512_target_feature)
+    feature(avx512_target_feature, stdarch_x86_avx512)
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]

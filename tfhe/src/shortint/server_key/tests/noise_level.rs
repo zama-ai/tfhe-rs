@@ -339,10 +339,10 @@ fn test_noise_level_propagation_ci_run_filter() {
             test_ct_unary_op_assign_noise_level_propagation(sk, ct);
         }
 
-        for ct1 in [&trivial0, &trivial, &ct1, &ct2] {
-            for ct2 in [&trivial0, &trivial, &ct1, &ct2] {
-                test_ct_binary_op_noise_level_propagation(sk, ct1, ct2);
-                test_ct_binary_op_assign_noise_level_propagation(sk, ct1, ct2);
+        for ct_left in [&trivial0, &trivial, &ct1, &ct2] {
+            for ct_right in [&trivial0, &trivial, &ct1, &ct2] {
+                test_ct_binary_op_noise_level_propagation(sk, ct_left, ct_right);
+                test_ct_binary_op_assign_noise_level_propagation(sk, ct_left, ct_right);
             }
         }
 
