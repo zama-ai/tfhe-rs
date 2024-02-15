@@ -11,7 +11,7 @@ use std::cell::RefCell;
 /// (eg a web server that processes multiple requests in multiple threads).
 /// The user however, has to initialize the internal keys each time it starts a thread.
 thread_local! {
-    static INTERNAL_KEYS: RefCell<Option<InternalServerKey>> = RefCell::new(None);
+    static INTERNAL_KEYS: RefCell<Option<InternalServerKey>> = const { RefCell::new(None) };
 }
 
 /// The function used to initialize internal keys.
