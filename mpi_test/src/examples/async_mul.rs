@@ -45,7 +45,7 @@ impl Context {
 
             let result = mul_graph(&mut graph, &sks, &in1, &in2);
 
-            for (i, j) in zip_eq(&result, cut_into_block(i * j)) {
+            for (i, j) in zip_eq(&result, cut_into_block(i.wrapping_mul(j))) {
                 expected_outputs.push((*i, j));
             }
 
