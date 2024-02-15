@@ -29,7 +29,7 @@ pub fn variance_blind_rotate(
 
 #[cfg(test)]
 mod tests {
-    use concrete_security_curves::gaussian::security::minimal_variance_glwe;
+    use tfhe_security_curves::gaussian::security::minimal_variance_glwe;
 
     use crate::gaussian_noise::conversion::variance_to_modular_variance;
 
