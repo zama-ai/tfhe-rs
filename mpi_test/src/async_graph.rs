@@ -124,7 +124,7 @@ impl FheGraph {
         multisum_result
     }
 
-    fn multisum_and_serialize(&mut self, index: NodeIndex) -> IndexedCtAndLut {
+    fn multisum_and_build_task(&mut self, index: NodeIndex) -> IndexedCtAndLut {
         let multisum_result = self.compute_multisum(index, &self.sks);
 
         let lut = match self.graph.node_weight(index) {
@@ -173,7 +173,7 @@ impl TaskGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| self.multisum_and_serialize(index))
+            .map(|index| self.multisum_and_build_task(index))
             .collect()
     }
 
@@ -216,7 +216,7 @@ impl TaskGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| self.multisum_and_serialize(index))
+            .map(|index| self.multisum_and_build_task(index))
             .collect()
     }
 
