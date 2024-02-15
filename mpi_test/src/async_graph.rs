@@ -1,4 +1,4 @@
-use crate::async_::WorkGraph;
+use crate::async_::TaskGraph;
 use crate::context::Context;
 use mpi::traits::*;
 use petgraph::algo::is_cyclic_directed;
@@ -12,13 +12,13 @@ use tfhe::shortint::server_key::LookupTableOwned;
 use tfhe::shortint::{self, Ciphertext, ServerKey};
 
 #[derive(Clone, Serialize, Deserialize)]
-struct IndexedCt {
+pub struct IndexedCt {
     index: usize,
     ct: Ciphertext,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct IndexedCtAndLut {
+pub struct IndexedCtAndLut {
     index: usize,
     ct: Ciphertext,
     lut: LookupTableOwned,
@@ -124,7 +124,7 @@ impl FheGraph {
         multisum_result
     }
 
-    fn multisum_and_serialize(&mut self, index: NodeIndex) -> Vec<u8> {
+    fn multisum_and_serialize(&mut self, index: NodeIndex) -> IndexedCtAndLut {
         let multisum_result = self.compute_multisum(index, &self.sks);
 
         let lut = match self.graph.node_weight(index) {
@@ -134,17 +134,20 @@ impl FheGraph {
 
         *self.graph.node_weight_mut(index).unwrap() = Node::BootsrapQueued;
 
-        bincode::serialize(&IndexedCtAndLut {
+        IndexedCtAndLut {
             index: index.index(),
             ct: multisum_result,
             lut,
-        })
-        .unwrap()
+        }
     }
 }
 
-impl WorkGraph for FheGraph {
-    fn init(&mut self) -> Vec<Vec<u8>> {
+impl TaskGraph for FheGraph {
+    type Task = IndexedCtAndLut;
+
+    type Result = IndexedCt;
+
+    fn init(&mut self) -> Vec<IndexedCtAndLut> {
         self.test_graph_init();
 
         let nodes_to_compute: Vec<_> = self
@@ -174,12 +177,12 @@ impl WorkGraph for FheGraph {
             .collect()
     }
 
-    fn commit_result(&mut self, result: Vec<u8>) -> Vec<Vec<u8>> {
+    fn commit_result(&mut self, result: IndexedCt) -> Vec<IndexedCtAndLut> {
         self.not_computed_nodes_count -= 1;
 
         // dbg!(self.not_computed_nodes_count);
 
-        let IndexedCt { index, ct } = bincode::deserialize(&result).unwrap();
+        let IndexedCt { index, ct } = result;
 
         let index = NodeIndex::new(index);
 
@@ -268,13 +271,9 @@ impl Context {
     }
 }
 
-fn run_pbs(input: &[u8], sks: &ServerKey) -> Vec<u8> {
-    let IndexedCtAndLut { index, ct, lut } = bincode::deserialize(input).unwrap();
-
-    let result = IndexedCt {
-        ct: sks.apply_lookup_table(&ct, &lut),
-        index,
-    };
-
-    bincode::serialize(&result).unwrap()
+fn run_pbs(input: &IndexedCtAndLut, sks: &ServerKey) -> IndexedCt {
+    IndexedCt {
+        ct: sks.apply_lookup_table(&input.ct, &input.lut),
+        index: input.index,
+    }
 }

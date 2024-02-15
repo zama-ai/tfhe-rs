@@ -60,7 +60,7 @@ fn local_mul(num_blocks: usize) {
     // let res: u64 = cks.decrypt(&ct_res);
     // assert_eq!((clear_1 * clear_2) % 256, res);
 
-    println!("64 block mul in {}s", duration_sec);
+    println!("{num_blocks} block mul in {}s", duration_sec);
 }
 
 impl Context {
