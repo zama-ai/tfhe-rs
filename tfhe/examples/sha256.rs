@@ -442,16 +442,19 @@ fn sha256_fhe_parallel(input: Vec<FheUint32>) -> [FheUint32; 8] {
         let mut h = hash[7].clone();
 
         for i in 0..64 {
+            // Please clippy
+            let e_rotations = || {
+                let rotations = par_rotr(&e, [6u32, 11, 25]);
+                &rotations[0] ^ &rotations[1] ^ &rotations[2]
+            };
+            let a_rotations = || {
+                let rotations = par_rotr(&a, [2u32, 13, 22]);
+                &rotations[0] ^ &rotations[1] ^ &rotations[2]
+            };
             let (s1, ch, s0, maj) = join!(
-                || {
-                    let rotations = par_rotr(&e, [6u32, 11, 25]);
-                    &rotations[0] ^ &rotations[1] ^ &rotations[2]
-                },
+                e_rotations,
                 || (&e & &f) ^ ((&e ^ &all_ones) & &g),
-                || {
-                    let rotations = par_rotr(&a, [2u32, 13, 22]);
-                    &rotations[0] ^ &rotations[1] ^ &rotations[2]
-                },
+                a_rotations,
                 || (&a & &b) ^ (&a & &c) ^ (&b & &c)
             );
 

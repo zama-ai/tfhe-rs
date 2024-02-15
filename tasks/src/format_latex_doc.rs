@@ -196,7 +196,7 @@ fn find_contiguous_doc_test<'a>(
 
 fn find_contiguous_part_in_doc_test_or_comment(
     part_is_code_block: bool,
-    full_doc_comment_content: &Vec<CommentContent>,
+    full_doc_comment_content: &[CommentContent],
     part_start_idx: usize,
 ) -> (usize, usize) {
     let mut next_line_idx = part_start_idx + 1;
@@ -348,7 +348,7 @@ fn process_doc_lines_until_impossible<'a>(
 }
 
 fn process_non_doc_lines_until_impossible(
-    lines: &Vec<&str>,
+    lines: &[&str],
     rewritten_content: &mut String,
     mut line_idx: usize,
 ) -> usize {

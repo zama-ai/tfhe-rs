@@ -14,10 +14,8 @@ pub(crate) fn catch_panic_result<F, R>(closure: F) -> Result<R, JsError>
 where
     F: FnOnce() -> Result<R, JsError>,
 {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(closure)).map_or_else(
-        |_| Err(JsError::new("Operation Failed")),
-        |inner_result| inner_result,
-    )
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(closure))
+        .unwrap_or_else(|_| Err(JsError::new("Operation Failed")))
 }
 
 pub(crate) fn catch_panic<F, R>(closure: F) -> Result<R, JsError>
