@@ -1,4 +1,4 @@
-use crate::async_::TaskGraph;
+use crate::async_::{Priority, TaskGraph};
 use crate::context::Context;
 use crate::managers::IndexedCt;
 use crate::N;
@@ -29,16 +29,16 @@ impl TaskGraph for ListOfPbs {
 
     type Result = IndexedCt;
 
-    fn init(&mut self) -> Vec<IndexedCt> {
+    fn init(&mut self) -> Vec<(Priority, IndexedCt)> {
         self.inputs
             .clone()
             .into_iter()
             .enumerate()
-            .map(|(i, ct)| IndexedCt { index: i, ct })
+            .map(|(i, ct)| (Priority(0), IndexedCt { index: i, ct }))
             .collect()
     }
 
-    fn commit_result(&mut self, result: IndexedCt) -> Vec<IndexedCt> {
+    fn commit_result(&mut self, result: IndexedCt) -> Vec<(Priority, IndexedCt)> {
         self.outputs.insert(result.index, result.ct);
 
         vec![]

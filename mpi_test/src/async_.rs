@@ -1,6 +1,7 @@
 use crate::context::Context;
 use crate::managers::{advance_receiving, Receiving, Sending};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use async_priority_channel::{unbounded, Receiver, Sender};
+use futures::executor::block_on;
 use mpi::traits::*;
 use mpi::Tag;
 use serde::de::DeserializeOwned;
@@ -12,12 +13,15 @@ use threadpool::ThreadPool;
 const MASTER_TO_WORKER: Tag = 0;
 const WORKER_TO_MASTER: Tag = 1;
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Priority(pub i32);
+
 pub trait TaskGraph {
     type Task;
     type Result;
 
-    fn init(&mut self) -> Vec<Self::Task>;
-    fn commit_result(&mut self, result: Self::Result) -> Vec<Self::Task>;
+    fn init(&mut self) -> Vec<(Priority, Self::Task)>;
+    fn commit_result(&mut self, result: Self::Result) -> Vec<(Priority, Self::Task)>;
     // fn no_work_in_queue(&self) -> bool;
     fn is_finished(&self) -> bool;
 }
@@ -35,12 +39,12 @@ impl Context {
         Result: Serialize + DeserializeOwned + Send + 'static,
     >(
         &self,
-        work_graph: &mut U,
+        task_graph: &mut U,
         state: T,
         f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
     ) {
-        let (send_pbs, receive_pbs) = unbounded::<Task>();
-        let (send_result, receive_result) = unbounded::<Result>();
+        let (send_pbs, receive_pbs) = unbounded::<Task, Priority>();
+        let (send_result, receive_result) = unbounded::<Result, Priority>();
 
         let mut sent_inputs = vec![];
 
@@ -49,8 +53,8 @@ impl Context {
             charge: vec![0; self.size],
         };
 
-        for work in work_graph.init() {
-            self.enqueue_request(&mut charge, &send_pbs, work, &mut sent_inputs);
+        for (priority, task) in task_graph.init() {
+            self.enqueue_request(&mut charge, &send_pbs, priority, task, &mut sent_inputs);
         }
 
         {
@@ -79,7 +83,7 @@ impl Context {
             })
             .collect();
 
-        while !work_graph.is_finished() {
+        while !task_graph.is_finished() {
             for (i, receiver) in receivers.iter_mut().enumerate() {
                 let rank = i + 1;
                 let process = self.world.process_at_rank(rank as i32);
@@ -87,7 +91,7 @@ impl Context {
                     let result = bincode::deserialize(&buffer).unwrap();
 
                     self.handle_new_result(
-                        work_graph,
+                        task_graph,
                         result,
                         &mut charge,
                         &send_pbs,
@@ -101,11 +105,11 @@ impl Context {
                     // Some(Receiving::new(&process, WORKER_TO_MASTER)); }
                 }
             }
-            if let Ok(buffer) = receive_result.try_recv() {
+            if let Ok((buffer, _)) = receive_result.try_recv() {
                 charge.charge[self.root_rank as usize] -= 1;
 
                 self.handle_new_result(
-                    work_graph,
+                    task_graph,
                     buffer,
                     &mut charge,
                     &send_pbs,
@@ -139,30 +143,31 @@ impl Context {
 
     fn handle_new_result<U: TaskGraph>(
         &self,
-        work_graph: &mut U,
+        task_graph: &mut U,
         result: U::Result,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<U::Task>,
+        send_pbs: &Sender<U::Task, Priority>,
         sent_inputs: &mut Vec<Sending>,
     ) where
         U::Task: Serialize + DeserializeOwned,
     {
-        let new_tasks = work_graph.commit_result(result);
+        let new_tasks = task_graph.commit_result(result);
 
-        for task in new_tasks {
-            self.enqueue_request(charge, send_pbs, task, sent_inputs);
+        for (priority, task) in new_tasks {
+            self.enqueue_request(charge, send_pbs, priority, task, sent_inputs);
         }
     }
 
     fn enqueue_request<Task: Serialize + DeserializeOwned>(
         &self,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<Task>,
-        work: Task,
+        send_pbs: &Sender<Task, Priority>,
+        priority: Priority,
+        task: Task,
         sent_inputs: &mut Vec<Sending>,
     ) {
         if charge.charge[self.root_rank as usize] < charge.available_parallelism {
-            send_pbs.send(work).unwrap();
+            block_on(send_pbs.send(task, priority)).unwrap();
             charge.charge[self.root_rank as usize] += 1;
         } else {
             let rank = charge
@@ -176,9 +181,9 @@ impl Context {
             charge.charge[rank] += 1;
 
             if rank == self.root_rank as usize {
-                send_pbs.send(work).unwrap();
+                block_on(send_pbs.send(task, priority)).unwrap();
             } else {
-                let buffer = bincode::serialize(&work).unwrap();
+                let buffer = bincode::serialize(&task).unwrap();
 
                 sent_inputs.push(Sending::new(
                     buffer,
@@ -206,8 +211,8 @@ impl Context {
             bincode::serialize(&result).unwrap()
         };
 
-        let (send_pbs, receive_pbs) = unbounded::<Vec<u8>>();
-        let (send_result, receive_result) = unbounded::<Vec<u8>>();
+        let (send_pbs, receive_pbs) = unbounded::<Vec<u8>, Priority>();
+        let (send_result, receive_result) = unbounded::<Vec<u8>, Priority>();
 
         {
             let state = state.clone();
@@ -238,12 +243,12 @@ impl Context {
 
         'outer: loop {
             if let Some(input) = advance_receiving(&mut receive, &root_process, MASTER_TO_WORKER) {
-                send_pbs.send(input).unwrap();
+                block_on(send_pbs.send(input, Priority(0))).unwrap();
 
                 // handle_request(&receive_pbs, &send_result, &f, state.clone());
             }
 
-            while let Ok(output) = receive_result.try_recv() {
+            while let Ok((output, _)) = receive_result.try_recv() {
                 send.push_back(Sending::new(output, &root_process, WORKER_TO_MASTER));
             }
 
@@ -275,12 +280,18 @@ impl Context {
     }
 }
 
-fn launch_threadpool<T: Clone + Send + 'static, U: Send + 'static, V: Send + 'static>(
+fn launch_threadpool<
+    T: Clone + Send + 'static,
+    U: Send + 'static,
+    V: Send + 'static,
+    W: Send + Ord + 'static,
+    X: Send + Ord + 'static,
+>(
     priority: ThreadPriority,
     n_workers: usize,
-    receive_pbs: &Receiver<U>,
-    send_result: &Sender<V>,
-    function: impl Fn(&Receiver<U>, &Sender<V>, &T) + Send + Clone + 'static,
+    receive_pbs: &Receiver<U, W>,
+    send_result: &Sender<V, X>,
+    function: impl Fn(&Receiver<U, W>, &Sender<V, X>, &T) + Send + Clone + 'static,
     state: T,
 ) {
     let pool = ThreadPool::new(n_workers);
@@ -302,15 +313,15 @@ fn launch_threadpool<T: Clone + Send + 'static, U: Send + 'static, V: Send + 'st
     }
 }
 
-fn handle_request<T, U, V>(
-    receive_pbs: &Receiver<U>,
-    send_result: &Sender<V>,
+fn handle_request<T, U, V, W: Ord>(
+    receive_pbs: &Receiver<U, W>,
+    send_result: &Sender<V, W>,
     f: impl Fn(&T, &U) -> V,
     state: &T,
 ) {
-    let input = receive_pbs.recv().unwrap();
+    let (input, priority) = block_on(receive_pbs.recv()).unwrap();
 
     let result = f(state, &input);
 
-    send_result.send(result).unwrap();
+    block_on(send_result.send(result, priority)).unwrap();
 }

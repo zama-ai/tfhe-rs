@@ -27,3 +27,5 @@ serde = { version = "1.0", features = ["derive"] }
 petgraph = "0.6.4"
 itertools = "*"
 thread-priority = "0.15.1"
+async-priority-channel = "0.2.0"
+futures = "0.3.30"

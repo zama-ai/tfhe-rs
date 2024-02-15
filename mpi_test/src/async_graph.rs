@@ -1,4 +1,4 @@
-use crate::async_::TaskGraph;
+use crate::async_::{Priority, TaskGraph};
 use crate::context::Context;
 use mpi::traits::*;
 use petgraph::algo::is_cyclic_directed;
@@ -6,6 +6,7 @@ use petgraph::stable_graph::NodeIndex;
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::Graph;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tfhe::shortint::server_key::LookupTableOwned;
@@ -23,6 +24,8 @@ pub struct IndexedCtAndLut {
     ct: Ciphertext,
     lut: LookupTableOwned,
 }
+
+#[derive(Clone)]
 
 pub enum Node {
     Computed(shortint::Ciphertext),
@@ -50,9 +53,35 @@ impl std::fmt::Debug for Node {
 }
 
 pub struct FheGraph {
-    graph: Graph<Node, u64>,
+    graph: Graph<(Priority, Node), u64>,
     not_computed_nodes_count: usize,
     sks: Arc<ServerKey>,
+}
+
+fn insert_predecessors_recursively(
+    graph: &Graph<Node, u64>,
+    successors_max_depths: &mut HashMap<usize, i32>,
+    node_index: NodeIndex,
+) {
+    if successors_max_depths.contains_key(&node_index.index()) {
+        return;
+    }
+
+    if graph
+        .neighbors_directed(node_index, Outgoing)
+        .all(|successor| successors_max_depths.contains_key(&successor.index()))
+    {
+        let max_successors_depth = graph
+            .neighbors_directed(node_index, Outgoing)
+            .map(|successor| successors_max_depths[&successor.index()])
+            .max();
+
+        successors_max_depths.insert(node_index.index(), max_successors_depth.unwrap_or(0) + 1);
+
+        for prdecessor in graph.neighbors_directed(node_index, Incoming) {
+            insert_predecessors_recursively(graph, successors_max_depths, prdecessor);
+        }
+    }
 }
 
 impl FheGraph {
@@ -62,7 +91,23 @@ impl FheGraph {
             .filter(|node| !matches!(&node, Node::Computed(_)))
             .count();
 
-        dbg!(not_computed_nodes_count);
+        let mut successors_max_depth = HashMap::new();
+
+        for node_index in graph.node_indices() {
+            if graph.edges_directed(node_index, Outgoing).next().is_none() {
+                insert_predecessors_recursively(&graph, &mut successors_max_depth, node_index);
+            }
+        }
+
+        let graph = graph.map(
+            |node_index, node| {
+                (
+                    Priority(successors_max_depth[&node_index.index()]),
+                    node.clone(),
+                )
+            },
+            |_, edge| *edge,
+        );
 
         Self {
             graph,
@@ -77,12 +122,12 @@ impl FheGraph {
             if self.graph.neighbors_directed(i, Incoming).next().is_none() {
                 assert!(matches!(
                     &self.graph.node_weight(i),
-                    Some(Node::Computed(_))
+                    Some((_, Node::Computed(_)))
                 ))
             } else {
                 assert!(matches!(
                     &self.graph.node_weight(i),
-                    Some(Node::ToCompute { .. })
+                    Some((_, Node::ToCompute { .. }))
                 ))
             }
         }
@@ -95,7 +140,7 @@ impl FheGraph {
             if self.graph.neighbors_directed(i, Incoming).next().is_none() {
                 assert!(matches!(
                     &self.graph.node_weight(i),
-                    Some(Node::Computed(_))
+                    Some((_, Node::Computed(_)))
                 ))
             }
         }
@@ -105,7 +150,7 @@ impl FheGraph {
         let mut iterator = self.graph.neighbors_directed(index, Incoming);
 
         let first_predecessor_index = iterator.next().unwrap();
-        let first_predecessor = self.graph[first_predecessor_index].ct().unwrap();
+        let first_predecessor = self.graph[first_predecessor_index].1.ct().unwrap();
 
         let first_scalar = self.graph[self
             .graph
@@ -117,28 +162,31 @@ impl FheGraph {
         for predecessor_index in iterator {
             let scalar = self.graph[self.graph.find_edge(predecessor_index, index).unwrap()];
 
-            let ct = self.graph[predecessor_index].ct().unwrap();
+            let ct = self.graph[predecessor_index].1.ct().unwrap();
 
             sks.unchecked_add_scalar_mul_assign(&mut multisum_result, ct, scalar as u8);
         }
         multisum_result
     }
 
-    fn multisum_and_build_task(&mut self, index: NodeIndex) -> IndexedCtAndLut {
+    fn multisum_and_build_task(&mut self, index: NodeIndex) -> (Priority, IndexedCtAndLut) {
         let multisum_result = self.compute_multisum(index, &self.sks);
 
         let lut = match self.graph.node_weight(index) {
-            Some(Node::ToCompute { lookup_table }) => lookup_table.to_owned(),
+            Some((_, Node::ToCompute { lookup_table })) => lookup_table.to_owned(),
             _ => unreachable!(),
         };
 
-        *self.graph.node_weight_mut(index).unwrap() = Node::BootsrapQueued;
+        self.graph.node_weight_mut(index).unwrap().1 = Node::BootsrapQueued;
 
-        IndexedCtAndLut {
-            index: index.index(),
-            ct: multisum_result,
-            lut,
-        }
+        (
+            Priority(0),
+            IndexedCtAndLut {
+                index: index.index(),
+                ct: multisum_result,
+                lut,
+            },
+        )
     }
 }
 
@@ -147,7 +195,7 @@ impl TaskGraph for FheGraph {
 
     type Result = IndexedCt;
 
-    fn init(&mut self) -> Vec<IndexedCtAndLut> {
+    fn init(&mut self) -> Vec<(Priority, IndexedCtAndLut)> {
         self.test_graph_init();
 
         let nodes_to_compute: Vec<_> = self
@@ -155,14 +203,14 @@ impl TaskGraph for FheGraph {
             .node_indices()
             .filter(|&i| {
                 let to_compute =
-                    matches!(self.graph.node_weight(i).unwrap(), Node::ToCompute { .. });
+                    matches!(self.graph.node_weight(i).unwrap().1, Node::ToCompute { .. });
 
                 let all_predecessors_computed =
                     self.graph
                         .neighbors_directed(i, Incoming)
                         .all(|predecessor| {
                             matches!(
-                                self.graph.node_weight(predecessor).unwrap(),
+                                self.graph.node_weight(predecessor).unwrap().1,
                                 Node::Computed(_)
                             )
                         });
@@ -177,7 +225,7 @@ impl TaskGraph for FheGraph {
             .collect()
     }
 
-    fn commit_result(&mut self, result: IndexedCt) -> Vec<IndexedCtAndLut> {
+    fn commit_result(&mut self, result: IndexedCt) -> Vec<(Priority, IndexedCtAndLut)> {
         self.not_computed_nodes_count -= 1;
 
         // dbg!(self.not_computed_nodes_count);
@@ -188,15 +236,15 @@ impl TaskGraph for FheGraph {
 
         let node_mut = self.graph.node_weight_mut(index).unwrap();
 
-        assert!(matches!(node_mut, Node::BootsrapQueued));
-        *node_mut = Node::Computed(ct);
+        assert!(matches!(node_mut.1, Node::BootsrapQueued));
+        node_mut.1 = Node::Computed(ct);
 
         let nodes_to_compute: Vec<_> = self
             .graph
             .neighbors_directed(index, Outgoing)
             .filter(|&i| {
                 assert!(matches!(
-                    self.graph.node_weight(i).unwrap(),
+                    self.graph.node_weight(i).unwrap().1,
                     Node::ToCompute { .. }
                 ));
 
@@ -205,7 +253,7 @@ impl TaskGraph for FheGraph {
                         .neighbors_directed(i, Incoming)
                         .all(|predecessor| {
                             matches!(
-                                self.graph.node_weight(predecessor).unwrap(),
+                                self.graph.node_weight(predecessor).unwrap().1,
                                 Node::Computed(_)
                             )
                         });
@@ -250,7 +298,10 @@ impl Context {
 
         let duration = start.elapsed();
 
-        (graph.graph, duration)
+        (
+            graph.graph.map(|_, node| node.1.clone(), |_, edge| *edge),
+            duration,
+        )
     }
     pub fn async_pbs_graph_queue_worker1(&self) {
         let root_process = self.world.process_at_rank(self.root_rank);
