@@ -197,20 +197,12 @@ All operations follow the same syntax than the one described in [here](../gettin
 ### Benchmarks
 The tables below contain benchmarks for homomorphic operations running on a single V100 from AWS (p3.2xlarge machines), with the default parameters:
 
-| Operation \ Size | FheUint8  | FheUint16 | FheUint32 | FheUint64 | FheUint128 | FheUint256 |
-|------------------|-----------|-----------|-----------|-----------|------------|------------|
-| cuda_add         | 103.33 ms | 129.26 ms | 156.83 ms | 186.99 ms | 320.96 ms  | 528.15 ms  |
-| cuda_bitand      | 26.11 ms  | 26.21 ms  | 26.63 ms  | 27.24 ms  | 43.07 ms   | 65.01 ms   |
-| cuda_bitor       | 26.1 ms   | 26.21 ms  | 26.57 ms  | 27.23 ms  | 43.05 ms   | 65.0 ms    |
-| cuda_bitxor      | 26.08 ms  | 26.21 ms  | 26.57 ms  | 27.25 ms  | 43.06 ms   | 65.07 ms   |
-| cuda_eq          | 52.82 ms  | 53.0 ms   | 79.4 ms   | 79.58 ms  | 96.37 ms   | 145.25 ms  |
-| cuda_ge          | 104.7 ms  | 130.23 ms | 156.19 ms | 183.2 ms  | 213.43 ms  | 288.76 ms  |
-| cuda_gt          | 104.93 ms | 130.2 ms  | 156.33 ms | 183.38 ms | 213.47 ms  | 288.8 ms   |
-| cuda_le          | 105.14 ms | 130.47 ms | 156.48 ms | 183.44 ms | 213.33 ms  | 288.75 ms  |
-| cuda_lt          | 104.73 ms | 130.23 ms | 156.2 ms  | 183.14 ms | 213.33 ms  | 288.74 ms  |
-| cuda_max         | 156.7 ms  | 182.65 ms | 210.74 ms | 251.78 ms | 316.9 ms   | 442.71 ms  |
-| cuda_min         | 156.85 ms | 182.67 ms | 210.39 ms | 252.02 ms | 316.96 ms  | 442.95 ms  |
-| cuda_mul         | 219.73 ms | 302.11 ms | 465.91 ms | 955.66 ms | 2.71 s     | 9.15 s     |
-| cuda_ne          | 52.72 ms  | 52.91 ms  | 79.28 ms  | 79.59 ms  | 96.37 ms   | 145.36 ms  |
-| cuda_neg         | 103.26 ms | 129.4 ms  | 157.19 ms | 187.09 ms | 321.27 ms  | 530.11 ms  |
-| cuda_sub         | 103.34 ms | 129.42 ms | 156.87 ms | 187.01 ms | 321.04 ms  | 528.13 ms  |
+| Operation \ Size                      | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
+|---------------------------------------|------------|-------------|-------------|-------------|--------------|--------------|
+| Negation (`-`)                        | 46.2 ms    | 63.3 ms     | 85.1 ms     | 114 ms      | 201 ms       | 366 ms       |
+| Add / Sub (`+`,`-`)                   | 46.2 ms    | 63.3 ms     | 84.9 ms     | 114 ms      | 201 ms       | 366 ms       |
+| Mul (`x`)                             | 102 ms     | 163 ms      | 296 ms      | 743 ms      | 2.4 s        | 8.67 s       |
+| Equal / Not Equal (`eq`, `ne`)        | 26.7 ms    | 29.2 ms     | 43.8 ms     | 51.7 ms     | 70.5 ms      | 119 ms       |
+| Comparisons  (`ge`, `gt`, `le`, `lt`) | 50.7 ms    | 63.7 ms     | 82.6 ms     | 106 ms      | 141 ms       | 214 ms       |
+| Max / Min   (`max`,`min`)             | 76.0 ms    | 92.9 ms     | 117 ms      | 154 ms      | 222 ms       | 349 ms       |
+| Bitwise operations (`&`, `\|`, `^`)   | 12.3 ms    | 14.2 ms     | 15.9 ms     | 18.9 ms     | 30.1 ms      | 50.2 ms      |
