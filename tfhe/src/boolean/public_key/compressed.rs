@@ -145,9 +145,9 @@ mod tests {
         PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
     };
     use crate::boolean::random_boolean;
-    #[cfg(not(feature = "__coverage"))]
+    #[cfg(not(tarpaulin))]
     const NB_TESTS: usize = 32;
-    #[cfg(feature = "__coverage")]
+    #[cfg(tarpaulin)]
     const NB_TESTS: usize = 1;
 
     #[test]
@@ -155,7 +155,7 @@ mod tests {
         test_compressed_public_key(DEFAULT_PARAMETERS);
     }
 
-    #[cfg(not(feature = "__coverage"))]
+    #[cfg(not(tarpaulin))]
     #[test]
     fn test_compressed_public_key_tfhe_lib_parameters() {
         test_compressed_public_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);

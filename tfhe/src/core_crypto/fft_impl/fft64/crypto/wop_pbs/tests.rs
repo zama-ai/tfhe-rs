@@ -22,14 +22,14 @@ use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut, StackReq};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 // Tests take about 2-3 seconds on a laptop with this number
 const NB_TESTS: usize = 32;
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS_LIGHT: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS_LIGHT: usize = 1;
 
 pub fn generate_keys<
@@ -802,9 +802,9 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
     // We are going to encrypt 10 bits
     let number_of_input_bits: usize = 10;
 
-    #[cfg(not(feature = "__coverage"))]
+    #[cfg(not(tarpaulin))]
     const SIZE: usize = 10;
-    #[cfg(feature = "__coverage")]
+    #[cfg(tarpaulin)]
     const SIZE: usize = 1;
 
     // Test on 610, binary representation 10011 00010

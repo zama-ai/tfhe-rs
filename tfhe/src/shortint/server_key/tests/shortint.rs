@@ -6,29 +6,29 @@ use paste::paste;
 use rand::Rng;
 
 /// Number of assert in randomized tests
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 200;
 /// Number of iterations in randomized tests for smart operations
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS_SMART: usize = 10;
 /// Number of sub tests used to increase degree of ciphertexts
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_SUB_TEST_SMART: usize = 40;
 
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 /// Number of iterations in randomized tests for smart operations
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS_SMART: usize = 1;
 // This constant is tailored to trigger a message extract during operation processing.
 // It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_SUB_TEST_SMART: usize = 5;
 
 // Macro to generate tests for all parameter sets
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -82,7 +82,7 @@ macro_rules! create_parametrized_test{
 }
 
 // Test against a small subset of parameters to speed up coverage tests
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -105,7 +105,7 @@ macro_rules! create_parametrized_test{
 }
 
 //Macro to generate tests for parameters sets compatible with the bivariate pbs
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -147,7 +147,7 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
 }
 
 // Test against a small subset of parameters to speed up coverage tests
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 macro_rules! create_parametrized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -220,19 +220,19 @@ create_parametrized_test!(shortint_trivial_pbs_many_lut);
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
 // 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 #[test]
 fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
     shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 }
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
     shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 }
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
     shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS);

@@ -3,14 +3,14 @@ use crate::core_crypto::keycache::KeyCacheAccess;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 // Divided by two compared to other tests, we are running the algorithm twice for determinism
 const NB_TESTS_LIGHT: usize = 5;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS_LIGHT: usize = 1;
 
 pub fn generate_keys<
@@ -169,7 +169,7 @@ where
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -297,7 +297,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -400,7 +400,7 @@ where
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -528,7 +528,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }

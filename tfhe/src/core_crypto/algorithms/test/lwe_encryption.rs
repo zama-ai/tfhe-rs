@@ -2,9 +2,9 @@ use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::test_tools;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + Sync + Send>(
@@ -195,7 +195,7 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -249,7 +249,7 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -302,7 +302,7 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -352,7 +352,7 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -423,7 +423,7 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -494,7 +494,7 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -560,7 +560,7 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -635,7 +635,7 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -718,7 +718,7 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -784,7 +784,7 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -845,7 +845,7 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -982,7 +982,7 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
