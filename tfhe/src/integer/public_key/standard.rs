@@ -5,6 +5,7 @@ use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::integer::public_key::compressed::CompressedPublicKey;
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -79,7 +80,9 @@ impl PublicKey {
     }
 
     pub fn encrypt_bool(&self, message: bool) -> BooleanBlock {
-        BooleanBlock::new_unchecked(self.key.encrypt(u64::from(message)))
+        let mut ciphertext = self.key.encrypt(u64::from(message));
+        ciphertext.degree = Degree::new(1);
+        BooleanBlock::new_unchecked(ciphertext)
     }
 
     pub fn encrypt_radix_without_padding(
