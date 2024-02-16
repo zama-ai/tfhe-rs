@@ -11,9 +11,9 @@ use crate::core_crypto::commons::test_tools::new_secret_random_generator;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::CastFrom;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<

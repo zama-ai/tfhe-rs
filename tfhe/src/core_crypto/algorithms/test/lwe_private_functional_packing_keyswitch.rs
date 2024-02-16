@@ -1,8 +1,8 @@
 use super::*;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(

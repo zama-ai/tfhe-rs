@@ -5,9 +5,9 @@ use crate::core_crypto::commons::generators::{
 };
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 fn test_seeded_lwe_cpk_gen_equivalence<Scalar: UnsignedTorus>(

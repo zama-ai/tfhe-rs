@@ -128,7 +128,6 @@ generator_aarch64_aes = ["concrete-csprng/generator_aarch64_aes"]
 
 # Private features
 __profiling = []
-__coverage = []
 
 seeder_unix = ["concrete-csprng/seeder_unix"]
 seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]

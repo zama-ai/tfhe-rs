@@ -11,7 +11,7 @@ use rand::Rng;
 
 const NB_TESTS: usize = 1;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
         paste! {
@@ -34,7 +34,7 @@ macro_rules! create_parametrized_test{
     };
 }
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
         paste! {
@@ -58,7 +58,7 @@ macro_rules! create_parametrized_wopbs_only_test{
 }
 
 // Test against a small subset of parameters to speed up coverage tests
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 macro_rules! create_parametrized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
         paste! {
@@ -78,7 +78,7 @@ macro_rules! create_parametrized_test{
     };
 }
 
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 macro_rules! create_parametrized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
         paste! {
@@ -100,7 +100,7 @@ macro_rules! create_parametrized_wopbs_only_test{
 
 create_parametrized_test!(generate_lut);
 create_parametrized_test!(generate_lut_modulus);
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 create_parametrized_wopbs_only_test!(generate_lut_modulus_not_power_of_two);
 
 fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
@@ -152,7 +152,7 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // Coverage time is taking to long due to key generation (around 400s)
 // Keycache cannot be applied without turning the test into a flaky one.
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
     let (cks, sks) = gen_keys(params);
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);

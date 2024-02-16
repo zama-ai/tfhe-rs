@@ -1,8 +1,8 @@
 use super::*;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 fn glwe_encrypt_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
@@ -66,7 +66,7 @@ fn glwe_encrypt_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -136,7 +136,7 @@ fn glwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -212,7 +212,7 @@ fn glwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTe
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -277,7 +277,7 @@ fn glwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -335,7 +335,7 @@ fn glwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -417,7 +417,7 @@ fn glwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -498,7 +498,7 @@ fn glwe_seeded_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }

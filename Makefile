@@ -370,13 +370,13 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage \
+		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache \
 		-p $(TFHE_SPEC) -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage,$(AVX512_FEATURE) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,$(AVX512_FEATURE) \
 			-p $(TFHE_SPEC) -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
@@ -407,7 +407,7 @@ test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
-		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,__coverage \
+		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache \
 		-p $(TFHE_SPEC) -- -Z unstable-options --report-time boolean::
 
 .PHONY: test_c_api_rs # Run the rust tests for the C API
@@ -452,7 +452,7 @@ test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
-		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage \
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
 		-p $(TFHE_SPEC) -- -Z unstable-options --report-time shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci

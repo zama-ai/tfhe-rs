@@ -5,23 +5,23 @@ use paste::paste;
 use rand::Rng;
 
 /// Number of assert in randomized tests
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 30;
 /// Number of sub tests used to increase degree of ciphertexts
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_SUB_TEST: usize = 40;
 
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 // This constant is tailored to trigger a message extract during operation processing.
 // It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_SUB_TEST: usize = 5;
 
 // Macro to generate tests for all parameter sets
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -97,7 +97,7 @@ macro_rules! create_parametrized_test{
 }
 
 // Test against a small subset of parameters to speed up coverage tests
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {

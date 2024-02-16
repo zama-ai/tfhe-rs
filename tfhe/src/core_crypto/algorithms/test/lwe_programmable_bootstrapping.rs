@@ -3,9 +3,9 @@ use crate::core_crypto::keycache::KeyCacheAccess;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(feature = "__coverage"))]
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(feature = "__coverage")]
+#[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
 pub fn generate_keys<
@@ -158,7 +158,7 @@ where
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -365,7 +365,7 @@ where
 
             // In coverage, we break after one while loop iteration, changing message values does
             // not yield higher coverage
-            #[cfg(feature = "__coverage")]
+            #[cfg(tarpaulin)]
             break;
         }
     }
@@ -519,7 +519,7 @@ where
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
