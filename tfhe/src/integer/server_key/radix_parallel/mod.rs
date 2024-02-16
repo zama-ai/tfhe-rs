@@ -19,6 +19,7 @@ mod scalar_sub;
 mod shift;
 pub(crate) mod sub;
 
+mod ilog2;
 #[cfg(test)]
 pub(crate) mod tests_cases_comparisons;
 #[cfg(test)]
