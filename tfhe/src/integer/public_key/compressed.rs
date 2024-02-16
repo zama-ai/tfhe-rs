@@ -3,6 +3,7 @@ use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::MessageModulus;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -86,7 +87,9 @@ impl CompressedPublicKey {
     }
 
     pub fn encrypt_bool(&self, message: bool) -> BooleanBlock {
-        BooleanBlock::new_unchecked(self.key.encrypt(u64::from(message)))
+        let mut ciphertext = self.key.encrypt(u64::from(message));
+        ciphertext.degree = Degree::new(1);
+        BooleanBlock::new_unchecked(ciphertext)
     }
 
     pub fn encrypt_radix_without_padding(

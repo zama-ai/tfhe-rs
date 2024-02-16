@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 
 /// Number of loop iteration within randomized tests
-const NB_TESTS: usize = 30;
+pub(crate) const NB_TESTS: usize = 30;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive

@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
+use crate::shortint::ciphertext::Degree;
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
@@ -507,7 +508,9 @@ impl ClientKey {
     /// assert_eq!(dec, 0);
     /// ```
     pub fn encrypt_bool(&self, msg: bool) -> BooleanBlock {
-        BooleanBlock::new_unchecked(self.encrypt_one_block(u64::from(msg)))
+        let mut block = self.encrypt_one_block(u64::from(msg));
+        block.degree = Degree::new(1);
+        BooleanBlock::new_unchecked(block)
     }
 
     /// Decrypts one block.
