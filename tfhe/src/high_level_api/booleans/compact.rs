@@ -7,6 +7,7 @@ use crate::integer::parameters::{
 };
 use crate::integer::BooleanBlock;
 use crate::named::Named;
+use crate::shortint::ciphertext::Degree;
 use crate::CompactPublicKey;
 
 /// Compact [FheBool]
@@ -45,7 +46,8 @@ impl CompactFheBool {
     pub fn expand(&self) -> FheBool {
         let ct: crate::integer::RadixCiphertext = self.list.expand_one();
         assert_eq!(ct.blocks.len(), 1);
-        let block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
+        let mut block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
+        block.0.degree = Degree::new(1);
         FheBool::new(block)
     }
 }
@@ -127,7 +129,8 @@ impl CompactFheBoolList {
             .into_iter()
             .map(|ct: crate::integer::RadixCiphertext| {
                 assert_eq!(ct.blocks.len(), 1);
-                let block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
+                let mut block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
+                block.0.degree = Degree::new(1);
                 FheBool::new(block)
             })
             .collect::<Vec<_>>()
