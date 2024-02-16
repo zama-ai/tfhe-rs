@@ -3,15 +3,15 @@ use tfhe::boolean;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK, KEY_CACHE_WOPBS};
+#[cfg(tarpaulin)]
+use tfhe::shortint::parameters::coverage_parameters::{
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS, COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
+    COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+};
 use tfhe::shortint::parameters::key_switching::{
     ShortintKeySwitchingParameters, PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
-};
-use tfhe::shortint::parameters::multi_bit::{
-    MultiBitPBSParameters, PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-};
-use tfhe::shortint::parameters::parameters_compact_pk::{
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
     WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -22,6 +22,7 @@ use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
+use tfhe::shortint::MultiBitPBSParameters;
 
 fn client_server_keys() {
     let matches = Command::new("test key gen")
@@ -45,28 +46,28 @@ fn client_server_keys() {
     // additions
     let multi_bit_only: bool = matches.get_flag("multi_bit_only");
     let coverage_only: bool = matches.get_flag("coverage_only");
-
     if multi_bit_only {
         generate_pbs_multi_bit_keys(&ALL_MULTI_BIT_PARAMETER_VEC);
     } else if coverage_only {
         println!("Generating keys (ClientKey, ServerKey) for coverage");
 
-        const PBS_PARAMS: [ClassicPBSParameters; 5] = [
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-        ];
+        #[cfg(tarpaulin)]
+        {
+            const PBS_PARAMS: [ClassicPBSParameters; 5] = [
+                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,
+                COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
+                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+                COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            ];
 
-        generate_pbs_keys(&PBS_PARAMS);
+            generate_pbs_keys(&PBS_PARAMS);
 
-        const MULTI_BIT_PARAMS: [MultiBitPBSParameters; 2] = [
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-        ];
+            const MULTI_BIT_PARAMS: [MultiBitPBSParameters; 1] =
+                [COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS];
 
-        generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
+            generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
+        }
 
         const KSK_PARAMS: [(
             ClassicPBSParameters,

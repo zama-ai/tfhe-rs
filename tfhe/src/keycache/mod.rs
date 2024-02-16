@@ -33,12 +33,18 @@ pub mod utils {
             )*
         };
 
-        ($param_type:ty => $($const_param:ident),* $(,)? ) => {
-            named_params_impl!(expose $($const_param),*);
+        ($param_type:ty => $($(#[$cfg:meta])? $const_param:ident),* $(,)? ) => {
+            $(
+                $(#[$cfg])?
+                named_params_impl!(expose $const_param);
+            )*
 
             impl NamedParam for $param_type {
                 fn name(&self) -> String {
-                    named_params_impl!({*self; $param_type} == ( $($const_param),* ));
+                    $(
+                       $(#[$cfg])?
+                        named_params_impl!({*self; $param_type} == ( $const_param ));
+                    )*
                     panic!("Unnamed parameters");
                 }
             }
