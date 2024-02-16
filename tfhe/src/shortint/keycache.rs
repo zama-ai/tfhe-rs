@@ -1,5 +1,7 @@
 use crate::keycache::*;
 use crate::named_params_impl;
+#[cfg(tarpaulin)]
+use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::*;
 use crate::shortint::parameters::multi_bit::*;
 use crate::shortint::parameters::parameters_compact_pk::*;
@@ -238,6 +240,19 @@ named_params_impl!( ShortintParameterSet =>
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6_KS_PBS,
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7_KS_PBS,
     WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8_KS_PBS,
+    // Coverage
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    #[cfg(tarpaulin)]
+    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
 );
 
 impl NamedParam for ClassicPBSParameters {

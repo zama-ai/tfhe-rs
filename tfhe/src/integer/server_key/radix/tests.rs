@@ -1,6 +1,8 @@
 use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
+#[cfg(tarpaulin)]
+use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
@@ -9,12 +11,24 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 
 /// Number of loop iteration within randomized tests
+#[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS: usize = 30;
-
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
+#[cfg(not(tarpaulin))]
 const NB_TESTS_SMALLER: usize = 10;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS: usize = 1;
+#[cfg(tarpaulin)]
+const NB_TESTS_SMALLER: usize = 1;
+
+#[cfg(not(tarpaulin))]
 const NB_CTXT: usize = 4;
+#[cfg(tarpaulin)]
+const NB_CTXT: usize = 2;
 
 create_parametrized_test!(integer_encrypt_decrypt);
 create_parametrized_test!(integer_encrypt_decrypt_128_bits);
@@ -23,15 +37,20 @@ create_parametrized_test!(integer_encrypt_decrypt_256_bits_specific_values);
 create_parametrized_test!(integer_encrypt_decrypt_256_bits);
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_smart_add);
-create_parametrized_test! {
+create_parametrized_test!(
     integer_smart_add_128_bits {
-        // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
-        // suite
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+        },
+        no_coverage => {
+            // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
+            // suite
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        }
     }
-}
+);
 create_parametrized_test!(integer_unchecked_bitand);
 create_parametrized_test!(integer_unchecked_bitor);
 create_parametrized_test!(integer_unchecked_bitxor);
@@ -49,6 +68,7 @@ create_parametrized_test!(integer_unchecked_neg);
 create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_unchecked_sub);
 create_parametrized_test!(integer_smart_sub);
+#[cfg(not(tarpaulin))]
 create_parametrized_test!(integer_default_overflowing_sub);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
@@ -61,13 +81,22 @@ create_parametrized_test!(integer_unchecked_scalar_sub);
 create_parametrized_test!(integer_unchecked_scalar_add);
 
 create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
-create_parametrized_test!(integer_full_propagate {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS
-});
+
+create_parametrized_test!(
+    integer_full_propagate {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
+        },
+        no_coverage => {
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS
+        }
+    }
+);
 
 create_parametrized_test!(integer_create_trivial_min_max);
 create_parametrized_test!(integer_signed_decryption_correctly_sign_extend);
@@ -1100,6 +1129,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 }
 
 #[test]
+#[cfg(not(tarpaulin))]
 fn integer_smart_scalar_mul_decomposition_overflow() {
     // This is a regression test. The purpose here is to check if the number of decomposition
     // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.

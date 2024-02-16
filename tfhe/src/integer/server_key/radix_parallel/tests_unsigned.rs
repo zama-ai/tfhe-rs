@@ -1,5 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+#[cfg(tarpaulin)]
+use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
@@ -9,119 +11,224 @@ use super::tests_cases_unsigned::*;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-const NB_TESTS_SMALLER: usize = 10;
-const NB_CTXT: usize = 4;
+#[cfg(not(tarpaulin))]
+pub(crate) const NB_TESTS_SMALLER: usize = 10;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS_SMALLER: usize = 1;
+
+#[cfg(not(tarpaulin))]
+pub(crate) const NB_CTXT: usize = 4;
+#[cfg(tarpaulin)]
+pub(crate) const NB_CTXT: usize = 2;
 
 macro_rules! create_parametrized_test{
-    ($name:ident { $($param:ident),* }) => {
+    (
+        $name:ident {
+            $($(#[$cfg:meta])* $param:ident),*
+            $(,)?
+        }
+    ) => {
         paste! {
             $(
-            #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
-            }
+                #[test]
+                $(#[$cfg])*
+                fn [<test_ $name _ $param:lower>]() {
+                    $name($param)
+                }
             )*
         }
     };
      ($name:ident)=> {
         create_parametrized_test!($name
         {
+            #[cfg(not(tarpaulin))]
             PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+            #[cfg(not(tarpaulin))]
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+            #[cfg(tarpaulin)]
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            #[cfg(tarpaulin)]
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
         });
+    };
+
+    ($name:ident { coverage => {$($param_cover:ident),* $(,)?}, no_coverage => {$($param_no_cover:ident),* $(,)?} }) => {
+        ::paste::paste! {
+            $(
+                #[test]
+                #[cfg(tarpaulin)]
+                fn [<test_ $name _ $param_cover:lower>]() {
+                    $name($param_cover)
+                }
+            )*
+            $(
+                #[test]
+                #[cfg(not(tarpaulin))]
+                fn [<test_ $name _ $param_no_cover:lower>]() {
+                    $name($param_no_cover)
+                }
+            )*
+        }
     };
 }
 
-create_parametrized_test!(integer_smart_div_rem {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_smart_div {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_smart_rem {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_default_div_rem {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_default_rem {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_default_div {
-    // Due to the use of comparison,
-    // this algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_smart_div_rem {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_smart_div {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_smart_rem {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_default_div_rem {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_default_rem {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_default_div {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // Due to the use of comparison,
+            // this algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(integer_default_add_work_efficient {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_default_add_work_efficient {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
@@ -135,15 +242,29 @@ create_parametrized_test!(integer_default_scalar_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_default_small_scalar_mul);
-create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS
-});
+create_parametrized_test!(
+    integer_smart_scalar_mul_u128_fix_non_reg_test {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        },
+        no_coverage => {
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        }
+    }
+);
 create_parametrized_test!(integer_unchecked_mul_corner_cases);
 create_parametrized_test!(integer_unchecked_scalar_mul_corner_cases);
-create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS
-});
+create_parametrized_test!(
+    integer_default_scalar_mul_u128_fix_non_reg_test {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        },
+        no_coverage => {
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        }
+    }
+);
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
 // scalar left/right shifts
@@ -152,47 +273,79 @@ create_parametrized_test!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
 create_parametrized_test!(integer_default_scalar_right_shift);
 // left/right shifts
-create_parametrized_test!(integer_unchecked_left_shift {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_unchecked_right_shift {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_unchecked_left_shift {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_unchecked_right_shift {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 // left/right rotations
-create_parametrized_test!(integer_unchecked_rotate_left {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-create_parametrized_test!(integer_unchecked_rotate_right {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_unchecked_rotate_left {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
+create_parametrized_test!(
+    integer_unchecked_rotate_right {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 // left/right rotations
 create_parametrized_test!(integer_unchecked_scalar_rotate_right);
 create_parametrized_test!(integer_unchecked_scalar_rotate_left);
@@ -204,16 +357,24 @@ create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_default_sub);
 create_parametrized_test!(integer_default_overflowing_sub);
-create_parametrized_test!(integer_default_sub_work_efficient {
-    // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_default_sub_work_efficient {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            // This algorithm requires 3 bits
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 create_parametrized_test!(integer_default_scalar_div_rem);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
@@ -250,17 +411,26 @@ create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_mul);
 
 create_parametrized_test!(integer_unchecked_add_assign);
-create_parametrized_test!(integer_full_propagate {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
+create_parametrized_test!(
+    integer_full_propagate {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+        }
+    }
+);
 
 /// The function executor for cpu server key
 ///
@@ -1047,6 +1217,7 @@ where
 }
 
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
     let (client_key, server_key) =

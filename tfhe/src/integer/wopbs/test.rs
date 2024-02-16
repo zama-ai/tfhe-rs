@@ -13,16 +13,26 @@ use std::cmp::max;
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use paste::paste;
 
+#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(tarpaulin)]
+const NB_TESTS: usize = 1;
 
-macro_rules! create_parametrized_test{
-    ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
-        paste! {
+macro_rules! create_parametrized_test{    (
+        $name:ident {
+            $($(#[$cfg:meta])* ($sks_param:ident, $wopbs_param:ident)),*
+            $(,)?
+        }
+    ) => {
+        ::paste::paste! {
             $(
-            #[test]
-            fn [<test_ $name _ $wopbs_param:lower>]() {
-                $name(($sks_param, $wopbs_param))
-            }
+                #[test]
+                $(#[$cfg])*
+                fn [<test_ $name _ $wopbs_param:lower>]() {
+                    $name(($sks_param, $wopbs_param))
+                }
             )*
         }
     };
@@ -30,7 +40,9 @@ macro_rules! create_parametrized_test{
         create_parametrized_test!($name
         {
             (PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            #[cfg(not(tarpaulin))]
             (PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            #[cfg(not(tarpaulin))]
             (PARAM_MESSAGE_4_CARRY_4_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };

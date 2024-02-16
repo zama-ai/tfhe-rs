@@ -11,12 +11,24 @@ use rand::Rng;
 use std::sync::Arc;
 
 /// Number of loop iteration within randomized tests
+#[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS: usize = 30;
-
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
+#[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS_SMALLER: usize = 10;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS: usize = 1;
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS_SMALLER: usize = 1;
+
+#[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
+#[cfg(tarpaulin)]
+pub(crate) const NB_CTXT: usize = 2;
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
@@ -3932,10 +3944,13 @@ where
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
 
-    let cks = RadixClientKey::from((cks, NB_CTXT));
+    // We need at least 4 blocks to perform this test.
+    let nb_ctxt = 4.max(NB_CTXT);
+
+    let cks = RadixClientKey::from((cks, nb_ctxt));
 
     // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(nb_ctxt as u32) as u64;
 
     executor.setup(&cks, sks.clone());
 
