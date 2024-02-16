@@ -2,6 +2,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::CompressedCiphertext;
 use crate::{ClientKey, FheBool};
@@ -53,7 +54,8 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
 
     /// Creates a compressed encryption of a boolean value
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
-        let ciphertext = key.key.key.key.encrypt_compressed(u64::from(value));
+        let mut ciphertext = key.key.key.key.encrypt_compressed(u64::from(value));
+        ciphertext.degree = Degree::new(1);
         Ok(Self::new(ciphertext))
     }
 }
