@@ -422,11 +422,10 @@ where
     fn bitand(self, rhs: B) -> Self::Output {
         let ciphertext = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let inner_ct = key.pbs_key().key.bitand(
-                    self.ciphertext.on_cpu().as_ref(),
-                    rhs.borrow().ciphertext.on_cpu().as_ref(),
-                );
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                let inner_ct = key
+                    .pbs_key()
+                    .boolean_bitand(&self.ciphertext.on_cpu(), &rhs.borrow().ciphertext.on_cpu());
+                InnerBoolean::Cpu(inner_ct)
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
@@ -1245,7 +1244,7 @@ impl std::ops::Not for &FheBool {
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let mut inner = cuda_key
+                let inner = cuda_key
                     .key
                     .scalar_bitxor(&self.ciphertext.on_gpu(), 1, stream);
                 InnerBoolean::Cuda(inner)
