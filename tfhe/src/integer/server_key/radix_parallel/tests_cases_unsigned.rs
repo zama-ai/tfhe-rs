@@ -11,14 +11,14 @@ use rand::Rng;
 use std::sync::Arc;
 
 /// Number of loop iteration within randomized tests
-const NB_TESTS: usize = 30;
+pub(crate) const NB_TESTS: usize = 30;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-const NB_TESTS_SMALLER: usize = 10;
-const NB_CTXT: usize = 4;
+pub(crate) const NB_TESTS_SMALLER: usize = 10;
+pub(crate) const NB_CTXT: usize = 4;
 
-fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
+pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
 }
 
@@ -2871,6 +2871,12 @@ where
         assert_eq!(cks.decrypt::<u64>(&result), 2);
     }
 }
+
+// Re-exports to still have tests case accessible from the same location
+pub(crate) use crate::integer::server_key::radix_parallel::ilog2::tests_unsigned::{
+    default_leading_ones_test, default_leading_zeros_test, default_trailing_ones_test,
+    default_trailing_zeros_test,
+};
 
 //=============================================================================
 // Default Scalar Tests

@@ -11,10 +11,10 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-const NB_TESTS: usize = 30;
+pub(crate) const NB_TESTS: usize = 30;
 
-const NB_TESTS_SMALLER: usize = 10;
-const NB_CTXT: usize = 4;
+pub(crate) const NB_TESTS_SMALLER: usize = 10;
+pub(crate) const NB_CTXT: usize = 4;
 
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
@@ -48,7 +48,7 @@ macro_rules! create_parametrized_test{
 //     Helper functions
 //================================================================================
 
-fn signed_add_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+pub(crate) fn signed_add_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
     signed_overflowing_add_under_modulus(lhs, rhs, modulus).0
 }
 
@@ -341,7 +341,7 @@ fn create_iterator_of_signed_random_pairs<const N: usize>(
     izip!(lhs_values, rhs_values)
 }
 
-fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
+pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
     loop {
         let value = rng.gen::<i64>() % modulus;
         if value != 0 {
@@ -1533,6 +1533,10 @@ create_parametrized_test!(integer_signed_default_rotate_right {
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
+create_parametrized_test!(integer_signed_default_trailing_zeros);
+create_parametrized_test!(integer_signed_default_trailing_ones);
+create_parametrized_test!(integer_signed_default_leading_zeros);
+create_parametrized_test!(integer_signed_default_leading_ones);
 
 fn integer_signed_default_add<P>(param: P)
 where
@@ -2610,6 +2614,42 @@ where
             assert_eq!(ct_res, ct_res2, "Failed determinism check");
         }
     }
+}
+
+fn integer_signed_default_trailing_zeros<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_trailing_zeros_test(
+        param,
+    );
+}
+
+fn integer_signed_default_trailing_ones<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_trailing_ones_test(
+        param,
+    );
+}
+
+fn integer_signed_default_leading_zeros<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_leading_zeros_test(
+        param,
+    );
+}
+
+fn integer_signed_default_leading_ones<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_leading_ones_test(
+        param,
+    );
 }
 
 //================================================================================

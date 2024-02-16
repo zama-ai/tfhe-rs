@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
@@ -230,6 +230,10 @@ create_parametrized_test!(integer_default_overflowing_scalar_add);
 create_parametrized_test!(integer_smart_if_then_else);
 create_parametrized_test!(integer_default_if_then_else);
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
+create_parametrized_test!(integer_default_trailing_zeros);
+create_parametrized_test!(integer_default_trailing_ones);
+create_parametrized_test!(integer_default_leading_zeros);
+create_parametrized_test!(integer_default_leading_ones);
 
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_mul);
@@ -272,6 +276,21 @@ impl<F> CpuFunctionExecutor<F> {
 ///
 /// impl<F, I1, O> TestExecutor<(I,), O> for CpuTestExecutor<F>
 /// would be possible tho.
+impl<'a, F> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>
+    for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &RadixCiphertext) -> (RadixCiphertext, BooleanBlock),
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: &'a RadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
 impl<'a, F> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
 where
     F: Fn(&ServerKey, &RadixCiphertext) -> RadixCiphertext,
@@ -833,6 +852,37 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::if_then_else_parallelized);
     default_if_then_else_test(param, executor);
+}
+
+fn integer_default_trailing_zeros<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros);
+    default_trailing_zeros_test(param, executor);
+}
+fn integer_default_trailing_ones<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones);
+    default_trailing_ones_test(param, executor);
+}
+
+fn integer_default_leading_zeros<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros);
+    default_leading_zeros_test(param, executor);
+}
+
+fn integer_default_leading_ones<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones);
+    default_leading_ones_test(param, executor);
 }
 
 //=============================================================================
