@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -48,7 +49,9 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
+        let new_degree = lhs.degree.after_bitand(Degree::new(rhs as usize));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x & rhs as u64);
+        lhs.degree = new_degree;
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -108,7 +111,9 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
+        let new_degree = lhs.degree.after_bitxor(Degree::new(rhs as usize));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x ^ rhs as u64);
+        lhs.degree = new_degree;
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -167,7 +172,9 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
+        let new_degree = lhs.degree.after_bitor(Degree::new(rhs as usize));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x | rhs as u64);
+        lhs.degree = new_degree;
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]

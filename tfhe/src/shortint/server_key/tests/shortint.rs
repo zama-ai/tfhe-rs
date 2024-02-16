@@ -1,4 +1,4 @@
-use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::server_key::LookupTableOwned;
@@ -784,6 +784,7 @@ where
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_bitand(&ctxt_0, &ctxt_1);
+        assert_eq!(ct_res.degree, ctxt_0.degree.after_bitand(ctxt_1.degree));
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -817,6 +818,7 @@ where
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_bitor(&ctxt_0, &ctxt_1);
+        assert_eq!(ct_res.degree, ctxt_0.degree.after_bitor(ctxt_1.degree));
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -850,6 +852,7 @@ where
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_bitxor(&ctxt_0, &ctxt_1);
+        assert_eq!(ct_res.degree, ctxt_0.degree.after_bitxor(ctxt_1.degree));
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -877,6 +880,10 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         let ct_res = sks.unchecked_scalar_bitxor(&ctxt_0, clear_1 as u8);
+        assert_eq!(
+            ct_res.degree,
+            ctxt_0.degree.after_bitxor(Degree::new(clear_1 as usize))
+        );
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -902,6 +909,10 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         let ct_res = sks.unchecked_scalar_bitor(&ctxt_0, clear_1 as u8);
+        assert_eq!(
+            ct_res.degree,
+            ctxt_0.degree.after_bitor(Degree::new(clear_1 as usize))
+        );
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -928,6 +939,10 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         let ct_res = sks.unchecked_scalar_bitand(&ctxt_0, clear_1 as u8);
+        assert_eq!(
+            ct_res.degree,
+            ctxt_0.degree.after_bitand(Degree::new(clear_1 as usize))
+        );
 
         let dec_res = cks.decrypt(&ct_res);
 
