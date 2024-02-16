@@ -737,3 +737,88 @@ impl ServerKey {
         self.key.scalar_bitxor_assign(&mut boolean_block.0, 1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::integer::keycache::KEY_CACHE;
+    use crate::integer::{BooleanBlock, IntegerKeyKind};
+    use crate::shortint::ciphertext::Degree;
+    use crate::shortint::parameters::*;
+    use crate::shortint::PBSParameters;
+
+    create_parametrized_test!(boolean_bitxor);
+    create_parametrized_test!(boolean_bitor);
+    create_parametrized_test!(boolean_bitand);
+
+    const INPUT_BOOLEANS: [(bool, bool); 4] =
+        [(false, false), (false, true), (true, false), (true, true)];
+
+    fn boolean_bitxor(params: impl Into<PBSParameters>) {
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+
+        for (clear_0, clear_1) in INPUT_BOOLEANS {
+            let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));
+            let mut ctxt_1 = cks.encrypt_one_block(u64::from(clear_1));
+
+            // We encrypted boolean values, but the encrypt function
+            // does not leak that, so we force the degree
+            ctxt_0.degree = Degree::new(1);
+            ctxt_1.degree = Degree::new(1);
+
+            let ctxt_0 = BooleanBlock::new_unchecked(ctxt_0);
+            let ctxt_1 = BooleanBlock::new_unchecked(ctxt_1);
+
+            let ct_res = sks.boolean_bitxor(&ctxt_0, &ctxt_1);
+            assert_eq!(ct_res.0.degree.get(), 1);
+
+            let dec_res = cks.decrypt_bool(&ct_res);
+            assert_eq!(clear_0 ^ clear_1, dec_res);
+        }
+    }
+
+    fn boolean_bitor(params: impl Into<PBSParameters>) {
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+
+        for (clear_0, clear_1) in INPUT_BOOLEANS {
+            let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));
+            let mut ctxt_1 = cks.encrypt_one_block(u64::from(clear_1));
+
+            // We encrypted boolean values, but the encrypt function
+            // does not leak that, so we force the degree
+            ctxt_0.degree = Degree::new(1);
+            ctxt_1.degree = Degree::new(1);
+
+            let ctxt_0 = BooleanBlock::new_unchecked(ctxt_0);
+            let ctxt_1 = BooleanBlock::new_unchecked(ctxt_1);
+
+            let ct_res = sks.boolean_bitor(&ctxt_0, &ctxt_1);
+            assert_eq!(ct_res.0.degree.get(), 1);
+
+            let dec_res = cks.decrypt_bool(&ct_res);
+            assert_eq!(clear_0 | clear_1, dec_res);
+        }
+    }
+
+    fn boolean_bitand(params: impl Into<PBSParameters>) {
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+
+        for (clear_0, clear_1) in INPUT_BOOLEANS {
+            let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));
+            let mut ctxt_1 = cks.encrypt_one_block(u64::from(clear_1));
+
+            // We encrypted boolean values, but the encrypt function
+            // does not leak that, so we force the degree
+            ctxt_0.degree = Degree::new(1);
+            ctxt_1.degree = Degree::new(1);
+
+            let ctxt_0 = BooleanBlock::new_unchecked(ctxt_0);
+            let ctxt_1 = BooleanBlock::new_unchecked(ctxt_1);
+
+            let ct_res = sks.boolean_bitand(&ctxt_0, &ctxt_1);
+            assert_eq!(ct_res.0.degree.get(), 1);
+
+            let dec_res = cks.decrypt_bool(&ct_res);
+            assert_eq!(clear_0 & clear_1, dec_res);
+        }
+    }
+}
