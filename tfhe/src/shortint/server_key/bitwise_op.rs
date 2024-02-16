@@ -202,8 +202,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 & clear_2, res);
     /// ```
     pub fn unchecked_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+        let new_degree = ct_left.degree.after_bitand(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs & rhs);
-        ct_left.degree = ct_left.degree.after_bitand(ct_right.degree);
+        ct_left.degree = new_degree;
     }
 
     /// Compute bitwise AND between two ciphertexts without checks.
@@ -607,8 +608,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 ^ clear_2, res);
     /// ```
     pub fn unchecked_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+        let new_degree = ct_left.degree.after_bitxor(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs ^ rhs);
-        ct_left.degree = ct_left.degree.after_bitxor(ct_right.degree);
+        ct_left.degree = new_degree;
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.

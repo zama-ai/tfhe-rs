@@ -817,4 +817,81 @@ mod tests {
 
         assert_eq!(max_noise_level.0, 5);
     }
+
+    #[test]
+    fn degree_after_bitxor_ci_run_filter() {
+        let data = [
+            (Degree(3), Degree(3), Degree(3)),
+            (Degree(3), Degree(1), Degree(3)),
+            (Degree(1), Degree(3), Degree(3)),
+            (Degree(3), Degree(2), Degree(3)),
+            (Degree(2), Degree(3), Degree(3)),
+            (Degree(2), Degree(2), Degree(3)),
+            (Degree(2), Degree(1), Degree(3)),
+            (Degree(1), Degree(2), Degree(3)),
+            (Degree(1), Degree(1), Degree(1)),
+            (Degree(0), Degree(1), Degree(1)),
+            (Degree(0), Degree(1), Degree(1)),
+        ];
+
+        for (lhs, rhs, expected) in data {
+            let result = lhs.after_bitxor(rhs);
+            assert_eq!(
+                result, expected,
+                "For a bitxor between variables of degree {lhs:?} and {rhs:?},\
+             expected resulting degree: {expected:?}, got {result:?}"
+            );
+        }
+    }
+    #[test]
+    fn degree_after_bitor_ci_run_filter() {
+        let data = [
+            (Degree(3), Degree(3), Degree(3)),
+            (Degree(3), Degree(1), Degree(3)),
+            (Degree(1), Degree(3), Degree(3)),
+            (Degree(3), Degree(2), Degree(3)),
+            (Degree(2), Degree(3), Degree(3)),
+            (Degree(2), Degree(2), Degree(3)),
+            (Degree(2), Degree(1), Degree(3)),
+            (Degree(1), Degree(2), Degree(3)),
+            (Degree(1), Degree(1), Degree(1)),
+            (Degree(0), Degree(1), Degree(1)),
+            (Degree(0), Degree(1), Degree(1)),
+        ];
+
+        for (lhs, rhs, expected) in data {
+            let result = lhs.after_bitor(rhs);
+            assert_eq!(
+                result, expected,
+                "For a bitor between variables of degree {lhs:?} and {rhs:?},\
+             expected resulting degree: {expected:?}, got {result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn degree_after_bitand_ci_run_filter() {
+        let data = [
+            (Degree(3), Degree(3), Degree(3)),
+            (Degree(3), Degree(1), Degree(1)),
+            (Degree(1), Degree(3), Degree(1)),
+            (Degree(3), Degree(2), Degree(2)),
+            (Degree(2), Degree(3), Degree(2)),
+            (Degree(2), Degree(2), Degree(2)),
+            (Degree(2), Degree(1), Degree(1)),
+            (Degree(1), Degree(2), Degree(1)),
+            (Degree(1), Degree(1), Degree(1)),
+            (Degree(0), Degree(1), Degree(0)),
+            (Degree(0), Degree(1), Degree(0)),
+        ];
+
+        for (lhs, rhs, expected) in data {
+            let result = lhs.after_bitand(rhs);
+            assert_eq!(
+                result, expected,
+                "For a bitand between variables of degree {lhs:?} and {rhs:?},\
+             expected resulting degree: {expected:?}, got {result:?}"
+            );
+        }
+    }
 }
