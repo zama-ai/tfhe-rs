@@ -261,20 +261,33 @@ impl<'a> Comparator<'a> {
             std::mem::swap(&mut sign_blocks_2, &mut sign_blocks);
         }
 
-        let final_lut = self.server_key.key.generate_lookup_table(|x| {
-            let final_sign = reduce_two_orderings_function(x);
-            sign_result_handler_fn(final_sign)
-        });
-
-        // We don't use pack_block_assign as the offset '4' does not depend on params
-        let mut result = self.server_key.key.unchecked_scalar_mul(&sign_blocks[1], 4);
-        self.server_key
-            .key
-            .unchecked_add_assign(&mut result, &sign_blocks[0]);
-        self.server_key
-            .key
-            .apply_lookup_table_assign(&mut result, &final_lut);
-        result
+        if sign_blocks.len() == 2 {
+            let final_lut = self.server_key.key.generate_lookup_table(|x| {
+                let final_sign = reduce_two_orderings_function(x);
+                sign_result_handler_fn(final_sign)
+            });
+            // We don't use pack_block_assign as the offset '4' does not depend on params
+            let mut result = self.server_key.key.unchecked_scalar_mul(&sign_blocks[1], 4);
+            self.server_key
+                .key
+                .unchecked_add_assign(&mut result, &sign_blocks[0]);
+            self.server_key
+                .key
+                .apply_lookup_table_assign(&mut result, &final_lut);
+            result
+        } else {
+            let final_lut = self.server_key.key.generate_lookup_table(|x| {
+                // sign blocks have values in the set {0, 1, 2}
+                // here we force apply that modulus explicitely
+                // so that generate_lookup_table has the correct
+                // degree estimation
+                let final_sign = x % 3;
+                sign_result_handler_fn(final_sign)
+            });
+            self.server_key
+                .key
+                .apply_lookup_table(&sign_blocks[0], &final_lut)
+        }
     }
 
     /// Reduces a vec containing shortint blocks that encrypts a sign
@@ -322,10 +335,14 @@ impl<'a> Comparator<'a> {
                 .apply_lookup_table_assign(&mut result, &final_lut);
             result
         } else {
-            let final_lut = self
-                .server_key
-                .key
-                .generate_lookup_table(sign_result_handler_fn);
+            let final_lut = self.server_key.key.generate_lookup_table(|x| {
+                // sign blocks have values in the set {0, 1, 2}
+                // here we force apply that modulus explicitely
+                // so that generate_lookup_table has the correct
+                // degree estimation
+                let final_sign = x % 3;
+                sign_result_handler_fn(final_sign)
+            });
             self.server_key
                 .key
                 .apply_lookup_table(&sign_blocks[0], &final_lut)
