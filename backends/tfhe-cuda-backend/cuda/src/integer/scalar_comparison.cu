@@ -36,6 +36,6 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         static_cast<uint64_t *>(ksk), lwe_ciphertext_count, num_scalar_blocks);
     break;
   default:
-    PANIC("Cuda error: integer operation not supported");
+    PANIC("Cuda error: integer operation not supported")
   }
 }

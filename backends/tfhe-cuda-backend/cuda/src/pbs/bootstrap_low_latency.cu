@@ -20,7 +20,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 512:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
                                                          AmortizedDegree<512>>(
@@ -33,7 +32,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 1024:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
                                                          AmortizedDegree<1024>>(
@@ -46,7 +44,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 2048:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
                                                          AmortizedDegree<2048>>(
@@ -59,7 +56,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 4096:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
                                                          AmortizedDegree<4096>>(
@@ -72,7 +68,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 8192:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<uint64_t,
                                                          AmortizedDegree<8192>>(
@@ -85,7 +80,6 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   case 16384:
     if (verify_cuda_bootstrap_fast_low_latency_grid_size<
             uint64_t, AmortizedDegree<16384>>(glwe_dimension, level_count,
@@ -98,38 +92,11 @@ uint64_t get_buffer_size_bootstrap_low_latency_64(
       return get_buffer_size_bootstrap_low_latency<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, max_shared_memory);
-    break;
   default:
-    return 0;
-    break;
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
-}
-
-/*
- * Runs standard checks to validate the inputs
- */
-void checks_fast_bootstrap_low_latency(int glwe_dimension, int level_count,
-                                       int polynomial_size, int num_samples) {
-
-  assert((
-      "Error (GPU low latency PBS): polynomial size should be one of 256, 512, "
-      "1024, 2048, 4096, 8192, 16384",
-      polynomial_size == 256 || polynomial_size == 512 ||
-          polynomial_size == 1024 || polynomial_size == 2048 ||
-          polynomial_size == 4096 || polynomial_size == 8192 ||
-          polynomial_size == 16384));
-}
-
-/*
- * Runs standard checks to validate the inputs
- */
-void checks_bootstrap_low_latency(int nbits, int glwe_dimension,
-                                  int level_count, int base_log,
-                                  int polynomial_size, int num_samples) {
-  assert(("Error (GPU low latency PBS): base log should be <= nbits",
-          base_log <= nbits));
-  checks_fast_bootstrap_low_latency(glwe_dimension, level_count,
-                                    polynomial_size, num_samples);
 }
 
 /*
@@ -143,8 +110,6 @@ void scratch_cuda_bootstrap_low_latency_32(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-  checks_fast_bootstrap_low_latency(
-      glwe_dimension, level_count, polynomial_size, input_lwe_ciphertext_count);
 
   switch (polynomial_size) {
   case 256:
@@ -232,7 +197,9 @@ void scratch_cuda_bootstrap_low_latency_32(
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -247,9 +214,6 @@ void scratch_cuda_bootstrap_low_latency_64(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-
-  checks_fast_bootstrap_low_latency(
-      glwe_dimension, level_count, polynomial_size, input_lwe_ciphertext_count);
 
   switch (polynomial_size) {
   case 256:
@@ -351,7 +315,9 @@ void scratch_cuda_bootstrap_low_latency_64(
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -370,8 +336,9 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
 
-  checks_bootstrap_low_latency(32, glwe_dimension, level_count, base_log,
-                               polynomial_size, num_samples);
+  if (base_log > 32)
+    PANIC("Cuda error (low latency PBS): base log should be > number of bits "
+          "in the ciphertext representation (32)");
 
   switch (polynomial_size) {
   case 256:
@@ -557,7 +524,9 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           num_luts, max_shared_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -644,8 +613,9 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
-  checks_bootstrap_low_latency(64, glwe_dimension, level_count, base_log,
-                               polynomial_size, num_samples);
+  if (base_log > 64)
+    PANIC("Cuda error (low latency PBS): base log should be > number of bits "
+          "in the ciphertext representation (64)");
 
   switch (polynomial_size) {
   case 256:
@@ -829,8 +799,11 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
           static_cast<double2 *>(bootstrapping_key), pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples,
           num_luts, max_shared_memory);
-  default:
     break;
+  default:
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
