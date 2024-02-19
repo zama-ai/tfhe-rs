@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::math::random::{
-    Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb, UniformTernary,
-    UniformWithZeros,
+    Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb,
+    UniformTernary, UniformWithZeros,
 };
 use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
@@ -138,6 +138,163 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         self.0
             .try_fork(ChildrenCount(n_child), BytesPerChild(bytes_per_child))
             .map(|iter| iter.map(Self))
+    }
+
+    /// Generate a random scalar from the given distribution under the native modulus.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let random = generator.random_from_distribution::<u8, _>(Uniform);
+    /// let random = generator.random_from_distribution::<i8, _>(Uniform);
+    /// let random = generator.random_from_distribution::<u64, _>(Gaussian {
+    ///     mean: 0.0,
+    ///     std: 1.0,
+    /// });
+    /// ```
+    pub fn random_from_distribution<Scalar, D>(&mut self, distribution: D) -> Scalar
+    where
+        D: Distribution,
+        Scalar: RandomGenerable<D>,
+    {
+        Scalar::generate_one(self, distribution)
+    }
+
+    /// Generate a random unsigned integer from the given distribution under a custom modulus. This
+    /// is only supported for unsigned integers for now.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let custom_modulus = CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
+    ///
+    /// let random = generator.random_from_distribution_custom_mod::<u64, _>(Uniform, custom_modulus);
+    /// let random = generator.random_from_distribution_custom_mod::<u64, _>(
+    ///     Gaussian {
+    ///         mean: 0.0,
+    ///         std: 1.0,
+    ///     },
+    ///     custom_modulus,
+    /// );
+    /// ```
+    pub fn random_from_distribution_custom_mod<Scalar, D>(
+        &mut self,
+        distribution: D,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar
+    where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        if custom_modulus.is_native_modulus() {
+            return self.random_from_distribution(distribution);
+        }
+
+        Scalar::generate_one_custom_modulus(
+            self,
+            distribution,
+            custom_modulus.get_custom_modulus().cast_into(),
+        )
+    }
+
+    /// Generate a random scalar from the given distribution under the native modulus.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let mut random = vec![0u8; 8];
+    /// generator.fill_slice_with_random_from_distribution(&mut random, Uniform);
+    /// let mut random = vec![0i8; 8];
+    /// generator.fill_slice_with_random_from_distribution(&mut random, Uniform);
+    /// let mut random = vec![0u64; 8];
+    /// generator.fill_slice_with_random_from_distribution(
+    ///     &mut random,
+    ///     Gaussian {
+    ///         mean: 0.0,
+    ///         std: 1.0,
+    ///     },
+    /// );
+    /// ```
+    pub fn fill_slice_with_random_from_distribution<Scalar, D>(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+    ) where
+        D: Distribution,
+        Scalar: RandomGenerable<D>,
+    {
+        Scalar::fill_slice(self, distribution, output);
+    }
+
+    /// Generate a random unsigned integer from the given distribution under a custom modulus. This
+    /// is only supported for unsigned integers for now.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let custom_modulus = CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
+    ///
+    /// let mut random = vec![0u64; 8];
+    /// generator.fill_slice_with_random_from_distribution_custom_mod(
+    ///     &mut random,
+    ///     Uniform,
+    ///     custom_modulus,
+    /// );
+    /// let mut random = vec![0u64; 8];
+    /// generator.fill_slice_with_random_from_distribution_custom_mod(
+    ///     &mut random,
+    ///     Gaussian {
+    ///         mean: 0.0,
+    ///         std: 1.0,
+    ///     },
+    ///     custom_modulus,
+    /// );
+    /// ```
+    pub fn fill_slice_with_random_from_distribution_custom_mod<Scalar, D>(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        if custom_modulus.is_native_modulus() {
+            return self.fill_slice_with_random_from_distribution(output, distribution);
+        }
+
+        Scalar::fill_slice_custom_mod(
+            self,
+            distribution,
+            output,
+            custom_modulus.get_custom_modulus().cast_into(),
+        )
     }
 
     /// Generate a random uniform unsigned integer.
