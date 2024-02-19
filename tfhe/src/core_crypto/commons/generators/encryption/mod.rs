@@ -235,15 +235,15 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the slice with random uniform values, using the mask generator.
-    pub(crate) fn fill_slice_with_random_mask<Scalar>(&mut self, output: &mut [Scalar])
+    pub(crate) fn fill_slice_with_random_uniform_mask<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<Uniform>,
     {
-        self.mask.fill_slice_with_random_mask(output);
+        self.mask.fill_slice_with_random_uniform_mask(output);
     }
 
     // Fills the slice with random uniform values, using the mask generator
-    pub(crate) fn fill_slice_with_random_mask_custom_mod<Scalar>(
+    pub(crate) fn fill_slice_with_random_uniform_mask_custom_mod<Scalar>(
         &mut self,
         output: &mut [Scalar],
         ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -251,19 +251,19 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
     {
         self.mask
-            .fill_slice_with_random_mask_custom_mod(output, ciphertext_modulus);
+            .fill_slice_with_random_uniform_mask_custom_mod(output, ciphertext_modulus);
     }
 
     // Sample a noise value, using the noise generator.
-    pub(crate) fn random_noise<Scalar>(&mut self, std: impl DispersionParameter) -> Scalar
+    pub(crate) fn random_gaussian_noise<Scalar>(&mut self, std: impl DispersionParameter) -> Scalar
     where
         Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>>,
     {
-        self.noise.random_noise(std)
+        self.noise.random_gaussian_noise(std)
     }
 
     // Sample a noise value, using the noise generator.
-    pub(crate) fn random_noise_custom_mod<Scalar>(
+    pub(crate) fn random_gaussian_noise_custom_mod<Scalar>(
         &mut self,
         std: impl DispersionParameter,
         custom_modulus: CiphertextModulus<Scalar>,
@@ -271,11 +271,12 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     where
         Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
-        self.noise.random_noise_custom_mod(std, custom_modulus)
+        self.noise
+            .random_gaussian_noise_custom_mod(std, custom_modulus)
     }
 
     // Fills the input slice with random noise, using the noise generator.
-    pub(crate) fn fill_slice_with_random_noise<Scalar>(
+    pub(crate) fn fill_slice_with_random_gaussian_noise<Scalar>(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -283,11 +284,12 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         Scalar: UnsignedTorus,
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
-        self.noise.fill_slice_with_random_noise(output, std);
+        self.noise
+            .fill_slice_with_random_gaussian_noise(output, std);
     }
 
     // Fills the input slice with random noise, using the noise generator.
-    pub(crate) fn fill_slice_with_random_noise_custom_mod<Scalar>(
+    pub(crate) fn fill_slice_with_random_gaussian_noise_custom_mod<Scalar>(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -297,11 +299,11 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise
-            .fill_slice_with_random_noise_custom_mod(output, std, custom_modulus);
+            .fill_slice_with_random_gaussian_noise_custom_mod(output, std, custom_modulus);
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_torus_slice_wrapping_add_random_noise_assign<Scalar>(
+    pub(crate) fn unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign<Scalar>(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -310,11 +312,13 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
         self.noise
-            .unsigned_torus_slice_wrapping_add_random_noise_assign(output, std);
+            .unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(output, std);
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign<Scalar>(
+    pub(crate) fn unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign<
+        Scalar,
+    >(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -324,7 +328,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise
-            .unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
+            .unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
                 output,
                 std,
                 custom_modulus,

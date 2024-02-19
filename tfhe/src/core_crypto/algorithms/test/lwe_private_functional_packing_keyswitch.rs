@@ -45,7 +45,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
 
             let mut polynomial = Polynomial::new(Scalar::ZERO, output_polynomial_size);
             rsc.encryption_random_generator
-                .fill_slice_with_random_mask(polynomial.as_mut());
+                .fill_slice_with_random_uniform_mask(polynomial.as_mut());
 
             par_generate_lwe_private_functional_packing_keyswitch_key(
                 &input_lwe_secret_key,
@@ -63,7 +63,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                 ciphertext_modulus,
             );
             rsc.encryption_random_generator
-                .fill_slice_with_random_mask(random_lwe.as_mut());
+                .fill_slice_with_random_uniform_mask(random_lwe.as_mut());
 
             let mut output_glwe_serial = GlweCiphertext::new(
                 Scalar::ZERO,
@@ -147,7 +147,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
 
                 let mut polynomial = Polynomial::new(Scalar::ZERO, output_polynomial_size);
                 rsc.encryption_random_generator
-                    .fill_slice_with_random_mask(polynomial.as_mut());
+                    .fill_slice_with_random_uniform_mask(polynomial.as_mut());
 
                 par_generate_lwe_private_functional_packing_keyswitch_key(
                     &input_lwe_secret_key,
@@ -165,7 +165,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                     ciphertext_modulus,
                 );
                 rsc.encryption_random_generator
-                    .fill_slice_with_random_mask(random_lwe.as_mut());
+                    .fill_slice_with_random_uniform_mask(random_lwe.as_mut());
 
                 let mut output_glwe_serial = GlweCiphertext::new(
                     Scalar::ZERO,

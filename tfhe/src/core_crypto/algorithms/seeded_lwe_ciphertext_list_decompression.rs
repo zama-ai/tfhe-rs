@@ -53,8 +53,10 @@ pub fn decompress_seeded_lwe_ciphertext_list_with_existing_generator<
         let (mut output_mask, output_body) = lwe_out.get_mut_mask_and_body();
 
         // Generate a uniformly random mask
-        loop_generator
-            .fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+        loop_generator.fill_slice_with_random_uniform_mask_custom_mod(
+            output_mask.as_mut(),
+            ciphertext_modulus,
+        );
         match ciphertext_modulus.kind() {
             // Manage the specific encoding for non native power of 2
             CiphertextModulusKind::NonNativePowerOfTwo => {
@@ -142,8 +144,10 @@ pub fn par_decompress_seeded_lwe_ciphertext_list_with_existing_generator<
             let (mut output_mask, output_body) = lwe_out.get_mut_mask_and_body();
 
             // Generate a uniformly random mask
-            loop_generator
-                .fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+            loop_generator.fill_slice_with_random_uniform_mask_custom_mod(
+                output_mask.as_mut(),
+                ciphertext_modulus,
+            );
             match ciphertext_modulus.kind() {
                 // Manage the specific encoding for non native power of 2
                 CiphertextModulusKind::NonNativePowerOfTwo => {

@@ -39,8 +39,9 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
-    generator.unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
         output_body.as_mut(),
         noise_parameters,
         ciphertext_modulus,
@@ -254,8 +255,9 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
-    generator.fill_slice_with_random_noise_custom_mod(
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.fill_slice_with_random_gaussian_noise_custom_mod(
         output_body.as_mut(),
         noise_parameters,
         ciphertext_modulus,
