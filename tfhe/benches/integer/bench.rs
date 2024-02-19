@@ -1181,15 +1181,18 @@ define_server_key_bench_default_fn!(
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{default_scalar, shift_scalar, ParamsAndNumBlocksIter, ScalarType};
-    use crate::utilities::{write_to_json, OperatorType};
+    use super::{
+        default_scalar, gen_random_u256, shift_scalar, ParamsAndNumBlocksIter, ScalarType,
+    };
+    use crate::utilities::{write_to_json, EnvConfig, OperatorType};
     use criterion::{criterion_group, Criterion};
     use rand::prelude::*;
+    use tfhe::core_crypto::algorithms::misc::divide_ceil;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::IntegerKeyKind;
+    use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
     use tfhe::keycache::NamedParam;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(
@@ -1615,6 +1618,18 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_eq,
+        display_name: equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_ne,
+        display_name: not_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_gt,
         display_name: greater_than,
         rng_func: default_scalar
@@ -1772,6 +1787,18 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_eq,
+        display_name: equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_ne,
+        display_name: not_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_gt,
         display_name: greater_than,
         rng_func: default_scalar
@@ -1875,11 +1902,96 @@ mod cuda {
         cuda_scalar_max,
         cuda_scalar_min,
     );
+
+    fn cuda_bench_server_key_cast_function<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        cast_op: F,
+    ) where
+        F: Fn(&CudaServerKey, CudaRadixCiphertext, usize),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(30));
+        let mut rng = rand::thread_rng();
+
+        let env_config = EnvConfig::new();
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_blocks, bit_size) in ParamsAndNumBlocksIter::default() {
+            let all_num_blocks = env_config
+                .bit_sizes()
+                .iter()
+                .copied()
+                .map(|bit| divide_ceil(bit, param.message_modulus().0.ilog2() as usize))
+                .collect::<Vec<_>>();
+            let param_name = param.name();
+
+            for target_num_blocks in all_num_blocks.iter().copied() {
+                let target_bit_size =
+                    target_num_blocks * param.message_modulus().0.ilog2() as usize;
+                let bench_id =
+                    format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    let encrypt_one_value = || -> CudaRadixCiphertext {
+                        let ct = cks.encrypt_radix(gen_random_u256(&mut rng), num_blocks);
+                        CudaRadixCiphertext::from_radix_ciphertext(&ct, &stream)
+                    };
+
+                    b.iter_batched(
+                        encrypt_one_value,
+                        |ct| {
+                            cast_op(&gpu_sks, ct, target_num_blocks);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+
+                write_to_json::<u64, _>(
+                    &bench_id,
+                    param,
+                    param.name(),
+                    display_name,
+                    &OperatorType::Atomic,
+                    bit_size as u32,
+                    vec![param.message_modulus().0.ilog2(); num_blocks],
+                );
+            }
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_cast_fn (
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_cast_function(
+                    c,
+                    concat!("integer::cuda::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, lhs, rhs| {
+                        server_key.$server_key_method(lhs, rhs);
+                    })
+            }
+        }
+    );
+
+    define_cuda_server_key_bench_cast_fn!(method_name: cuda_cast_to_unsigned, display_name: cuda_cast_to_unsigned);
+
+    criterion_group!(cuda_cast_ops, cuda_cast_to_unsigned);
 }
 
 #[cfg(feature = "gpu")]
 use cuda::{
-    default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops, unchecked_scalar_cuda_ops,
+    cuda_cast_ops, default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops,
+    unchecked_scalar_cuda_ops,
 };
 
 criterion_group!(
@@ -2209,7 +2321,8 @@ fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
             default_cuda_ops();
-            default_scalar_cuda_ops()
+            default_scalar_cuda_ops();
+            cuda_cast_ops()
         }
         "unchecked" => {
             unchecked_cuda_ops();
