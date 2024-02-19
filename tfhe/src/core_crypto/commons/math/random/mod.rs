@@ -13,12 +13,13 @@
 //! implementations of this trait, for different distributions. Note, though, that instead of
 //! using the [`RandomGenerable`] methods, you should use the various methods exposed by
 //! [`RandomGenerator`] instead.
-use crate::core_crypto::commons::numeric::FloatingPoint;
+use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
 
 /// Convenience alias for the most efficient CSPRNG implementation available.
 pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
 pub use generator::*;
+pub use t_uniform::*;
 pub use uniform::*;
 pub use uniform_binary::*;
 pub use uniform_lsb::*;
@@ -32,6 +33,7 @@ mod tests;
 mod activated_random_generator;
 mod gaussian;
 mod generator;
+mod t_uniform;
 mod uniform;
 mod uniform_binary;
 mod uniform_lsb;
@@ -89,7 +91,7 @@ where
 /// A marker trait for types representing distributions.
 pub trait Distribution: seal::Sealed + Copy {}
 mod seal {
-    use crate::core_crypto::commons::numeric::FloatingPoint;
+    use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
 
     pub trait Sealed {}
     impl Sealed for super::Uniform {}
@@ -99,6 +101,7 @@ mod seal {
     impl Sealed for super::UniformBinary {}
     impl Sealed for super::UniformTernary {}
     impl<T: FloatingPoint> Sealed for super::Gaussian<T> {}
+    impl<T: UnsignedInteger> Sealed for super::TUniform<T> {}
 }
 impl Distribution for Uniform {}
 impl Distribution for UniformMsb {}
@@ -107,3 +110,4 @@ impl Distribution for UniformWithZeros {}
 impl Distribution for UniformBinary {}
 impl Distribution for UniformTernary {}
 impl<T: FloatingPoint> Distribution for Gaussian<T> {}
+impl<T: UnsignedInteger> Distribution for TUniform<T> {}

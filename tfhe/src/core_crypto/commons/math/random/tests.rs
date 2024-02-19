@@ -1,7 +1,8 @@
 use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
-use crate::core_crypto::commons::math::torus::{CastInto, UnsignedInteger, UnsignedTorus};
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable, TUniform, Uniform};
+use crate::core_crypto::commons::math::torus::UnsignedTorus;
+use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::test_tools::*;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
@@ -398,27 +399,66 @@ fn test_normal_random_add_assign_solinas_custom_mod_u64() {
     );
 }
 
-fn test_uniform_random_custom_mod<
-    Scalar: UnsignedInteger + CastInto<usize> + RandomGenerable<Uniform, CustomModulus = Scalar>,
->(
+pub trait DistributionTestHelper<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> {
+    type CreationInfos;
+
+    fn new_with_custom_modulus(
+        value: Self::CreationInfos,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self;
+
+    fn distinct_values(&self, ciphertext_modulus: CiphertextModulus<Scalar>) -> usize;
+
+    fn map_usize_to_value(
+        &self,
+        input: usize,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar;
+
+    fn map_value_to_usize(
+        &self,
+        input: Scalar,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> usize;
+
+    fn cumulative_distribution_function(
+        &self,
+        integer_value: Scalar,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> f64;
+}
+
+fn dkw_cdf_bands_width(number_of_samples: usize, confidence_interval: f64) -> f64 {
+    // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#Building_CDF_bands
+    // the true CDF is between the empirical CDF +/- this band width with probability 1 - alpha
+    // Said otherwise, the abs diff should be less than that value with high probability
+    fn dkw_cdf_bands_width_formula(sample_size: f64, alpha: f64) -> f64 {
+        f64::sqrt(f64::ln(2.0 / alpha) / (2.0 * sample_size))
+    }
+
+    // alpha = 1 - probability of being in the interval
+    dkw_cdf_bands_width_formula(number_of_samples as f64, 1.0 - confidence_interval)
+}
+
+fn test_random_from_distribution_custom_mod<Scalar, D>(
+    creation_infos: D::CreationInfos,
     ciphertext_modulus: CiphertextModulus<Scalar>,
-) {
+) where
+    D: Distribution + DistributionTestHelper<Scalar>,
+    Scalar: UnsignedInteger
+        + CastInto<usize>
+        + CastFrom<usize>
+        + RandomGenerable<D, CustomModulus = Scalar>
+        + std::hash::Hash,
+{
     assert!(
         Scalar::BITS <= usize::BITS as usize,
         "This test cannot be run for integers with more than {} bits",
         usize::BITS
     );
 
-    let distinct_values: usize = if ciphertext_modulus.is_native_modulus() {
-        assert!(
-            Scalar::BITS < usize::BITS as usize,
-            "Unable to run test for such a large modulus {ciphertext_modulus:?}, usize::MAX {}",
-            usize::MAX
-        );
-        1 << Scalar::BITS
-    } else {
-        ciphertext_modulus.get_custom_modulus().cast_into()
-    };
+    let distribution = D::new_with_custom_modulus(creation_infos, ciphertext_modulus);
+    let distinct_values = distribution.distinct_values(ciphertext_modulus);
 
     // About 105 seconds on a dev laptop for the non native u64 case
     pub const RUNS: usize = 5000;
@@ -438,9 +478,12 @@ fn test_uniform_random_custom_mod<
         // this avoids overflowing the usize
         for _ in 0..NUMBER_OF_SAMPLES_PER_VALUE {
             for _ in 0..distinct_values {
-                let uniform_random_value = rng.random_uniform_custom_mod(ciphertext_modulus);
-                let bin_idx: usize = uniform_random_value.cast_into();
-                bins[bin_idx] += 1;
+                let random_value =
+                    rng.random_from_distribution_custom_mod(distribution, ciphertext_modulus);
+                let random_value_idx =
+                    distribution.map_value_to_usize(random_value, ciphertext_modulus);
+
+                bins[random_value_idx] += 1;
             }
         }
 
@@ -450,14 +493,14 @@ fn test_uniform_random_custom_mod<
         cumulative_sums[0] = curr_sum;
 
         // Compute the cumulative sums
-        for (bin, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()).skip(1) {
-            curr_sum += bin;
+        for (bin_count, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()).skip(1) {
+            curr_sum += bin_count;
             *cum_sum = curr_sum;
         }
 
         // Inaccurate if modulus >~ 2^53 / number_of_samples_per_bin, but if that's the case your
         // memory most likely blew up before (or the universe died its heat death)
-        let number_of_samples: f64 = NUMBER_OF_SAMPLES_PER_VALUE as f64 * distinct_values as f64;
+        let number_of_samples = NUMBER_OF_SAMPLES_PER_VALUE * distinct_values;
 
         let sup_diff: f64 = cumulative_sums
             .iter()
@@ -465,10 +508,13 @@ fn test_uniform_random_custom_mod<
             .enumerate()
             .map(|(bin_idx, x)| {
                 // Compute the observed CDF
-                let empirical_cdf = x as f64 / number_of_samples;
+                let empirical_cdf = x as f64 / number_of_samples as f64;
+
+                let integer_value: Scalar =
+                    distribution.map_usize_to_value(bin_idx, ciphertext_modulus);
                 // CDF for the uniform distribution
-                let theoretical_cdf =
-                    ((bin_idx + 1) * NUMBER_OF_SAMPLES_PER_VALUE) as f64 / number_of_samples;
+                let theoretical_cdf = distribution
+                    .cumulative_distribution_function(integer_value, ciphertext_modulus);
 
                 if theoretical_cdf == 1.0 {
                     assert_eq!(empirical_cdf, 1.0);
@@ -480,15 +526,8 @@ fn test_uniform_random_custom_mod<
             .max_by(f64::total_cmp)
             .unwrap();
 
-        // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#Building_CDF_bands
-        // the true CDF is between the empirical CDF +/- this band width with probability 1 - alpha
-        // Said otherwise, the abs diff should be less than that value with high probability
-        let dkw_cdf_bands_width =
-            |sample_size: f64, alpha: f64| f64::sqrt(f64::ln(2.0 / alpha) / (2.0 * sample_size));
-
-        // alpha = 1 - probability of being in the interval
         let upper_bound_for_cdf_abs_diff =
-            dkw_cdf_bands_width(number_of_samples, 1.0 - CONFIDENCE_INTERVAL);
+            dkw_cdf_bands_width(number_of_samples, CONFIDENCE_INTERVAL);
         let distribution_ok = sup_diff <= upper_bound_for_cdf_abs_diff;
 
         if !distribution_ok {
@@ -504,17 +543,150 @@ fn test_uniform_random_custom_mod<
     );
 }
 
+impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTestHelper<Scalar>
+    for Uniform
+{
+    type CreationInfos = ();
+
+    fn new_with_custom_modulus(
+        _value: Self::CreationInfos,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        Self
+    }
+
+    fn distinct_values(&self, ciphertext_modulus: CiphertextModulus<Scalar>) -> usize {
+        let distinct_values: usize = if ciphertext_modulus.is_native_modulus() {
+            assert!(
+                Scalar::BITS <= usize::BITS as usize,
+                "Unable to run test for such a large modulus {ciphertext_modulus:?}, usize::MAX {}",
+                usize::MAX
+            );
+            1 << Scalar::BITS
+        } else {
+            ciphertext_modulus.get_custom_modulus().cast_into()
+        };
+
+        distinct_values
+    }
+
+    fn cumulative_distribution_function(
+        &self,
+        integer_value: Scalar,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> f64 {
+        // This is only valid if the smallest integer value for uniform is 0 which is currently the
+        // case
+        let value_as_usize = self.map_value_to_usize(integer_value, ciphertext_modulus);
+        let integer_f64 = (value_as_usize + 1) as f64;
+        let distinct_values_f64: f64 = self.distinct_values(ciphertext_modulus) as f64;
+
+        integer_f64 / distinct_values_f64
+    }
+
+    fn map_usize_to_value(
+        &self,
+        input: usize,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar {
+        Scalar::cast_from(input)
+    }
+
+    fn map_value_to_usize(
+        &self,
+        input: Scalar,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> usize {
+        input.cast_into()
+    }
+}
+
 // This test takes care of all bigger native types, as underneath the CSPRNG outputs bytes
 #[test]
 fn test_uniform_random_native_mod_u8() {
-    test_uniform_random_custom_mod::<u8>(CiphertextModulus::new_native());
+    let ciphertext_modulus = CiphertextModulus::new_native();
+    test_random_from_distribution_custom_mod::<u8, Uniform>((), ciphertext_modulus);
 }
 
 #[test]
 fn test_uniform_random_custom_mod_u64() {
     // Have a modulus that will generate some rejection but is relatively small to be able to test
     // quickly
-    test_uniform_random_custom_mod::<u64>(
-        CiphertextModulus::try_new((1 << 10) + (1 << 9)).unwrap(),
-    );
+    let ciphertext_modulus = CiphertextModulus::try_new((1 << 10) + (1 << 9)).unwrap();
+    test_random_from_distribution_custom_mod::<u64, Uniform>((), ciphertext_modulus);
+}
+
+impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTestHelper<Scalar>
+    for TUniform<Scalar>
+{
+    type CreationInfos = u32;
+
+    fn new_with_custom_modulus(
+        value: Self::CreationInfos,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        assert!(ciphertext_modulus.is_native_modulus());
+        Self::new(value)
+    }
+
+    fn distinct_values(&self, _ciphertext_modulus: CiphertextModulus<Scalar>) -> usize {
+        // TUniform does not support non native moduli for now
+        self.distinct_value_count()
+    }
+
+    fn cumulative_distribution_function(
+        &self,
+        integer_value: Scalar,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> f64 {
+        let max_value_inclusive = self.max_value_inclusive();
+        let integer_value_signed: Scalar::Signed = integer_value.cast_into();
+        let value_index: usize = self.map_value_to_usize(integer_value, ciphertext_modulus);
+        // CDF for the TUniform distribution
+        if integer_value_signed == max_value_inclusive {
+            1.0
+        } else {
+            2.0f64.powi(-(self.bound_log2() as i32 + 2))
+                + 2.0f64.powi(-(self.bound_log2() as i32 + 1)) * value_index as f64
+        }
+    }
+
+    fn map_usize_to_value(
+        &self,
+        input: usize,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar {
+        // Input is in [0; 2^(b + 1)]
+        let input_as_scalar = Scalar::cast_from(input);
+        // Cast to signed
+        let input_as_signed_scalar: Scalar::Signed = input_as_scalar.cast_into();
+        let min_value_inclusive = self.min_value_inclusive();
+        // This is in [-2^b; 2^b]
+        let value_as_signed = input_as_signed_scalar + min_value_inclusive;
+        Scalar::cast_from(value_as_signed)
+    }
+
+    fn map_value_to_usize(
+        &self,
+        input: Scalar,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> usize {
+        // Input is in [-2^b; 2^b]
+        let input_as_signed_scalar: Scalar::Signed = input.cast_into();
+        let min_value_inclusive = self.min_value_inclusive();
+        // This is in [0; 2^(b + 1)]
+        let index_as_signed = input_as_signed_scalar - min_value_inclusive;
+        // Re-cast to unsigned otherwise traits are annoying to deal with
+        let index_as_scalar = Scalar::cast_from(index_as_signed);
+        // Cast to usize to finish
+        index_as_scalar.cast_into()
+    }
+}
+
+#[test]
+fn test_t_uniform_random_u64() {
+    // Means the random will be in [-2048; 2048]
+    let bound_log2 = 11u32;
+    let ciphertext_modulus = CiphertextModulus::new_native();
+    test_random_from_distribution_custom_mod::<u64, TUniform<_>>(bound_log2, ciphertext_modulus);
 }
