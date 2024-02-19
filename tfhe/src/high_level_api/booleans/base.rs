@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 
+use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::booleans::compressed::CompressedFheBool;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
@@ -8,6 +9,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheEq, IfThenElse};
+use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
@@ -46,6 +48,17 @@ pub struct FheBool {
 
 impl Named for FheBool {
     const NAME: &'static str = "high_level_api::FheBool";
+}
+
+impl ParameterSetConformant for FheBool {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.ciphertext
+            .on_cpu()
+            .0
+            .is_conformant(&params.shortint_params)
+    }
 }
 
 impl From<CompressedFheBool> for FheBool {

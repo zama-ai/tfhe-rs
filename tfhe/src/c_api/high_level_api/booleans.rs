@@ -1,15 +1,42 @@
 use crate::high_level_api::prelude::*;
 
 use crate::c_api::utils::check_ptr_is_non_null_and_aligned;
-use std::ops::{BitAnd, BitOr, BitXor, Not};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 pub struct FheBool(pub(in crate::c_api) crate::high_level_api::FheBool);
 
 impl_destroy_on_type!(FheBool);
 impl_clone_on_type!(FheBool);
+impl_serialize_deserialize_on_type!(FheBool);
+impl_safe_serialize_on_type!(FheBool);
+impl_safe_deserialize_conformant_integer!(
+    FheBool,
+    crate::high_level_api::safe_deserialize_conformant
+);
 
 impl_binary_fn_on_type!(FheBool => bitand, bitor, bitxor);
+impl_binary_assign_fn_on_type!(FheBool => bitand_assign,  bitor_assign, bitxor_assign);
 impl_unary_fn_on_type!(FheBool => not);
+impl_comparison_fn_on_type!(
+    lhs_type: FheBool,
+    rhs_type: FheBool,
+    comparison_fn_names: eq, ne,
+);
+impl_scalar_binary_fn_on_type!(FheBool, bool =>
+    bitand,
+    bitor,
+    bitxor,
+);
+impl_scalar_binary_assign_fn_on_type!(FheBool, bool =>
+    bitand_assign,
+    bitor_assign,
+    bitxor_assign,
+);
+impl_scalar_comparison_fn_on_type!(
+    lhs_type: FheBool,
+    clear_type: bool,
+    comparison_fn_names: eq, ne
+);
 
 impl_decrypt_on_type!(FheBool, bool);
 impl_try_decrypt_trivial_on_type!(FheBool, bool);
@@ -23,6 +50,12 @@ pub struct CompressedFheBool(crate::high_level_api::CompressedFheBool);
 impl_destroy_on_type!(CompressedFheBool);
 impl_clone_on_type!(CompressedFheBool);
 impl_serialize_deserialize_on_type!(CompressedFheBool);
+impl_safe_serialize_on_type!(CompressedFheBool);
+impl_safe_deserialize_conformant_integer!(
+    CompressedFheBool,
+    crate::high_level_api::safe_deserialize_conformant
+);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheBool{crate::high_level_api::CompressedFheBool}, bool);
 
 #[no_mangle]
 pub unsafe extern "C" fn compressed_fhe_bool_decompress(
@@ -42,6 +75,11 @@ pub struct CompactFheBool(crate::high_level_api::CompactFheBool);
 impl_destroy_on_type!(CompactFheBool);
 impl_clone_on_type!(CompactFheBool);
 impl_serialize_deserialize_on_type!(CompactFheBool);
+impl_safe_serialize_on_type!(CompactFheBool);
+impl_safe_deserialize_conformant_integer!(
+    CompactFheBool,
+    crate::high_level_api::safe_deserialize_conformant
+);
 impl_try_encrypt_with_compact_public_key_on_type!(CompactFheBool{crate::high_level_api::CompactFheBool}, bool);
 
 #[no_mangle]
@@ -62,6 +100,8 @@ pub struct CompactFheBoolList(crate::high_level_api::CompactFheBoolList);
 impl_destroy_on_type!(CompactFheBoolList);
 impl_clone_on_type!(CompactFheBoolList);
 impl_serialize_deserialize_on_type!(CompactFheBoolList);
+impl_safe_serialize_on_type!(CompactFheBoolList);
+impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheBoolList{crate::high_level_api::CompactFheBoolList}, bool);
 
 #[no_mangle]
 pub unsafe extern "C" fn compact_fhe_bool_list_len(
