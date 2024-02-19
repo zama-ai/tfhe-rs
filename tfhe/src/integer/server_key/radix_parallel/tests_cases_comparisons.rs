@@ -22,30 +22,36 @@ fn test_unchecked_function<UncheckedFn, ClearF>(
 {
     let mut rng = rand::thread_rng();
 
-    let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_bits_per_block = param.message_modulus.0.ilog2();
+    let num_block = divide_ceil(256usize, num_bits_per_block as usize);
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    for _ in 0..num_test {
-        let clear_a = rng.gen::<U256>();
-        let clear_b = rng.gen::<U256>();
+    // Test with low number of blocks, as they take a different branches
+    // (regression tests)
+    for num_block in [num_block, 1, 2] {
+        let max = U256::MAX >> (U256::BITS - (num_block as u32 * num_bits_per_block));
+        for _ in 0..num_test {
+            let clear_a = rng.gen::<U256>() & max;
+            let clear_b = rng.gen::<U256>() & max;
 
-        let a = cks.encrypt_radix(clear_a, num_block);
-        let b = cks.encrypt_radix(clear_b, num_block);
+            let a = cks.encrypt_radix(clear_a, num_block);
+            let b = cks.encrypt_radix(clear_b, num_block);
 
-        {
-            let result = unchecked_comparison_method(&sks, &a, &b);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            let expected_result = clear_fn(clear_a, clear_b);
-            assert_eq!(decrypted, expected_result);
-        }
+            {
+                let result = unchecked_comparison_method(&sks, &a, &b);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                let expected_result = clear_fn(clear_a, clear_b);
+                assert_eq!(decrypted, expected_result);
+            }
 
-        {
-            // Force case where lhs == rhs
-            let result = unchecked_comparison_method(&sks, &a, &a);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            let expected_result = clear_fn(clear_a, clear_a);
-            assert_eq!(decrypted, expected_result);
+            {
+                // Force case where lhs == rhs
+                let result = unchecked_comparison_method(&sks, &a, &a);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                let expected_result = clear_fn(clear_a, clear_a);
+                assert_eq!(decrypted, expected_result);
+            }
         }
     }
 }
