@@ -67,5 +67,9 @@ jobs:
         run: |
           make build_c_api
 
+      - name: Build coverage tests
+        run: |
+          make build_tfhe_coverage
+
       # The wasm build check is a bit annoying to set-up here and is done during the tests in
       # aws_tfhe_tests.yml

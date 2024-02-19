@@ -301,6 +301,11 @@ build_tfhe_full: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p $(TFHE_SPEC) --all-targets
 
+.PHONY: build_tfhe_coverage # Build with test coverage enabled
+build_tfhe_coverage: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) --tests
+
 .PHONY: symlink_c_libs_without_fingerprint # Link the .a and .so files without the changing hash part in target
 symlink_c_libs_without_fingerprint:
 	@./scripts/symlink_c_libs_without_fingerprint.sh \
