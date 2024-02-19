@@ -363,7 +363,7 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
           msb_lut = mem_ptr->eq_buffer->is_non_zero_lut;
           break;
         default:
-          PANIC("Cuda error: integer operation not supported");
+          PANIC("Cuda error: integer operation not supported")
         }
 
         host_compare_with_zero_equality(msb_stream, lwe_array_msb_out, msb,
@@ -388,7 +388,7 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
         num_halved_scalar_blocks + (num_msb_radix_blocks > 0));
     break;
   default:
-    PANIC("Cuda error: integer operation not supported");
+    PANIC("Cuda error: integer operation not supported")
   }
 
   // The result will be in the two first block. Everything else is

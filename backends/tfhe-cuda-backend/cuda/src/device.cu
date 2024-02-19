@@ -56,7 +56,7 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
   if (size > free_mem) {
     PANIC("Cuda error: not enough memory on device. "
           "Available: %zu vs Requested: %lu",
-          free_mem, size);
+          free_mem, size)
   }
 }
 
@@ -79,7 +79,7 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in async copy to GPU.");
+    PANIC("Cuda error: invalid device pointer in async copy to GPU.")
   }
 
   check_cuda_error(cudaSetDevice(stream->gpu_index));
@@ -94,7 +94,7 @@ void cuda_memcpy_to_gpu(void *dest, void *src, uint64_t size) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in copy to GPU.");
+    PANIC("Cuda error: invalid device pointer in copy to GPU.")
   }
   check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice));
 }
@@ -106,7 +106,7 @@ void cuda_memcpy_to_cpu(void *dest, void *src, uint64_t size) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, src));
   if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid device pointer in copy to CPU.");
+    PANIC("Cuda error: invalid device pointer in copy to CPU.")
   }
   check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost));
 }
@@ -120,16 +120,16 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   if (attr_dest.device != stream->gpu_index &&
       attr_dest.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.");
+    PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.")
   }
   cudaPointerAttributes attr_src;
   check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
   if (attr_src.device != stream->gpu_index &&
       attr_src.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.");
+    PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
   }
   if (attr_src.device != attr_dest.device) {
-    PANIC("Cuda error: different devices specified in copy from GPU to GPU.");
+    PANIC("Cuda error: different devices specified in copy from GPU to GPU.")
   }
 
   check_cuda_error(cudaSetDevice(stream->gpu_index));
@@ -150,7 +150,7 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in cuda memset.");
+    PANIC("Cuda error: invalid dest device pointer in cuda memset.")
   }
   check_cuda_error(cudaSetDevice(stream->gpu_index));
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream->stream));
@@ -169,7 +169,7 @@ void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
   if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in cuda set value.");
+    PANIC("Cuda error: invalid dest device pointer in cuda set value.")
   }
   int block_size = 256;
   int num_blocks = (n + block_size - 1) / block_size;
@@ -194,7 +194,7 @@ void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, src));
   if (attr.device != stream->gpu_index && attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid src device pointer in copy to CPU async.");
+    PANIC("Cuda error: invalid src device pointer in copy to CPU async.")
   }
 
   check_cuda_error(cudaSetDevice(stream->gpu_index));

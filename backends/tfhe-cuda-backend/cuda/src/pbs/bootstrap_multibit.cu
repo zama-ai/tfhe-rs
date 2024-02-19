@@ -3,16 +3,6 @@
 #include "bootstrap_multibit.cuh"
 #include "bootstrap_multibit.h"
 
-void checks_multi_bit_pbs(int polynomial_size) {
-  assert(
-      ("Error (GPU multi-bit PBS): polynomial size should be one of 256, 512, "
-       "1024, 2048, 4096, 8192, 16384",
-       polynomial_size == 256 || polynomial_size == 512 ||
-           polynomial_size == 1024 || polynomial_size == 2048 ||
-           polynomial_size == 4096 || polynomial_size == 8192 ||
-           polynomial_size == 16384));
-}
-
 void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
@@ -22,7 +12,9 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
 
-  checks_multi_bit_pbs(polynomial_size);
+  if (base_log > 64)
+    PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
+          "the ciphertext representation (64)");
 
   switch (polynomial_size) {
   case 256:
@@ -229,7 +221,9 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     }
     break;
   default:
-    break;
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -354,7 +348,9 @@ void scratch_cuda_multi_bit_pbs_64(
     }
     break;
   default:
-    break;
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 

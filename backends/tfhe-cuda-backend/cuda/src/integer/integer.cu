@@ -59,7 +59,9 @@ void cuda_full_propagation_64_inplace(
         ks_level, pbs_base_log, pbs_level, grouping_factor, num_blocks);
     break;
   default:
-    break;
+    PANIC("Cuda error (full propagation inplace): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 

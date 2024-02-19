@@ -24,7 +24,8 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
         allocate_gpu_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Only N = 2048 is supported")
   }
 }
 
@@ -75,7 +76,8 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
         num_blocks);
     break;
   default:
-    break;
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Only N = 2048 is supported")
   }
 }
 

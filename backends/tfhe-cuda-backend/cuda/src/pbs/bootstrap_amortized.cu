@@ -12,28 +12,6 @@ uint64_t get_buffer_size_bootstrap_amortized_64(
 }
 
 /*
- * Runs standard checks to validate the inputs
- */
-void checks_fast_bootstrap_amortized(int polynomial_size) {
-  assert(
-      ("Error (GPU amortized PBS): polynomial size should be one of 256, 512, "
-       "1024, 2048, 4096, 8192, 16384",
-       polynomial_size == 256 || polynomial_size == 512 ||
-           polynomial_size == 1024 || polynomial_size == 2048 ||
-           polynomial_size == 4096 || polynomial_size == 8192 ||
-           polynomial_size == 16384));
-}
-
-/*
- * Runs standard checks to validate the inputs
- */
-void checks_bootstrap_amortized(int nbits, int base_log, int polynomial_size) {
-  assert(("Error (GPU amortized PBS): base log should be <= nbits",
-          base_log <= nbits));
-  checks_fast_bootstrap_amortized(polynomial_size);
-}
-
-/*
  * This scratch function allocates the necessary amount of data on the GPU for
  * the amortized PBS on 32 bits inputs, into `pbs_buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
@@ -43,7 +21,6 @@ void scratch_cuda_bootstrap_amortized_32(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory) {
-  checks_fast_bootstrap_amortized(polynomial_size);
 
   switch (polynomial_size) {
   case 256:
@@ -82,7 +59,9 @@ void scratch_cuda_bootstrap_amortized_32(
         input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -96,7 +75,6 @@ void scratch_cuda_bootstrap_amortized_64(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory) {
-  checks_fast_bootstrap_amortized(polynomial_size);
 
   switch (polynomial_size) {
   case 256:
@@ -135,7 +113,9 @@ void scratch_cuda_bootstrap_amortized_64(
         input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -150,7 +130,9 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
 
-  checks_bootstrap_amortized(32, base_log, polynomial_size);
+  if (base_log > 32)
+    PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
+          "the ciphertext representation (32)");
 
   switch (polynomial_size) {
   case 256:
@@ -217,7 +199,9 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
         max_shared_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 
@@ -294,7 +278,9 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
 
-  checks_bootstrap_amortized(64, base_log, polynomial_size);
+  if (base_log > 64)
+    PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
+          "the ciphertext representation (64)");
 
   switch (polynomial_size) {
   case 256:
@@ -361,7 +347,9 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
         max_shared_memory);
     break;
   default:
-    break;
+    PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
   }
 }
 

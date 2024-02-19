@@ -20,7 +20,7 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
     // 32 bits
     switch (pbs_type) {
     case MULTI_BIT:
-      PANIC("Error: 32-bit multibit PBS is not supported.\n");
+      PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case LOW_LAT:
       cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
           stream, lwe_array_out, lwe_output_indexes, lut_vector,
@@ -69,12 +69,12 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
           num_luts, lwe_idx, max_shared_memory);
       break;
     default:
-      PANIC("Error: unsupported cuda PBS type.");
+      PANIC("Error: unsupported cuda PBS type.")
     }
     break;
   default:
     PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit integer "
-          "moduli are supported.");
+          "moduli are supported.")
   }
 }
 
@@ -91,7 +91,7 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
     // 32 bits
     switch (pbs_type) {
     case MULTI_BIT:
-      PANIC("Error: 32-bit multibit PBS is not supported.\n");
+      PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case LOW_LAT:
       scratch_cuda_bootstrap_low_latency_32(
           stream, pbs_buffer, glwe_dimension, polynomial_size, level_count,
@@ -103,7 +103,7 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
       break;
     default:
-      PANIC("Error: unsupported cuda PBS type.");
+      PANIC("Error: unsupported cuda PBS type.")
     }
     break;
   case sizeof(uint64_t):
@@ -126,11 +126,11 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
       break;
     default:
-      PANIC("Error: unsupported cuda PBS type.");
+      PANIC("Error: unsupported cuda PBS type.")
     }
     break;
   default:
     PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit integer "
-          "moduli are supported.");
+          "moduli are supported.")
   }
 }
