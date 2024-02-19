@@ -1,9 +1,9 @@
 use crate::conformance::ParameterSetConformant;
+use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::CompressedCiphertext;
 use crate::{ClientKey, FheBool};
 use serde::{Deserialize, Serialize};
@@ -61,9 +61,10 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
 }
 
 impl ParameterSetConformant for CompressedFheBool {
-    type ParameterSet = CiphertextConformanceParams;
-    fn is_conformant(&self, params: &CiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(params)
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.ciphertext.is_conformant(&params.shortint_params)
     }
 }
 

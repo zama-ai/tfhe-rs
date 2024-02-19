@@ -582,7 +582,7 @@ macro_rules! impl_scalar_binary_fn_on_type {
                     lhs: *const $wrapper_type,
                     rhs: $scalar_type,
                     result: *mut *mut $wrapper_type,
-                ) -> c_int {
+                ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
                         let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(rhs);
@@ -606,7 +606,7 @@ macro_rules! impl_scalar_binary_assign_fn_on_type {
                 pub unsafe extern "C" fn [<$wrapper_type:snake _scalar_ $binary_assign_fn_name>](
                     lhs: *mut $wrapper_type,
                     rhs: $scalar_type,
-                ) -> c_int {
+                ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
                         let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType
