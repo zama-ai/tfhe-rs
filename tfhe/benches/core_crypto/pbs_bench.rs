@@ -538,8 +538,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{benchmark_parameters, multi_bit_benchmark_parameters};
-    use crate::utilities::{write_to_json, OperatorType};
+    use super::multi_bit_benchmark_parameters;
+    use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
     use criterion::{black_box, criterion_group, Criterion};
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -551,6 +551,52 @@ mod cuda {
         cuda_programmable_bootstrap_lwe_ciphertext, CudaDevice, CudaStream,
     };
     use tfhe::core_crypto::prelude::*;
+    use tfhe::keycache::NamedParam;
+    use tfhe::shortint::parameters::{
+        PARAM_MESSAGE_1_CARRY_0_KS_PBS, PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_0_KS_PBS, PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_0_KS_PBS, PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_5_CARRY_0_KS_PBS, PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    };
+    use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
+
+    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 13] = [
+        PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+        PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    ];
+
+    fn cuda_benchmark_parameters<Scalar: UnsignedInteger>(
+    ) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+        if Scalar::BITS == 64 {
+            SHORTINT_CUDA_BENCH_PARAMS
+                .iter()
+                .map(|params| {
+                    (
+                        params.name(),
+                        <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                            .to_owned()
+                            .into(),
+                    )
+                })
+                .collect()
+        } else {
+            vec![]
+        }
+    }
 
     fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
         let bench_name = "core_crypto::cuda::pbs";
@@ -568,7 +614,7 @@ mod cuda {
         let device = CudaDevice::new(gpu_index);
         let stream = CudaStream::new_unchecked(device);
 
-        for (name, params) in benchmark_parameters::<Scalar>().iter() {
+        for (name, params) in cuda_benchmark_parameters::<Scalar>().iter() {
             // Create the LweSecretKey
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension.unwrap(),
