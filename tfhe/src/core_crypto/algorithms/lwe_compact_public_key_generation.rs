@@ -37,7 +37,7 @@ pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>
     );
 
     let (mut mask, mut body) = output.get_mut_mask_and_body();
-    generator.fill_slice_with_random_mask(mask.as_mut());
+    generator.fill_slice_with_random_uniform_mask(mask.as_mut());
 
     slice_semi_reverse_negacyclic_convolution(
         body.as_mut(),
@@ -45,8 +45,10 @@ pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>
         lwe_secret_key.as_ref(),
     );
 
-    generator
-        .unsigned_torus_slice_wrapping_add_random_noise_assign(body.as_mut(), noise_parameters);
+    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+        body.as_mut(),
+        noise_parameters,
+    );
 }
 
 /// Allocate a new [`LWE compact public key`](`LweCompactPublicKey`) and fill it with an actual
@@ -108,7 +110,7 @@ pub fn generate_seeded_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCon
     );
 
     let mut tmp_mask = vec![Scalar::ZERO; output.lwe_dimension().0];
-    generator.fill_slice_with_random_mask(tmp_mask.as_mut());
+    generator.fill_slice_with_random_uniform_mask(tmp_mask.as_mut());
 
     let mut body = output.get_mut_body();
 
@@ -118,8 +120,10 @@ pub fn generate_seeded_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCon
         lwe_secret_key.as_ref(),
     );
 
-    generator
-        .unsigned_torus_slice_wrapping_add_random_noise_assign(body.as_mut(), noise_parameters);
+    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+        body.as_mut(),
+        noise_parameters,
+    );
 }
 
 /// Allocate a new [`seeded LWE compact public key`](`SeededLweCompactPublicKey`) and fill it with

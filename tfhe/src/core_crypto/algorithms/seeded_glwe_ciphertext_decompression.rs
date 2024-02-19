@@ -37,7 +37,8 @@ pub fn decompress_seeded_glwe_ciphertext_with_existing_generator<
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     // generate a uniformly random mask
-    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             output_mask.as_mut(),

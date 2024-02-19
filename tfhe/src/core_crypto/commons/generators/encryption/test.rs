@@ -58,7 +58,7 @@ fn noise_gen_native<Scalar: UnsignedTorus>() {
 
         let mut val = Scalar::ZERO;
         while retries >= 0 {
-            val = gen.random_noise(StandardDev(2.0f64.powi(-bits)));
+            val = gen.random_gaussian_noise(StandardDev(2.0f64.powi(-bits)));
             if val != Scalar::ZERO {
                 break;
             }
@@ -99,7 +99,10 @@ fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextMod
 
         let mut val = Scalar::ZERO;
         while retries >= 0 {
-            val = gen.random_noise_custom_mod(StandardDev(2.0f64.powi(-bits)), ciphertext_modulus);
+            val = gen.random_gaussian_noise_custom_mod(
+                StandardDev(2.0f64.powi(-bits)),
+                ciphertext_modulus,
+            );
             if val != Scalar::ZERO {
                 break;
             }
@@ -149,7 +152,7 @@ fn noise_gen_slice_native<Scalar: UnsignedTorus>() {
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_noise(&mut vec, StandardDev(2.0f64.powi(-bits)));
+        gen.fill_slice_with_random_gaussian_noise(&mut vec, StandardDev(2.0f64.powi(-bits)));
         if vec.iter().all(|&x| x != Scalar::ZERO) {
             break;
         }
@@ -183,7 +186,10 @@ fn test_normal_random_encryption_native<Scalar: UnsignedTorus>() {
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.fill_slice_with_random_noise(&mut samples, StandardDev(f64::powi(2., -20)));
+            rng.fill_slice_with_random_gaussian_noise(
+                &mut samples,
+                StandardDev(f64::powi(2., -20)),
+            );
 
             let samples: Vec<f64> = samples
                 .iter()
@@ -238,7 +244,7 @@ fn test_normal_random_encryption_add_assign_native<Scalar: UnsignedTorus>() {
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.unsigned_torus_slice_wrapping_add_random_noise_assign(
+            rng.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
                 &mut samples,
                 StandardDev(f64::powi(2., -20)),
             );
@@ -302,7 +308,7 @@ fn noise_gen_slice_custom_mod<Scalar: UnsignedTorus>(
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_noise_custom_mod(
+        gen.fill_slice_with_random_gaussian_noise_custom_mod(
             &mut vec,
             StandardDev(2.0f64.powi(-bits)),
             ciphertext_modulus,
@@ -357,7 +363,7 @@ fn test_normal_random_encryption_custom_mod<Scalar: UnsignedTorus>(
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.fill_slice_with_random_noise_custom_mod(
+            rng.fill_slice_with_random_gaussian_noise_custom_mod(
                 &mut samples,
                 StandardDev(f64::powi(2., -20)),
                 ciphertext_modulus,
@@ -450,7 +456,7 @@ fn test_normal_random_encryption_add_assign_custom_mod<Scalar: UnsignedTorus>(
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
+            rng.unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
                 &mut samples,
                 StandardDev(f64::powi(2., -20)),
                 ciphertext_modulus,
@@ -539,7 +545,7 @@ fn mask_gen_slice_native<Scalar: UnsignedTorus>() {
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_mask(&mut vec);
+        gen.fill_slice_with_random_uniform_mask(&mut vec);
         if vec.iter().all(|&x| x != Scalar::ZERO) {
             break;
         }
@@ -571,7 +577,7 @@ fn mask_gen_slice_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: Cipherte
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_mask_custom_mod(&mut vec, ciphertext_modulus);
+        gen.fill_slice_with_random_uniform_mask_custom_mod(&mut vec, ciphertext_modulus);
         if vec.iter().all(|&x| x != Scalar::ZERO) {
             break;
         }

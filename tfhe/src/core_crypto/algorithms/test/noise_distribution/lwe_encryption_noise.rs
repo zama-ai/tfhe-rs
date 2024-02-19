@@ -207,7 +207,11 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let mut output: Vec<_> = vec![Scalar::ZERO; num_ouptuts];
 
-    encryption_rng.fill_slice_with_random_noise_custom_mod(&mut output, noise, ciphertext_modulus);
+    encryption_rng.fill_slice_with_random_gaussian_noise_custom_mod(
+        &mut output,
+        noise,
+        ciphertext_modulus,
+    );
 
     assert!(check_clear_content_respects_mod(
         &output,

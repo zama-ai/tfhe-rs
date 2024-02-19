@@ -812,7 +812,7 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
     vals[0] = 610;
     // Use our generator to have more random values
     rsc.encryption_random_generator
-        .fill_slice_with_random_mask(&mut vals[1..]);
+        .fill_slice_with_random_uniform_mask(&mut vals[1..]);
     // Apply our modulus to be sure we can represent the test values
     vals.iter_mut()
         .for_each(|x| *x %= 1 << number_of_input_bits);

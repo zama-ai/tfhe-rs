@@ -41,7 +41,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
     }
 
     // Fills the slice with random uniform values, using the mask generator.
-    pub(crate) fn fill_slice_with_random_mask<Scalar>(&mut self, output: &mut [Scalar])
+    pub(crate) fn fill_slice_with_random_uniform_mask<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<Uniform>,
     {
@@ -49,7 +49,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
     }
 
     // Fills the slice with random uniform values, using the mask generator
-    pub(crate) fn fill_slice_with_random_mask_custom_mod<Scalar>(
+    pub(crate) fn fill_slice_with_random_uniform_mask_custom_mod<Scalar>(
         &mut self,
         output: &mut [Scalar],
         ciphertext_modulus: CiphertextModulus<Scalar>,

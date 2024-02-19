@@ -89,10 +89,11 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     // generate a randomly uniform mask
-    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
     // generate an error from the normal distribution described by std_dev
-    let noise = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
+    let noise = generator.random_gaussian_noise_custom_mod(noise_parameters, ciphertext_modulus);
     // compute the multisum between the secret key and the mask
     let mask_key_dot_product =
         slice_wrapping_dot_product(output_mask.as_ref(), lwe_secret_key.as_ref());
@@ -140,10 +141,11 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
     assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
 
     // generate a randomly uniform mask
-    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
     // generate an error from the normal distribution described by std_dev
-    let noise = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
+    let noise = generator.random_gaussian_noise_custom_mod(noise_parameters, ciphertext_modulus);
 
     let ciphertext_modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
 
@@ -1735,15 +1737,15 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     );
 
     // Noise from Chi_1 for the mask part of the encryption
-    encryption_generator.unsigned_torus_slice_wrapping_add_random_noise_assign(
+    encryption_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
         ct_mask.as_mut(),
         mask_noise_parameters,
     );
 
     *ct_body.data = slice_wrapping_dot_product(pk_body.as_ref(), &binary_random_vector);
     // Noise from Chi_2 for the body part of the encryption
-    *ct_body.data =
-        (*ct_body.data).wrapping_add(encryption_generator.random_noise(body_noise_parameters));
+    *ct_body.data = (*ct_body.data)
+        .wrapping_add(encryption_generator.random_gaussian_noise(body_noise_parameters));
     *ct_body.data = (*ct_body.data).wrapping_add(encoded.0);
 }
 
@@ -1935,7 +1937,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                 );
 
                 // Noise from Chi_1 for the mask part of the encryption
-                loop_generator.unsigned_torus_slice_wrapping_add_random_noise_assign(
+                loop_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
                     output_mask.as_mut(),
                     mask_noise_parameters,
                 );
@@ -1948,7 +1950,9 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .zip(pk_body_convolved.iter().zip(input_plaintext_chunk.iter()))
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
-                            .wrapping_add(loop_generator.random_noise(body_noise_parameters))
+                            .wrapping_add(
+                                loop_generator.random_gaussian_noise(body_noise_parameters),
+                            )
                             .wrapping_add(*plaintext.0);
                     });
             },
@@ -2148,7 +2152,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                 );
 
                 // Noise from Chi_1 for the mask part of the encryption
-                loop_generator.unsigned_torus_slice_wrapping_add_random_noise_assign(
+                loop_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
                     output_mask.as_mut(),
                     mask_noise_parameters,
                 );
@@ -2161,7 +2165,9 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .zip(pk_body_convolved.iter().zip(input_plaintext_chunk.iter()))
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
-                            .wrapping_add(loop_generator.random_noise(body_noise_parameters))
+                            .wrapping_add(
+                                loop_generator.random_gaussian_noise(body_noise_parameters),
+                            )
                             .wrapping_add(*plaintext.0);
                     });
             },
