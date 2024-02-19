@@ -32,7 +32,7 @@ macro_rules! create_gpu_multi_bit_parametrized_test{
             $(
             #[test]
             fn [<test_gpu_ $name _ $param:lower>]() {
-                $name($param)
+                $name(&$param)
             }
             )*
         }

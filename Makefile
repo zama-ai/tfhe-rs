@@ -166,6 +166,7 @@ check_fmt_gpu: install_rs_check_toolchain
 clippy_gpu: install_rs_check_toolchain clippy_cuda_backend
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),integer,shortint,gpu \
+		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant

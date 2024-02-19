@@ -24,7 +24,7 @@ pub struct MultiBitParams<Scalar: UnsignedInteger> {
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
 >(
-    params: MultiBitParams<Scalar>,
+    params: &MultiBitParams<Scalar>,
 ) {
     assert!(Scalar::BITS <= 64);
 

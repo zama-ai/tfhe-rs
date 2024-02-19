@@ -133,7 +133,7 @@ impl<F> GpuUncheckedFnExecutor<F> {
 }
 
 impl<F> GpuUncheckedFnExecutor<F> {
-    fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: Arc<ServerKey>) {
+    fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
         let gpu_index = 0;
         let device = CudaDevice::new(gpu_index);
         let stream = CudaStream::new_unchecked(device);
@@ -161,7 +161,7 @@ where
     ) -> CudaRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, &'a RadixCiphertext)) -> RadixCiphertext {
@@ -186,7 +186,7 @@ where
     F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaRadixCiphertext, &CudaStream),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: (&'a mut RadixCiphertext, &'a RadixCiphertext)) {
@@ -211,7 +211,7 @@ where
     F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> RadixCiphertext {
@@ -234,7 +234,7 @@ where
     F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: (RadixCiphertext, u64)) -> RadixCiphertext {
@@ -257,7 +257,7 @@ where
     F: Fn(&CudaServerKey, &CudaRadixCiphertext, &CudaStream) -> CudaRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
@@ -280,7 +280,7 @@ where
     F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaStream),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.setup_from_keys(cks, sks);
+        self.setup_from_keys(cks, &sks);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) {
@@ -367,10 +367,10 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
     // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -385,19 +385,19 @@ where
         let ctxt = cks.encrypt_radix(clear, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt = CudaRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
+        let d_ctxt = CudaRadixCiphertext::from_radix_ciphertext(&ctxt, &stream);
 
         // add the two ciphertexts
-        let d_ct_res = sks.unchecked_bitnot(&d_ctxt, &mut stream);
+        let d_ct_res = sks.unchecked_bitnot(&d_ctxt, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         let clear_result = (!clear) % modulus;
-        println!("not {} = {}", clear, clear_result);
+        println!("not {clear} = {clear_result}");
         assert_eq!(clear_result, dec_res);
     }
 }
@@ -408,10 +408,10 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
     // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -429,13 +429,13 @@ where
         let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &mut stream);
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         // add the two ciphertexts
-        let d_ct_res = sks.unchecked_bitand(&d_ctxt_0, &d_ctxt_1, &mut stream);
+        let d_ct_res = sks.unchecked_bitand(&d_ctxt_0, &d_ctxt_1, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
@@ -536,10 +536,10 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
     // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -555,12 +555,12 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &mut stream);
+        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitand(&d_ctxt_0, clear_1, &mut stream);
+        let d_ct_res = sks.unchecked_scalar_bitand(&d_ctxt_0, clear_1, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
@@ -576,10 +576,10 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
     // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -594,12 +594,12 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &mut stream);
+        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitor(&d_ctxt_0, clear_1, &mut stream);
+        let d_ct_res = sks.unchecked_scalar_bitor(&d_ctxt_0, clear_1, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
@@ -615,10 +615,10 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
     // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -634,12 +634,12 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &mut stream);
+        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitxor(&d_ctxt_0, clear_1, &mut stream);
+        let d_ct_res = sks.unchecked_scalar_bitxor(&d_ctxt_0, clear_1, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
@@ -1246,9 +1246,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1266,12 +1266,12 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
-        let d_ct_res = sks.unchecked_max(&d_ctxt_1, &d_ctxt_2, &mut stream);
+        let d_ct_res = sks.unchecked_max(&d_ctxt_1, &d_ctxt_2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = max(clear1, clear2);
@@ -1287,9 +1287,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1307,12 +1307,12 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
-        let d_ct_res = sks.unchecked_min(&d_ctxt_1, &d_ctxt_2, &mut stream);
+        let d_ct_res = sks.unchecked_min(&d_ctxt_1, &d_ctxt_2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = min(clear1, clear2);
@@ -1328,9 +1328,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1347,11 +1347,11 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-    let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &mut stream);
+    let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
-    let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    let ct_res = d_ct_res.to_radix_ciphertext(&stream);
     let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
     let expected: u64 = max(clear1, clear2);
@@ -1367,11 +1367,11 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-    let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &mut stream);
+    let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
-    let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    let ct_res = d_ct_res.to_radix_ciphertext(&stream);
     let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
     let expected: u64 = max(clear1, clear2);
@@ -1388,11 +1388,11 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-        let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &mut stream);
+        let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = max(clear1, clear2);
@@ -1408,9 +1408,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1425,11 +1425,11 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-    let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &mut stream);
+    let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
-    let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    let ct_res = d_ct_res.to_radix_ciphertext(&stream);
     let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
     let expected: u64 = min(clear1, clear2);
@@ -1445,11 +1445,11 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-    let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &mut stream);
+    let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
-    let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    let ct_res = d_ct_res.to_radix_ciphertext(&stream);
     let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
     let expected: u64 = min(clear1, clear2);
@@ -1466,11 +1466,11 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
-        let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &mut stream);
+        let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = min(clear1, clear2);
@@ -2243,9 +2243,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2263,12 +2263,12 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
-        let d_ct_res = sks.max(&d_ctxt_1, &d_ctxt_2, &mut stream);
+        let d_ct_res = sks.max(&d_ctxt_1, &d_ctxt_2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = max(clear1, clear2);
@@ -2284,9 +2284,9 @@ where
 {
     let gpu_index = 0;
     let device = CudaDevice::new(gpu_index);
-    let mut stream = CudaStream::new_unchecked(device);
+    let stream = CudaStream::new_unchecked(device);
 
-    let (cks, sks) = gen_keys_gpu(param, &mut stream);
+    let (cks, sks) = gen_keys_gpu(param, &stream);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2304,12 +2304,12 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
-        let d_ct_res = sks.min(&d_ctxt_1, &d_ctxt_2, &mut stream);
+        let d_ct_res = sks.min(&d_ctxt_1, &d_ctxt_2, &stream);
 
-        let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         let expected: u64 = min(clear1, clear2);
