@@ -106,7 +106,7 @@ pub fn mul_graph(
 
     let mut sum_carries = vec![];
 
-    assert_eq!(terms_for_mul_low[0].len(), 0);
+    assert_eq!(terms_for_mul_low[0].len(), 1);
     let (first_message, first_carry) = sum_blocks(graph, sks, &terms_for_mul_low[0], None);
 
     assert!(first_carry.is_none());
