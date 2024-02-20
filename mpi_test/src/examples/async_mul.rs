@@ -6,6 +6,7 @@ use itertools::zip_eq;
 use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
 use std::sync::Arc;
+use tfhe::core_crypto::commons::traits::UnsignedInteger;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use tfhe::shortint::{gen_keys, ServerKey};
 
@@ -74,7 +75,7 @@ impl Context {
                     _ => unreachable!(),
                 };
 
-                // dbg!(cks.decrypt_message_and_carry(ct), expected_decryption);
+                dbg!(cks.decrypt_message_and_carry(ct), expected_decryption);
                 assert_eq!(cks.decrypt_message_and_carry(ct), expected_decryption);
             }
             println!("All good 7");
@@ -105,6 +106,7 @@ pub fn mul_graph(
 
     let mut sum_carries = vec![];
 
+    assert_eq!(terms_for_mul_low[0].len(), 0);
     let (first_message, first_carry) = sum_blocks(graph, sks, &terms_for_mul_low[0], None);
 
     assert!(first_carry.is_none());
@@ -240,12 +242,20 @@ fn sum_blocks(
 
         let number_groups = blocks_ref.len() / group_size;
 
+        // let end = blocks_ref.len() - group_size + 1;
+
         let mut sums: Vec<_> = (0..number_groups)
             .map(|i| {
+                let start = i * group_size;
+
+                // let local_end = end.min((i + 1) * group_size);
+
+                let local_end = (i + 1) * group_size;
+
                 checked_add(
                     graph,
                     sks,
-                    &blocks_ref[i * group_size..(i + 1) * group_size],
+                    &blocks_ref[start..local_end],
                     carries.as_deref_mut(),
                 )
             })
