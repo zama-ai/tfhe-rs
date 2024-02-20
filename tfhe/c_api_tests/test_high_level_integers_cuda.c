@@ -3,8 +3,8 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 int uint8_client_key(const ClientKey *client_key) {
   int ok;
@@ -55,7 +55,6 @@ int uint8_client_key(const ClientKey *client_key) {
   return ok;
 }
 
-
 int main(void) {
   int ok = 0;
   {
@@ -70,21 +69,21 @@ int main(void) {
     ClientKey *client_key = NULL;
     CompressedServerKey *compressed_sks = NULL;
     CudaServerKey *cuda_server_key = NULL;
-    
+
     ok = client_key_generate(config, &client_key);
     assert(ok == 0);
-    
+
     ok = compressed_server_key_new(client_key, &compressed_sks);
     assert(ok == 0);
-    
+
     ok = compressed_server_key_decompress_to_gpu(compressed_sks, &cuda_server_key);
     assert(ok == 0);
 
     ok = set_cuda_server_key(cuda_server_key);
     assert(ok == 0);
-    
+
     uint8_client_key(client_key);
-    
+
     client_key_destroy(client_key);
     compressed_server_key_destroy(compressed_sks);
     cuda_server_key_destroy(cuda_server_key);
