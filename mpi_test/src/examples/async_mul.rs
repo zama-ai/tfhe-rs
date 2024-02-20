@@ -75,7 +75,7 @@ impl Context {
                     _ => unreachable!(),
                 };
 
-                dbg!(cks.decrypt_message_and_carry(ct), expected_decryption);
+                // dbg!(cks.decrypt_message_and_carry(ct), expected_decryption);
                 assert_eq!(cks.decrypt_message_and_carry(ct), expected_decryption);
             }
             println!("All good 7");
@@ -111,7 +111,7 @@ pub fn mul_graph(
 
     assert!(first_carry.is_none());
 
-    for i in 1..(terms_for_mul_low.len() - 1) {
+    for i in 1..(len - 1) {
         let (low, high) = terms_for_mul_low.split_at_mut(i + 1);
 
         let (message, carry) = sum_blocks(graph, sks, &low[i], Some(&mut high[0]));
@@ -133,12 +133,14 @@ pub fn mul_graph(
 
     result.push(sum_messages.remove(0));
 
-    dbg!(sum_messages.len(), sum_carries.len());
+    assert_eq!(sum_messages.len(), sum_carries.len());
 
-    let a =
-        propagate_single_carry_parallelized_low_latency(graph, sks, &sum_messages, &sum_carries);
-
-    result.extend(&a);
+    result.extend(&add_propagate_carry(
+        graph,
+        sks,
+        &sum_messages,
+        &sum_carries,
+    ));
 
     result
 }
@@ -311,13 +313,13 @@ fn checked_add(
     sum
 }
 
-fn propagate_single_carry_parallelized_low_latency(
+fn add_propagate_carry(
     graph: &mut Graph<Node, u64>,
     sks: &ServerKey,
-    messages: &[NodeIndex],
-    carries: &[NodeIndex],
+    ct1: &[NodeIndex],
+    ct2: &[NodeIndex],
 ) -> Vec<NodeIndex> {
-    let generates_or_propagates = generate_init_carry_array(graph, sks, messages, carries);
+    let generates_or_propagates = generate_init_carry_array(graph, sks, ct1, ct2);
 
     let (input_carries, _output_carry) =
         compute_carry_propagation_parallelized_low_latency(graph, sks, generates_or_propagates);
@@ -326,16 +328,16 @@ fn propagate_single_carry_parallelized_low_latency(
 
     let extract_message = sks.generate_lookup_table(|x| x % message_modulus);
 
-    (0..messages.len())
+    (0..ct1.len())
         .map(|i| {
             let node = graph.add_node(Node::ToCompute {
                 lookup_table: extract_message.clone(),
             });
 
-            graph.add_edge(messages[i], node, 1);
-            graph.add_edge(carries[i], node, message_modulus);
+            graph.add_edge(ct1[i], node, 1);
+            graph.add_edge(ct2[i], node, 1);
             if i > 0 {
-                graph.add_edge(input_carries[i - 1], node, message_modulus);
+                graph.add_edge(input_carries[i - 1], node, 1);
             }
             node
         })
@@ -377,8 +379,8 @@ fn compute_carry_propagation_parallelized_low_latency(
 fn generate_init_carry_array(
     graph: &mut Graph<Node, u64>,
     sks: &ServerKey,
-    messages: &[NodeIndex],
-    carries: &[NodeIndex],
+    ct1: &[NodeIndex],
+    ct2: &[NodeIndex],
 ) -> Vec<NodeIndex> {
     let modulus = sks.message_modulus.0 as u64;
 
@@ -402,11 +404,11 @@ fn generate_init_carry_array(
         }
     });
 
-    let generates_or_propagates: Vec<_> = messages
+    let generates_or_propagates: Vec<_> = ct1
         .iter()
-        .zip(carries.iter())
+        .zip_eq(ct2.iter())
         .enumerate()
-        .map(|(i, (message, carry))| {
+        .map(|(i, (block1, block2))| {
             let lookup_table = if i == 0 {
                 // The first block can only output a carry
                 lut_does_block_generate_carry.clone()
@@ -416,8 +418,8 @@ fn generate_init_carry_array(
 
             let node = graph.add_node(Node::ToCompute { lookup_table });
 
-            graph.add_edge(*message, node, 1);
-            graph.add_edge(*carry, node, 1);
+            graph.add_edge(*block1, node, 1);
+            graph.add_edge(*block2, node, 1);
 
             node
         })
