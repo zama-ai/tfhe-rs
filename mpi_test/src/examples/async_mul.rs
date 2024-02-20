@@ -94,22 +94,49 @@ pub fn mul_graph(
     lhs: &[NodeIndex],
     rhs: &[NodeIndex],
 ) -> Vec<NodeIndex> {
+    let len = lhs.len();
+
+    assert_eq!(len, rhs.len());
+
     let mut terms_for_mul_low = compute_terms_for_mul_low(graph, sks, lhs, rhs);
+    assert_eq!(len, terms_for_mul_low.len());
+
+    let mut sum_messages = vec![];
+
+    let mut sum_carries = vec![];
+
+    let (first_message, first_carry) = sum_blocks(graph, sks, &terms_for_mul_low[0], None);
+
+    assert!(first_carry.is_none());
+
+    for i in 1..(terms_for_mul_low.len() - 1) {
+        let (low, high) = terms_for_mul_low.split_at_mut(i + 1);
+
+        let (message, carry) = sum_blocks(graph, sks, &low[i], Some(&mut high[0]));
+
+        sum_messages.push(message);
+        sum_carries.push(carry.unwrap());
+    }
+
+    let (last_message, last_carry) =
+        sum_blocks(graph, sks, terms_for_mul_low.last().unwrap(), None);
+
+    sum_messages.push(last_message);
+
+    assert!(last_carry.is_none());
 
     let mut result = vec![];
 
-    for i in 0..(terms_for_mul_low.len() - 1) {
-        let (low, high) = terms_for_mul_low.split_at_mut(i + 1);
+    result.push(first_message);
 
-        result.push(sum_blocks(graph, sks, &low[i], Some(&mut high[0])));
-    }
+    result.push(sum_messages.remove(0));
 
-    result.push(sum_blocks(
-        graph,
-        sks,
-        terms_for_mul_low.last().unwrap(),
-        None,
-    ));
+    dbg!(sum_messages.len(), sum_carries.len());
+
+    let a =
+        propagate_single_carry_parallelized_low_latency(graph, sks, &sum_messages, &sum_carries);
+
+    result.extend(&a);
 
     result
 }
