@@ -10,6 +10,7 @@ pub mod i256;
 #[cfg(feature = "integer")]
 pub mod integers;
 pub mod keys;
+mod threading;
 #[cfg(feature = "integer")]
 pub mod u128;
 #[cfg(feature = "integer")]

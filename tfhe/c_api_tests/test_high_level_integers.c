@@ -2,17 +2,16 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
-
-#define assert_m(condition, format, ...)                                         \
-  do {                                                                         \
-    if (!(condition)) {                                                        \
-      fprintf(stderr, "%s::%d::%s: condition `%s` failed.\n" format "\n",      \
-              __FILE__, __LINE__, __func__, #condition, ##__VA_ARGS__);        \
-      abort();                                                                 \
-    }                                                                          \
+#define assert_m(condition, format, ...)                                                           \
+  do {                                                                                             \
+    if (!(condition)) {                                                                            \
+      fprintf(stderr, "%s::%d::%s: condition `%s` failed.\n" format "\n", __FILE__, __LINE__,      \
+              __func__, #condition, ##__VA_ARGS__);                                                \
+      abort();                                                                                     \
+    }                                                                                              \
   } while (0)
 
 int uint8_client_key(const ClientKey *client_key) {
@@ -95,11 +94,10 @@ void test_uint8_overflowing_add(const ClientKey *client_key) {
     assert(ok == 0);
 
     uint8_t expected_result = lhs_clear + rhs_clear;
-    assert_m(
-        clear_result == expected_result,
-         "Invalid result for overflowing_add(%"PRIu8", %"PRIu8"), "
-         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_add(%" PRIu8 ", %" PRIu8 "), "
+             "expected %" PRIu8 " got %" PRIu8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
@@ -140,11 +138,10 @@ void test_uint8_overflowing_sub(const ClientKey *client_key) {
     assert(ok == 0);
 
     uint8_t expected_result = lhs_clear - rhs_clear;
-    assert_m(
-        clear_result == expected_result,
-         "Invalid result for overflowing_sub(%"PRIu8", %"PRIu8"), "
-         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_sub(%" PRIu8 ", %" PRIu8 "), "
+             "expected %" PRIu8 " got %" PRIu8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
@@ -185,11 +182,10 @@ void test_uint8_overflowing_mul(const ClientKey *client_key) {
     assert(ok == 0);
 
     uint8_t expected_result = lhs_clear * rhs_clear;
-    assert_m(
-        clear_result == expected_result,
-         "Invalid result for overflowing_mul(%"PRIu8", %"PRIu8"), "
-         "expected %"PRIu8" got %"PRIu8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_mul(%" PRIu8 ", %" PRIu8 "), "
+             "expected %" PRIu8 " got %" PRIu8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
@@ -234,11 +230,10 @@ void test_int8_overflowing_add(const ClientKey *client_key) {
     // In C, signed overflow is actually undefined behaviour (until C23)
     // so we can't do the addition here, and have to hardcode the result
     int8_t expected_result = INT8_MIN;
-    assert_m(
-          clear_result == expected_result,
-          "Invalid result for overflowing_add(%"PRIi8", %"PRIi8"), "
-          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_add(%" PRIi8 ", %" PRIi8 "), "
+             "expected %" PRIi8 " got %" PRIi8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
@@ -283,11 +278,10 @@ void test_int8_overflowing_sub(const ClientKey *client_key) {
     // In C, signed overflow is actually undefined behaviour (until C23)
     // so we can't do the addition here, and have to hardcode the result
     int8_t expected_result = 127;
-    assert_m(
-          clear_result == expected_result,
-          "Invalid result for overflowing_sub(%"PRIi8", %"PRIi8"), "
-          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_sub(%" PRIi8 ", %" PRIi8 "), "
+             "expected %" PRIi8 " got %" PRIi8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
@@ -332,11 +326,10 @@ void test_int8_overflowing_mul(const ClientKey *client_key) {
     // In C, signed overflow is actually undefined behaviour (until C23)
     // so we can't do the addition here, and have to hardcode the result
     int8_t expected_result = -43;
-    assert_m(
-          clear_result == expected_result,
-          "Invalid result for overflowing_mul(%"PRIi8", %"PRIi8"), "
-          "expected %"PRIi8" got %"PRIi8, lhs_clear, rhs_clear, expected_result, clear_result
-    );
+    assert_m(clear_result == expected_result,
+             "Invalid result for overflowing_mul(%" PRIi8 ", %" PRIi8 "), "
+             "expected %" PRIi8 " got %" PRIi8,
+             lhs_clear, rhs_clear, expected_result, clear_result);
     assert(clear_overflowed == true);
   }
 
