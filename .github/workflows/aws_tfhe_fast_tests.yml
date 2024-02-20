@@ -23,6 +23,7 @@ jobs:
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
       instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
+      aws-region: ${{ steps.start-instance.outputs.aws-region }}
     steps:
       - name: Start instance
         id: start-instance
@@ -47,68 +48,68 @@ jobs:
 
       - name: Set up home
         run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+          sleep 300
 
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
-        with:
-          toolchain: stable
-
-      - name: Run concrete-csprng tests
-        run: |
-          make test_concrete_csprng
-
-      - name: Run core tests
-        run: |
-          AVX512_SUPPORT=ON make test_core_crypto
-
-      - name: Run boolean tests
-        run: |
-          make test_boolean
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc
-
-      - name: Run js on wasm API tests
-        run: |
-          make test_nodejs_wasm_api_in_docker
-
-      - name: Gen Keys if required
-        run: |
-          make gen_key_cache
-
-      - name: Run shortint tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_ci
-
-      - name: Run integer tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
-
-      - name: Run shortint multi-bit tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_multi_bit_ci
-
-      - name: Run integer multi-bit tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_multi_bit_ci
-
-      - name: Run high-level API tests
-        run: |
-          make test_high_level_api
-
-      - name: Run safe deserialization tests
-        run: |
-          make test_safe_deserialization
-
-      - name: Slack Notification
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+#      - name: Install latest stable
+#        uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
+#        with:
+#          toolchain: stable
+#
+#      - name: Run concrete-csprng tests
+#        run: |
+#          make test_concrete_csprng
+#
+#      - name: Run core tests
+#        run: |
+#          AVX512_SUPPORT=ON make test_core_crypto
+#
+#      - name: Run boolean tests
+#        run: |
+#          make test_boolean
+#
+#      - name: Run user docs tests
+#        run: |
+#          make test_user_doc
+#
+#      - name: Run js on wasm API tests
+#        run: |
+#          make test_nodejs_wasm_api_in_docker
+#
+#      - name: Gen Keys if required
+#        run: |
+#          make gen_key_cache
+#
+#      - name: Run shortint tests
+#        run: |
+#          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_ci
+#
+#      - name: Run integer tests
+#        run: |
+#          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
+#
+#      - name: Run shortint multi-bit tests
+#        run: |
+#          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_multi_bit_ci
+#
+#      - name: Run integer multi-bit tests
+#        run: |
+#          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_multi_bit_ci
+#
+#      - name: Run high-level API tests
+#        run: |
+#          make test_high_level_api
+#
+#      - name: Run safe deserialization tests
+#        run: |
+#          make test_safe_deserialization
+#
+#      - name: Slack Notification
+#        if: ${{ always() }}
+#        continue-on-error: true
+#        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+#        env:
+#          SLACK_COLOR: ${{ job.status }}
+#          SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-ec2:
     name: Teardown EC2 instance (fast-tests)
@@ -124,7 +125,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          profile: cpu-big
+          region: ${{ needs.setup-ec2.outputs.aws-region }}
           label: ${{ needs.setup-ec2.outputs.runner-name }}
 
       - name: Slack Notification
@@ -133,4 +134,4 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "EC2 teardown (fast-tests) failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: ":shorts: is doing some test, don't freak out @Arthur -- EC2 teardown (fast-tests) failed. (${{ env.ACTION_RUN_URL }})"
