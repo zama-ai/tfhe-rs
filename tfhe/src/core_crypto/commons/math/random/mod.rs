@@ -22,10 +22,7 @@ pub use generator::*;
 pub use t_uniform::*;
 pub use uniform::*;
 pub use uniform_binary::*;
-pub use uniform_lsb::*;
-pub use uniform_msb::*;
 pub use uniform_ternary::*;
-pub use uniform_with_zeros::*;
 
 #[cfg(test)]
 mod tests;
@@ -36,10 +33,7 @@ mod generator;
 mod t_uniform;
 mod uniform;
 mod uniform_binary;
-mod uniform_lsb;
-mod uniform_msb;
 mod uniform_ternary;
-mod uniform_with_zeros;
 
 /// A trait giving a type the ability to be randomly generated according to a given distribution.
 pub trait RandomGenerable<D: Distribution>
@@ -95,18 +89,12 @@ mod seal {
 
     pub trait Sealed {}
     impl Sealed for super::Uniform {}
-    impl Sealed for super::UniformMsb {}
-    impl Sealed for super::UniformLsb {}
-    impl Sealed for super::UniformWithZeros {}
     impl Sealed for super::UniformBinary {}
     impl Sealed for super::UniformTernary {}
     impl<T: FloatingPoint> Sealed for super::Gaussian<T> {}
     impl<T: UnsignedInteger> Sealed for super::TUniform<T> {}
 }
 impl Distribution for Uniform {}
-impl Distribution for UniformMsb {}
-impl Distribution for UniformLsb {}
-impl Distribution for UniformWithZeros {}
 impl Distribution for UniformBinary {}
 impl Distribution for UniformTernary {}
 impl<T: FloatingPoint> Distribution for Gaussian<T> {}

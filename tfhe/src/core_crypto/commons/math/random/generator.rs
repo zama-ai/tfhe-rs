@@ -1,6 +1,5 @@
 use crate::core_crypto::commons::math::random::{
-    Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb,
-    UniformTernary, UniformWithZeros,
+    Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
 use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
@@ -475,71 +474,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar: RandomGenerable<UniformTernary>,
     {
         Scalar::generate_one(self, UniformTernary)
-    }
-
-    /// Generate an unsigned integer whose n least significant bits are uniformly random, and the
-    /// other bits are zero.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let random: u8 = generator.random_uniform_n_lsb(3);
-    /// assert!(random <= 7 as u8);
-    /// ```
-    pub fn random_uniform_n_lsb<Scalar>(&mut self, n: usize) -> Scalar
-    where
-        Scalar: RandomGenerable<UniformLsb>,
-    {
-        Scalar::generate_one(self, UniformLsb { n })
-    }
-
-    /// Generate an unsigned integer whose n most significant bits are uniformly random, and the
-    /// other bits are zero.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let random: u8 = generator.random_uniform_n_msb(3);
-    /// assert!(random == 0 || random >= 32);
-    /// ```
-    pub fn random_uniform_n_msb<Scalar>(&mut self, n: usize) -> Scalar
-    where
-        Scalar: RandomGenerable<UniformMsb>,
-    {
-        Scalar::generate_one(self, UniformMsb { n })
-    }
-
-    /// Generate a random uniform unsigned integer with probability `1-prob_zero`, and a zero value
-    /// with probability `prob_zero`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let random = generator.random_uniform_with_zeros::<u8>(0.5);
-    /// let random = generator.random_uniform_with_zeros::<u16>(0.5);
-    /// let random = generator.random_uniform_with_zeros::<u32>(0.5);
-    /// let random = generator.random_uniform_with_zeros::<u64>(0.5);
-    /// let random = generator.random_uniform_with_zeros::<u128>(0.5);
-    /// assert_eq!(generator.random_uniform_with_zeros::<u128>(1.), 0);
-    /// assert_ne!(generator.random_uniform_with_zeros::<u128>(0.), 0);
-    /// ```
-    pub fn random_uniform_with_zeros<Scalar>(&mut self, prob_zero: f32) -> Scalar
-    where
-        Scalar: RandomGenerable<UniformWithZeros>,
-    {
-        Scalar::generate_one(self, UniformWithZeros { prob_zero })
     }
 
     /// Generate two floating point values drawn from a gaussian distribution with input mean and
