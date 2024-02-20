@@ -180,7 +180,7 @@ fn sum_blocks(
     sks: &ServerKey,
     blocks_ref: &[NodeIndex],
     mut carries: Option<&mut Vec<NodeIndex>>,
-) -> NodeIndex {
+) -> (NodeIndex, Option<NodeIndex>) {
     let mut blocks;
 
     let mut blocks_ref = blocks_ref;
@@ -195,11 +195,20 @@ fn sum_blocks(
     loop {
         assert!(!blocks_ref.is_empty());
         if blocks_ref.len() == 1 {
-            break blocks_ref[0];
+            break (blocks_ref[0], None);
         }
 
         if blocks_ref.len() <= group_size {
-            break checked_add(graph, sks, blocks_ref, carries);
+            if carries.is_some() {
+                let mut carry = vec![];
+
+                let message = checked_add(graph, sks, blocks_ref, Some(&mut carry));
+                break (message, Some(carry[0]));
+            } else {
+                let message = checked_add(graph, sks, blocks_ref, None);
+
+                break (message, None);
+            }
         }
 
         let number_groups = blocks_ref.len() / group_size;
@@ -263,4 +272,170 @@ fn checked_add(
     }
 
     sum
+}
+
+fn propagate_single_carry_parallelized_low_latency(
+    graph: &mut Graph<Node, u64>,
+    sks: &ServerKey,
+    messages: &[NodeIndex],
+    carries: &[NodeIndex],
+) -> Vec<NodeIndex> {
+    let generates_or_propagates = generate_init_carry_array(graph, sks, messages, carries);
+
+    let (input_carries, _output_carry) =
+        compute_carry_propagation_parallelized_low_latency(graph, sks, generates_or_propagates);
+
+    let message_modulus = sks.message_modulus.0 as u64;
+
+    let extract_message = sks.generate_lookup_table(|x| x % message_modulus);
+
+    (0..messages.len())
+        .map(|i| {
+            let node = graph.add_node(Node::ToCompute {
+                lookup_table: extract_message.clone(),
+            });
+
+            graph.add_edge(messages[i], node, 1);
+            graph.add_edge(carries[i], node, message_modulus);
+            if i > 0 {
+                graph.add_edge(input_carries[i - 1], node, message_modulus);
+            }
+            node
+        })
+        .collect()
+}
+
+fn compute_carry_propagation_parallelized_low_latency(
+    graph: &mut Graph<Node, u64>,
+    sks: &ServerKey,
+    generates_or_propagates: Vec<NodeIndex>,
+) -> (Vec<NodeIndex>, NodeIndex) {
+    let modulus = sks.message_modulus.0 as u64;
+
+    let lut_carry_propagation_sum = sks
+        .generate_lookup_table_bivariate(prefix_sum_carry_propagation)
+        .acc;
+    // Type annotations are required, otherwise we get confusing errors
+    // "implementation of `FnOnce` is not general enough"
+    let sum_function =
+        |graph: &mut Graph<Node, u64>, block_carry: NodeIndex, previous_block_carry: NodeIndex| {
+            let node = graph.add_node(Node::ToCompute {
+                lookup_table: lut_carry_propagation_sum.clone(),
+            });
+
+            graph.add_edge(block_carry, node, modulus);
+
+            graph.add_edge(previous_block_carry, node, 1);
+
+            node
+        };
+
+    let mut carries_out =
+        compute_prefix_sum_hillis_steele(graph, sks, generates_or_propagates, sum_function);
+
+    let last_block_out_carry = carries_out.pop().unwrap();
+    (carries_out, last_block_out_carry)
+}
+
+fn generate_init_carry_array(
+    graph: &mut Graph<Node, u64>,
+    sks: &ServerKey,
+    messages: &[NodeIndex],
+    carries: &[NodeIndex],
+) -> Vec<NodeIndex> {
+    let modulus = sks.message_modulus.0 as u64;
+
+    // This is used for the first pair of blocks
+    // as this pair can either generate or not, but never propagate
+    let lut_does_block_generate_carry = sks.generate_lookup_table(|x| {
+        if x >= modulus {
+            OutputCarry::Generated as u64
+        } else {
+            OutputCarry::None as u64
+        }
+    });
+
+    let lut_does_block_generate_or_propagate = sks.generate_lookup_table(|x| {
+        if x >= modulus {
+            OutputCarry::Generated as u64
+        } else if x == (modulus - 1) {
+            OutputCarry::Propagated as u64
+        } else {
+            OutputCarry::None as u64
+        }
+    });
+
+    let generates_or_propagates: Vec<_> = messages
+        .iter()
+        .zip(carries.iter())
+        .enumerate()
+        .map(|(i, (message, carry))| {
+            let lookup_table = if i == 0 {
+                // The first block can only output a carry
+                lut_does_block_generate_carry.clone()
+            } else {
+                lut_does_block_generate_or_propagate.clone()
+            };
+
+            let node = graph.add_node(Node::ToCompute { lookup_table });
+
+            graph.add_edge(*message, node, 1);
+            graph.add_edge(*carry, node, 1);
+
+            node
+        })
+        .collect();
+
+    generates_or_propagates
+}
+
+pub(crate) fn compute_prefix_sum_hillis_steele<F>(
+    graph: &mut Graph<Node, u64>,
+    sks: &ServerKey,
+    mut generates_or_propagates: Vec<NodeIndex>,
+    sum_function: F,
+) -> Vec<NodeIndex>
+where
+    F: for<'a> Fn(&'a mut Graph<Node, u64>, NodeIndex, NodeIndex) -> NodeIndex + Sync,
+{
+    debug_assert!(sks.message_modulus.0 * sks.carry_modulus.0 >= (1 << 4));
+
+    let num_blocks = generates_or_propagates.len();
+    let num_steps = generates_or_propagates.len().ceil_ilog2() as usize;
+
+    let mut space = 1;
+    let mut step_output = generates_or_propagates.clone();
+    for _ in 0..num_steps {
+        for (i, block) in step_output[space..num_blocks].iter_mut().enumerate() {
+            let prev_block_carry = generates_or_propagates[i];
+            *block = sum_function(graph, *block, prev_block_carry);
+        }
+        for i in space..num_blocks {
+            generates_or_propagates[i].clone_from(&step_output[i]);
+        }
+
+        space *= 2;
+    }
+
+    generates_or_propagates
+}
+
+#[repr(u64)]
+#[derive(PartialEq, Eq)]
+pub enum OutputCarry {
+    /// The block does not generate nor propagate a carry
+    None = 0,
+    /// The block generates a carry
+    Generated = 1,
+    /// The block will propagate a carry if it ever
+    /// receives one
+    Propagated = 2,
+}
+
+fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
+    if msb == OutputCarry::Propagated as u64 {
+        lsb
+    } else {
+        msb
+    }
 }
