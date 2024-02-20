@@ -99,7 +99,7 @@ impl FheGraph {
             }
         }
 
-        dbg!(&successors_max_depth.iter().map(|(_, a)| a).max());
+        dbg!(&successors_max_depth.values().max());
 
         let graph = graph.map(
             |node_index, node| {
