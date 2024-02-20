@@ -1,7 +1,7 @@
 use crate::async_graph::Node;
 use crate::context::Context;
 use core::panic;
-use itertools::zip_eq;
+use itertools::{zip_eq, Itertools};
 // use petgraph::dot::{Config, Dot};
 use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
