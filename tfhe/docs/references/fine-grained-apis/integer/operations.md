@@ -6,7 +6,7 @@ The structure and operations related to integers are described in this section.
 
 In `integer`, the encrypted data is split amongst many ciphertexts encrypted with the `shortint` library. Below is a scheme representing an integer composed by k shortint ciphertexts.
 
-![](../../_static/integer-ciphertext.png)
+![](../../../\_static/integer-ciphertext.png)
 
 This crate implements two ways to represent an integer:
 
@@ -48,8 +48,7 @@ fn main() {
 }
 ```
 
-This representation has many advantages: no carry propagation is required, cleaning the carry buffer of each ciphertext block is enough. This implies that operations can easily be 
-parallelized. It also allows the efficient computation of PBS in the case where the function is CRT-compliant.
+This representation has many advantages: no carry propagation is required, cleaning the carry buffer of each ciphertext block is enough. This implies that operations can easily be parallelized. It also allows the efficient computation of PBS in the case where the function is CRT-compliant.
 
 A variant of the CRT is proposed where each block might be associated to a different key couple. Here, a keychain to the computations is required, but this may result in a performance improvement.
 
@@ -57,20 +56,20 @@ A variant of the CRT is proposed where each block might be associated to a diffe
 
 The list of operations available in `integer` depends on the type of representation:
 
-| Operation name                  | Radix-based          | CRT-based                  |
-| ------------------------------  | -------------------- | -------------------------- |
-| Negation                        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Addition                        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Addition                 | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Subtraction                     | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Subtraction              | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Multiplication                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Multiplication           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Bitwise OR, AND, XOR            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Equality                        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Left/Right Shift                | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Comparisons `<`,`<=`,`>`, `>=`  | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Min, Max                        | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Operation name                 | Radix-based          | CRT-based                  |
+| ------------------------------ | -------------------- | -------------------------- |
+| Negation                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Addition                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Scalar Addition                | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Subtraction                    | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Scalar Subtraction             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Multiplication                 | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Scalar Multiplication          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Bitwise OR, AND, XOR           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Equality                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Left/Right Shift               | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Comparisons `<`,`<=`,`>`, `>=` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Min, Max                       | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
 
 ## Types of operations
 
@@ -215,11 +214,11 @@ fn main() {
 
 {% hint style="warning" %}
 You must avoid cloning the inputs when calling `smart` operations to preserve performance. For instance, you SHOULD NOT have these kind of patterns in the code:
+
 ```Rust
 sks.smart_add(&mut a.clone(), &mut b.clone());
 ```
 {% endhint %}
-
 
 The main advantage of the default flavor is to ensure predictable timings, as long as only this kind of operation is used. Only the parallelized version of the operations is provided.
 

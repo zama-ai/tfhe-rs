@@ -1,4 +1,6 @@
-# Serialization/Deserialization
+# Serialize/Deserialize
+
+## Serialization/Deserialization
 
 As explained in the Introduction, most types are meant to be shared with the server that performs the computations.
 
@@ -70,25 +72,17 @@ fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error
 }
 ```
 
+## Safe Serialization/Deserialization
 
-# Safe Serialization/Deserialization
+For some types, safe serialization and deserialization functions are available. Bincode is used internally.
 
-For some types, safe serialization and deserialization functions are available.
-Bincode is used internally.
+Safe-deserialization must take as input the output of a safe-serialization. On this condition, validation of the following is done:
 
-Safe-deserialization must take as input the output of a safe-serialization.
-On this condition, validation of the following is done:
-- type: trying to deserialize `type A` from a serialized `type B` raises an error along the lines of *On deserialization, expected type A, got type B* instead of a generic deserialization error (or less likely a meaningless result of `type A`)
-- version: trying to deserialize `type A` (version 0.2) from a serialized `type A` (incompatible version 0.1) raises an error along the lines of *On deserialization, expected serialization version 0.2, got version 0.1* instead of a generic deserialization error (or less likely a meaningless result of `type A` (version 0.2))
-- parameter compatibility: trying to deserialize into an object of `type A` with some crypto parameters from a an object of `type A` with other crypto parameters raises an error along the lines of *Deserialized object of type A not conformant with given parameter set*.
-If both parameters sets 1 and 2 have the same lwe dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2 even if doing this deserialization may not make sense.
-Also, this check can't distinguish ciphertexts/server keys from independant client keys with the same parameters (which makes no sense combining to do homomorphic operations).
-This check is meant to prevent runtime errors in server homomorphic operations by checking that server keys and ciphertexts are compatible with the same parameter set.
+* type: trying to deserialize `type A` from a serialized `type B` raises an error along the lines of _On deserialization, expected type A, got type B_ instead of a generic deserialization error (or less likely a meaningless result of `type A`)
+* version: trying to deserialize `type A` (version 0.2) from a serialized `type A` (incompatible version 0.1) raises an error along the lines of _On deserialization, expected serialization version 0.2, got version 0.1_ instead of a generic deserialization error (or less likely a meaningless result of `type A` (version 0.2))
+* parameter compatibility: trying to deserialize into an object of `type A` with some crypto parameters from a an object of `type A` with other crypto parameters raises an error along the lines of _Deserialized object of type A not conformant with given parameter set_. If both parameters sets 1 and 2 have the same lwe dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2 even if doing this deserialization may not make sense. Also, this check can't distinguish ciphertexts/server keys from independant client keys with the same parameters (which makes no sense combining to do homomorphic operations). This check is meant to prevent runtime errors in server homomorphic operations by checking that server keys and ciphertexts are compatible with the same parameter set.
 
-Moreover, a size limit (in number of bytes) for the serialized data is expected on both serialization and deserialization.
-On serialization, an error is raised if the serialized output would be bigger than the given limit.
-On deserialization, an error is raised if the serialized input is bigger than the given limit.
-It is meant to gracefully return an error in case of an attacker trying to cause an out of memory error on deserialization. 
+Moreover, a size limit (in number of bytes) for the serialized data is expected on both serialization and deserialization. On serialization, an error is raised if the serialized output would be bigger than the given limit. On deserialization, an error is raised if the serialized input is bigger than the given limit. It is meant to gracefully return an error in case of an attacker trying to cause an out of memory error on deserialization.
 
 A standalone `is_conformant` method is also available on those types to do a parameter compatibility check.
 

@@ -8,7 +8,7 @@ In `shortint`, the encrypted data is stored in an LWE ciphertext.
 
 Conceptually, the message stored in an LWE ciphertext is divided into a **carry buffer** and a **message buffer**.
 
-![](../../_static/ciphertext-representation.png)
+![](../../../\_static/ciphertext-representation.png)
 
 The message buffer is the space where the actual message is stored. This represents the modulus of the input messages (denoted by `MessageModulus` in the code). When doing computations on a ciphertext, the encrypted message can overflow the message modulus. The part of the message which exceeds the message modulus is stored in the carry buffer. The size of the carry buffer is defined by another modulus, called `CarryModulus`.
 
@@ -41,9 +41,7 @@ Not all operations have these 4 flavors, as some of them are implemented in a wa
 If you don't know which flavor to use, you should use the `default` one.
 {% endhint %}
 
-
 ## How to use operation types
-
 
 Let's try to do a circuit evaluation using the different flavors of operations that we have already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise,`checked` and `smart` are the best options.
 
@@ -153,7 +151,7 @@ fn main() {
 }
 ```
 
-The  main advantage of the default flavor is to ensure predictable timings as long as this is the only kind of operation which is used.
+The main advantage of the default flavor is to ensure predictable timings as long as this is the only kind of operation which is used.
 
 {% hint style="warning" %}
 Using `default` could **slow-down** computations.

@@ -1,11 +1,8 @@
-# Trivial Ciphertext
+# Use Trivial Ciphertext
 
-Sometimes, the server side needs to initialize a value.
-For example, when computing the sum of a list of ciphertext,
-one might want to initialize the `sum` variable to `0`.
+Sometimes, the server side needs to initialize a value. For example, when computing the sum of a list of ciphertext, one might want to initialize the `sum` variable to `0`.
 
-Instead of asking the client to send a real encryption of zero,
-the server can do a *trivial encryption*
+Instead of asking the client to send a real encryption of zero, the server can do a _trivial encryption_
 
 ```rust
 use tfhe::prelude::*;
@@ -22,13 +19,9 @@ let clear: u8 = a.decrypt(&client_key);
 assert_eq!(clear, 234);
 ```
 
-A *trivial encryption* will create a ciphertext that contains
-the desired value, however, the 'encryption' is trivial that is,
-it is not really encrypted: anyone, any key can decrypt it.
+A _trivial encryption_ will create a ciphertext that contains the desired value, however, the 'encryption' is trivial that is, it is not really encrypted: anyone, any key can decrypt it.
 
-Note that when you want to do an operation that involves a ciphertext
-and a clear value, you should only use a trivial encryption of the clear
-value if the ciphertext/clear-value operation (often called scalar operation) you want to run is not supported.
+Note that when you want to do an operation that involves a ciphertext and a clear value, you should only use a trivial encryption of the clear value if the ciphertext/clear-value operation (often called scalar operation) you want to run is not supported.
 
 ### Example
 
