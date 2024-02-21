@@ -3,7 +3,7 @@
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, RandomGenerator,
-    Seed,
+    Seeder,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
@@ -32,9 +32,12 @@ pub struct NoiseRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
-    pub fn new(seed: Seed) -> Self {
+    /// Create a new [`NoiseRandomGenerator`], using the provided [`Seeder`] to privately seed the
+    /// noise generator.
+    // S is ?Sized to allow Box<dyn Seeder> to be passed.
+    pub fn new<S: Seeder + ?Sized>(seeder: &mut S) -> Self {
         Self {
-            gen: RandomGenerator::new(seed),
+            gen: RandomGenerator::new(seeder.seed()),
         }
     }
 
