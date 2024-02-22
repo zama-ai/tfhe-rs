@@ -850,8 +850,10 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
 
-  int_radix_lut<Torus> *is_max_value_lut;
-  int_radix_lut<Torus> *is_equal_to_num_blocks_lut;
+  // This map store LUTs that checks the equality between some input and values
+  // of interest in are_all_block_true(), as with max_value (the maximum message
+  // value).
+  std::unordered_map<int, int_radix_lut<Torus> *> is_equal_to_lut_map;
 
   Torus *tmp_block_accumulated;
 
@@ -869,34 +871,14 @@ template <typename Torus> struct int_are_all_block_true_buffer {
       int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
       tmp_block_accumulated = (Torus *)cuda_malloc_async(
           (params.big_lwe_dimension + 1) * max_chunks * sizeof(Torus), stream);
-
-      // LUT
-      // We need three LUTs:
-      // (x & max_value as u64) == max_value
-      // x != 0
-      // (x & max_value as u64) == blocks.len()
-
-      auto is_max_value_lut_f = [total_modulus](Torus x) -> Torus {
-        Torus max_value = total_modulus - 1;
-        return (x & max_value) == max_value;
-      };
-
-      is_max_value_lut = new int_radix_lut<Torus>(
-          stream, params, 1, num_radix_blocks, allocate_gpu_memory);
-      is_equal_to_num_blocks_lut = new int_radix_lut<Torus>(
-          stream, params, 1, num_radix_blocks, allocate_gpu_memory);
-      generate_device_accumulator<Torus>(
-          stream, is_max_value_lut->lut, params.glwe_dimension,
-          params.polynomial_size, params.message_modulus, params.carry_modulus,
-          is_max_value_lut_f);
     }
   }
 
   void release(cuda_stream_t *stream) {
-    is_max_value_lut->release(stream);
-    delete is_max_value_lut;
-    is_equal_to_num_blocks_lut->release(stream);
-    delete is_equal_to_num_blocks_lut;
+    for (auto &lut : is_equal_to_lut_map) {
+      lut.second->release(stream);
+    }
+    is_equal_to_lut_map.clear();
 
     cuda_drop_async(tmp_block_accumulated, stream);
   }

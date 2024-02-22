@@ -99,29 +99,34 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
       input_blocks += (big_lwe_dimension + 1) * chunk_length;
     }
     accumulator = are_all_block_true_buffer->tmp_block_accumulated;
+    auto is_equal_to_num_blocks_map =
+        &are_all_block_true_buffer->is_equal_to_lut_map;
 
     // Selects a LUT
     int_radix_lut<Torus> *lut;
     if (are_all_block_true_buffer->op == COMPARISON_TYPE::NE) {
       // is_non_zero_lut_buffer LUT
       lut = mem_ptr->eq_buffer->is_non_zero_lut;
-    } else if (chunk_length == max_value) {
-      // is_max_value LUT
-      lut = are_all_block_true_buffer->is_max_value_lut;
     } else {
-      // is_equal_to_num_blocks LUT
-      lut = are_all_block_true_buffer->is_equal_to_num_blocks_lut;
-      if (chunk_length != lut_num_blocks) {
+      if ((*is_equal_to_num_blocks_map).find(chunk_length) !=
+          (*is_equal_to_num_blocks_map).end()) {
+        // The LUT is already computed
+        lut = (*is_equal_to_num_blocks_map)[chunk_length];
+      } else {
+        // LUT needs to be computed
+        auto new_lut = new int_radix_lut<Torus>(stream, params, max_value,
+                                                num_radix_blocks, true);
+
         auto is_equal_to_num_blocks_lut_f = [max_value,
                                              chunk_length](Torus x) -> Torus {
           return (x & max_value) == chunk_length;
         };
         generate_device_accumulator<Torus>(
-            stream, lut->lut, glwe_dimension, polynomial_size, message_modulus,
-            carry_modulus, is_equal_to_num_blocks_lut_f);
+            stream, new_lut->lut, glwe_dimension, polynomial_size,
+            message_modulus, carry_modulus, is_equal_to_num_blocks_lut_f);
 
-        // We don't have to generate this lut again
-        lut_num_blocks = chunk_length;
+        (*is_equal_to_num_blocks_map)[chunk_length] = new_lut;
+        lut = new_lut;
       }
     }
 

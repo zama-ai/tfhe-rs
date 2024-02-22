@@ -239,8 +239,8 @@ void generate_device_accumulator_bivariate(
       acc_bivariate, h_lut,
       (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream);
 
-  cuda_synchronize_stream(stream);
-  free(h_lut);
+  // Release memory when possible
+  cuda_stream_add_callback(stream, host_free_on_stream_callback, h_lut);
 }
 
 /*
@@ -271,8 +271,8 @@ void generate_device_accumulator(cuda_stream_t *stream, Torus *acc,
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream);
 
-  cuda_synchronize_stream(stream);
-  free(h_lut);
+  // Release memory when possible
+  cuda_stream_add_callback(stream, host_free_on_stream_callback, h_lut);
 }
 
 template <typename Torus>
@@ -461,8 +461,8 @@ void scratch_cuda_full_propagation(
       h_lwe_indexes[i] = i;
     cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes, lwe_indexes_size,
                              stream);
-    cuda_synchronize_stream(stream);
-    free(h_lwe_indexes);
+    cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                             h_lwe_indexes);
   }
 
   // Temporary arrays
