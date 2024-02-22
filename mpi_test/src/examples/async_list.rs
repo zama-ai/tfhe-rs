@@ -71,7 +71,7 @@ impl Context {
 
             let start = Instant::now();
             let mut a = ListOfPbs::new(inputs);
-            self.async_pbs_graph_queue_master(
+            self.async_task_graph_queue_master(
                 &mut a,
                 (sks, lookup_table),
                 |(sks, lookup_table), input| run_pbs(input, sks, lookup_table),
@@ -104,9 +104,10 @@ impl Context {
 
             let lookup_table = Arc::new(sks.generate_lookup_table(|x| (x + 1) % 16));
 
-            self.async_pbs_graph_queue_worker((sks, lookup_table), |(sks, lookup_table), input| {
-                run_pbs(input, sks, lookup_table)
-            });
+            self.async_task_graph_queue_worker(
+                (sks, lookup_table),
+                |(sks, lookup_table), input| run_pbs(input, sks, lookup_table),
+            );
         }
     }
 }
