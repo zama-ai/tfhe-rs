@@ -1181,18 +1181,15 @@ define_server_key_bench_default_fn!(
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{
-        default_scalar, gen_random_u256, shift_scalar, ParamsAndNumBlocksIter, ScalarType,
-    };
+    use super::*;
     use crate::utilities::{write_to_json, EnvConfig, OperatorType};
     use criterion::{criterion_group, Criterion};
-    use rand::prelude::*;
     use tfhe::core_crypto::algorithms::misc::divide_ceil;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
+    use tfhe::integer::IntegerKeyKind;
     use tfhe::keycache::NamedParam;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(
@@ -1222,19 +1219,17 @@ mod cuda {
                 let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                 let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                let encrypt_two_values = || {
+                let encrypt_gpu = || {
                     let clearlow = rng.gen::<u128>();
                     let clearhigh = rng.gen::<u128>();
                     let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
-
-                    d_ctxt_1
+                    CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream)
                 };
 
                 b.iter_batched(
-                    encrypt_two_values,
+                    encrypt_gpu,
                     |mut ct_0| {
                         unary_op(&gpu_sks, &mut ct_0, &stream);
                     },
@@ -1937,7 +1932,7 @@ mod cuda {
                 let bench_id =
                     format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                     let encrypt_one_value = || -> CudaRadixCiphertext {
@@ -1971,19 +1966,24 @@ mod cuda {
 
     macro_rules! define_cuda_server_key_bench_cast_fn (
         (method_name: $server_key_method:ident, display_name:$name:ident) => {
-            fn $server_key_method(c: &mut Criterion) {
-                bench_server_key_cast_function(
-                    c,
-                    concat!("integer::cuda::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, lhs, rhs| {
-                        server_key.$server_key_method(lhs, rhs);
-                    })
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_server_key_cast_function(
+                        c,
+                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs| {
+                            server_key.$server_key_method(lhs, rhs);
+                        })
+                }
             }
         }
     );
 
-    define_cuda_server_key_bench_cast_fn!(method_name: cuda_cast_to_unsigned, display_name: cuda_cast_to_unsigned);
+    define_cuda_server_key_bench_cast_fn!(
+        method_name: cast_to_unsigned,
+        display_name: cast_to_unsigned
+    );
 
     criterion_group!(cuda_cast_ops, cuda_cast_to_unsigned);
 }
