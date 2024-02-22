@@ -1,4 +1,4 @@
-use crate::async_task_graph::{Priority, TaskGraph};
+use crate::async_task_graph::TaskGraph;
 use crate::context::Context;
 use crate::examples::async_mul::{prefix_sum_carry_propagation, OutputCarry};
 use logging_timer::time;

@@ -35,7 +35,7 @@ impl Context {
         Result: Serialize + DeserializeOwned + Send + 'static,
     >(
         &self,
-        work_graph: &mut U,
+        task_graph: &mut U,
         state: T,
         f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
     ) {
@@ -49,7 +49,7 @@ impl Context {
             charge: vec![0; self.size],
         };
 
-        for task in work_graph.init() {
+        for task in task_graph.init() {
             self.enqueue_request(&mut charge, &send_task, task, &mut sent_inputs);
         }
 
@@ -135,7 +135,7 @@ impl Context {
                     let result = bincode::deserialize(&buffer).unwrap();
 
                     self.handle_new_result(
-                        work_graph,
+                        task_graph,
                         result,
                         &mut charge,
                         &send_task,
@@ -153,7 +153,7 @@ impl Context {
                 charge.charge[self.root_rank as usize] -= 1;
 
                 self.handle_new_result(
-                    work_graph,
+                    task_graph,
                     buffer,
                     &mut charge,
                     &send_task,
