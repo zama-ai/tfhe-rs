@@ -665,10 +665,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
                 custom_modulus_as_scalar,
             );
             if let Some(elem) = s.get_mut(0) {
-                *elem = (*elem).wrapping_add(g1);
+                *elem = (*elem).wrapping_add_custom_mod(g1, custom_modulus_as_scalar);
             }
             if let Some(elem) = s.get_mut(1) {
-                *elem = (*elem).wrapping_add(g2);
+                *elem = (*elem).wrapping_add_custom_mod(g2, custom_modulus_as_scalar);
             }
         });
     }
