@@ -19,7 +19,6 @@ tfhe = { path = "../tfhe", features = [
     "x86_64",
     "internal-keycache",
 ] }
-rayon = "1.8"
 bincode = "1.3"
 threadpool = "1.8"
 crossbeam-channel = "0.5"
