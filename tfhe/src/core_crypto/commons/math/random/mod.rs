@@ -80,6 +80,23 @@ where
             *s = Self::generate_one_custom_modulus(generator, distribution, custom_modulus);
         }
     }
+
+    fn required_bytes_for_safe_generation(distribution: D) -> usize {
+        let _ = distribution;
+        todo!("This distribution does not report safe byte count for generation at this time.");
+    }
+
+    fn required_bytes_for_safe_generation_custom_mod(
+        distribution: D,
+        custom_modulus: Self::CustomModulus,
+    ) -> usize {
+        let _ = distribution;
+        let _ = custom_modulus;
+        todo!(
+            "This distribution does not report custom modulus \
+            safe byte count for generation at this time."
+        );
+    }
 }
 
 /// A marker trait for types representing distributions.

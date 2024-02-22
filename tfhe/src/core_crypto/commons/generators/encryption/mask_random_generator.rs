@@ -368,17 +368,17 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
 
 /// A quantity representing a number of scalar used for mask generation.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) struct MaskElementCount(pub usize);
+pub struct MaskElementCount(pub usize);
 
 impl MaskElementCount {
-    pub(crate) fn to_mask_byte_count(self, noise_byte_per_scalar: MaskByteCount) -> MaskByteCount {
+    pub fn to_mask_byte_count(self, noise_byte_per_scalar: MaskByteCount) -> MaskByteCount {
         MaskByteCount(self.0 * noise_byte_per_scalar.0)
     }
 }
 
 /// A quantity representing a number of bytes used for mask generation.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) struct MaskByteCount(pub usize);
+pub struct MaskByteCount(pub usize);
 
 fn mask_bytes_per_coef<T: UnsignedInteger>() -> MaskByteCount {
     MaskByteCount(T::BITS / 8)

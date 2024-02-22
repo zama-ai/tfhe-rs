@@ -44,6 +44,12 @@ macro_rules! implement_gaussian {
                 }
                 output
             }
+
+            fn required_bytes_for_safe_generation(_distribution: Gaussian<$T>) -> usize {
+                // We use $T to sample the noise, and we need 4/pi inputs to generate such an output
+                // (here we take 32 to keep a safety margin).
+                <$T>::BITS as usize / 8 * 32
+            }
         }
     };
 }
@@ -79,6 +85,19 @@ where
             <Torus as FromTorus<f64>>::from_torus_custom_mod(s2, custom_modulus),
         )
     }
+
+    fn required_bytes_for_safe_generation(distribution: Gaussian<f64>) -> usize {
+        <(f64, f64)>::required_bytes_for_safe_generation(distribution)
+    }
+
+    fn required_bytes_for_safe_generation_custom_mod(
+        distribution: Gaussian<f64>,
+        _custom_modulus: Self::CustomModulus,
+    ) -> usize {
+        // The gaussian does not need to know the custom modulus for safe generation as it's only
+        // scaling a gaussian sample directly
+        Self::required_bytes_for_safe_generation(distribution)
+    }
 }
 
 impl<Torus> RandomGenerable<Gaussian<f64>> for Torus
@@ -102,5 +121,18 @@ where
     ) -> Self {
         let (s1, _) = <(f64, f64)>::generate_one(generator, distribution);
         <Torus as FromTorus<f64>>::from_torus_custom_mod(s1, custom_modulus)
+    }
+
+    fn required_bytes_for_safe_generation(distribution: Gaussian<f64>) -> usize {
+        <(f64, f64)>::required_bytes_for_safe_generation(distribution)
+    }
+
+    fn required_bytes_for_safe_generation_custom_mod(
+        distribution: Gaussian<f64>,
+        _custom_modulus: Self::CustomModulus,
+    ) -> usize {
+        // The gaussian does not need to know the custom modulus for safe generation as it's only
+        // scaling a gaussian sample directly
+        Self::required_bytes_for_safe_generation(distribution)
     }
 }

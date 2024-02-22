@@ -6,8 +6,8 @@ pub(crate) mod noise_random_generator;
 mod test;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, Seed, Seeder,
-    Uniform,
+    ByteRandomGenerator, Distribution, Gaussian, ParallelByteRandomGenerator, RandomGenerable,
+    Seed, Seeder, Uniform,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
@@ -16,8 +16,8 @@ use crate::core_crypto::commons::parameters::{
     LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize, PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
-use mask_random_generator::MaskRandomGenerator;
-use noise_random_generator::NoiseRandomGenerator;
+use mask_random_generator::{MaskElementCount, MaskRandomGenerator};
+use noise_random_generator::{NoiseElementCount, NoiseRandomGenerator};
 use rayon::prelude::*;
 
 /// A random number generator which can be used to encrypt messages.
@@ -26,6 +26,28 @@ pub struct EncryptionRandomGenerator<G: ByteRandomGenerator> {
     mask: MaskRandomGenerator<G>,
     // A separate noise generator, only used to generate the noise elements.
     noise: NoiseRandomGenerator<G>,
+}
+
+pub trait ForkingConfig {
+    fn mask_forking_parameters(&self) -> (usize, MaskElementCount);
+    fn noise_forking_parameters(&self) -> (usize, NoiseElementCount);
+}
+
+pub struct ForkBskToGgsw {
+    pub lwe_dimension: LweDimension,
+    pub level: DecompositionLevelCount,
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+}
+
+impl ForkingConfig for ForkBskToGgsw {
+    fn mask_forking_parameters(&self) -> (usize, MaskElementCount) {
+        todo!()
+    }
+
+    fn noise_forking_parameters(&self) -> (usize, NoiseElementCount) {
+        todo!()
+    }
 }
 
 impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
@@ -326,6 +348,14 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
                 std,
                 custom_modulus,
             );
+    }
+
+    pub(crate) fn random_noise_from_distribution<Scalar, D>(&mut self, distribution: D) -> Scalar
+    where
+        D: Distribution,
+        Scalar: RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        self.noise.random_noise_from_distribution(distribution)
     }
 }
 
