@@ -67,7 +67,7 @@ pub struct Sending {
 
 impl Sending {
     pub fn new(buffer: Vec<u8>, process: &Process, tag: Tag) -> Self {
-        assert!(buffer.size() < MAX_SIZE);
+        assert!(buffer.len() < MAX_SIZE);
 
         let a = Some(process.immediate_send_with_tag(unsafe { transmute(buffer.as_slice()) }, tag));
 
