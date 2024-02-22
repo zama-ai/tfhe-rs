@@ -84,6 +84,12 @@ void cuda_drop_async(void *ptr, cuda_stream_t *stream);
 int cuda_get_max_shared_memory(uint32_t gpu_index);
 
 void cuda_synchronize_stream(cuda_stream_t *stream);
+
+void cuda_stream_add_callback(cuda_stream_t *stream,
+                              cudaStreamCallback_t callback, void *user_data);
+
+void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
+                                  void *host_pointer);
 }
 
 template <typename Torus>

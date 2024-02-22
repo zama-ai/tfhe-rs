@@ -252,3 +252,15 @@ int cuda_get_max_shared_memory(uint32_t gpu_index) {
 }
 
 void cuda_synchronize_stream(cuda_stream_t *stream) { stream->synchronize(); }
+
+void cuda_stream_add_callback(cuda_stream_t *stream,
+                              cudaStreamCallback_t callback, void *user_data) {
+
+  check_cuda_error(
+      cudaStreamAddCallback(stream->stream, callback, user_data, 0));
+}
+
+void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
+                                  void *host_pointer) {
+  free(host_pointer);
+}
