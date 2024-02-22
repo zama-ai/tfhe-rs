@@ -161,16 +161,8 @@ impl Context {
             receiver.unwrap().abort();
         }
 
-        for Sending {
-            len,
-            buffer,
-            size,
-            a,
-        } in sent_inputs
-        {
-            size.unwrap().wait();
+        for Sending { buffer, a } in sent_inputs {
             a.unwrap().wait();
-            drop(len);
             drop(buffer);
         }
         std::mem::forget(send_task);
@@ -287,15 +279,6 @@ impl Context {
             }
 
             while let Some(front) = send.front_mut() {
-                if let Some(len) = front.size.take() {
-                    match len.test() {
-                        Ok(_) => {}
-                        Err(front_size) => {
-                            front.size = Some(front_size);
-                            continue 'outer;
-                        }
-                    }
-                }
                 if let Some(a) = front.a.take() {
                     match a.test() {
                         Ok(_) => {

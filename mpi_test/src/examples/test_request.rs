@@ -10,13 +10,7 @@ impl Context {
             let process = self.world.process_at_rank(1);
 
             for i in 0..3 {
-                let Sending {
-                    len: _,
-                    buffer: _,
-                    size,
-                    a,
-                } = Sending::new(vec![1, 2, i], &process, tag);
-                size.unwrap().wait();
+                let Sending { buffer: _, a } = Sending::new(vec![1, 2, i], &process, tag);
                 a.unwrap().wait();
             }
         } else {
