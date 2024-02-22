@@ -455,3 +455,23 @@ pub fn glwe_relinearisation<InputCont, KeyCont, OutputCont, Scalar>(
         )
     }
 }
+
+pub fn tensor_mult_with_relin<InputCont, KeyCont, OutputCont, Scalar>(
+    input_glwe_ciphertext_lhs: &GlweCiphertext<InputCont>,
+    input_glwe_ciphertext_rhs: &GlweCiphertext<InputCont>,
+    scale: Scalar,
+    relinearisation_key: &GlweRelinearisationKey<KeyCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedTorus + CastInto<u128> + CastFrom<u128>,
+    InputCont: Container<Element = Scalar>,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let tensor_output = glwe_tensor_product(
+        &input_glwe_ciphertext_lhs,
+        &input_glwe_ciphertext_rhs,
+        scale,
+    );
+    glwe_relinearisation(&tensor_output, &relinearisation_key, output_glwe_ciphertext);
+}
