@@ -1,4 +1,4 @@
-use crate::async_pbs_graph::Node;
+use crate::async_pbs_graph::{Lut, Node};
 use crate::context::Context;
 use core::panic;
 use itertools::{zip_eq, Itertools};
@@ -192,10 +192,6 @@ fn compute_terms_for_mul_low(
     let message_modulus = sks.message_modulus.0 as u64;
     assert!(message_modulus <= sks.carry_modulus.0 as u64);
 
-    let lsb_block_mul_lut = sks
-        .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus)
-        .acc;
-
     assert_eq!(rhs.len(), rhs.len());
     let len = rhs.len();
 
@@ -205,7 +201,7 @@ fn compute_terms_for_mul_low(
         for (j, lhs_block) in lhs.iter().enumerate() {
             if (i + j) < len {
                 let node = graph.add_node(Node::ToCompute {
-                    lookup_table: lsb_block_mul_lut.clone(),
+                    lookup_table: Lut::BivarMulLow,
                 });
 
                 graph.add_edge(*lhs_block, node, 1);
@@ -219,15 +215,11 @@ fn compute_terms_for_mul_low(
     }
 
     if message_modulus > 2 {
-        let msb_block_mul_lut = sks
-            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus)
-            .acc;
-
         for (i, rhs_block) in rhs.iter().enumerate() {
             for (j, lhs_block) in lhs.iter().enumerate() {
                 if (i + j + 1) < len {
                     let node = graph.add_node(Node::ToCompute {
-                        lookup_table: msb_block_mul_lut.clone(),
+                        lookup_table: Lut::BivarMulHigh,
                     });
 
                     graph.add_edge(*lhs_block, node, 1);
@@ -320,16 +312,13 @@ fn checked_add(
 
     let message_modulus = sks.message_modulus.0 as u64;
 
-    let extract_message = sks.generate_lookup_table(|x| x % message_modulus);
-    let extract_carry = sks.generate_lookup_table(|x| x / message_modulus);
-
     // We don´t want a carry bigger than message_modulus
     let group_size = (message_modulus * message_modulus - 1) / (message_modulus - 1);
 
     assert!(blocks_ref.len() <= group_size as usize);
 
     let sum = graph.add_node(Node::ToCompute {
-        lookup_table: extract_message.clone(),
+        lookup_table: Lut::ExtractMessage,
     });
 
     for i in blocks_ref {
@@ -338,7 +327,7 @@ fn checked_add(
 
     if let Some(carries) = carries.as_mut() {
         let new_carry = graph.add_node(Node::ToCompute {
-            lookup_table: extract_carry.clone(),
+            lookup_table: Lut::ExtractCarry,
         });
 
         for i in blocks_ref {
@@ -357,19 +346,15 @@ fn add_propagate_carry(
     ct1: &[NodeIndex],
     ct2: &[NodeIndex],
 ) -> Vec<NodeIndex> {
-    let generates_or_propagates = generate_init_carry_array(graph, sks, ct1, ct2);
+    let generates_or_propagates = generate_init_carry_array(graph, ct1, ct2);
 
     let (input_carries, _output_carry) =
         compute_carry_propagation_parallelized_low_latency(graph, sks, generates_or_propagates);
 
-    let message_modulus = sks.message_modulus.0 as u64;
-
-    let extract_message = sks.generate_lookup_table(|x| x % message_modulus);
-
     (0..ct1.len())
         .map(|i| {
             let node = graph.add_node(Node::ToCompute {
-                lookup_table: extract_message.clone(),
+                lookup_table: Lut::ExtractMessage,
             });
 
             graph.add_edge(ct1[i], node, 1);
@@ -389,15 +374,12 @@ fn compute_carry_propagation_parallelized_low_latency(
 ) -> (Vec<NodeIndex>, NodeIndex) {
     let modulus = sks.message_modulus.0 as u64;
 
-    let lut_carry_propagation_sum = sks
-        .generate_lookup_table_bivariate(prefix_sum_carry_propagation)
-        .acc;
     // Type annotations are required, otherwise we get confusing errors
     // "implementation of `FnOnce` is not general enough"
     let sum_function =
         |graph: &mut Graph<Node, u64>, block_carry: NodeIndex, previous_block_carry: NodeIndex| {
             let node = graph.add_node(Node::ToCompute {
-                lookup_table: lut_carry_propagation_sum.clone(),
+                lookup_table: Lut::PrefixSumCarryPropagation,
             });
 
             graph.add_edge(block_carry, node, modulus);
@@ -416,32 +398,9 @@ fn compute_carry_propagation_parallelized_low_latency(
 
 fn generate_init_carry_array(
     graph: &mut Graph<Node, u64>,
-    sks: &ServerKey,
     ct1: &[NodeIndex],
     ct2: &[NodeIndex],
 ) -> Vec<NodeIndex> {
-    let modulus = sks.message_modulus.0 as u64;
-
-    // This is used for the first pair of blocks
-    // as this pair can either generate or not, but never propagate
-    let lut_does_block_generate_carry = sks.generate_lookup_table(|x| {
-        if x >= modulus {
-            OutputCarry::Generated as u64
-        } else {
-            OutputCarry::None as u64
-        }
-    });
-
-    let lut_does_block_generate_or_propagate = sks.generate_lookup_table(|x| {
-        if x >= modulus {
-            OutputCarry::Generated as u64
-        } else if x == (modulus - 1) {
-            OutputCarry::Propagated as u64
-        } else {
-            OutputCarry::None as u64
-        }
-    });
-
     let generates_or_propagates: Vec<_> = ct1
         .iter()
         .zip_eq(ct2.iter())
@@ -449,9 +408,9 @@ fn generate_init_carry_array(
         .map(|(i, (block1, block2))| {
             let lookup_table = if i == 0 {
                 // The first block can only output a carry
-                lut_does_block_generate_carry.clone()
+                Lut::DoesBlockGenerateCarry
             } else {
-                lut_does_block_generate_or_propagate.clone()
+                Lut::DoesBlockGenerateOrPropagate
             };
 
             let node = graph.add_node(Node::ToCompute { lookup_table });
