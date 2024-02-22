@@ -43,7 +43,7 @@ impl Context {
         state: T,
         f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
     ) {
-        let (send_pbs, receive_pbs) = unbounded::<Task, Priority>();
+        let (send_task, receive_task) = unbounded::<Task, Priority>();
         let (send_result, receive_result) = unbounded::<Result, Priority>();
 
         let mut sent_inputs = vec![];
@@ -54,7 +54,7 @@ impl Context {
         };
 
         for (priority, task) in task_graph.init() {
-            self.enqueue_request(&mut charge, &send_pbs, priority, task, &mut sent_inputs);
+            self.enqueue_request(&mut charge, &send_task, priority, task, &mut sent_inputs);
         }
 
         {
@@ -66,12 +66,12 @@ impl Context {
             launch_threadpool(
                 priority,
                 n_workers,
-                &receive_pbs,
+                &receive_task,
                 &send_result,
-                move |receive_pbs, send_result, state| {
+                move |receive_task, send_result, state| {
                     let f = f.clone();
 
-                    handle_request(receive_pbs, send_result, f, state)
+                    handle_request(receive_task, send_result, f, state)
                 },
                 state,
             );
@@ -94,7 +94,7 @@ impl Context {
                         task_graph,
                         result,
                         &mut charge,
-                        &send_pbs,
+                        &send_task,
                         &mut sent_inputs,
                     );
 
@@ -112,7 +112,7 @@ impl Context {
                     task_graph,
                     buffer,
                     &mut charge,
-                    &send_pbs,
+                    &send_task,
                     &mut sent_inputs,
                 );
             }
@@ -138,7 +138,7 @@ impl Context {
             drop(len);
             drop(buffer);
         }
-        std::mem::forget(send_pbs);
+        std::mem::forget(send_task);
     }
 
     fn handle_new_result<U: TaskGraph>(
@@ -211,7 +211,7 @@ impl Context {
             bincode::serialize(&result).unwrap()
         };
 
-        let (send_pbs, receive_pbs) = unbounded::<Vec<u8>, Priority>();
+        let (send_task, receive_task) = unbounded::<Vec<u8>, Priority>();
         let (send_result, receive_result) = unbounded::<Vec<u8>, Priority>();
 
         {
@@ -224,7 +224,7 @@ impl Context {
             launch_threadpool(
                 priority,
                 n_workers,
-                &receive_pbs,
+                &receive_task,
                 &send_result,
                 move |receive_pbs, send_result, state| {
                     let f = f.clone();
@@ -243,7 +243,7 @@ impl Context {
 
         'outer: loop {
             if let Some(input) = advance_receiving(&mut receive, &root_process, MASTER_TO_WORKER) {
-                block_on(send_pbs.send(input, Priority(0))).unwrap();
+                block_on(send_task.send(input, Priority(0))).unwrap();
 
                 // handle_request(&receive_pbs, &send_result, &f, state.clone());
             }
