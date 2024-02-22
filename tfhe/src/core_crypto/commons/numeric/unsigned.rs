@@ -157,7 +157,10 @@ macro_rules! implement {
                         .wrapping_rem(custom_modulus_u128)
                         .cast_into()
                 } else {
-                    todo!("wrapping_add_custom_mod is not yet implemented for types wider than u64")
+                    if custom_modulus.is_power_of_two() {
+                        return self.wrapping_add(other).wrapping_rem(custom_modulus);
+                    }
+                    todo!("wrapping_add_custom_mod is not yet implemented for non power of two moduli wider than u64")
                 }
             }
             #[inline]
@@ -172,7 +175,10 @@ macro_rules! implement {
                         .wrapping_rem(custom_modulus_u128)
                         .cast_into()
                 } else {
-                    todo!("wrapping_sub_custom_mod is not yet implemented for types wider than u64")
+                    if custom_modulus.is_power_of_two() {
+                        return self.wrapping_sub(other).wrapping_rem(custom_modulus);
+                    }
+                    todo!("wrapping_sub_custom_mod is not yet implemented for non power of two moduli wider than u64")
                 }
             }
             #[inline]
