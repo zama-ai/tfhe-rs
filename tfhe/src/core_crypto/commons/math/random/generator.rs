@@ -296,6 +296,102 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         )
     }
 
+    /// Add a random scalar from the given distribution under the native modulus.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let mut random = vec![0u8; 8];
+    /// generator
+    ///     .unsigned_integer_slice_wrapping_add_random_from_distribution_assign(&mut random, Uniform);
+    /// let mut random = vec![0u64; 8];
+    /// generator.unsigned_integer_slice_wrapping_add_random_from_distribution_assign(
+    ///     &mut random,
+    ///     Gaussian {
+    ///         mean: 0.0,
+    ///         std: 1.0,
+    ///     },
+    /// );
+    /// ```
+    pub fn unsigned_integer_slice_wrapping_add_random_from_distribution_assign<Scalar, D>(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        for x in output.iter_mut() {
+            let random = Scalar::generate_one(self, distribution);
+            *x = (*x).wrapping_add(random);
+        }
+    }
+    /// Add a random gaussian value to each element in a slice.
+    ///
+    /// # Example
+    ///
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+    /// use tfhe::core_crypto::commons::math::random::{Gaussian, RandomGenerator, Uniform};
+    ///
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let custom_mod_u8 = CiphertextModulus::try_new_power_of_2(7).unwrap();
+    /// let mut random = vec![0u8; 8];
+    /// generator.unsigned_integer_slice_wrapping_add_random_from_distribution_custom_mod_assign(
+    ///     &mut random,
+    ///     Uniform,
+    ///     custom_mod_u8,
+    /// );
+    ///
+    /// let custom_mod_u64 = CiphertextModulus::try_new_power_of_2(63).unwrap();
+    /// let mut random = vec![0u64; 8];
+    /// generator.unsigned_integer_slice_wrapping_add_random_from_distribution_custom_mod_assign(
+    ///     &mut random,
+    ///     Gaussian {
+    ///         mean: 0.0,
+    ///         std: 1.0,
+    ///     },
+    ///     custom_mod_u64,
+    /// );
+    /// ```
+    pub fn unsigned_integer_slice_wrapping_add_random_from_distribution_custom_mod_assign<
+        Scalar,
+        D,
+    >(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        if custom_modulus.is_native_modulus() {
+            self.unsigned_integer_slice_wrapping_add_random_from_distribution_assign(
+                output,
+                distribution,
+            );
+            return;
+        }
+
+        let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
+        for x in output.iter_mut() {
+            let random =
+                Scalar::generate_one_custom_modulus(self, distribution, custom_modulus_as_scalar);
+            *x = (*x).wrapping_add_custom_mod(random, custom_modulus_as_scalar);
+        }
+    }
+
     /// Generate a random uniform unsigned integer.
     ///
     /// # Example
@@ -622,6 +718,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             }
         });
     }
+
     /// Add a random gaussian value to each element in a slice.
     ///
     /// # Example
