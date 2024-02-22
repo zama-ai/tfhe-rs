@@ -4,6 +4,8 @@ const N: u64 = 25;
 fn main() {
     let context = Context::new();
 
+    // simple_logger::init().unwrap();
+
     // context.run_local_on_root();
 
     // context.sync_pbs_batch();
