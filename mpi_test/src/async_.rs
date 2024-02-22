@@ -32,7 +32,7 @@ struct ClusterCharge {
 }
 
 impl Context {
-    pub fn async_pbs_graph_queue_master<
+    pub fn async_task_graph_queue_master<
         T: Sync + Clone + Send + 'static,
         U: TaskGraph<Task = Task, Result = Result>,
         Task: Serialize + DeserializeOwned + Send + 'static,
@@ -146,7 +146,7 @@ impl Context {
         task_graph: &mut U,
         result: U::Result,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<U::Task, Priority>,
+        send_task: &Sender<U::Task, Priority>,
         sent_inputs: &mut Vec<Sending>,
     ) where
         U::Task: Serialize + DeserializeOwned,
@@ -154,20 +154,20 @@ impl Context {
         let new_tasks = task_graph.commit_result(result);
 
         for (priority, task) in new_tasks {
-            self.enqueue_request(charge, send_pbs, priority, task, sent_inputs);
+            self.enqueue_request(charge, send_task, priority, task, sent_inputs);
         }
     }
 
     fn enqueue_request<Task: Serialize + DeserializeOwned>(
         &self,
         charge: &mut ClusterCharge,
-        send_pbs: &Sender<Task, Priority>,
+        send_task: &Sender<Task, Priority>,
         priority: Priority,
         task: Task,
         sent_inputs: &mut Vec<Sending>,
     ) {
         if charge.charge[self.root_rank as usize] < charge.available_parallelism {
-            block_on(send_pbs.send(task, priority)).unwrap();
+            block_on(send_task.send(task, priority)).unwrap();
             charge.charge[self.root_rank as usize] += 1;
         } else {
             let rank = charge
@@ -181,7 +181,7 @@ impl Context {
             charge.charge[rank] += 1;
 
             if rank == self.root_rank as usize {
-                block_on(send_pbs.send(task, priority)).unwrap();
+                block_on(send_task.send(task, priority)).unwrap();
             } else {
                 let buffer = bincode::serialize(&task).unwrap();
 
@@ -194,7 +194,7 @@ impl Context {
         }
     }
 
-    pub fn async_pbs_graph_queue_worker<
+    pub fn async_task_graph_queue_worker<
         T: Sync + Clone + Send + 'static,
         Task: Serialize + DeserializeOwned + Send,
         Result: Serialize + DeserializeOwned + Send,
@@ -226,10 +226,10 @@ impl Context {
                 n_workers,
                 &receive_task,
                 &send_result,
-                move |receive_pbs, send_result, state| {
+                move |receive_task, send_result, state| {
                     let f = f.clone();
 
-                    handle_request(receive_pbs, send_result, f, state)
+                    handle_request(receive_task, send_result, f, state)
                 },
                 state,
             );
@@ -245,7 +245,7 @@ impl Context {
             if let Some(input) = advance_receiving(&mut receive, &root_process, MASTER_TO_WORKER) {
                 block_on(send_task.send(input, Priority(0))).unwrap();
 
-                // handle_request(&receive_pbs, &send_result, &f, state.clone());
+                // handle_request(&receive_task, &send_result, &f, state.clone());
             }
 
             while let Ok((output, _)) = receive_result.try_recv() {
@@ -289,7 +289,7 @@ fn launch_threadpool<
 >(
     priority: ThreadPriority,
     n_workers: usize,
-    receive_pbs: &Receiver<U, W>,
+    receive_task: &Receiver<U, W>,
     send_result: &Sender<V, X>,
     function: impl Fn(&Receiver<U, W>, &Sender<V, X>, &T) + Send + Clone + 'static,
     state: T,
@@ -297,7 +297,7 @@ fn launch_threadpool<
     let pool = ThreadPool::new(n_workers);
 
     for _ in 0..n_workers {
-        let receive_pbs = receive_pbs.clone();
+        let receive_task = receive_task.clone();
         let send_result = send_result.clone();
         let function = function.clone();
 
@@ -307,19 +307,19 @@ fn launch_threadpool<
             set_current_thread_priority(priority).unwrap();
 
             loop {
-                function(&receive_pbs, &send_result, &state);
+                function(&receive_task, &send_result, &state);
             }
         });
     }
 }
 
 fn handle_request<T, U, V, W: Ord>(
-    receive_pbs: &Receiver<U, W>,
+    receive_task: &Receiver<U, W>,
     send_result: &Sender<V, W>,
     f: impl Fn(&T, &U) -> V,
     state: &T,
 ) {
-    let (input, priority) = block_on(receive_pbs.recv()).unwrap();
+    let (input, priority) = block_on(receive_task.recv()).unwrap();
 
     let result = f(state, &input);
 
