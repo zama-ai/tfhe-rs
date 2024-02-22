@@ -132,7 +132,7 @@ impl Context {
                 let rank = i + 1;
                 let process = self.world.process_at_rank(rank as i32);
                 if let Some(buffer) = advance_receiving(receivers.front_mut().unwrap()) {
-                    assert!(receivers.pop_front().is_none());
+                    assert!(receivers.pop_front().unwrap().is_none());
 
                     receivers.push_back(Some(Receiving::new(&process, WORKER_TO_MASTER)));
 
@@ -172,13 +172,12 @@ impl Context {
 
         for receivers in receiverss {
             for receiver in receivers {
-                receiver.unwrap().abort();
+                std::mem::forget(receiver.unwrap()); //.abort()
             }
         }
 
-        for Sending { buffer, a } in sent_inputs {
-            a.unwrap().wait();
-            drop(buffer);
+        for a in sent_inputs {
+            a.abort()
         }
         std::mem::forget(send_task);
     }
@@ -289,7 +288,7 @@ impl Context {
 
         'outer: loop {
             if let Some(input) = advance_receiving(receives.front_mut().unwrap()) {
-                assert!(receives.pop_front().is_none());
+                assert!(receives.pop_front().unwrap().is_none());
 
                 receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)));
 
