@@ -162,6 +162,7 @@ impl FheGraph {
         }
     }
 
+    #[time]
     fn compute_multisum(&self, index: NodeIndex, sks: &ServerKey) -> Ciphertext {
         let mut iterator = self.graph.neighbors_directed(index, Incoming);
 
@@ -185,6 +186,7 @@ impl FheGraph {
         multisum_result
     }
 
+    #[time]
     fn multisum_and_build_task(&mut self, index: NodeIndex) -> (Priority, IndexedCtAndLut) {
         let multisum_result = self.compute_multisum(index, &self.sks);
 
@@ -211,6 +213,7 @@ impl TaskGraph for FheGraph {
 
     type Result = IndexedCt;
 
+    #[time]
     fn init(&mut self) -> Vec<(Priority, IndexedCtAndLut)> {
         self.test_graph_init();
 
@@ -241,6 +244,7 @@ impl TaskGraph for FheGraph {
             .collect()
     }
 
+    #[time]
     fn commit_result(&mut self, result: IndexedCt) -> Vec<(Priority, IndexedCtAndLut)> {
         self.not_computed_nodes_count -= 1;
 

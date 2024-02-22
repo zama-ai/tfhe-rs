@@ -83,6 +83,45 @@ impl Context {
             })
             .collect();
 
+        // let mut a = (1..self.size).map(|rank| {
+        //     let (send_task, receive_task) = unbounded::<Task, Priority>();
+
+        //     pool.execute(move || {
+        //         let process = self.world.process_at_rank(rank as i32);
+        //         let mut receiver = Some(Receiving::new(&process, WORKER_TO_MASTER));
+
+        //         // set_current_thread_priority(priority).unwrap();
+
+        //         let mut sent_inputs = vec![];
+
+        //         loop {
+        //             if let Ok((buffer, _)) = receive_result.recv() {
+        //             } else {
+        //                 break;
+        //             }
+        //         }
+        //     });
+        // });
+
+        // let mut a = (1..self.size).map(|rank| {
+        //     let (send_result, receive_result) = unbounded::<Result, Priority>();
+
+        //     pool.execute(move || {
+        //         let process = self.world.process_at_rank(rank as i32);
+        //         let mut receiver = Some(Receiving::new(&process, WORKER_TO_MASTER));
+
+        //         // set_current_thread_priority(priority).unwrap();
+
+        //         let mut sent_inputs = vec![];
+
+        //         loop {
+        //             if let Ok((buffer, _)) = receive_result.try_recv() {}
+
+        //             function(&receive_task, &send_result, &state);
+        //         }
+        //     });
+        // });
+
         while !task_graph.is_finished() {
             for (i, receiver) in receivers.iter_mut().enumerate() {
                 let rank = i + 1;
