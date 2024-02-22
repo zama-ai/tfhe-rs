@@ -296,7 +296,7 @@ impl Context {
 
         let start = Instant::now();
 
-        self.async_pbs_graph_queue_master(&mut graph, sks, move |sks, input| run_pbs(input, sks));
+        self.async_task_graph_queue_master(&mut graph, sks, move |sks, input| run_pbs(input, sks));
 
         let duration = start.elapsed();
 
@@ -318,7 +318,7 @@ impl Context {
 
         let sks: Arc<ServerKey> = Arc::new(bincode::deserialize(&sks_serialized).unwrap());
 
-        self.async_pbs_graph_queue_worker(sks, |sks, input| run_pbs(input, sks));
+        self.async_task_graph_queue_worker(sks, |sks, input| run_pbs(input, sks));
 
         panic!()
     }
