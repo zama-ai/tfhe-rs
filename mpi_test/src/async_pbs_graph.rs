@@ -1,5 +1,7 @@
 use crate::async_task_graph::{Priority, TaskGraph};
 use crate::context::Context;
+use crate::examples::async_mul::{prefix_sum_carry_propagation, OutputCarry};
+use logging_timer::time;
 use mpi::traits::*;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::stable_graph::NodeIndex;
@@ -18,11 +20,23 @@ pub struct IndexedCt {
     ct: Ciphertext,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize)]
+
+pub enum Lut {
+    ExtractMessage,
+    ExtractCarry,
+    BivarMulLow,
+    BivarMulHigh,
+    PrefixSumCarryPropagation,
+    DoesBlockGenerateCarry,
+    DoesBlockGenerateOrPropagate,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IndexedCtAndLut {
     index: usize,
     ct: Ciphertext,
-    lut: LookupTableOwned,
+    lut: Lut,
 }
 
 #[derive(Clone)]
@@ -30,7 +44,7 @@ pub struct IndexedCtAndLut {
 pub enum Node {
     Computed(shortint::Ciphertext),
     BootsrapQueued,
-    ToCompute { lookup_table: LookupTableOwned },
+    ToCompute { lookup_table: Lut },
 }
 
 impl Node {
@@ -281,6 +295,8 @@ impl Context {
         sks: Arc<ServerKey>,
         graph: Graph<Node, u64>,
     ) -> (Graph<Node, u64>, Duration) {
+        let luts = Luts::new(&sks);
+
         let root_process = self.world.process_at_rank(self.root_rank);
 
         let mut sks_serialized = bincode::serialize(sks.as_ref()).unwrap();
@@ -296,7 +312,9 @@ impl Context {
 
         let start = Instant::now();
 
-        self.async_task_graph_queue_master(&mut graph, sks, move |sks, input| run_pbs(input, sks));
+        self.async_task_graph_queue_master(&mut graph, (sks, luts), move |sks, input| {
+            run_pbs(input, &sks.0, &sks.1)
+        });
 
         let duration = start.elapsed();
 
@@ -318,15 +336,78 @@ impl Context {
 
         let sks: Arc<ServerKey> = Arc::new(bincode::deserialize(&sks_serialized).unwrap());
 
-        self.async_task_graph_queue_worker(sks, |sks, input| run_pbs(input, sks));
+        let luts = Luts::new(&sks);
+
+        self.async_task_graph_queue_worker((sks, luts), |(sks, luts), input| {
+            run_pbs(input, sks, luts)
+        });
 
         panic!()
     }
 }
 
-fn run_pbs(input: &IndexedCtAndLut, sks: &ServerKey) -> IndexedCt {
+fn run_pbs(input: &IndexedCtAndLut, sks: &ServerKey, luts: &Luts) -> IndexedCt {
     IndexedCt {
-        ct: sks.apply_lookup_table(&input.ct, &input.lut),
+        ct: sks.apply_lookup_table(&input.ct, luts.get(input.lut)),
         index: input.index,
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct Luts {
+    extract_message: LookupTableOwned,
+    extract_carry: LookupTableOwned,
+    bivar_mul_low: LookupTableOwned,
+    bivar_mul_high: LookupTableOwned,
+    prefix_sum_carry_propagation: LookupTableOwned,
+    does_block_generate_carry: LookupTableOwned,
+    does_block_generate_or_propagate: LookupTableOwned,
+}
+
+impl Luts {
+    fn new(sks: &ServerKey) -> Self {
+        let message_modulus = sks.message_modulus.0 as u64;
+
+        Self {
+            extract_message: sks.generate_lookup_table(|x| x % message_modulus),
+            extract_carry: sks.generate_lookup_table(|x| x / message_modulus),
+            bivar_mul_low: sks
+                .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus)
+                .acc,
+            bivar_mul_high: sks
+                .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus)
+                .acc,
+            prefix_sum_carry_propagation: sks
+                .generate_lookup_table_bivariate(prefix_sum_carry_propagation)
+                .acc,
+            does_block_generate_carry: sks.generate_lookup_table(|x| {
+                if x >= message_modulus {
+                    OutputCarry::Generated as u64
+                } else {
+                    OutputCarry::None as u64
+                }
+            }),
+            does_block_generate_or_propagate: sks.generate_lookup_table(|x| {
+                if x >= message_modulus {
+                    OutputCarry::Generated as u64
+                } else if x == (message_modulus - 1) {
+                    OutputCarry::Propagated as u64
+                } else {
+                    OutputCarry::None as u64
+                }
+            }),
+        }
+    }
+
+    fn get(&self, lut: Lut) -> &LookupTableOwned {
+        match lut {
+            Lut::ExtractMessage => &self.extract_message,
+            Lut::ExtractCarry => &self.extract_carry,
+            Lut::BivarMulLow => &self.bivar_mul_low,
+            Lut::BivarMulHigh => &self.bivar_mul_high,
+            Lut::PrefixSumCarryPropagation => &self.prefix_sum_carry_propagation,
+            Lut::DoesBlockGenerateCarry => &self.does_block_generate_carry,
+            Lut::DoesBlockGenerateOrPropagate => &self.does_block_generate_or_propagate,
+        }
     }
 }
