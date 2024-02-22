@@ -165,7 +165,7 @@ check_fmt_gpu: install_rs_check_toolchain
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain clippy_cuda_backend
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),integer,shortint,gpu \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu \
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
@@ -260,7 +260,7 @@ clippy_concrete_csprng
 
 .PHONY: clippy_cuda_backend # Run clippy lints on the tfhe-cuda-backend
 clippy_cuda_backend: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
