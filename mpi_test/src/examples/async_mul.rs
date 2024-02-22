@@ -1,4 +1,4 @@
-use crate::async_graph::Node;
+use crate::async_pbs_graph::Node;
 use crate::context::Context;
 use core::panic;
 use itertools::{zip_eq, Itertools};
@@ -509,7 +509,7 @@ pub enum OutputCarry {
     Propagated = 2,
 }
 
-fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
+pub fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
     if msb == OutputCarry::Propagated as u64 {
         lsb
     } else {

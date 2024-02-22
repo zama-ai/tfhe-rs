@@ -1,4 +1,4 @@
-use crate::async_graph::Node;
+use crate::async_pbs_graph::Node;
 use crate::context::Context;
 use core::panic;
 use petgraph::Graph;
