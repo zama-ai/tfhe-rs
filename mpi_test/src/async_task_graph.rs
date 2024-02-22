@@ -76,10 +76,15 @@ impl Context {
                 state,
             );
         }
-        let mut receivers: Vec<_> = (1..self.size)
+        let mut receiverss: Vec<_> = (1..self.size)
             .map(|rank| {
+                let mut receives = VecDeque::new();
+
                 let process = self.world.process_at_rank(rank as i32);
-                Some(Receiving::new(&process, WORKER_TO_MASTER))
+                for _ in 0..100 {
+                    receives.push_back(Some(Receiving::new(&process, WORKER_TO_MASTER)))
+                }
+                receives
             })
             .collect();
 
@@ -123,10 +128,14 @@ impl Context {
         // });
 
         while !task_graph.is_finished() {
-            for (i, receiver) in receivers.iter_mut().enumerate() {
+            for (i, receivers) in receiverss.iter_mut().enumerate() {
                 let rank = i + 1;
                 let process = self.world.process_at_rank(rank as i32);
-                if let Some(buffer) = advance_receiving(receiver, &process, WORKER_TO_MASTER) {
+                if let Some(buffer) = advance_receiving(receivers.front_mut().unwrap()) {
+                    assert!(receivers.pop_front().is_none());
+
+                    receivers.push_back(Some(Receiving::new(&process, WORKER_TO_MASTER)));
+
                     let result = bincode::deserialize(&buffer).unwrap();
 
                     self.handle_new_result(
@@ -161,8 +170,10 @@ impl Context {
             assert_eq!(i, 0);
         }
 
-        for receiver in receivers {
-            receiver.unwrap().abort();
+        for receivers in receiverss {
+            for receiver in receivers {
+                receiver.unwrap().abort();
+            }
         }
 
         for Sending { buffer, a } in sent_inputs {
@@ -268,12 +279,20 @@ impl Context {
 
         let root_process = self.world.process_at_rank(self.root_rank);
 
-        let mut receive = Some(Receiving::new(&root_process, MASTER_TO_WORKER));
+        let mut receives = VecDeque::new();
+
+        for _ in 0..100 {
+            receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)))
+        }
 
         let mut send: VecDeque<Sending> = VecDeque::new();
 
         'outer: loop {
-            if let Some(input) = advance_receiving(&mut receive, &root_process, MASTER_TO_WORKER) {
+            if let Some(input) = advance_receiving(receives.front_mut().unwrap()) {
+                assert!(receives.pop_front().is_none());
+
+                receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)));
+
                 block_on(send_task.send(input, Priority(0))).unwrap();
 
                 // handle_request(&receive_task, &send_result, &f, state.clone());

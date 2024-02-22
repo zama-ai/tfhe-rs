@@ -34,28 +34,22 @@ impl Receiving {
     }
 }
 
-pub fn advance_receiving(
-    receiving: &mut Option<Receiving>,
-    process: &Process,
-    tag: Tag,
-) -> Option<Vec<u8>> {
+pub fn advance_receiving(receiving: &mut Option<Receiving>) -> Option<Vec<u8>> {
     let mut opt_buffer = None;
 
     let receiver = receiving.take().unwrap();
 
-    let new = match receiver.future.test() {
+    match receiver.future.test() {
         Ok(_status) => {
             opt_buffer = Some(receiver.buffer);
-
-            Receiving::new(process, tag)
         }
-        Err(a) => Receiving {
-            buffer: receiver.buffer,
-            future: a,
-        },
+        Err(future) => {
+            *receiving = Some(Receiving {
+                buffer: receiver.buffer,
+                future,
+            });
+        }
     };
-
-    *receiving = Some(new);
 
     opt_buffer
 }
