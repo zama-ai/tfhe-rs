@@ -20,7 +20,7 @@ impl Context {
 
             for _ in 0..3 {
                 let buffer = loop {
-                    if let Some(buffer) = advance_receiving(&mut receive, &process, tag) {
+                    if let Some(buffer) = advance_receiving(&mut receive) {
                         break buffer;
                     }
                 };
