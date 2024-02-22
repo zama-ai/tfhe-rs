@@ -21,8 +21,8 @@ fn main() {
     context.async_mul(32);
 }
 
-pub mod async_;
-pub mod async_graph;
+pub mod async_pbs_graph;
+pub mod async_task_graph;
 pub mod context;
 pub mod examples;
 pub mod managers;

@@ -1,4 +1,4 @@
-use crate::async_::{Priority, TaskGraph};
+use crate::async_task_graph::{Priority, TaskGraph};
 use crate::context::Context;
 use mpi::traits::*;
 use petgraph::algo::is_cyclic_directed;
