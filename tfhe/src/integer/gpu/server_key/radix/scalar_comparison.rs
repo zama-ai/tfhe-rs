@@ -171,16 +171,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_eq_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_eq_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_eq_async(lhs, scalar, stream)
     }
 
     /// Compares for equality 2 ciphertexts
@@ -253,16 +251,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_ne_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_ne_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_ne_async(lhs, scalar, stream)
     }
 
     /// Compares for equality 2 ciphertexts
@@ -494,16 +490,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_gt_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_gt_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_gt_async(lhs, scalar, stream)
     }
 
     pub fn scalar_gt<Scalar, T>(
@@ -535,16 +529,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_ge_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_ge_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_ge_async(lhs, scalar, stream)
     }
 
     pub fn scalar_ge<Scalar, T>(
@@ -576,16 +568,13 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_lt_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
-
-        self.unchecked_scalar_lt_async(lhs, scalar, stream)
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_lt_async(&T::from(lhs), scalar, stream)
+        }
     }
 
     pub fn scalar_lt<Scalar, T>(
@@ -616,16 +605,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_le_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_le_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_le_async(lhs, scalar, stream)
     }
 
     pub fn scalar_le<Scalar, T>(
@@ -721,16 +708,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_max_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_max_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_max_async(lhs, scalar, stream)
     }
 
     pub fn scalar_max<Scalar, T>(
@@ -762,16 +747,14 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let lhs = if ct.as_ref().block_carries_are_empty() {
-            ct
+        if ct.as_ref().block_carries_are_empty() {
+            self.unchecked_scalar_min_async(ct, scalar, stream)
         } else {
-            tmp_lhs = ct.as_ref().duplicate_async(stream);
-            self.full_propagate_assign_async(&mut tmp_lhs, stream);
-            &T::from(tmp_lhs)
-        };
+            let mut lhs = ct.as_ref().duplicate_async(stream);
+            self.full_propagate_assign_async(&mut lhs, stream);
+            self.unchecked_scalar_min_async(&T::from(lhs), scalar, stream)
+        }
 
-        self.unchecked_scalar_min_async(lhs, scalar, stream)
     }
 
     pub fn scalar_min<Scalar, T>(

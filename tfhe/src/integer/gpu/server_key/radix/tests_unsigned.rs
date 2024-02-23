@@ -5,8 +5,6 @@ use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::cmp::{max, min};
-use std::sync::Arc;
-use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 
 ///// For unchecked/default binary functions with one scalar input
 //impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>

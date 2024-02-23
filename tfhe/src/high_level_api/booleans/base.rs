@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref};
 
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::booleans::compressed::CompressedFheBool;
@@ -15,6 +15,7 @@ use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::{CompactFheBool, Device};
 use serde::{Deserialize, Serialize};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 
 use super::inner::InnerBoolean;
 
@@ -243,9 +244,11 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let ct_left = unsafe {self.ciphertext.on_gpu().deref().duplicate_async(stream)};
+                let ct_right = unsafe {other.borrow().ciphertext.on_gpu().deref().duplicate_async(stream)};
                 let inner = cuda_key.key.eq(
-                    &self.ciphertext.on_gpu(),
-                    &other.borrow().ciphertext.on_gpu(),
+                    &CudaUnsignedRadixCiphertext{ciphertext: ct_left},
+                    &CudaUnsignedRadixCiphertext{ciphertext: ct_right},
                     stream,
                 );
                 InnerBoolean::Cuda(inner)

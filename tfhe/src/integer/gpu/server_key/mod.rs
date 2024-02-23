@@ -658,9 +658,9 @@ impl CudaServerKey {
         target_num_blocks: usize,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if !source.block_carries_are_empty() {
+        if !source.as_ref().block_carries_are_empty() {
             unsafe {
-                self.full_propagate_assign_async(&mut source, stream);
+                self.full_propagate_assign_async(source.as_mut(), stream);
             }
             stream.synchronize();
         }
@@ -668,11 +668,10 @@ impl CudaServerKey {
         // Casting from unsigned to unsigned, this is just about trimming/extending with zeros
         if target_num_blocks > current_num_blocks {
             let num_blocks_to_add = target_num_blocks - current_num_blocks;
-            self.extend_radix_with_trivial_zero_blocks_msb(&source, num_blocks_to_add, stream)
+            self.extend_radix_with_trivial_zero_blocks_msb(source.as_ref(), num_blocks_to_add, stream)
         } else {
             let num_blocks_to_remove = current_num_blocks - target_num_blocks;
-            self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream)
+            self.trim_radix_blocks_msb(source.as_ref(), num_blocks_to_remove, stream)
         }
     }
-}
 }

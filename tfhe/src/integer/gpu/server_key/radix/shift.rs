@@ -22,7 +22,7 @@ impl CudaServerKey {
     {
         let mut result = T::from(ct.as_ref().duplicate_async(stream));
         self.unchecked_scalar_left_shift_assign_async(&mut result, shift, stream);
-        *result.as_ref()
+        result.as_ref().duplicate_async(stream)
     }
 
     /// # Safety
@@ -164,7 +164,7 @@ impl CudaServerKey {
     {
         let mut result = T::from(ct.as_ref().duplicate_async(stream));
         self.unchecked_scalar_right_shift_assign_async(&mut result, shift, stream);
-        result
+        result.as_ref().duplicate_async(stream)
     }
 
     /// # Safety
@@ -327,7 +327,7 @@ impl CudaServerKey {
     {
         let mut result = T::from(ct.as_ref().duplicate_async(stream));
         self.scalar_right_shift_assign_async(&mut result, shift, stream);
-        result
+        result.as_ref().duplicate_async(stream)
     }
 
     /// Computes homomorphically a right shift by a scalar.
@@ -394,6 +394,7 @@ impl CudaServerKey {
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
+        T: CudaIntegerRadixCiphertext,
     {
         if !ct.as_ref().block_carries_are_empty() {
             self.full_propagate_assign_async(ct.as_mut(), stream);
@@ -419,7 +420,7 @@ impl CudaServerKey {
     {
         let mut result = T::from(ct.as_ref().duplicate_async(stream));
         self.scalar_left_shift_assign_async(&mut result, shift, stream);
-        result
+        result.as_ref().duplicate_async(stream)
     }
 
     /// Computes homomorphically a left shift by a scalar.

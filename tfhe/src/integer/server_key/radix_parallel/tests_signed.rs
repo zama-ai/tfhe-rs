@@ -1,15 +1,15 @@
+use std::sync::Arc;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::integer::server_key::radix_parallel::test_cases_signed::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::*;
 use itertools::iproduct;
 use paste::paste;
 use rand::Rng;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
