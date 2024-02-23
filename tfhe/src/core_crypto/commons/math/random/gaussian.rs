@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::commons::math::torus::{FromTorus, UnsignedTorus};
+use crate::core_crypto::commons::math::torus::FromTorus;
 use crate::core_crypto::commons::numeric::{CastInto, Numeric};
 
 /// A distribution type representing random sampling of floating point numbers, following a
@@ -53,7 +53,7 @@ implement_gaussian!(f64, i64);
 
 impl<Torus> RandomGenerable<Gaussian<f64>> for (Torus, Torus)
 where
-    Torus: UnsignedTorus,
+    Torus: FromTorus<f64>,
 {
     type CustomModulus = Torus;
 
@@ -83,7 +83,7 @@ where
 
 impl<Torus> RandomGenerable<Gaussian<f64>> for Torus
 where
-    Torus: UnsignedTorus,
+    Torus: FromTorus<f64>,
 {
     type CustomModulus = Torus;
 
