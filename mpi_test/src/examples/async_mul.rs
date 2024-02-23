@@ -4,7 +4,7 @@ use core::panic;
 use itertools::{zip_eq, Itertools};
 use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
-use std::iter::once;
+use std::collections::BinaryHeap;
 use std::sync::Arc;
 use tfhe::core_crypto::commons::traits::UnsignedInteger;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -90,29 +90,45 @@ pub fn mul_graph(
 
     assert_eq!(len, rhs.len());
 
-    let mut terms_for_mul_low = compute_terms_for_mul_low(graph, sks, lhs, rhs);
+    let mut terms_for_mul_low: Vec<BinaryHeap<NodeWithDepth>> =
+        compute_terms_for_mul_low(graph, sks, lhs, rhs)
+            .into_iter()
+            .map(|a| {
+                a.into_iter()
+                    .map(|node| NodeWithDepth { node, depth: 0 })
+                    .collect()
+            })
+            .collect();
+
+    terms_for_mul_low.reverse();
+
     assert_eq!(len, terms_for_mul_low.len());
 
     let mut sum_messages = vec![];
 
     let mut sum_carries = vec![];
 
-    assert_eq!(terms_for_mul_low[0].len(), 1);
-    let (first_message, first_carry) = sum_blocks(graph, sks, &terms_for_mul_low[0], None);
+    let first_list = terms_for_mul_low.pop().unwrap();
+
+    assert_eq!(first_list.len(), 1);
+    let (first_message, first_carry) = sum_blocks(graph, sks, first_list, None);
 
     assert!(first_carry.is_none());
 
-    for i in 1..(len - 1) {
-        let (low, high) = terms_for_mul_low.split_at_mut(i + 1);
+    for _ in 1..(len - 1) {
+        let messages = terms_for_mul_low.pop().unwrap();
 
-        let (message, carry) = sum_blocks(graph, sks, &low[i], Some(&mut high[0]));
+        let carries = terms_for_mul_low.last_mut();
+
+        let (message, carry) = sum_blocks(graph, sks, messages, carries);
 
         sum_messages.push(message);
         sum_carries.push(carry.unwrap());
     }
 
-    let (last_message, last_carry) =
-        sum_blocks(graph, sks, terms_for_mul_low.last().unwrap(), None);
+    let (last_message, last_carry) = sum_blocks(graph, sks, terms_for_mul_low.pop().unwrap(), None);
+
+    assert!(terms_for_mul_low.is_empty());
 
     sum_messages.push(last_message);
 
@@ -189,78 +205,112 @@ fn compute_terms_for_mul_low(
     message_part_terms_generator
 }
 
+struct NodeWithDepth {
+    node: NodeIndex,
+    depth: u32,
+}
+
+impl PartialEq for NodeWithDepth {
+    fn eq(&self, other: &Self) -> bool {
+        self.depth == other.depth
+    }
+}
+
+impl Eq for NodeWithDepth {}
+
+impl PartialOrd for NodeWithDepth {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for NodeWithDepth {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.depth.cmp(&self.depth)
+    }
+}
+
 fn sum_blocks(
     graph: &mut Graph<Node, u64>,
     sks: &ServerKey,
-    blocks_ref: &[NodeIndex],
-    mut carries: Option<&mut Vec<NodeIndex>>,
+    mut messages: BinaryHeap<NodeWithDepth>,
+    mut carries: Option<&mut BinaryHeap<NodeWithDepth>>,
 ) -> (NodeIndex, Option<NodeIndex>) {
-    let mut blocks;
-
-    let mut blocks_ref = blocks_ref;
-
-    assert!(!blocks_ref.is_empty());
+    assert!(!messages.is_empty());
 
     let message_modulus = sks.message_modulus.0 as u64;
 
     // We don´t want a carry bigger than message_modulus
     let group_size = ((message_modulus * message_modulus - 1) / (message_modulus - 1)) as usize;
 
-    loop {
-        assert!(!blocks_ref.is_empty());
-        if blocks_ref.len() == 1 {
-            break (blocks_ref[0], None);
-        }
+    if messages.len() == 1 {
+        return (messages.pop().unwrap().node, None);
+    }
 
-        if blocks_ref.len() <= group_size {
-            if carries.is_some() {
-                let mut carry = vec![];
+    while messages.len() > group_size {
+        let mut adding = vec![];
 
-                let message = checked_add(graph, sks, blocks_ref, Some(&mut carry));
-                break (message, Some(carry[0]));
-            } else {
-                let message = checked_add(graph, sks, blocks_ref, None);
+        let mut max_depth = 0;
 
-                break (message, None);
+        let len_next_iteration = messages.len() - group_size + 1;
+
+        let number = if len_next_iteration < group_size {
+            len_next_iteration
+        } else {
+            group_size
+        };
+
+        for _ in 0..number {
+            let NodeWithDepth { node, depth } = messages.pop().unwrap();
+
+            if depth > max_depth {
+                max_depth = depth;
             }
+            adding.push(node);
         }
 
-        let number_groups = blocks_ref.len() / group_size;
+        if let Some(carries) = &mut carries {
+            let (sum, carry) = checked_add(graph, sks, &adding, true);
 
-        // let end = blocks_ref.len() - group_size + 1;
+            messages.push(NodeWithDepth {
+                node: sum,
+                depth: max_depth,
+            });
 
-        let last_size;
+            carries.push(NodeWithDepth {
+                node: carry.unwrap(),
+                depth: max_depth,
+            });
+        } else {
+            let (sum, carry) = checked_add(graph, sks, &adding, false);
 
-        let mut sums: Vec<_> = (0..number_groups - 1)
-            .map(|i| (i * group_size, group_size))
-            .chain(once({
-                let num_block_next_loop =
-                    number_groups + (blocks_ref.len() - number_groups * group_size);
+            messages.push(NodeWithDepth {
+                node: sum,
+                depth: max_depth,
+            });
 
-                last_size = if num_block_next_loop < group_size {
-                    num_block_next_loop
-                } else {
-                    group_size
-                };
+            assert!(carry.is_none());
+        }
+    }
 
-                ((number_groups - 1) * group_size, last_size)
-            }))
-            .map(|(start, size)| {
-                checked_add(
-                    graph,
-                    sks,
-                    &blocks_ref[start..start + size],
-                    carries.as_deref_mut(),
-                )
-            })
-            .collect();
+    assert!(messages.len() > 1);
+    assert!(messages.len() <= group_size);
 
-        // May be better to do the way around?
-        sums.extend_from_slice(&blocks_ref[(number_groups - 1) * group_size + last_size..]);
+    let mut adding = vec![];
 
-        blocks = sums;
+    let mut max_depth = 0;
 
-        blocks_ref = &blocks;
+    while let Some(NodeWithDepth { node, depth }) = messages.pop() {
+        if depth > max_depth {
+            max_depth = depth;
+        }
+        adding.push(node);
+    }
+
+    if carries.is_some() {
+        checked_add(graph, sks, &adding, true)
+    } else {
+        checked_add(graph, sks, &adding, false)
     }
 }
 
@@ -268,8 +318,8 @@ fn checked_add(
     graph: &mut Graph<Node, u64>,
     sks: &ServerKey,
     blocks_ref: &[NodeIndex],
-    mut carries: Option<&mut Vec<NodeIndex>>,
-) -> NodeIndex {
+    build_carry: bool,
+) -> (NodeIndex, Option<NodeIndex>) {
     assert!(blocks_ref.len() > 1);
 
     let message_modulus = sks.message_modulus.0 as u64;
@@ -287,7 +337,7 @@ fn checked_add(
         graph.add_edge(*i, sum, 1);
     }
 
-    if let Some(carries) = carries.as_mut() {
+    let carry = if build_carry {
         let new_carry = graph.add_node(Node::ToCompute {
             lookup_table: Lut::ExtractCarry,
         });
@@ -296,10 +346,12 @@ fn checked_add(
             graph.add_edge(*i, new_carry, 1);
         }
 
-        carries.push(new_carry);
-    }
+        Some(new_carry)
+    } else {
+        None
+    };
 
-    sum
+    (sum, carry)
 }
 
 fn add_propagate_carry(
