@@ -51,7 +51,7 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub glwe_modular_std_dev: StandardDev,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
@@ -69,7 +69,7 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub input_lwe_dimension: LweDimension,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub glwe_dimension: GlweDimension,
@@ -86,7 +86,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
 impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
     fn eq(&self, other: &Self) -> bool {
         self.input_lwe_dimension == other.input_lwe_dimension
-            && self.lwe_modular_std_dev == other.lwe_modular_std_dev
+            && self.lwe_noise_distribution == other.lwe_noise_distribution
             && self.decomp_base_log == other.decomp_base_log
             && self.decomp_level_count == other.decomp_level_count
             && self.glwe_dimension == other.glwe_dimension
@@ -104,7 +104,7 @@ pub struct FftTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub glwe_modular_std_dev: StandardDev,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
@@ -117,7 +117,7 @@ pub struct FftWopPbsTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub glwe_modular_std_dev: StandardDev,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
@@ -133,7 +133,7 @@ pub struct PackingKeySwitchTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub glwe_modular_std_dev: StandardDev,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
@@ -149,7 +149,7 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> From<ClassicTe
             lwe_dimension: params.lwe_dimension,
             glwe_dimension: params.glwe_dimension,
             polynomial_size: params.polynomial_size,
-            lwe_modular_std_dev: params.lwe_modular_std_dev,
+            lwe_noise_distribution: params.lwe_noise_distribution,
             glwe_modular_std_dev: params.glwe_modular_std_dev,
             pbs_base_log: params.pbs_base_log,
             pbs_level: params.pbs_level,
@@ -186,7 +186,7 @@ impl<Scalar: UnsignedInteger> NamedParam for FftTestParams<Scalar> {
                 "PARAM_FFT_BOOTSTRAP_glwe_{}_poly_{}_decomp_base_log_{}_decomp_level_{}_lwe_dim_{}_ct_modulus_{}_lwe_std_dev_{}_glwe_std_dev_{}",
                 self.glwe_dimension.0, self.polynomial_size.0, self.pbs_base_log.0,
                 self.pbs_level.0,
-                self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_modular_std_dev.0.to_string().replace('.', "-"),
+                self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_noise_distribution,
                 self.glwe_modular_std_dev.0.to_string().replace('.', "-"),
             )
     }
@@ -210,7 +210,7 @@ impl<Scalar: UnsignedInteger> NamedParam for PackingKeySwitchTestParams<Scalar> 
                 "PARAM_PKS_glwe_{}_poly_{}_decomp_base_log_{}_decomp_level_{}_lwe_dim_{}_ct_modulus_{}_lwe_std_dev_{}_glwe_std_dev_{}",
                 self.glwe_dimension.0, self.polynomial_size.0, self.pbs_base_log.0,
                 self.pbs_level.0,
-                self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_modular_std_dev.0.to_string().replace('.', "-"),
+                self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_noise_distribution,
                 self.glwe_modular_std_dev.0.to_string().replace('.', "-"),
             )
     }

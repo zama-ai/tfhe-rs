@@ -19,6 +19,7 @@
 //! computation.
 
 pub use crate::core_crypto::commons::dispersion::StandardDev;
+use crate::core_crypto::commons::math::random::Gaussian;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice, GlweDimension,
     LweDimension, PolynomialSize,
@@ -87,6 +88,14 @@ impl BooleanParameters {
             ks_level,
             encryption_key_choice,
         }
+    }
+
+    pub const fn lwe_noise_distribution(&self) -> Gaussian<f64> {
+        Gaussian::from_standard_dev(self.lwe_modular_std_dev, 0.0)
+    }
+
+    pub const fn glwe_noise_distribution(&self) -> Gaussian<f64> {
+        Gaussian::from_standard_dev(self.glwe_modular_std_dev, 0.0)
     }
 }
 

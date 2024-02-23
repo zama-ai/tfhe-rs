@@ -1,5 +1,6 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
+use crate::core_crypto::commons::math::random::Gaussian;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
@@ -53,12 +54,14 @@ fn noise_gen_native<Scalar: UnsignedTorus>() {
 
     let bits = (Scalar::BITS / 2) as i32;
 
+    let gaussian = Gaussian::from_standard_dev(StandardDev(2.0f64.powi(-bits)), 0.0);
+
     for _ in 0..1000 {
         let mut retries = 100;
 
         let mut val = Scalar::ZERO;
         while retries >= 0 {
-            val = gen.random_gaussian_noise(StandardDev(2.0f64.powi(-bits)));
+            val = gen.random_noise_from_distribution(gaussian);
             if val != Scalar::ZERO {
                 break;
             }
@@ -94,15 +97,14 @@ fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextMod
         ciphertext_modulus.get_custom_modulus().ilog2() as i32 / 2
     };
 
+    let gaussian = Gaussian::from_standard_dev(StandardDev(2.0f64.powi(-bits)), 0.0);
+
     for _ in 0..1000 {
         let mut retries = 100;
 
         let mut val = Scalar::ZERO;
         while retries >= 0 {
-            val = gen.random_gaussian_noise_custom_mod(
-                StandardDev(2.0f64.powi(-bits)),
-                ciphertext_modulus,
-            );
+            val = gen.random_noise_from_distribution_custom_mod(gaussian, ciphertext_modulus);
             if val != Scalar::ZERO {
                 break;
             }

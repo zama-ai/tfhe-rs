@@ -17,7 +17,8 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     // computations
     // Define parameters for LweKeyswitchKey creation
     let input_lwe_dimension = LweDimension(742);
-    let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+    let lwe_noise_distribution =
+        DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.000007069849454709433));
     let output_lwe_dimension = LweDimension(2048);
     let decomp_base_log = DecompositionBaseLog(3);
     let decomp_level_count = DecompositionLevelCount(5);
@@ -61,7 +62,7 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
             &input_lwe_secret_key,
             &output_lwe_secret_key,
             &mut ksk,
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             &mut encryption_generator,
         );
 
@@ -87,7 +88,7 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
             &input_lwe_secret_key,
             &output_lwe_secret_key,
             &mut seeded_ksk,
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             &mut deterministic_seeder,
         );
 

@@ -98,7 +98,8 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 /// let small_lwe_dimension = LweDimension(742);
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
@@ -182,7 +183,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 /// let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &small_lwe_sk,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -843,7 +844,8 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 /// let small_lwe_dimension = LweDimension(742);
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
@@ -927,7 +929,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 /// let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &small_lwe_sk,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );

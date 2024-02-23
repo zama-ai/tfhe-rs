@@ -104,7 +104,8 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
 
     for (name, params) in benchmark_parameters::<Scalar>().iter() {
         let lwe_dimension = params.lwe_dimension.unwrap();
-        let lwe_modular_std_dev = params.lwe_modular_std_dev.unwrap();
+        let lwe_noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
         let glwe_dimension = params.glwe_dimension.unwrap();
         let polynomial_size = params.polynomial_size.unwrap();
         let ks_decomp_base_log = params.ks_base_log.unwrap();
@@ -124,7 +125,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
             &lwe_sk,
             ks_decomp_base_log,
             ks_decomp_level_count,
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
@@ -132,7 +133,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &big_lwe_sk,
             Plaintext(Scalar::ONE),
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
@@ -197,7 +198,8 @@ mod cuda {
 
         for (name, params) in benchmark_parameters::<Scalar>().iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
-            let lwe_modular_std_dev = params.lwe_modular_std_dev.unwrap();
+            let lwe_noise_distribution =
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
             let glwe_dimension = params.glwe_dimension.unwrap();
             let polynomial_size = params.polynomial_size.unwrap();
             let ks_decomp_base_log = params.ks_base_log.unwrap();
@@ -219,7 +221,7 @@ mod cuda {
                 &lwe_sk,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
@@ -229,7 +231,7 @@ mod cuda {
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 Plaintext(Scalar::ONE),
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );

@@ -6,8 +6,8 @@ pub(crate) mod noise_random_generator;
 mod test;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, Seed, Seeder,
-    Uniform,
+    ByteRandomGenerator, Distribution, Gaussian, ParallelByteRandomGenerator, RandomGenerable,
+    Seed, Seeder, Uniform,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
@@ -247,25 +247,96 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             .fill_slice_with_random_uniform_mask_custom_mod(output, ciphertext_modulus);
     }
 
-    // Sample a noise value, using the noise generator.
-    pub(crate) fn random_gaussian_noise<Scalar>(&mut self, std: impl DispersionParameter) -> Scalar
+    pub(crate) fn random_noise_from_distribution<D, Scalar>(&mut self, distribution: D) -> Scalar
     where
-        Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>>,
+        D: Distribution,
+        Scalar: RandomGenerable<D>,
     {
-        self.noise.random_gaussian_noise(std)
+        self.noise.random_noise_from_distribution(distribution)
     }
 
-    // Sample a noise value, using the noise generator.
-    pub(crate) fn random_gaussian_noise_custom_mod<Scalar>(
+    pub(crate) fn random_noise_from_distribution_custom_mod<D, Scalar>(
         &mut self,
-        std: impl DispersionParameter,
+        distribution: D,
         custom_modulus: CiphertextModulus<Scalar>,
     ) -> Scalar
     where
-        Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
     {
         self.noise
-            .random_gaussian_noise_custom_mod(std, custom_modulus)
+            .random_noise_from_distribution_custom_mod(distribution, custom_modulus)
+    }
+
+    // Fills the input slice with random noise, using the random generator.
+    pub(crate) fn fill_slice_with_random_noise_from_distribution<D, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+    ) where
+        D: Distribution,
+        Scalar: RandomGenerable<D>,
+    {
+        self.noise
+            .fill_slice_with_random_noise_from_distribution(output, distribution);
+    }
+
+    // Fills the input slice with random noise, using the random generator.
+    pub(crate) fn fill_slice_with_random_noise_from_distribution_custom_mod<D, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        self.noise
+            .fill_slice_with_random_noise_from_distribution_custom_mod(
+                output,
+                distribution,
+                custom_modulus,
+            );
+    }
+
+    // Adds noise on top of existing data for in place encryption
+    pub(crate) fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign<
+        D,
+        Scalar,
+    >(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D>,
+    {
+        self.noise
+            .unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
+                output,
+                distribution,
+            );
+    }
+
+    // Adds noise on top of existing data for in place encryption
+    pub(crate) fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign<
+        D,
+        Scalar,
+    >(
+        &mut self,
+        output: &mut [Scalar],
+        distribution: D,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        D: Distribution,
+        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+    {
+        self.noise
+            .unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign(
+                output,
+                distribution,
+                custom_modulus,
+            );
     }
 
     // Fills the input slice with random noise, using the noise generator.

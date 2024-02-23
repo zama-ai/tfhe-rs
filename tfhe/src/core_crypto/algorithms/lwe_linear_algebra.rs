@@ -19,7 +19,8 @@ use crate::core_crypto::entities::*;
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -42,7 +43,7 @@ use crate::core_crypto::entities::*;
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -140,7 +141,8 @@ pub fn lwe_ciphertext_add_assign_other_mod<Scalar, LhsCont, RhsCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -163,7 +165,7 @@ pub fn lwe_ciphertext_add_assign_other_mod<Scalar, LhsCont, RhsCont>(
 /// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -229,7 +231,8 @@ pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -252,7 +255,7 @@ pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -337,7 +340,8 @@ pub fn lwe_ciphertext_plaintext_add_assign_other_mod<Scalar, InCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -360,7 +364,7 @@ pub fn lwe_ciphertext_plaintext_add_assign_other_mod<Scalar, InCont>(
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -444,7 +448,8 @@ pub fn lwe_ciphertext_plaintext_sub_assign_other_mod<Scalar, InCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -467,7 +472,7 @@ pub fn lwe_ciphertext_plaintext_sub_assign_other_mod<Scalar, InCont>(
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -508,7 +513,8 @@ where
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -532,7 +538,7 @@ where
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -575,7 +581,8 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -599,7 +606,7 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 /// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -654,7 +661,8 @@ pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -677,7 +685,7 @@ pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 /// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -732,7 +740,8 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -757,14 +766,14 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 /// let lwe1 = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext1,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 /// let lwe2 = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext2,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );

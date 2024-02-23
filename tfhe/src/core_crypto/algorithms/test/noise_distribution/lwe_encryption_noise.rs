@@ -14,11 +14,17 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
-    let expected_variance = Variance(lwe_modular_std_dev.get_variance());
+
+    let expected_variance = match lwe_noise_distribution {
+        DynamicDistribution::Gaussian(gaussian) => Variance(gaussian.standard_dev().get_variance()),
+        DynamicDistribution::TUniform(_) => {
+            panic!("Unsupported distribution for noise measurement.")
+        }
+    };
 
     let mut rsc = TestResources::new();
 
@@ -49,7 +55,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -114,6 +120,8 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
 ) {
     let lwe_dimension = LweDimension(params.polynomial_size.0);
     let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution =
+        DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev);
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -139,7 +147,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
 
             let pk = allocate_and_generate_new_lwe_compact_public_key(
                 &lwe_sk,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -156,8 +164,8 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
                 &pk,
                 &mut ct,
                 plaintext,
-                glwe_modular_std_dev,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
+                glwe_noise_distribution,
                 &mut rsc.secret_random_generator,
                 &mut rsc.encryption_random_generator,
             );

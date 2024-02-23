@@ -50,15 +50,15 @@ impl CompactPublicKey {
 
     pub fn try_new(client_key: &ClientKey) -> Option<Self> {
         let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise) =
+        let (secret_encryption_key, encryption_noise_distribution) =
             match client_key.parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
                     client_key.large_lwe_secret_key(),
-                    parameters.glwe_modular_std_dev(),
+                    parameters.glwe_noise_distribution(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
                     client_key.small_lwe_secret_key(),
-                    parameters.lwe_modular_std_dev(),
+                    parameters.lwe_noise_distribution(),
                 ),
             };
 
@@ -75,7 +75,7 @@ impl CompactPublicKey {
             generate_lwe_compact_public_key(
                 &secret_encryption_key,
                 &mut key,
-                encryption_noise,
+                encryption_noise_distribution,
                 &mut engine.encryption_generator,
             );
         });
@@ -166,9 +166,13 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
-        let encryption_noise = match self.pbs_order {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => self.parameters.glwe_modular_std_dev(),
-            crate::shortint::PBSOrder::BootstrapKeyswitch => self.parameters.lwe_modular_std_dev(),
+        let encryption_noise_distribution = match self.pbs_order {
+            crate::shortint::PBSOrder::KeyswitchBootstrap => {
+                self.parameters.glwe_noise_distribution()
+            }
+            crate::shortint::PBSOrder::BootstrapKeyswitch => {
+                self.parameters.lwe_noise_distribution()
+            }
         };
 
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -176,8 +180,8 @@ impl CompactPublicKey {
                 &self.key,
                 &mut encrypted_ct,
                 plain,
-                encryption_noise,
-                encryption_noise,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
                 &mut engine.secret_generator,
                 &mut engine.encryption_generator,
             );
@@ -211,6 +215,15 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
+        let encryption_noise_distribution = match self.pbs_order {
+            crate::shortint::PBSOrder::KeyswitchBootstrap => {
+                self.parameters.glwe_noise_distribution()
+            }
+            crate::shortint::PBSOrder::BootstrapKeyswitch => {
+                self.parameters.lwe_noise_distribution()
+            }
+        };
+
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
@@ -220,8 +233,8 @@ impl CompactPublicKey {
                     &self.key,
                     &mut ct_list,
                     &plaintext_list,
-                    self.parameters.glwe_modular_std_dev(),
-                    self.parameters.lwe_modular_std_dev(),
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
                     &mut engine.secret_generator,
                     &mut engine.encryption_generator,
                 );
@@ -237,8 +250,8 @@ impl CompactPublicKey {
                     &self.key,
                     &mut ct_list,
                     &plaintext_list,
-                    self.parameters.glwe_modular_std_dev(),
-                    self.parameters.lwe_modular_std_dev(),
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
                     &mut engine.secret_generator,
                     &mut engine.encryption_generator,
                 );
@@ -275,22 +288,22 @@ pub struct CompressedCompactPublicKey {
 impl CompressedCompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise) =
+        let (secret_encryption_key, encryption_noise_distribution) =
             match client_key.parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
                     client_key.large_lwe_secret_key(),
-                    parameters.glwe_modular_std_dev(),
+                    parameters.glwe_noise_distribution(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
                     client_key.small_lwe_secret_key(),
-                    parameters.lwe_modular_std_dev(),
+                    parameters.lwe_noise_distribution(),
                 ),
             };
 
         let key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_compact_public_key(
                 &secret_encryption_key,
-                encryption_noise,
+                encryption_noise_distribution,
                 parameters.ciphertext_modulus(),
                 &mut engine.seeder,
             )

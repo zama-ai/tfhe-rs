@@ -10,7 +10,7 @@ use itertools::Itertools;
 
 pub struct MultiBitParams<Scalar: UnsignedInteger> {
     pub input_lwe_dimension: LweDimension,
-    pub lwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub glwe_dimension: GlweDimension,
@@ -30,7 +30,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     assert!(Scalar::BITS <= 64);
 
     let input_lwe_dimension = params.input_lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let glwe_modular_std_dev = params.glwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
@@ -120,7 +120,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -194,7 +194,9 @@ create_gpu_multi_bit_parametrized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom
 // correct computations
 const TEST_PARAMS_MULTI_BIT_2_2_2: MultiBitParams<u64> = MultiBitParams {
     input_lwe_dimension: LweDimension(818),
-    lwe_modular_std_dev: StandardDev(1.3880686109937e-11),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        1.3880686109937e-11,
+    )),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
@@ -207,7 +209,9 @@ const TEST_PARAMS_MULTI_BIT_2_2_2: MultiBitParams<u64> = MultiBitParams {
 
 const TEST_PARAMS_MULTI_BIT_2_2_3: MultiBitParams<u64> = MultiBitParams {
     input_lwe_dimension: LweDimension(888),
-    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006125031601933181,
+    )),
     decomp_base_log: DecompositionBaseLog(21),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),

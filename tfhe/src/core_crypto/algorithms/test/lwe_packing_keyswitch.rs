@@ -52,7 +52,7 @@ where
 {
     let params = params.into();
 
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -75,7 +75,7 @@ where
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &lwe_sk,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -126,7 +126,7 @@ where
 {
     let params = params.into();
 
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -158,7 +158,7 @@ where
                 &lwe_sk,
                 &mut input_lwe_list,
                 &input_plaintext_list,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 

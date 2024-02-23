@@ -9,7 +9,7 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -40,7 +40,7 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -76,7 +76,7 @@ create_parametrized_test_with_non_native_parameters!(lwe_encrypt_add_assign_decr
 
 fn lwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -107,7 +107,7 @@ fn lwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTest
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -145,7 +145,7 @@ fn lwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -176,7 +176,7 @@ fn lwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -214,7 +214,7 @@ fn lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -245,7 +245,7 @@ fn lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -283,7 +283,7 @@ fn lwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -314,7 +314,7 @@ fn lwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -352,7 +352,7 @@ fn lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod<Scalar: Unsign
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -384,7 +384,7 @@ fn lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod<Scalar: Unsign
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -422,7 +422,7 @@ fn lwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -454,7 +454,7 @@ fn lwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -492,7 +492,7 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -523,7 +523,7 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut lhs,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -545,7 +545,7 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut rhs,
                 rhs_plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -579,7 +579,7 @@ create_parametrized_test_with_non_native_parameters!(lwe_encrypt_sub_assign_decr
 
 fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -610,7 +610,7 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTest
                 &lwe_sk,
                 &mut lhs,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -632,7 +632,7 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTest
                 &lwe_sk,
                 &mut rhs,
                 rhs_plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
