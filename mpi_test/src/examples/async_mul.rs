@@ -2,9 +2,9 @@ use crate::async_pbs_graph::{Lut, Node};
 use crate::context::Context;
 use core::panic;
 use itertools::{zip_eq, Itertools};
-// use petgraph::dot::{Config, Dot};
 use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
+use std::iter::once;
 use std::sync::Arc;
 use tfhe::core_crypto::commons::traits::UnsignedInteger;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -229,25 +229,34 @@ fn sum_blocks(
 
         // let end = blocks_ref.len() - group_size + 1;
 
-        let mut sums: Vec<_> = (0..number_groups)
-            .map(|i| {
-                let start = i * group_size;
+        let last_size;
 
-                // let local_end = end.min((i + 1) * group_size);
+        let mut sums: Vec<_> = (0..number_groups - 1)
+            .map(|i| (i * group_size, group_size))
+            .chain(once({
+                let num_block_next_loop =
+                    number_groups + (blocks_ref.len() - number_groups * group_size);
 
-                let local_end = (i + 1) * group_size;
+                last_size = if num_block_next_loop < group_size {
+                    num_block_next_loop
+                } else {
+                    group_size
+                };
 
+                ((number_groups - 1) * group_size, last_size)
+            }))
+            .map(|(start, size)| {
                 checked_add(
                     graph,
                     sks,
-                    &blocks_ref[start..local_end],
+                    &blocks_ref[start..start + size],
                     carries.as_deref_mut(),
                 )
             })
             .collect();
 
         // May be better to do the way around?
-        sums.extend_from_slice(&blocks_ref[number_groups * group_size..]);
+        sums.extend_from_slice(&blocks_ref[(number_groups - 1) * group_size + last_size..]);
 
         blocks = sums;
 
