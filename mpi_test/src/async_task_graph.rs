@@ -143,13 +143,24 @@ impl Context {
             self.enqueue_request(&mut charge, &send_task, priority, task, &worker_senders);
         }
 
+        let mut empty = 0;
+        let mut not_empty = 0;
+
         while !task_graph.is_finished() {
+            if receive_result.is_empty() {
+                empty += 1;
+            } else {
+                not_empty += 1;
+            }
+
             let (result, rank) = receive_result.recv().unwrap();
 
             charge.charge[rank] -= 1;
 
             self.handle_new_result(task_graph, result, &mut charge, &send_task, &worker_senders);
         }
+
+        dbg!(empty, not_empty);
 
         for i in charge.charge {
             assert_eq!(i, 0);
