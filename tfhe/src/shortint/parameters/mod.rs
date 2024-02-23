@@ -9,7 +9,7 @@ use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
+    DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::prelude::{LweCiphertextListParameters, LweCiphertextParameters};
 use serde::{Deserialize, Serialize};
@@ -255,6 +255,26 @@ impl PBSParameters {
             Self::MultiBitPBS(params) => params.glwe_modular_std_dev,
         }
     }
+    pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self {
+            Self::PBS(params) => {
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev)
+            }
+            Self::MultiBitPBS(params) => {
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev)
+            }
+        }
+    }
+    pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self {
+            Self::PBS(params) => {
+                DynamicDistribution::new_gaussian_from_std_dev(params.glwe_modular_std_dev)
+            }
+            Self::MultiBitPBS(params) => {
+                DynamicDistribution::new_gaussian_from_std_dev(params.glwe_modular_std_dev)
+            }
+        }
+    }
     pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
         match self {
             Self::PBS(params) => params.pbs_base_log,
@@ -451,6 +471,22 @@ impl ShortintParameterSet {
             ShortintParameterSetInner::PBSOnly(params) => params.pbs_base_log(),
             ShortintParameterSetInner::WopbsOnly(params) => params.pbs_base_log,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_base_log(),
+        }
+    }
+
+    pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => params.lwe_noise_distribution(),
+            ShortintParameterSetInner::WopbsOnly(params) => params.lwe_noise_distribution(),
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_noise_distribution(),
+        }
+    }
+
+    pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => params.glwe_noise_distribution(),
+            ShortintParameterSetInner::WopbsOnly(params) => params.glwe_noise_distribution(),
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_noise_distribution(),
         }
     }
 

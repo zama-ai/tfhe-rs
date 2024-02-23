@@ -1,15 +1,36 @@
 use super::*;
+use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 use crate::core_crypto::commons::math::torus::FromTorus;
 use crate::core_crypto::commons::numeric::{CastInto, Numeric};
+use serde::{Deserialize, Serialize};
 
 /// A distribution type representing random sampling of floating point numbers, following a
 /// gaussian distribution.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Gaussian<T: FloatingPoint> {
     /// The standard deviation of the distribution.
     pub std: T,
     /// The mean of the distribution.
     pub mean: T,
+}
+
+impl<T: FloatingPoint> std::cmp::Eq for Gaussian<T> {}
+
+impl Gaussian<f64> {
+    pub const fn from_standard_dev(std: StandardDev, mean: f64) -> Self {
+        Self { std: std.0, mean }
+    }
+
+    pub fn from_dispersion_parameter(dispersion: impl DispersionParameter, mean: f64) -> Self {
+        Self {
+            std: dispersion.get_standard_dev(),
+            mean,
+        }
+    }
+
+    pub fn standard_dev(&self) -> StandardDev {
+        StandardDev(self.std)
+    }
 }
 
 macro_rules! implement_gaussian {

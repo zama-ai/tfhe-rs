@@ -325,7 +325,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         distribution: D,
     ) where
         D: Distribution,
-        Scalar: UnsignedInteger + RandomGenerable<D, CustomModulus = Scalar>,
+        Scalar: UnsignedInteger + RandomGenerable<D>,
     {
         for x in output.iter_mut() {
             let random = Scalar::generate_one(self, distribution);

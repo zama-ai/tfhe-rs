@@ -4,9 +4,11 @@
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, RandomGenerator};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, Distribution, RandomGenerable, RandomGenerator, Uniform,
+    UniformBinary,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -14,15 +16,16 @@ use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the LWE encryption between all functions needing
 /// it.
-pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
+pub fn fill_lwe_mask_and_body_for_encryption<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output_mask: &mut LweMask<OutputCont>,
     output_body: &mut LweBodyRefMut<Scalar>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -43,7 +46,7 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
             output_mask,
             output_body,
             encoded,
-            noise_parameters,
+            noise_distribution,
             generator,
         );
     } else {
@@ -52,7 +55,7 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
             output_mask,
             output_body,
             encoded,
-            noise_parameters,
+            noise_distribution,
             generator,
         );
     }
@@ -60,6 +63,7 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
 
 pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     Gen,
@@ -68,10 +72,11 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     output_mask: &mut LweMask<OutputCont>,
     output_body: &mut LweBodyRefMut<Scalar>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -92,8 +97,9 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     generator
         .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
-    // generate an error from the normal distribution described by std_dev
-    let noise = generator.random_gaussian_noise_custom_mod(noise_parameters, ciphertext_modulus);
+    // generate an error from the given noise_distribution
+    let noise =
+        generator.random_noise_from_distribution_custom_mod(noise_distribution, ciphertext_modulus);
     // compute the multisum between the secret key and the mask
     let mask_key_dot_product =
         slice_wrapping_dot_product(output_mask.as_ref(), lwe_secret_key.as_ref());
@@ -115,15 +121,22 @@ pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
     };
 }
 
-pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCont, Gen>(
+pub fn fill_lwe_mask_and_body_for_encryption_other_mod<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output_mask: &mut LweMask<OutputCont>,
     output_body: &mut LweBodyRefMut<Scalar>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -144,8 +157,9 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
     generator
         .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
-    // generate an error from the normal distribution described by std_dev
-    let noise = generator.random_gaussian_noise_custom_mod(noise_parameters, ciphertext_modulus);
+    // generate an error from the given noise_distribution
+    let noise =
+        generator.random_noise_from_distribution_custom_mod(noise_distribution, ciphertext_modulus);
 
     let ciphertext_modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
 
@@ -176,7 +190,8 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -202,7 +217,7 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
 ///     &lwe_secret_key,
 ///     &mut lwe,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -220,14 +235,15 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg);
 /// ```
-pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+pub fn encrypt_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut LweCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -247,7 +263,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
         &mut mask,
         &mut body,
         encoded,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
@@ -266,7 +282,8 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -289,7 +306,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -308,15 +325,16 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg);
 /// ```
-pub fn allocate_and_encrypt_new_lwe_ciphertext<Scalar, KeyCont, Gen>(
+pub fn allocate_and_encrypt_new_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweCiphertextOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
@@ -330,7 +348,7 @@ where
         lwe_secret_key,
         &mut new_ct,
         encoded,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -606,7 +624,8 @@ where
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_ciphertext_count = LweCiphertextCount(2);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -638,7 +657,7 @@ where
 ///     &lwe_secret_key,
 ///     &mut lwe_list,
 ///     &plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -664,14 +683,15 @@ where
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
+pub fn encrypt_lwe_ciphertext_list<Scalar, NoiseDistribution, KeyCont, OutputCont, InputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut LweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -696,7 +716,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
             lwe_secret_key,
             &mut ciphertext,
             encoded_plaintext_ref.into(),
-            noise_parameters,
+            noise_distribution,
             &mut loop_generator,
         );
     }
@@ -715,7 +735,8 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_ciphertext_count = LweCiphertextCount(2);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -747,7 +768,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 ///     &lwe_secret_key,
 ///     &mut lwe_list,
 ///     &plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -773,14 +794,22 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
+pub fn par_encrypt_lwe_ciphertext_list<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    Gen,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut LweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_parameters: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -858,7 +887,8 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let zero_encryption_count =
 ///     LwePublicKeyZeroEncryptionCount(lwe_dimension.to_lwe_size().0 * 64 + 128);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
@@ -878,7 +908,7 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// let lwe_public_key = allocate_and_generate_new_lwe_public_key(
 ///     &lwe_secret_key,
 ///     zero_encryption_count,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -975,7 +1005,8 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let zero_encryption_count =
 ///     LwePublicKeyZeroEncryptionCount(lwe_dimension.to_lwe_size().0 * 64 + 128);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
@@ -995,7 +1026,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// let lwe_public_key = allocate_and_generate_new_seeded_lwe_public_key(
 ///     &lwe_secret_key,
 ///     zero_encryption_count,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     seeder,
 /// );
@@ -1095,6 +1126,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 /// needing it.
 pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     InputCont,
@@ -1103,10 +1135,11 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -1144,7 +1177,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
             &mut output_mask,
             &mut output_body,
             plaintext.into(),
-            noise_parameters,
+            noise_distribution,
             &mut loop_generator,
         );
     }
@@ -1161,7 +1194,8 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_ciphertext_count = LweCiphertextCount(2);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1194,7 +1228,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 ///     &lwe_secret_key,
 ///     &mut lwe_list,
 ///     &plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     seeder,
 /// );
 ///
@@ -1222,14 +1256,22 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, NoiseSeeder>(
+pub fn encrypt_seeded_lwe_ciphertext_list<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    NoiseSeeder,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -1245,7 +1287,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont
         lwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }
@@ -1254,6 +1296,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont
 /// needing it.
 pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     InputCont,
@@ -1262,10 +1305,11 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar> + Sync,
     InputCont: Container<Element = Scalar>,
@@ -1305,7 +1349,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
                 &mut output_mask,
                 &mut output_body,
                 plaintext.into(),
-                noise_parameters,
+                noise_distribution,
                 &mut loop_generator,
             );
         });
@@ -1321,7 +1365,8 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_ciphertext_count = LweCiphertextCount(2);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1354,7 +1399,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 ///     &lwe_secret_key,
 ///     &mut lwe_list,
 ///     &plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     seeder,
 /// );
 ///
@@ -1382,14 +1427,22 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn par_encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, NoiseSeeder>(
+pub fn par_encrypt_seeded_lwe_ciphertext_list<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    NoiseSeeder,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar> + Sync,
     InputCont: Container<Element = Scalar>,
@@ -1405,21 +1458,27 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, Input
         lwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions
 /// needing it.
-pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Gen>(
+pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    Gen,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertext<Scalar>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
@@ -1433,7 +1492,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
         &mut mask,
         &mut output.get_mut_body(),
         encoded,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
@@ -1452,7 +1511,8 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1481,7 +1541,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
 ///     &lwe_secret_key,
 ///     &mut lwe,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     seeder,
 /// );
 ///
@@ -1501,14 +1561,15 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg);
 /// ```
-pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
+pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSeeder>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut SeededLweCiphertext<Scalar>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
@@ -1522,7 +1583,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
         lwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut encryption_generator,
     );
 }
@@ -1542,7 +1603,8 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1563,7 +1625,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
 /// let mut lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     seeder,
 /// );
@@ -1584,15 +1646,21 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg);
 /// ```
-pub fn allocate_and_encrypt_new_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
+pub fn allocate_and_encrypt_new_seeded_lwe_ciphertext<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    NoiseSeeder,
+>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweCiphertext<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
@@ -1608,7 +1676,7 @@ where
         lwe_secret_key,
         &mut seeded_ct,
         encoded,
-        noise_parameters,
+        noise_distribution,
         noise_seeder,
     );
 
@@ -1628,7 +1696,8 @@ where
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1645,7 +1714,7 @@ where
 ///
 /// let lwe_compact_public_key = allocate_and_generate_new_lwe_compact_public_key(
 ///     &lwe_secret_key,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -1661,8 +1730,8 @@ where
 ///     &lwe_compact_public_key,
 ///     &mut lwe,
 ///     plaintext,
-///     glwe_modular_std_dev,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
+///     glwe_noise_distribution,
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 /// );
@@ -1683,6 +1752,8 @@ where
 /// ```
 pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     Scalar,
+    MaskDistribution,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     SecretGen,
@@ -1691,12 +1762,14 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    mask_noise_parameters: impl DispersionParameter,
-    body_noise_parameters: impl DispersionParameter,
+    mask_noise_distribution: MaskDistribution,
+    body_noise_distribution: NoiseDistribution,
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<MaskDistribution, NoiseDistribution> + RandomGenerable<UniformBinary>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     SecretGen: ByteRandomGenerator,
@@ -1737,15 +1810,15 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
     );
 
     // Noise from Chi_1 for the mask part of the encryption
-    encryption_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+    encryption_generator.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
         ct_mask.as_mut(),
-        mask_noise_parameters,
+        mask_noise_distribution,
     );
 
     *ct_body.data = slice_wrapping_dot_product(pk_body.as_ref(), &binary_random_vector);
     // Noise from Chi_2 for the body part of the encryption
     *ct_body.data = (*ct_body.data)
-        .wrapping_add(encryption_generator.random_gaussian_noise(body_noise_parameters));
+        .wrapping_add(encryption_generator.random_noise_from_distribution(body_noise_distribution));
     *ct_body.data = (*ct_body.data).wrapping_add(encoded.0);
 }
 
@@ -1764,7 +1837,8 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(2048);
 /// let lwe_ciphertext_count = LweCiphertextCount(lwe_dimension.0 * 4);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1781,7 +1855,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///
 /// let lwe_compact_public_key = allocate_and_generate_new_lwe_compact_public_key(
 ///     &lwe_secret_key,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -1806,8 +1880,8 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &mut output_compact_ct_list,
 ///     &input_plaintext_list,
-///     glwe_modular_std_dev,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
+///     glwe_noise_distribution,
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 /// );
@@ -1836,6 +1910,8 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// ```
 pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
     Scalar,
+    MaskDistribution,
+    NoiseDistribution,
     KeyCont,
     InputCont,
     OutputCont,
@@ -1845,12 +1921,14 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCompactCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    mask_noise_parameters: impl DispersionParameter,
-    body_noise_parameters: impl DispersionParameter,
+    mask_noise_distribution: MaskDistribution,
+    body_noise_distribution: NoiseDistribution,
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<MaskDistribution, NoiseDistribution> + RandomGenerable<UniformBinary>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -1937,10 +2015,11 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                 );
 
                 // Noise from Chi_1 for the mask part of the encryption
-                loop_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
-                    output_mask.as_mut(),
-                    mask_noise_parameters,
-                );
+                loop_generator
+                    .unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
+                        output_mask.as_mut(),
+                        mask_noise_distribution,
+                    );
 
                 // Fill the body chunk afterwards manually as it most likely will be smaller than
                 // the full convolution result. b convolved r + Delta * m + e2
@@ -1951,7 +2030,8 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(
-                                loop_generator.random_gaussian_noise(body_noise_parameters),
+                                loop_generator
+                                    .random_noise_from_distribution(body_noise_distribution),
                             )
                             .wrapping_add(*plaintext.0);
                     });
@@ -1974,7 +2054,8 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(2048);
 /// let lwe_ciphertext_count = LweCiphertextCount(lwe_dimension.0 * 4);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -1991,7 +2072,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///
 /// let lwe_compact_public_key = allocate_and_generate_new_lwe_compact_public_key(
 ///     &lwe_secret_key,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -2016,8 +2097,8 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &mut output_compact_ct_list,
 ///     &input_plaintext_list,
-///     glwe_modular_std_dev,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
+///     glwe_noise_distribution,
 ///     &mut secret_generator,
 ///     &mut encryption_generator,
 /// );
@@ -2046,6 +2127,8 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// ```
 pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
     Scalar,
+    MaskDistribution,
+    NoiseDistribution,
     KeyCont,
     InputCont,
     OutputCont,
@@ -2055,12 +2138,17 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCompactCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    mask_noise_parameters: impl DispersionParameter + Sync,
-    body_noise_parameters: impl DispersionParameter + Sync,
+    mask_noise_distribution: MaskDistribution,
+    body_noise_distribution: NoiseDistribution,
     secret_generator: &mut SecretRandomGenerator<SecretGen>,
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<MaskDistribution, NoiseDistribution>
+        + RandomGenerable<UniformBinary>
+        + Sync
+        + Send,
+    MaskDistribution: Distribution + Sync,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -2152,10 +2240,11 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                 );
 
                 // Noise from Chi_1 for the mask part of the encryption
-                loop_generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
-                    output_mask.as_mut(),
-                    mask_noise_parameters,
-                );
+                loop_generator
+                    .unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
+                        output_mask.as_mut(),
+                        mask_noise_distribution,
+                    );
 
                 // Fill the body chunk afterwards manually as it most likely will be smaller than
                 // the full convolution result. b convolved r + Delta * m + e2
@@ -2166,7 +2255,8 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(
-                                loop_generator.random_gaussian_noise(body_noise_parameters),
+                                loop_generator
+                                    .random_noise_from_distribution(body_noise_distribution),
                             )
                             .wrapping_add(*plaintext.0);
                     });
@@ -2182,14 +2272,17 @@ mod test {
     use crate::core_crypto::commons::generators::{
         DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
     };
-    use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+    use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Gaussian};
 
     #[test]
     fn test_compact_public_key_encryption() {
         use rand::Rng;
 
         let lwe_dimension = LweDimension(2048);
-        let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+        let glwe_noise_distribution = Gaussian::from_dispersion_parameter(
+            StandardDev(0.00000000000000029403601535432533),
+            0.0,
+        );
         let ciphertext_modulus = CiphertextModulus::new_native();
 
         let mut secret_random_generator = test_tools::new_secret_random_generator();
@@ -2207,7 +2300,7 @@ mod test {
             generate_lwe_compact_public_key(
                 &lwe_sk,
                 &mut compact_lwe_pk,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut encryption_random_generator,
             );
 
@@ -2226,8 +2319,8 @@ mod test {
                 &compact_lwe_pk,
                 &mut output_ct,
                 plaintext,
-                glwe_modular_std_dev,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
+                glwe_noise_distribution,
                 &mut secret_random_generator,
                 &mut encryption_random_generator,
             );
@@ -2248,7 +2341,10 @@ mod test {
         use rand::Rng;
 
         let lwe_dimension = LweDimension(2048);
-        let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+        let glwe_noise_distribution = Gaussian::from_dispersion_parameter(
+            StandardDev(0.00000000000000029403601535432533),
+            0.0,
+        );
         let ciphertext_modulus = CiphertextModulus::new_native();
 
         let mut thread_rng = rand::thread_rng();
@@ -2291,7 +2387,7 @@ mod test {
                 generate_lwe_compact_public_key(
                     &lwe_sk,
                     &mut compact_lwe_pk,
-                    glwe_modular_std_dev,
+                    glwe_noise_distribution,
                     &mut encryption_random_generator,
                 );
 
@@ -2306,8 +2402,8 @@ mod test {
                     &compact_lwe_pk,
                     &mut output_compact_ct_list,
                     &input_plaintext_list,
-                    glwe_modular_std_dev,
-                    glwe_modular_std_dev,
+                    glwe_noise_distribution,
+                    glwe_noise_distribution,
                     &mut secret_random_generator,
                     &mut encryption_random_generator,
                 );
@@ -2358,7 +2454,7 @@ mod test {
                 generate_lwe_compact_public_key(
                     &lwe_sk,
                     &mut compact_lwe_pk,
-                    glwe_modular_std_dev,
+                    glwe_noise_distribution,
                     &mut encryption_random_generator,
                 );
 
@@ -2373,8 +2469,8 @@ mod test {
                     &compact_lwe_pk,
                     &mut output_compact_ct_list,
                     &input_plaintext_list,
-                    glwe_modular_std_dev,
-                    glwe_modular_std_dev,
+                    glwe_noise_distribution,
+                    glwe_noise_distribution,
                     &mut secret_random_generator,
                     &mut encryption_random_generator,
                 );

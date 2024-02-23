@@ -27,7 +27,8 @@ use rayon::prelude::*;
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
@@ -54,7 +55,7 @@ use rayon::prelude::*;
 ///     &output_lwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -67,7 +68,7 @@ use rayon::prelude::*;
 /// let input_lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &input_lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -199,7 +200,8 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
@@ -226,7 +228,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 ///     &output_lwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -239,7 +241,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// let input_lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &input_lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -301,7 +303,8 @@ pub fn par_keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
@@ -328,7 +331,7 @@ pub fn par_keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 ///     &output_lwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -341,7 +344,7 @@ pub fn par_keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// let input_lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &input_lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );

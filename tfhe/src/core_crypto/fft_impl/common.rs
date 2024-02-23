@@ -155,7 +155,7 @@ pub mod tests {
         K: FourierBootstrapKey<Scalar>,
         FftTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
     {
-        let lwe_modular_std_dev = params.lwe_modular_std_dev;
+        let lwe_modular_std_dev = params.lwe_noise_distribution;
         let glwe_dimension = params.glwe_dimension;
         let polynomial_size = params.polynomial_size;
         let ciphertext_modulus = params.ciphertext_modulus;

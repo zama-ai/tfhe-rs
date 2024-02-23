@@ -6,7 +6,7 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -42,7 +42,7 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &lwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 

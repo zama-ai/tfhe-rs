@@ -3,8 +3,8 @@
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
@@ -12,13 +12,20 @@ use slice_algorithms::*;
 
 /// Fill an [`LWE compact public key`](`LweCompactPublicKey`) with an actual public key constructed
 /// from a private [`LWE secret key`](`LweSecretKey`).
-pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
+pub fn generate_lwe_compact_public_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    Gen,
+>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut LweCompactPublicKey<OutputKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -45,9 +52,9 @@ pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>
         lwe_secret_key.as_ref(),
     );
 
-    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+    generator.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
         body.as_mut(),
-        noise_parameters,
+        noise_distribution,
     );
 }
 
@@ -55,14 +62,20 @@ pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>
 /// public key constructed from a private [`LWE secret key`](`LweSecretKey`).
 ///
 /// See [`encrypt_lwe_ciphertext_with_compact_public_key`] for usage.
-pub fn allocate_and_generate_new_lwe_compact_public_key<Scalar, InputKeyCont, Gen>(
+pub fn allocate_and_generate_new_lwe_compact_public_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    Gen,
+>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweCompactPublicKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
@@ -72,20 +85,27 @@ where
         ciphertext_modulus,
     );
 
-    generate_lwe_compact_public_key(lwe_secret_key, &mut pk, noise_parameters, generator);
+    generate_lwe_compact_public_key(lwe_secret_key, &mut pk, noise_distribution, generator);
 
     pk
 }
 
 /// Fill a [`seeded LWE compact public key`](`LweCompactPublicKey`) with an actual public key
 /// constructed from a private [`LWE secret key`](`LweSecretKey`).
-pub fn generate_seeded_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, NoiseSeeder>(
+pub fn generate_seeded_lwe_compact_public_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    NoiseSeeder,
+>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut SeededLweCompactPublicKey<OutputKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: ContainerMut<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
@@ -120,22 +140,28 @@ pub fn generate_seeded_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCon
         lwe_secret_key.as_ref(),
     );
 
-    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+    generator.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
         body.as_mut(),
-        noise_parameters,
+        noise_distribution,
     );
 }
 
 /// Allocate a new [`seeded LWE compact public key`](`SeededLweCompactPublicKey`) and fill it with
 /// an actual public key constructed from a private [`LWE secret key`](`LweSecretKey`).
-pub fn allocate_and_generate_new_seeded_lwe_compact_public_key<Scalar, InputKeyCont, NoiseSeeder>(
+pub fn allocate_and_generate_new_seeded_lwe_compact_public_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    NoiseSeeder,
+>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweCompactPublicKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
@@ -147,7 +173,12 @@ where
         ciphertext_modulus,
     );
 
-    generate_seeded_lwe_compact_public_key(lwe_secret_key, &mut pk, noise_parameters, noise_seeder);
+    generate_seeded_lwe_compact_public_key(
+        lwe_secret_key,
+        &mut pk,
+        noise_distribution,
+        noise_seeder,
+    );
 
     pk
 }

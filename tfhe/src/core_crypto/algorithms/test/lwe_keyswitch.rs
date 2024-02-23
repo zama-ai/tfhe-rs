@@ -9,7 +9,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -45,7 +45,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 &lwe_sk,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -60,7 +60,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -113,7 +113,7 @@ fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
     let params = super::TEST_PARAMS_4_BITS_NATIVE_U64;
 
     let lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let input_ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let input_encoding_with_padding = get_encoding_with_padding(input_ciphertext_modulus);
@@ -156,7 +156,7 @@ fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
                 &lwe_sk,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 output_ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -171,7 +171,7 @@ fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 input_ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );

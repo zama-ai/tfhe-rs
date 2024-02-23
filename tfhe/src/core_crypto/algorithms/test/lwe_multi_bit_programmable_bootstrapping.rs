@@ -82,7 +82,7 @@ where
         + DeserializeOwned,
     MultiBitTestParams<Scalar>: KeyCacheAccess<Keys = MultiBitBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -131,7 +131,7 @@ where
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -186,7 +186,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
         + DeserializeOwned,
     MultiBitTestParams<Scalar>: KeyCacheAccess<Keys = MultiBitBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_modular_std_dev = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -313,7 +313,7 @@ where
         + DeserializeOwned,
     MultiBitTestParams<Scalar>: KeyCacheAccess<Keys = MultiBitBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_modular_std_dev = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -417,7 +417,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
         + DeserializeOwned,
     MultiBitTestParams<Scalar>: KeyCacheAccess<Keys = MultiBitBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_modular_std_dev = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);

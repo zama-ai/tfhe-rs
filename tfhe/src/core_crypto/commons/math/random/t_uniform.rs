@@ -1,10 +1,11 @@
 use super::*;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
+use serde::{Deserialize, Serialize};
 
 /// The distribution $TUniform(1, -2^b, 2^b)$ is defined as follows, any value in the interval
 /// $\left[-2^b, 2^b\right]$ is selected with probability $\frac{1}{2^{b+1}}$, with the two end
 /// points $-2^b$ and $2^b$ being selected with probability $\frac{1}{2^{b+2}}$.
-#[derive(Copy, Clone)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TUniform<T: UnsignedInteger> {
     bound_log2: u32,
     _phantom: std::marker::PhantomData<T>,

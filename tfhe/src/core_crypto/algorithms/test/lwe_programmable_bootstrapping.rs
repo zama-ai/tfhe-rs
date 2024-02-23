@@ -78,7 +78,7 @@ where
         + DeserializeOwned,
     ClassicTestParams<Scalar>: KeyCacheAccess<Keys = ClassicBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -121,7 +121,7 @@ where
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -245,7 +245,7 @@ where
         + DeserializeOwned,
     ClassicTestParams<Scalar>: KeyCacheAccess<Keys = ClassicBootstrapKeys<Scalar>>,
 {
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -318,7 +318,7 @@ where
                 let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
                     &input_lwe_secret_key,
                     plaintext,
-                    lwe_modular_std_dev,
+                    lwe_noise_distribution,
                     ciphertext_modulus,
                     &mut rsc.encryption_random_generator,
                 );
@@ -378,7 +378,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U128: ClassicTestParams<u128> = ClassicTestP
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(4.9982771e-11),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        4.9982771e-11,
+    )),
     glwe_modular_std_dev: StandardDev(8.6457178e-32),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -397,7 +399,9 @@ pub const TEST_PARAMS_3_BITS_127_U128: ClassicTestParams<u128> = ClassicTestPara
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(4.9982771e-11),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        4.9982771e-11,
+    )),
     glwe_modular_std_dev: StandardDev(8.6457178e-32),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -424,7 +428,7 @@ where
     ClassicTestParams<Scalar>: KeyCacheAccess<Keys = ClassicBootstrapKeys<Scalar>>,
 {
     let input_lwe_dimension = params.lwe_dimension;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -482,7 +486,7 @@ where
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 plaintext,
-                lwe_modular_std_dev,
+                lwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );

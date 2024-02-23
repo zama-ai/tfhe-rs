@@ -3,10 +3,9 @@
 //! generation`](`SeededLweKeyswitchKey`).
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -21,7 +20,8 @@ use crate::core_crypto::entities::*;
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
@@ -56,20 +56,28 @@ use crate::core_crypto::entities::*;
 ///     &input_lwe_secret_key,
 ///     &output_lwe_secret_key,
 ///     &mut ksk,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
 /// assert!(ksk.as_ref().iter().all(|&x| x == 0) == false);
 /// ```
-pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
+pub fn generate_lwe_keyswitch_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
     input_lwe_sk: &LweSecretKey<InputKeyCont>,
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
     lwe_keyswitch_key: &mut LweKeyswitchKey<KSKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     KSKeyCont: ContainerMut<Element = Scalar>,
@@ -123,7 +131,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
             output_lwe_sk,
             &mut keyswitch_key_block,
             &decomposition_plaintexts_buffer,
-            noise_parameters,
+            noise_distribution,
             generator,
         );
     }
@@ -133,17 +141,24 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
 /// key constructed from an input and an output key [`LWE secret key`](`LweSecretKey`).
 ///
 /// See [`keyswitch_lwe_ciphertext`] for usage.
-pub fn allocate_and_generate_new_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
+pub fn allocate_and_generate_new_lwe_keyswitch_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    Gen,
+>(
     input_lwe_sk: &LweSecretKey<InputKeyCont>,
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweKeyswitchKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -161,7 +176,7 @@ where
         input_lwe_sk,
         output_lwe_sk,
         &mut new_lwe_keyswitch_key,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -178,7 +193,8 @@ where
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
@@ -212,7 +228,7 @@ where
 ///     &input_lwe_secret_key,
 ///     &output_lwe_secret_key,
 ///     &mut ksk,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     seeder,
 /// );
 ///
@@ -220,6 +236,7 @@ where
 /// ```
 pub fn generate_seeded_lwe_keyswitch_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     KSKeyCont,
@@ -228,10 +245,11 @@ pub fn generate_seeded_lwe_keyswitch_key<
     input_lwe_sk: &LweSecretKey<InputKeyCont>,
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
     lwe_keyswitch_key: &mut SeededLweKeyswitchKey<KSKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     KSKeyCont: ContainerMut<Element = Scalar>,
@@ -291,7 +309,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
             output_lwe_sk,
             &mut keyswitch_key_block,
             &decomposition_plaintexts_buffer,
-            noise_parameters,
+            noise_distribution,
             &mut generator,
         );
     }
@@ -302,6 +320,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
 /// [`LWE secret key`](`LweSecretKey`).
 pub fn allocate_and_generate_new_seeded_lwe_keyswitch_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     NoiseSeeder,
@@ -310,12 +329,13 @@ pub fn allocate_and_generate_new_seeded_lwe_keyswitch_key<
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweKeyswitchKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
@@ -335,7 +355,7 @@ where
         input_lwe_sk,
         output_lwe_sk,
         &mut new_lwe_keyswitch_key,
-        noise_parameters,
+        noise_distribution,
         noise_seeder,
     );
 

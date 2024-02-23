@@ -435,6 +435,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///
 /// let var_small = Variance::from_variance(2f64.powf(-80.0));
 /// let var_big = Variance::from_variance(2f64.powf(-70.0));
+/// let gaussian_big = Gaussian::from_dispersion_parameter(var_big, 0.0);
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -482,7 +483,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &lwe_small_sk,
 ///     ksk_base_log,
 ///     ksk_level_count,
-///     var_big,
+///     gaussian_big,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -568,7 +569,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let lwe_in = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_big_sk,
 ///     encoded_message,
-///     var_big,
+///     gaussian_big,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );

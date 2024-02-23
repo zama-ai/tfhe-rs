@@ -116,11 +116,11 @@ impl BooleanEngine {
         let (lwe_sk, encryption_noise) = match client_parameters.encryption_key_choice {
             EncryptionKeyChoice::Big => (
                 client_key.glwe_secret_key.as_lwe_secret_key(),
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_noise_distribution(),
             ),
             EncryptionKeyChoice::Small => (
                 client_key.lwe_secret_key.as_view(),
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_noise_distribution(),
             ),
         };
 
@@ -159,11 +159,11 @@ impl BooleanEngine {
         let (lwe_sk, encryption_noise) = match client_parameters.encryption_key_choice {
             EncryptionKeyChoice::Big => (
                 client_key.glwe_secret_key.as_lwe_secret_key(),
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_noise_distribution(),
             ),
             EncryptionKeyChoice::Small => (
                 client_key.lwe_secret_key.as_view(),
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_noise_distribution(),
             ),
         };
 
@@ -226,7 +226,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             &lwe_sk2,
             params.ks_base_log,
             params.ks_level,
-            cks2.parameters.lwe_modular_std_dev,
+            cks2.parameters.lwe_noise_distribution(),
             CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         )
@@ -247,11 +247,11 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         let (lwe_sk, encryption_noise) = match cks.parameters.encryption_key_choice {
             EncryptionKeyChoice::Big => (
                 cks.glwe_secret_key.as_lwe_secret_key(),
-                cks.parameters.glwe_modular_std_dev,
+                cks.parameters.glwe_noise_distribution(),
             ),
             EncryptionKeyChoice::Small => (
                 cks.lwe_secret_key.as_view(),
-                cks.parameters.lwe_modular_std_dev,
+                cks.parameters.lwe_noise_distribution(),
             ),
         };
 
@@ -278,11 +278,11 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         let (lwe_sk, encryption_noise) = match cks.parameters.encryption_key_choice {
             EncryptionKeyChoice::Big => (
                 cks.glwe_secret_key.as_lwe_secret_key(),
-                cks.parameters.glwe_modular_std_dev,
+                cks.parameters.glwe_noise_distribution(),
             ),
             EncryptionKeyChoice::Small => (
                 cks.lwe_secret_key.as_view(),
-                cks.parameters.lwe_modular_std_dev,
+                cks.parameters.lwe_noise_distribution(),
             ),
         };
 

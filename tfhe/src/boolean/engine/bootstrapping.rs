@@ -323,7 +323,7 @@ impl Bootstrapper {
             &cks.lwe_secret_key,
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
-            cks.parameters.lwe_modular_std_dev,
+            cks.parameters.lwe_noise_distribution(),
             CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         );
@@ -366,7 +366,7 @@ impl Bootstrapper {
             &cks.lwe_secret_key,
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
-            cks.parameters.lwe_modular_std_dev,
+            cks.parameters.lwe_noise_distribution(),
             CiphertextModulus::new_native(),
             &mut self.seeder,
         );
