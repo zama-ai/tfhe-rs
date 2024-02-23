@@ -6,7 +6,7 @@ use mpi::topology::Process;
 use mpi::traits::*;
 use mpi::Tag;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::mem::transmute;
 use thread_priority::{set_current_thread_priority, ThreadPriority, ThreadPriorityValue};
@@ -15,7 +15,7 @@ use threadpool::ThreadPool;
 const MASTER_TO_WORKER: Tag = 0;
 const WORKER_TO_MASTER: Tag = 1;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Priority(pub i32);
 
 pub trait TaskGraph {
@@ -48,7 +48,7 @@ impl Context {
         convert: impl Fn(&T, Task) -> RemoteTask + Sync + Clone + Send + 'static,
     ) {
         let (send_task, receive_task) = unbounded::<Task, Priority>();
-        let (send_result, receive_result) = crossbeam_channel::unbounded::<(Result, usize)>();
+        let (send_result, receive_result) = unbounded::<(Result, usize), Priority>();
 
         // let mut sent_inputs = vec![];
 
@@ -71,11 +71,11 @@ impl Context {
                 move |receive_task, send_result, state| {
                     let f = f.clone();
 
-                    let (input, _priority) = block_on(receive_task.recv()).unwrap();
+                    let (input, priority) = block_on(receive_task.recv()).unwrap();
 
                     let result = f(state, input);
 
-                    send_result.send((result, 0)).unwrap();
+                    block_on(send_result.send((result, 0), priority)).unwrap();
                 },
                 state,
             );
@@ -83,7 +83,7 @@ impl Context {
 
         let worker_senders: Vec<_> = (1..self.size)
             .map(|rank| {
-                let (send_task, receive_task) = crossbeam_channel::unbounded::<Task>();
+                let (send_task, receive_task) = unbounded::<Task, Priority>();
                 let process_at_rank: Process<'static> =
                     unsafe { transmute(self.world.process_at_rank(rank as i32)) };
 
@@ -96,10 +96,11 @@ impl Context {
 
                     let mut sent_inputs = vec![];
 
-                    while let Ok(task) = receive_task.recv() {
+                    while let Ok((task, priority)) = block_on(receive_task.recv()) {
                         let remote_task = convert(&state, task);
 
-                        let buffer = bincode::serialize(&remote_task).unwrap();
+                        let buffer = bincode::serialize(&(remote_task, priority)).unwrap();
+
                         sent_inputs.push(Sending::new(buffer, &process_at_rank, MASTER_TO_WORKER))
                     }
 
@@ -132,9 +133,9 @@ impl Context {
 
                     future.wait();
 
-                    let result = bincode::deserialize(&buffer).unwrap();
+                    let (result, priority) = bincode::deserialize(&buffer).unwrap();
 
-                    send_result.send((result, rank)).unwrap();
+                    block_on(send_result.send((result, rank), priority)).unwrap();
                 }
             });
         }
@@ -153,7 +154,7 @@ impl Context {
                 not_empty += 1;
             }
 
-            let (result, rank) = receive_result.recv().unwrap();
+            let ((result, rank), _priority) = block_on(receive_result.recv()).unwrap();
 
             charge.charge[rank] -= 1;
 
@@ -175,7 +176,7 @@ impl Context {
         result: U::Result,
         charge: &mut ClusterCharge,
         send_task: &Sender<U::Task, Priority>,
-        sent_inputs: &[crossbeam_channel::Sender<U::Task>],
+        sent_inputs: &[Sender<U::Task, Priority>],
     ) {
         let new_tasks = task_graph.commit_result(result);
 
@@ -190,7 +191,7 @@ impl Context {
         send_task: &Sender<Task, Priority>,
         priority: Priority,
         task: Task,
-        sent_inputs: &[crossbeam_channel::Sender<Task>],
+        sent_inputs: &[Sender<Task, Priority>],
     ) {
         let rank = if charge.charge[self.root_rank as usize] < charge.available_parallelism {
             self.root_rank as usize
@@ -209,7 +210,7 @@ impl Context {
         if rank == self.root_rank as usize {
             block_on(send_task.send(task, priority)).unwrap();
         } else {
-            sent_inputs[rank - 1].send(task).unwrap();
+            block_on(sent_inputs[rank - 1].send(task, priority)).unwrap();
         }
     }
 
@@ -223,11 +224,12 @@ impl Context {
         f: impl Fn(&T, RemoteTask) -> Result + Sync + Clone + Send + 'static,
     ) {
         let f = move |state: &T, serialized_input: &Vec<u8>| {
-            let input = bincode::deserialize(serialized_input).unwrap();
+            let (input, priority): (RemoteTask, Priority) =
+                bincode::deserialize(serialized_input).unwrap();
 
             let result = f(state, input);
 
-            bincode::serialize(&result).unwrap()
+            bincode::serialize(&(result, priority)).unwrap()
         };
 
         let (send_task, receive_task) = crossbeam_channel::unbounded::<Vec<u8>>();
@@ -317,8 +319,8 @@ fn launch_threadpool<
     priority: ThreadPriority,
     n_workers: usize,
     receive_task: &Receiver<U, W>,
-    send_result: &crossbeam_channel::Sender<V>,
-    function: impl Fn(&Receiver<U, W>, &crossbeam_channel::Sender<V>, &T) + Send + Clone + 'static,
+    send_result: &Sender<V, Priority>,
+    function: impl Fn(&Receiver<U, W>, &Sender<V, Priority>, &T) + Send + Clone + 'static,
     state: T,
 ) {
     let pool = ThreadPool::new(n_workers);
