@@ -22,9 +22,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        if T::IS_SIGNED {
-            panic!("Signed scalar comparisons are not yet supported with Cuda.")
-        }
+        assert!(!T::IS_SIGNED, "Signed scalar comparisons are not yet supported with Cuda.");
 
         if scalar < Scalar::ZERO {
             // ct represents an unsigned (always >= 0)

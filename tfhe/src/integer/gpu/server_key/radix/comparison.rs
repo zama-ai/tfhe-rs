@@ -15,9 +15,7 @@ impl CudaServerKey {
         op: ComparisonType,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        }
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
@@ -234,39 +232,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_eq_async(lhs, rhs, stream)
-        }
+        self.unchecked_eq_async(lhs, rhs, stream)
     }
 
     /// Compares for equality 2 ciphertexts
@@ -331,39 +326,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_ne_async(lhs, rhs, stream)
-        }
+        self.unchecked_ne_async(lhs, rhs, stream)
     }
 
     /// Compares for equality 2 ciphertexts
@@ -504,39 +496,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_gt_async(lhs, rhs, stream)
-        }
+        self.unchecked_gt_async(lhs, rhs, stream)
     }
 
     pub fn gt<T: CudaIntegerRadixCiphertext>(
@@ -612,39 +601,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_ge_async(lhs, rhs, stream)
-        }
+        self.unchecked_ge_async(lhs, rhs, stream)
     }
 
     pub fn ge<T: CudaIntegerRadixCiphertext>(
@@ -733,39 +719,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_lt_async(lhs, rhs, stream)
-        }
+        self.unchecked_lt_async(lhs, rhs, stream)
     }
 
     pub fn lt<T: CudaIntegerRadixCiphertext>(
@@ -854,39 +837,36 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
 
-            self.unchecked_le_async(lhs, rhs, stream)
-        }
+        self.unchecked_le_async(lhs, rhs, stream)
     }
 
     pub fn le<T: CudaIntegerRadixCiphertext>(
@@ -910,78 +890,75 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            assert_eq!(
-                ct_left.as_ref().d_blocks.lwe_dimension(),
-                ct_right.as_ref().d_blocks.lwe_dimension()
-            );
-            assert_eq!(
-                ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-                ct_right.as_ref().d_blocks.lwe_ciphertext_count()
-            );
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
+        );
 
-            let mut result = ct_left.as_ref().duplicate_async(stream);
+        let mut result = ct_left.as_ref().duplicate_async(stream);
 
-            let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
+        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
 
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    stream.unchecked_comparison_integer_radix_classic_kb_async(
-                        &mut result.d_blocks.0.d_vec,
-                        &ct_left.as_ref().d_blocks.0.d_vec,
-                        &ct_right.as_ref().d_blocks.0.d_vec,
-                        &d_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        lwe_ciphertext_count.0 as u32,
-                        ComparisonType::MAX,
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    stream.unchecked_comparison_integer_radix_multibit_kb_async(
-                        &mut result.d_blocks.0.d_vec,
-                        &ct_left.as_ref().d_blocks.0.d_vec,
-                        &ct_right.as_ref().d_blocks.0.d_vec,
-                        &d_multibit_bsk.d_vec,
-                        &self.key_switching_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        self.key_switching_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        self.key_switching_key.decomposition_level_count(),
-                        self.key_switching_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        lwe_ciphertext_count.0 as u32,
-                        ComparisonType::MAX,
-                    );
-                }
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                stream.unchecked_comparison_integer_radix_classic_kb_async(
+                    &mut result.d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    lwe_ciphertext_count.0 as u32,
+                    ComparisonType::MAX,
+                );
             }
-
-            result
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                    &mut result.d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    lwe_ciphertext_count.0 as u32,
+                    ComparisonType::MAX,
+                );
+            }
         }
+
+        result
     }
 
     pub fn unchecked_max<T: CudaIntegerRadixCiphertext>(
@@ -1005,9 +982,7 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        }
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
@@ -1099,38 +1074,35 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
-            self.unchecked_max_async(lhs, rhs, stream)
-        }
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+        self.unchecked_max_async(lhs, rhs, stream)
     }
 
     pub fn max<T: CudaIntegerRadixCiphertext>(
@@ -1154,38 +1126,35 @@ impl CudaServerKey {
         ct_right: &T,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
-        if T::IS_SIGNED {
-            panic!("Signed comparisons are not yet supported with Cuda.")
-        } else {
-            let mut tmp_lhs;
-            let mut tmp_rhs;
+        assert!(!T::IS_SIGNED, "Signed comparisons are not yet supported with Cuda.");
+        let mut tmp_lhs;
+        let mut tmp_rhs;
 
-            let (lhs, rhs) = match (
-                ct_left.as_ref().block_carries_are_empty(),
-                ct_right.as_ref().block_carries_are_empty(),
-            ) {
-                (true, true) => (ct_left, ct_right),
-                (true, false) => {
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (ct_left, &tmp_rhs)
-                }
-                (false, true) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    (&tmp_lhs, ct_right)
-                }
-                (false, false) => {
-                    tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
-                    tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+        let (lhs, rhs) = match (
+            ct_left.as_ref().block_carries_are_empty(),
+            ct_right.as_ref().block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = T::from(ct_right.as_ref().duplicate_async(stream));
+                tmp_rhs = T::from(ct_right.as_ref().duplicate_async(stream));
 
-                    self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
-                    self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
-                    (&tmp_lhs, &tmp_rhs)
-                }
-            };
-            self.unchecked_min_async(lhs, rhs, stream)
-        }
+                self.full_propagate_assign_async(tmp_lhs.as_mut(), stream);
+                self.full_propagate_assign_async(tmp_rhs.as_mut(), stream);
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+        self.unchecked_min_async(lhs, rhs, stream)
     }
 
     pub fn min<T: CudaIntegerRadixCiphertext>(

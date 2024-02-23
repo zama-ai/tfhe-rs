@@ -7,6 +7,7 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, FheUint, PublicKey};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheUint<Id>
 where
@@ -133,11 +134,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner = cuda_key.key.create_trivial_radix(
-                    value,
-                    Id::num_blocks(cuda_key.key.message_modulus),
-                    stream,
-                );
+                let inner = CudaUnsignedRadixCiphertext{
+                    ciphertext: cuda_key.key.create_trivial_radix(
+                        value,
+                        Id::num_blocks(cuda_key.key.message_modulus),
+                        stream,
+                    )
+                };
                 Ok(Self::new(inner))
             }),
         })

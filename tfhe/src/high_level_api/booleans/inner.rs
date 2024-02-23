@@ -4,12 +4,13 @@ use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
 use crate::integer::BooleanBlock;
 use crate::Device;
 use serde::{Deserializer, Serializer};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 
 /// Enum that manages the current inner representation of a boolean.
 pub(in crate::high_level_api) enum InnerBoolean {
     Cpu(BooleanBlock),
     #[cfg(feature = "gpu")]
-    Cuda(crate::integer::gpu::ciphertext::CudaRadixCiphertext),
+    Cuda(crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext),
 }
 
 impl Clone for InnerBoolean {
@@ -18,7 +19,7 @@ impl Clone for InnerBoolean {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                with_thread_local_cuda_stream(|stream| Self::Cuda(inner.duplicate(stream)))
+                with_thread_local_cuda_stream(|stream| Self::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner.ciphertext.duplicate(stream)}))
             }
         }
     }
@@ -54,8 +55,8 @@ impl From<BooleanBlock> for InnerBoolean {
 }
 
 #[cfg(feature = "gpu")]
-impl From<crate::integer::gpu::ciphertext::CudaRadixCiphertext> for InnerBoolean {
-    fn from(value: crate::integer::gpu::ciphertext::CudaRadixCiphertext) -> Self {
+impl From<crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext> for InnerBoolean {
+    fn from(value: crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext) -> Self {
         Self::Cuda(value)
     }
 }
@@ -76,7 +77,7 @@ impl InnerBoolean {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
             #[cfg(feature = "gpu")]
             Self::Cuda(ct) => with_thread_local_cuda_stream(|stream| {
-                let cpu_ct = ct.to_radix_ciphertext(stream);
+                let cpu_ct = ct.ciphertext.to_radix_ciphertext(stream);
                 MaybeCloned::Cloned(BooleanBlock::new_unchecked(cpu_ct.blocks[0].clone()))
             }),
         }
@@ -87,15 +88,17 @@ impl InnerBoolean {
     #[cfg(feature = "gpu")]
     pub(crate) fn on_gpu(
         &self,
-    ) -> MaybeCloned<'_, crate::integer::gpu::ciphertext::CudaRadixCiphertext> {
+    ) -> MaybeCloned<'_, crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext> {
         match self {
             Self::Cpu(ct) => with_thread_local_cuda_stream(|stream| {
                 let ct_as_radix = crate::integer::RadixCiphertext::from(vec![ct.0.clone()]);
                 let cuda_ct =
-                    crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
+                CudaUnsignedRadixCiphertext{
+                    ciphertext: crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
                         &ct_as_radix,
                         stream,
-                    );
+                    )
+                };
                 MaybeCloned::Cloned(cuda_ct)
             }),
             #[cfg(feature = "gpu")]
@@ -118,7 +121,7 @@ impl InnerBoolean {
     #[track_caller]
     pub(crate) fn as_gpu_mut(
         &mut self,
-    ) -> &mut crate::integer::gpu::ciphertext::CudaRadixCiphertext {
+    ) -> &mut crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext {
         if let Self::Cuda(radix_ct) = self {
             radix_ct
         } else {
@@ -140,17 +143,18 @@ impl InnerBoolean {
             (Self::Cpu(ct), Device::CudaGpu) => {
                 let ct_as_radix = crate::integer::RadixCiphertext::from(vec![ct.0.clone()]);
                 let new_inner = with_thread_local_cuda_stream(|stream| {
-                    crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
+                    CudaUnsignedRadixCiphertext{
+                    ciphertext: crate::integer::gpu::ciphertext::CudaRadixCiphertext::from_radix_ciphertext(
                         &ct_as_radix,
                         stream,
-                    )
+                    )}
                 });
                 *self = Self::Cuda(new_inner);
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
                 let new_inner =
-                    with_thread_local_cuda_stream(|stream| ct.to_radix_ciphertext(stream));
+                    with_thread_local_cuda_stream(|stream| ct.ciphertext.to_radix_ciphertext(stream));
                 *self = Self::Cpu(BooleanBlock::new_unchecked(new_inner.blocks[0].clone()));
             }
         }

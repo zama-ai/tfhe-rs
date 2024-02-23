@@ -39,9 +39,7 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        if T::IS_SIGNED {
-            panic!("Signed scalar shifts are not yet supported with Cuda.")
-        }
+        assert!(!T::IS_SIGNED, "Signed scalar shifts are not yet supported with Cuda.");
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {
@@ -181,9 +179,8 @@ impl CudaServerKey {
         u32: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
-        if T::IS_SIGNED {
-            panic!("Signed scalar shifts are not yet supported with Cuda.")
-        }
+        assert!(!T::IS_SIGNED, "Signed scalar shifts are not yet supported with Cuda.");
+
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {

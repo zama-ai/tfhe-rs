@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::booleans::compressed::CompressedFheBool;
@@ -173,13 +173,13 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.if_then_else(
-                    &self.ciphertext.on_gpu(),
-                    &ct_then.ciphertext.on_gpu(),
-                    &ct_else.ciphertext.on_gpu(),
+                    &self.ciphertext.on_gpu().ciphertext,
+                    &ct_then.ciphertext.on_gpu().ciphertext,
+                    &ct_else.ciphertext.on_gpu().ciphertext,
                     stream,
                 );
 
-                FheUint::new(inner)
+                FheUint::new(CudaUnsignedRadixCiphertext{ciphertext: inner})
             }),
         })
     }
@@ -244,13 +244,14 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let ct_left = unsafe {self.ciphertext.on_gpu().deref().duplicate_async(stream)};
-                let ct_right = unsafe {other.borrow().ciphertext.on_gpu().deref().duplicate_async(stream)};
-                let inner = cuda_key.key.eq(
-                    &CudaUnsignedRadixCiphertext{ciphertext: ct_left},
-                    &CudaUnsignedRadixCiphertext{ciphertext: ct_right},
-                    stream,
-                );
+                let inner =
+                    CudaUnsignedRadixCiphertext{
+                        ciphertext: cuda_key.key.eq(
+                            &*self.ciphertext.on_gpu(),
+                            &*other.borrow().ciphertext.on_gpu(),
+                            stream,
+                        )
+                    };
                 InnerBoolean::Cuda(inner)
             }),
         });
@@ -288,11 +289,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.ne(
-                    &self.ciphertext.on_gpu(),
-                    &other.borrow().ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*other.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner)
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner})
             }),
         });
         Self::new(ciphertext)
@@ -446,11 +447,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitand(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &self.ciphertext.on_gpu().ciphertext,
+                    &rhs.borrow().ciphertext.on_gpu().ciphertext,
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -522,11 +523,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitor(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &self.ciphertext.on_gpu().ciphertext,
+                    &rhs.borrow().ciphertext.on_gpu().ciphertext,
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -598,11 +599,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitxor(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &self.ciphertext.on_gpu().ciphertext,
+                    &rhs.borrow().ciphertext.on_gpu().ciphertext,
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -668,8 +669,8 @@ impl BitAnd<bool> for &FheBool {
                 let inner_ct =
                     cuda_key
                         .key
-                        .scalar_bitand(&self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                        .scalar_bitand(&self.ciphertext.on_gpu().ciphertext, u8::from(rhs), stream);
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -735,8 +736,8 @@ impl BitOr<bool> for &FheBool {
                 let inner_ct =
                     cuda_key
                         .key
-                        .scalar_bitor(&self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                        .scalar_bitor(&self.ciphertext.on_gpu().ciphertext, u8::from(rhs), stream);
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -802,8 +803,8 @@ impl BitXor<bool> for &FheBool {
                 let inner_ct =
                     cuda_key
                         .key
-                        .scalar_bitxor(&self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                        .scalar_bitxor(&self.ciphertext.on_gpu().ciphertext, u8::from(rhs), stream);
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner_ct})
             }),
         });
         FheBool::new(ciphertext)
@@ -998,8 +999,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.bitand_assign(
-                    self.ciphertext.as_gpu_mut(),
-                    &rhs.ciphertext.on_gpu(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
+                    &rhs.ciphertext.on_gpu().ciphertext,
                     stream,
                 );
             }),
@@ -1041,8 +1042,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.bitor_assign(
-                    self.ciphertext.as_gpu_mut(),
-                    &rhs.ciphertext.on_gpu(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
+                    &rhs.ciphertext.on_gpu().ciphertext,
                     stream,
                 );
             }),
@@ -1084,8 +1085,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.bitxor_assign(
-                    self.ciphertext.as_gpu_mut(),
-                    &rhs.ciphertext.on_gpu(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
+                    &rhs.ciphertext.on_gpu().ciphertext,
                     stream,
                 );
             }),
@@ -1121,7 +1122,7 @@ impl BitAndAssign<bool> for FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.scalar_bitand_assign(
-                    self.ciphertext.as_gpu_mut(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
                     u8::from(rhs),
                     stream,
                 );
@@ -1158,7 +1159,7 @@ impl BitOrAssign<bool> for FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.scalar_bitor_assign(
-                    self.ciphertext.as_gpu_mut(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
                     u8::from(rhs),
                     stream,
                 );
@@ -1195,7 +1196,7 @@ impl BitXorAssign<bool> for FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.scalar_bitxor_assign(
-                    self.ciphertext.as_gpu_mut(),
+                    &mut self.ciphertext.as_gpu_mut().ciphertext,
                     u8::from(rhs),
                     stream,
                 );
@@ -1262,8 +1263,8 @@ impl std::ops::Not for &FheBool {
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key
                     .key
-                    .scalar_bitxor(&self.ciphertext.on_gpu(), 1, stream);
-                InnerBoolean::Cuda(inner)
+                    .scalar_bitxor(&self.ciphertext.on_gpu().ciphertext, 1, stream);
+                InnerBoolean::Cuda(CudaUnsignedRadixCiphertext{ciphertext: inner})
             }),
         });
         FheBool::new(ciphertext)

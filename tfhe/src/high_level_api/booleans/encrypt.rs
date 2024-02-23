@@ -8,6 +8,7 @@ use crate::integer::BooleanBlock;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::shortint::ciphertext::Degree;
 use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, PublicKey};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 
 impl FheTryEncrypt<bool, ClientKey> for FheBool {
     type Error = crate::high_level_api::errors::Error;
@@ -102,9 +103,9 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner = cuda_key
-                    .key
-                    .create_trivial_radix(u64::from(value), 1, stream);
+                let inner = CudaUnsignedRadixCiphertext{
+                    ciphertext: cuda_key.key
+                    .create_trivial_radix(u64::from(value), 1, stream)};
                 InnerBoolean::Cuda(inner)
             }),
         });

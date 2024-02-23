@@ -29,7 +29,7 @@ for GpuFunctionExecutor<F>
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
 
-        gpu_result.to_radix_ciphertext(&context.stream)
+        gpu_result.ciphertext.to_radix_ciphertext(&context.stream)
     }
 }
 
@@ -52,7 +52,7 @@ impl<F> FunctionExecutor<(RadixCiphertext, u64), RadixCiphertext> for GpuFunctio
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
 
-        gpu_result.to_radix_ciphertext(&context.stream)
+        gpu_result.ciphertext.to_radix_ciphertext(&context.stream)
     }
 }
 

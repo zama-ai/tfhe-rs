@@ -3,6 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, ContiguousEntityContainerMut,
@@ -625,7 +626,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -640,7 +641,7 @@ impl CudaServerKey {
     ///
     /// let msg = 2u8;
     ///
-    /// let mut d_ct1: CudaRadixCiphertext = sks.create_trivial_radix(msg, num_blocks, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext{ciphertext: sks.create_trivial_radix(msg, num_blocks, &mut stream)};
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///
@@ -652,9 +653,9 @@ impl CudaServerKey {
     /// let res: u16 = cks.decrypt(&ct_res);
     /// assert_eq!(msg as u16, res);
     /// ```
-    pub fn cast_to_unsigned(
+    pub fn cast_to_unsigned<T: CudaIntegerRadixCiphertext>(
         &self,
-        mut source: CudaRadixCiphertext,
+        mut source: T,
         target_num_blocks: usize,
         stream: &CudaStream,
     ) -> CudaRadixCiphertext {
@@ -664,7 +665,7 @@ impl CudaServerKey {
             }
             stream.synchronize();
         }
-        let current_num_blocks = source.info.blocks.len();
+        let current_num_blocks = source.as_ref().info.blocks.len();
         // Casting from unsigned to unsigned, this is just about trimming/extending with zeros
         if target_num_blocks > current_num_blocks {
             let num_blocks_to_add = target_num_blocks - current_num_blocks;
