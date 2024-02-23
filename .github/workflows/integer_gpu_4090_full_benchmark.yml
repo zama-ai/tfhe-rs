@@ -16,15 +16,19 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
+  schedule:
+    # Weekly benchmarks will be triggered each Friday at 9p.m.
+    - cron: '0 21 * * 5'
 
 jobs:
   cuda-integer-benchmarks:
     name: Cuda integer benchmarks for all operations flavor  (RTX 4090)
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, '4090_bench') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || contains(github.event.label.name, '4090_bench') }}
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
+    timeout-minutes: 1440  # 24 hours
     strategy:
       fail-fast: false
       max-parallel: 1
