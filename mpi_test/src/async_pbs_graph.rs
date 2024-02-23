@@ -92,8 +92,8 @@ fn insert_predecessors_recursively(
 
         successors_max_depths.insert(node_index.index(), max_successors_depth.unwrap_or(0) + 1);
 
-        for prdecessor in graph.neighbors_directed(node_index, Incoming) {
-            insert_predecessors_recursively(graph, successors_max_depths, prdecessor);
+        for predecessor in graph.neighbors_directed(node_index, Incoming) {
+            insert_predecessors_recursively(graph, successors_max_depths, predecessor);
         }
     }
 }
