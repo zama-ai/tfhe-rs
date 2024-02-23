@@ -58,55 +58,6 @@ impl Context {
 
             let duration_sec = duration.as_secs_f32();
 
-            // {
-            //     let mut graph = Graph::new();
-
-            //     let i = 1;
-            //     let j = 16 * 16 * 16 - 1 - 64;
-
-            //     let in1 = cut_into_nodes(&mut graph, i);
-            //     let in2 = cut_into_nodes(&mut graph, j);
-
-            //     let generates_or_propagates =
-            //         generate_init_carry_array(&mut graph, &sks, &in1, &in2);
-
-            //     let (input_carries, _output_carry) =
-            //         compute_carry_propagation_parallelized_low_latency(
-            //             &mut graph,
-            //             &sks,
-            //             generates_or_propagates.clone(),
-            //         );
-
-            //     let (graph, duration) = self.async_pbs_graph_queue_master1(sks.clone(), graph);
-
-            //     for node_index in generates_or_propagates {
-            //         let node = graph.node_weight(node_index).unwrap();
-
-            //         let ct = match node {
-            //             Node::Computed(ct) => ct,
-            //             _ => unreachable!(),
-            //         };
-
-            //         let behavior = cks.decrypt_message_and_carry(ct);
-
-            //         dbg!(behavior);
-            //         // assert_eq!(cks.decrypt_message_and_carry(ct), expected_decryption);
-            //     }
-
-            //     for node_index in input_carries {
-            //         let node = graph.node_weight(node_index).unwrap();
-
-            //         let ct = match node {
-            //             Node::Computed(ct) => ct,
-            //             _ => unreachable!(),
-            //         };
-            //         let carry = cks.decrypt_message_and_carry(ct);
-
-            //         dbg!(carry);
-            //         // assert_eq!(cks.decrypt_message_and_carry(ct), expected_decryption);
-            //     }
-            // }
-
             for (node_index, expected_decryption) in expected_outputs {
                 let node = graph.node_weight(node_index).unwrap();
 
