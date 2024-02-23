@@ -35,8 +35,7 @@ void bootstrap_multibit_setup(
     int polynomial_size, int grouping_factor, double lwe_modular_variance,
     double glwe_modular_variance, int pbs_base_log, int pbs_level,
     int message_modulus, int carry_modulus, int *payload_modulus,
-    uint64_t *delta, int number_of_inputs, int repetitions, int samples,
-    int chunk_size = 0);
+    uint64_t *delta, int number_of_inputs, int repetitions, int samples);
 void bootstrap_multibit_teardown(
     cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, uint64_t *d_bsk_array, uint64_t *plaintexts,

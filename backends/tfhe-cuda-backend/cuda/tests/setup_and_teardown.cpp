@@ -138,8 +138,7 @@ void bootstrap_multibit_setup(
     int polynomial_size, int grouping_factor, double lwe_modular_variance,
     double glwe_modular_variance, int pbs_base_log, int pbs_level,
     int message_modulus, int carry_modulus, int *payload_modulus,
-    uint64_t *delta, int number_of_inputs, int repetitions, int samples,
-    int lwe_chunk_size) {
+    uint64_t *delta, int number_of_inputs, int repetitions, int samples) {
   cudaSetDevice(stream->gpu_index);
 
   *payload_modulus = message_modulus * carry_modulus;
@@ -228,8 +227,7 @@ void bootstrap_multibit_setup(
 
   scratch_cuda_multi_bit_pbs_64(
       stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-      pbs_level, grouping_factor, number_of_inputs,
-      cuda_get_max_shared_memory(stream->gpu_index), true, lwe_chunk_size);
+      pbs_level, grouping_factor, number_of_inputs, true);
 
   stream->synchronize();
 

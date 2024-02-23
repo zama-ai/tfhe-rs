@@ -185,6 +185,37 @@ int cuda_get_number_of_gpus() {
   return num_gpus;
 }
 
+/// Returns true if gpu i can access data allocated in GPU j global memory
+bool cuda_check_support_p2p_access(int i, int j) {
+  int result;
+  check_cuda_error(cudaDeviceCanAccessPeer(&result, i, j));
+  return (bool)result;
+}
+
+// Function to get P2P-enabled GPU indexes for a given GPU index
+std::vector<int> cuda_get_p2p_enabled_gpus(int gpuIndex) {
+  std::vector<int> p2p_enabled_gpus;
+
+  int deviceCount = cuda_get_number_of_gpus();
+
+  for (int i = 0; i < deviceCount; ++i)
+    if (i != gpuIndex && cuda_check_support_p2p_access(gpuIndex, i))
+      p2p_enabled_gpus.push_back(i);
+
+  return p2p_enabled_gpus;
+}
+
+/// Return the number of GPUs which memory can be accessed by gpu_index
+int cuda_get_number_of_p2p_enabled_gpus(uint32_t gpu_index) {
+  return cuda_get_p2p_enabled_gpus(gpu_index).size();
+}
+
+void cuda_enable_p2p_access(uint32_t i, uint32_t j) {
+  cudaSetDevice(i);
+  check_cuda_error(cudaDeviceEnablePeerAccess(j, 0)) cudaSetDevice(j);
+  check_cuda_error(cudaDeviceEnablePeerAccess(i, 0))
+}
+
 /// Drop a cuda array
 void cuda_drop(void *ptr, uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));

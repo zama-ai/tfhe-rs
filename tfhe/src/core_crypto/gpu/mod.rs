@@ -152,9 +152,7 @@ impl CudaStream {
             level.0 as u32,
             grouping_factor.0 as u32,
             num_samples,
-            self.device().get_max_shared_memory() as u32,
             true,
-            0u32,
         );
         cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
             self.as_c_ptr(),
@@ -175,8 +173,6 @@ impl CudaStream {
             num_samples,
             num_samples,
             lwe_idx.0 as u32,
-            self.device().get_max_shared_memory() as u32,
-            0u32,
         );
         cleanup_cuda_multi_bit_pbs(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
     }

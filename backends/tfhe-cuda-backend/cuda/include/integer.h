@@ -392,7 +392,11 @@ template <typename Torus> struct int_radix_lut {
     cuda_drop_async(lwe_indexes, stream);
     cuda_drop_async(lut, stream);
     if (!mem_reuse) {
-      cuda_drop_async(pbs_buffer, stream);
+      if (this->params.pbs_type == MULTI_BIT) {
+        auto ptr = (pbs_multibit_buffer<Torus> *)pbs_buffer;
+        ptr->release(stream);
+      } else
+        cuda_drop_async(pbs_buffer, stream);
       cuda_drop_async(tmp_lwe_before_ks, stream);
       cuda_drop_async(tmp_lwe_after_ks, stream);
     }

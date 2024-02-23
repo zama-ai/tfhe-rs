@@ -44,6 +44,8 @@ add_dependencies(tfhe_rs_lib tfhe-rs)
 set_target_properties(tfhe_rs_lib PROPERTIES IMPORTED_LOCATION ${TFHE_RS_BINARY_DIR}/libtfhe.a)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -ldl")
+set(CMAKE_CUDA_FLAGS
+    "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} -O3")
 
 set(BINARY test_tfhe_cuda_backend)
 

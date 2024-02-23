@@ -125,8 +125,7 @@ TEST_P(MultiBitBootstrapTestPrimitives_u64, multi_bit_pbs) {
           (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
           (void *)d_lwe_ct_in, (void *)d_lwe_input_indexes, (void *)d_bsk,
           pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, pbs_base_log, pbs_level, number_of_inputs, 1, 0,
-          cuda_get_max_shared_memory(gpu_index));
+          grouping_factor, pbs_base_log, pbs_level, number_of_inputs, 1, 0);
 
       // Copy result to the host memory
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,

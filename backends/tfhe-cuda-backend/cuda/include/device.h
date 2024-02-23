@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
+#include <vector>
 
 #define synchronize_threads_in_block() __syncthreads()
 
@@ -33,8 +34,12 @@ struct cuda_stream_t {
 
   cuda_stream_t(uint32_t gpu_index) {
     this->gpu_index = gpu_index;
-
-    check_cuda_error(cudaStreamCreate(&stream));
+    if (gpu_index == 0) {
+      check_cuda_error(cudaStreamCreate(&stream));
+    } else {
+      check_cuda_error(
+          cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    }
   }
 
   void release() {
@@ -56,6 +61,12 @@ void *cuda_malloc_async(uint64_t size, cuda_stream_t *stream);
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
 bool cuda_check_support_cooperative_groups();
+
+bool cuda_check_support_p2p_access(int i, int j);
+
+int cuda_get_number_of_p2p_enabled_gpus(uint32_t gpu_index);
+
+void cuda_enable_p2p_access(uint32_t i, uint32_t j);
 
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cuda_stream_t *stream);
@@ -91,4 +102,6 @@ void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
                           Torus n);
+
+std::vector<int> cuda_get_p2p_enabled_gpus(int gpuIndex);
 #endif

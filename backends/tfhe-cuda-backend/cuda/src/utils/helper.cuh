@@ -18,6 +18,22 @@ template <typename T> void print_debug(const char *name, T *src, int N) {
 }
 
 template <typename T>
+__global__ void print_debug_kernel_complex(T *src, int N) {
+  for (int i = 0; i < N; i++) {
+    printf("(%f, %f), ", src[i].x, src[i].y);
+  }
+}
+
+template <typename T>
+void print_debug_complex(const char *name, T *src, int N) {
+  printf("%s: ", name);
+  cudaDeviceSynchronize();
+  print_debug_kernel_complex<<<1, 1>>>(src, N);
+  cudaDeviceSynchronize();
+  printf("\n");
+}
+
+template <typename T>
 __global__ void print_body_kernel(T *src, int N, int lwe_dimension) {
   for (int i = 0; i < N; i++) {
     printf("%lu, ", src[i * (lwe_dimension + 1) + lwe_dimension]);

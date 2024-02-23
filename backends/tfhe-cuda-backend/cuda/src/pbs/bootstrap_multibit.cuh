@@ -17,6 +17,15 @@
 #include "types/complex/operations.cuh"
 #include <vector>
 
+#include <chrono>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+#include <utils/helper.cuh>
+
 template <typename Torus, class params>
 __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
                                             uint32_t ggsw_idx,
@@ -329,14 +338,11 @@ __host__ __device__ uint64_t get_buffer_size_multibit_bootstrap(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void
-scratch_multi_bit_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
-                      uint32_t lwe_dimension, uint32_t glwe_dimension,
-                      uint32_t polynomial_size, uint32_t level_count,
-                      uint32_t input_lwe_ciphertext_count,
-                      uint32_t grouping_factor, uint32_t max_shared_memory,
-                      bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0) {
-
+__host__ void scratch_multi_bit_pbs(
+    cuda_stream_t *stream, pbs_multibit_buffer<uint64_t> **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t grouping_factor, bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
 
   uint64_t full_sm_keybundle =
@@ -374,50 +380,94 @@ scratch_multi_bit_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
       cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
-  if (allocate_gpu_memory) {
-    if (!lwe_chunk_size)
-      lwe_chunk_size =
-          get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension,
-                                     input_lwe_ciphertext_count);
-
-    uint64_t buffer_size = get_buffer_size_multibit_bootstrap<Torus>(
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, lwe_chunk_size);
-    *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream);
-    check_cuda_error(cudaGetLastError());
-  }
+  (*pbs_buffer) = new pbs_multibit_buffer<Torus>(
+      stream, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
-template <typename Torus, typename STorus, class params>
-__host__ void host_multi_bit_pbs(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, uint64_t *bootstrapping_key, int8_t *pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0) {
-  cudaSetDevice(stream->gpu_index);
+template <typename Torus, class params>
+void producer_thread(cuda_stream_t *producer_stream, int producer_id,
+                     int num_producers, Torus *lwe_array_in,
+                     Torus *lwe_input_indexes, Torus *bootstrapping_key,
+                     pbs_multibit_buffer<Torus> *pbs_buffer,
+                     uint32_t glwe_dimension, uint32_t lwe_dimension,
+                     uint32_t polynomial_size, uint32_t grouping_factor,
+                     uint32_t base_log, uint32_t level_count,
+                     uint32_t num_samples, std::condition_variable &cv_producer,
+                     std::condition_variable &cv_consumer, std::mutex &mtx,
+                     std::queue<std::pair<uint32_t, double2 *>> &queue,
+                     int max_pool_size) {
 
-  // If a chunk size is not passed to this function, select one.
-  if (!lwe_chunk_size)
-    lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                glwe_dimension, num_samples);
-  //
-  double2 *keybundle_fft = (double2 *)pbs_buffer;
-  double2 *global_accumulator_fft =
-      (double2 *)keybundle_fft +
-      num_samples * lwe_chunk_size * level_count * (glwe_dimension + 1) *
-          (glwe_dimension + 1) * (polynomial_size / 2);
-  Torus *global_accumulator =
-      (Torus *)global_accumulator_fft +
-      (ptrdiff_t)(sizeof(double2) * num_samples * (glwe_dimension + 1) *
-                  level_count * (polynomial_size / 2) / sizeof(Torus));
+  uint32_t lwe_chunk_size = pbs_buffer->lwe_chunk_size;
 
-  //
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_bootstrap_keybundle<Torus>(
           polynomial_size);
+
+  uint32_t keybundle_size_per_input =
+      lwe_chunk_size * level_count * (glwe_dimension + 1) *
+      (glwe_dimension + 1) * (polynomial_size / 2);
+
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  for (uint32_t lwe_offset = lwe_chunk_size * producer_id;
+       lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += num_producers * lwe_chunk_size) {
+
+    uint32_t chunk_size = std::min(
+        lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+
+    auto keybundle_fft = (double2 *)cuda_malloc_async(
+        num_samples * chunk_size * level_count * (glwe_dimension + 1) *
+            (glwe_dimension + 1) * (polynomial_size / 2) * sizeof(double2),
+        producer_stream);
+
+    // Compute a keybundle
+    dim3 grid_keybundle(num_samples * chunk_size,
+                        (glwe_dimension + 1) * (glwe_dimension + 1),
+                        level_count);
+
+    device_multi_bit_bootstrap_keybundle<Torus, params>
+        <<<grid_keybundle, thds, full_sm_keybundle, producer_stream->stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            base_log, level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input);
+    check_cuda_error(cudaGetLastError());
+
+    // We need to be sure the keybundle was computed before we can send it to
+    // the consumer
+    cuda_synchronize_stream(producer_stream);
+    //                printf("producer %d - %d) is ready\n", producer_id,
+    //                lwe_offset);
+    {
+      std::unique_lock<std::mutex> lock(mtx);
+      // Wait until the consumer removes something from the pool if needed
+      //      printf("producer %d - %d) will wait (%u elements)\n", producer_id,
+      //      lwe_offset, queue.size());
+      cv_producer.wait(lock, [&] { return queue.size() < max_pool_size; });
+      //                  printf("producer %d - %d) Will push\n", producer_id,
+      //                  lwe_offset);
+      queue.push({lwe_offset, keybundle_fft});
+      cv_consumer.notify_one();
+    }
+  }
+}
+
+template <typename Torus, class params>
+void consumer_thread(
+    cuda_stream_t *consumer_stream, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
+    Torus *lwe_array_in, Torus *lwe_input_indexes,
+    pbs_multibit_buffer<Torus> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    std::vector<std::condition_variable> &cv_producers,
+    std::condition_variable &cv_consumer, std::vector<std::mutex> &mtx,
+    std::vector<std::queue<std::pair<uint32_t, double2 *>>> &keybundle_pool) {
+
+  uint32_t lwe_chunk_size = pbs_buffer->lwe_chunk_size;
+
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_bootstrap_step_one<Torus>(
           polynomial_size);
@@ -425,14 +475,16 @@ __host__ void host_multi_bit_pbs(
       get_buffer_size_full_sm_multibit_bootstrap_step_two<Torus>(
           polynomial_size);
 
-  uint32_t keybundle_size_per_input =
-      lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
 
   //
+  double2 *global_accumulator_fft = pbs_buffer->global_accumulator_fft;
+  Torus *global_accumulator = pbs_buffer->global_accumulator;
+
   dim3 grid_accumulate_step_one(level_count, glwe_dimension + 1, num_samples);
   dim3 grid_accumulate_step_two(num_samples, glwe_dimension + 1);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  int num_producers = keybundle_pool.size();
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
@@ -440,38 +492,114 @@ __host__ void host_multi_bit_pbs(
     uint32_t chunk_size = std::min(
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
 
-    // Compute a keybundle
-    dim3 grid_keybundle(num_samples * chunk_size,
-                        (glwe_dimension + 1) * (glwe_dimension + 1),
-                        level_count);
-    device_multi_bit_bootstrap_keybundle<Torus, params>
-        <<<grid_keybundle, thds, full_sm_keybundle, stream->stream>>>(
-            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            base_log, level_count, lwe_offset, chunk_size,
-            keybundle_size_per_input);
-    check_cuda_error(cudaGetLastError());
-
+    int producer_id = (lwe_offset / lwe_chunk_size) % num_producers;
+    auto &producer_queue = keybundle_pool[producer_id];
+    double2 *keybundle_fft;
+    {
+      std::unique_lock<std::mutex> lock(mtx[producer_id]);
+      // Wait until the producer inserts the right keybundle in the pool
+      //                  printf("consumer - %d) Will wait (%d elements) for
+      //                  queue %p\n", lwe_offset,
+      //                         producer_queue.size(), &producer_queue);
+      cv_consumer.wait(lock, [&] { return !producer_queue.empty(); });
+      //                  printf("consumer - %d) Consuming...(%d elements)\n",
+      //                  lwe_offset, producer_queue.size());
+      auto pair = producer_queue.front();
+      assert(pair.first == lwe_offset);
+      keybundle_fft = pair.second;
+      producer_queue.pop();
+      cv_producers[producer_id].notify_one();
+    }
     // Accumulate
     for (int j = 0; j < chunk_size; j++) {
       device_multi_bit_bootstrap_accumulate_step_one<Torus, params>
           <<<grid_accumulate_step_one, thds, full_sm_accumulate_step_one,
-             stream->stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
-                               lut_vector_indexes, global_accumulator,
-                               global_accumulator_fft, lwe_dimension,
-                               glwe_dimension, polynomial_size, base_log,
-                               level_count, j + lwe_offset);
+             consumer_stream->stream>>>(
+              lwe_array_in, lwe_input_indexes, lut_vector, lut_vector_indexes,
+              global_accumulator, global_accumulator_fft, lwe_dimension,
+              glwe_dimension, polynomial_size, base_log, level_count,
+              j + lwe_offset);
       check_cuda_error(cudaGetLastError());
 
       device_multi_bit_bootstrap_accumulate_step_two<Torus, params>
           <<<grid_accumulate_step_two, thds, full_sm_accumulate_step_two,
-             stream->stream>>>(lwe_array_out, lwe_output_indexes, keybundle_fft,
-                               global_accumulator, global_accumulator_fft,
-                               lwe_dimension, glwe_dimension, polynomial_size,
-                               level_count, grouping_factor, j, lwe_offset,
-                               lwe_chunk_size);
+             consumer_stream->stream>>>(
+              lwe_array_out, lwe_output_indexes, keybundle_fft,
+              global_accumulator, global_accumulator_fft, lwe_dimension,
+              glwe_dimension, polynomial_size, level_count, grouping_factor, j,
+              lwe_offset, lwe_chunk_size);
       check_cuda_error(cudaGetLastError());
     }
+    cuda_drop_async(keybundle_fft, consumer_stream);
   }
+}
+
+template <typename Torus, typename STorus, class params>
+__host__ void host_multi_bit_pbs(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
+    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
+    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    pbs_multibit_buffer<Torus> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_luts, uint32_t lwe_idx) {
+
+  int num_producers = pbs_buffer->num_producers;
+  int max_pool_size = pbs_buffer->max_pool_size;
+
+  //
+  std::vector<std::queue<std::pair<uint32_t, double2 *>>> keybundle_pool(
+      num_producers);
+  std::vector<std::condition_variable> cv_producers(num_producers);
+  std::condition_variable cv_consumer;
+  std::vector<std::mutex> mtx(num_producers);
+
+  std::vector<std::thread> producer_threads;
+
+  // We have to assert everything on the main stream is done to safely launch
+  // the producer streams
+  int num_gpus = pbs_buffer->enabled_gpus.size();
+  for (int producer_id = 0; producer_id < num_producers; producer_id++) {
+    uint32_t producer_gpu_index =
+        pbs_buffer->enabled_gpus[producer_id % num_gpus];
+
+    std::thread producer([stream, producer_gpu_index, producer_id, num_producers,
+                          lwe_array_in, lwe_input_indexes, bootstrapping_key,
+                          pbs_buffer, glwe_dimension, lwe_dimension,
+                          polynomial_size, grouping_factor, base_log,
+                          level_count, num_samples, &cv_producers, &cv_consumer,
+                          &mtx, &keybundle_pool, max_pool_size]() {
+      cuda_synchronize_stream(stream);
+      cudaSetDevice(producer_gpu_index);
+      auto producer_stream = cuda_create_stream(producer_gpu_index);
+      producer_thread<Torus, params>(
+          producer_stream, producer_id, num_producers, lwe_array_in,
+          lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+          lwe_dimension, polynomial_size, grouping_factor, base_log,
+          level_count, num_samples, cv_producers[producer_id], cv_consumer,
+          mtx[producer_id], keybundle_pool[producer_id], max_pool_size);
+      cuda_synchronize_stream(producer_stream);
+      cuda_destroy_stream(producer_stream);
+    });
+
+    producer_threads.emplace_back(std::move(producer));
+  }
+
+  cudaSetDevice(stream->gpu_index);
+  // std::thread consumer([&]() {
+  //   auto consumer_stream = cuda_create_stream(gpu_index);
+  consumer_thread<Torus, params>(
+      stream, lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+      lwe_array_in, lwe_input_indexes, pbs_buffer, glwe_dimension,
+      lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+      num_samples, cv_producers, cv_consumer, mtx, keybundle_pool);
+  //  cuda_synchronize_stream(consumer_stream);
+  //  cuda_destroy_stream(consumer_stream);
+  //});
+
+  for (auto &producer : producer_threads) {
+    producer.join();
+  }
+  //  consumer.join();
 }
 #endif // MULTIBIT_PBS_H
