@@ -14,26 +14,38 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::ClassicPBSParameters;
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 12] = [
+    // PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+    // PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    // PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+    // PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+    // PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    // PARAM_MESSAGE_3_CARRY_3_PBS_KS,
+    // PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p80,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p80,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p80,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p128,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p128,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -849,8 +861,8 @@ use cuda::{cuda_multi_bit_pbs_group, cuda_pbs_group};
 
 criterion_group!(
     name = pbs_group;
-    config = Criterion::default().sample_size(2000);
-    targets = mem_optimized_pbs::<u64>, mem_optimized_pbs::<u32>
+    config = Criterion::default().sample_size(15).measurement_time(std::time::Duration::from_secs(60));
+    targets = mem_optimized_pbs::<u64>
 );
 
 criterion_group!(
@@ -869,6 +881,6 @@ criterion_group!(
 );
 
 #[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+criterion_main!(pbs_group);
 #[cfg(feature = "gpu")]
 criterion_main!(cuda_pbs_group, cuda_multi_bit_pbs_group);
