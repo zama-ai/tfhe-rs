@@ -14,7 +14,8 @@ fn criterion_bench(c: &mut Criterion) {
         let small_lwe_dimension = LweDimension(742);
         let glwe_dimension = GlweDimension(1);
         let polynomial_size = PolynomialSize(2048);
-        let lwe_modular_std_dev = StandardDev(sqr(0.000007069849454709433));
+        let lwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(sqr(0.000007069849454709433)), 0.0);
         let pbs_base_log = DecompositionBaseLog(23);
         let pbs_level = DecompositionLevelCount(1);
         let ciphertext_modulus = CiphertextModulus::new_native();
@@ -61,7 +62,7 @@ fn criterion_bench(c: &mut Criterion) {
         let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
             &small_lwe_sk,
             plaintext,
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             ciphertext_modulus,
             &mut encryption_generator,
         );

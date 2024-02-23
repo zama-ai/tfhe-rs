@@ -127,7 +127,7 @@ impl CudaServerKey {
             &cks.key.small_lwe_secret_key(),
             cks.parameters().ks_base_log(),
             cks.parameters().ks_level(),
-            cks.parameters().lwe_modular_std_dev(),
+            cks.parameters().lwe_noise_distribution(),
             cks.parameters().ciphertext_modulus(),
             &mut engine.encryption_generator,
         );

@@ -136,7 +136,7 @@ impl ShortintEngine {
             &cks.small_lwe_secret_key(),
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
-            cks.parameters.lwe_modular_std_dev(),
+            cks.parameters.lwe_noise_distribution(),
             cks.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
@@ -171,7 +171,7 @@ impl ShortintEngine {
             &cks2.large_lwe_secret_key(),
             params.ks_base_log,
             params.ks_level,
-            cks2.parameters.lwe_modular_std_dev(),
+            cks2.parameters.lwe_noise_distribution(),
             cks2.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         )
@@ -257,7 +257,7 @@ impl ShortintEngine {
             &cks.small_lwe_secret_key(),
             cks.parameters.ks_base_log(),
             cks.parameters.ks_level(),
-            cks.parameters.lwe_modular_std_dev(),
+            cks.parameters.lwe_noise_distribution(),
             cks.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );

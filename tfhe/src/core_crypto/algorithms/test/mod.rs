@@ -57,7 +57,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestPar
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -76,7 +78,9 @@ pub const TEST_PARAMS_3_BITS_63_U64: ClassicTestParams<u64> = ClassicTestParams 
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -95,7 +99,9 @@ pub const TEST_PARAMS_3_BITS_SOLINAS_U64: ClassicTestParams<u64> = ClassicTestPa
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -114,7 +120,9 @@ pub const DUMMY_NATIVE_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -133,7 +141,9 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -150,7 +160,9 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
 
 pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(818),
-    lwe_modular_std_dev: StandardDev(0.000002226459789930014),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000002226459789930014,
+    )),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
@@ -164,7 +176,9 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 
 pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(818),
-    lwe_modular_std_dev: StandardDev(0.000002226459789930014),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000002226459789930014,
+    )),
     decomp_base_log: DecompositionBaseLog(22),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
@@ -178,7 +192,9 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
 
 pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(888),
-    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006125031601933181,
+    )),
     decomp_base_log: DecompositionBaseLog(21),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
@@ -192,7 +208,9 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
 
 pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(888),
-    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006125031601933181,
+    )),
     decomp_base_log: DecompositionBaseLog(21),
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
@@ -211,7 +229,9 @@ pub const FFT_U32_PARAMS: FftTestParams<u32> = FftTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000004998277131225527,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -222,7 +242,9 @@ pub const FFT_U64_PARAMS: FftTestParams<u64> = FftTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000004998277131225527,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -233,7 +255,9 @@ pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000004998277131225527,
+    )),
     glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -244,7 +268,7 @@ pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.12345),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.12345)),
     glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -258,7 +282,9 @@ pub const FFT_WOPBS_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
     // Value was 0.000_000_000_000_000_221_486_881_160_055_68_513645324585951
     // But rust indicates it gets truncated anyways to
     // 0.000_000_000_000_000_221_486_881_160_055_68
-    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_000_000_000_000_221_486_881_160_055_68,
+    )),
     // Value was 0.000_061_200_133_780_220_371_345
     // But rust indicates it gets truncated anyways to
     // 0.000_061_200_133_780_220_36
@@ -276,7 +302,9 @@ pub const FFT_WOPBS_N512_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams 
     lwe_dimension: LweDimension(4),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_000_000_000_000_221_486_881_160_055_68,
+    )),
     glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),
@@ -291,7 +319,9 @@ pub const FFT_WOPBS_N1024_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams
     lwe_dimension: LweDimension(4),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_000_000_000_000_221_486_881_160_055_68,
+    )),
     glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),
@@ -306,7 +336,9 @@ pub const FFT_WOPBS_N2048_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams
     lwe_dimension: LweDimension(4),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_000_000_000_000_221_486_881_160_055_68,
+    )),
     glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),

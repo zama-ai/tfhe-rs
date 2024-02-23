@@ -23,15 +23,15 @@ impl ShortintEngine {
     pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
         let client_parameters = client_key.parameters;
 
-        let (secret_encryption_key, encryption_noise) =
+        let (secret_encryption_key, encryption_noise_distribution) =
             match client_parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
                     client_key.large_lwe_secret_key(),
-                    client_parameters.glwe_modular_std_dev(),
+                    client_parameters.glwe_noise_distribution(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
                     client_key.small_lwe_secret_key(),
-                    client_parameters.lwe_modular_std_dev(),
+                    client_parameters.lwe_noise_distribution(),
                 ),
             };
 
@@ -43,7 +43,7 @@ impl ShortintEngine {
         let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
             &secret_encryption_key,
             zero_encryption_count,
-            encryption_noise,
+            encryption_noise_distribution,
             client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
@@ -52,7 +52,7 @@ impl ShortintEngine {
         let lwe_public_key = allocate_and_generate_new_lwe_public_key(
             &secret_encryption_key,
             zero_encryption_count,
-            encryption_noise,
+            encryption_noise_distribution,
             client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
@@ -69,15 +69,15 @@ impl ShortintEngine {
     ) -> CompressedPublicKey {
         let client_parameters = client_key.parameters;
 
-        let (secret_encryption_key, encryption_noise) =
+        let (secret_encryption_key, encryption_noise_distribution) =
             match client_parameters.encryption_key_choice().into() {
                 crate::shortint::PBSOrder::KeyswitchBootstrap => (
                     client_key.large_lwe_secret_key(),
-                    client_parameters.glwe_modular_std_dev(),
+                    client_parameters.glwe_noise_distribution(),
                 ),
                 crate::shortint::PBSOrder::BootstrapKeyswitch => (
                     client_key.small_lwe_secret_key(),
-                    client_parameters.lwe_modular_std_dev(),
+                    client_parameters.lwe_noise_distribution(),
                 ),
             };
 
@@ -89,7 +89,7 @@ impl ShortintEngine {
         let compressed_public_key = par_allocate_and_generate_new_seeded_lwe_public_key(
             &secret_encryption_key,
             zero_encryption_count,
-            encryption_noise,
+            encryption_noise_distribution,
             client_parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
@@ -98,7 +98,7 @@ impl ShortintEngine {
         let compressed_public_key = allocate_and_generate_new_seeded_lwe_public_key(
             &secret_encryption_key,
             zero_encryption_count,
-            encryption_noise,
+            encryption_noise_distribution,
             client_parameters.ciphertext_modulus(),
             &mut self.seeder,
         );

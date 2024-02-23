@@ -61,13 +61,14 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
         let output_ct = std::slice::from_raw_parts_mut(output_ct_ptr, lwe_sk_dim + 1);
         let mut ct = LweCiphertext::from_container(output_ct, CiphertextModulus::new_native());
 
-        let lwe_encryption_std_dev = StandardDev(lwe_encryption_std_dev);
+        let lwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
 
         encrypt_lwe_ciphertext(
             &lwe_sk,
             &mut ct,
             plaintext,
-            lwe_encryption_std_dev,
+            lwe_noise_distribution,
             &mut encryption_generator,
         );
     })
@@ -451,13 +452,14 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_keyswitch_key(
             CiphertextModulus::new_native(),
         );
 
-        let lwe_encryption_std_dev = StandardDev(lwe_encryption_std_dev);
+        let lwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
 
         generate_lwe_keyswitch_key(
             &input_lwe_sk,
             &output_lwe_sk,
             &mut ksk,
-            lwe_encryption_std_dev,
+            lwe_noise_distribution,
             &mut encryption_random_generator,
         )
     })

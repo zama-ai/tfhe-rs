@@ -17,7 +17,8 @@ use tfhe::core_crypto::prelude::*;
 // computations
 // Define parameters for LweCiphertext creation
 let lwe_dimension = LweDimension(742);
-let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+let lwe_noise_distribution =
+    Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 let ciphertext_modulus = CiphertextModulus::new_native();
 
 // Create the PRNG
@@ -43,7 +44,7 @@ encrypt_lwe_ciphertext(
     &lwe_secret_key,
     &mut lwe,
     plaintext,
-    lwe_modular_std_dev,
+    lwe_noise_distribution,
     &mut encryption_generator,
 );
 

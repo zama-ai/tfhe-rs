@@ -20,7 +20,8 @@ use rayon::prelude::*;
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
@@ -63,7 +64,7 @@ use rayon::prelude::*;
 /// let input_lwe = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &input_lwe_secret_key,
 ///     plaintext,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -196,7 +197,8 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
@@ -253,7 +255,7 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 ///     &input_lwe_secret_key,
 ///     &mut input_lwe_list,
 ///     &input_plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -389,7 +391,8 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
@@ -446,7 +449,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 ///     &input_lwe_secret_key,
 ///     &mut input_lwe_list,
 ///     &input_plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -524,7 +527,8 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
@@ -581,7 +585,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 ///     &input_lwe_secret_key,
 ///     &mut input_lwe_list,
 ///     &input_plaintext_list,
-///     lwe_modular_std_dev,
+///     lwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///

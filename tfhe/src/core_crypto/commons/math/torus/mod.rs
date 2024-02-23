@@ -13,7 +13,7 @@
 //! floating point representation.
 
 use crate::core_crypto::commons::math::random::{
-    Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
+    Gaussian, RandomGenerable, TUniform, Uniform, UniformBinary, UniformTernary,
 };
 pub use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint, Numeric, UnsignedInteger};
 use std::fmt::{Debug, Display};
@@ -126,6 +126,7 @@ pub trait UnsignedTorus:
     + RandomGenerable<UniformBinary, CustomModulus = Self>
     + RandomGenerable<UniformTernary, CustomModulus = Self>
     + RandomGenerable<Uniform, CustomModulus = Self>
+    + RandomGenerable<TUniform<Self>, CustomModulus = Self>
     + Display
     + Debug
 {
