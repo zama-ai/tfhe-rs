@@ -69,12 +69,11 @@ impl Context {
                 move |receive_task, send_result, state| {
                     let f = f.clone();
 
-                    handle_request(
-                        receive_task,
-                        send_result,
-                        |state, task| (f(state, task), 0),
-                        state,
-                    )
+                    let (input, _priority) = block_on(receive_task.recv()).unwrap();
+
+                    let result = f(state, &input);
+
+                    send_result.send((result, 0)).unwrap();
                 },
                 state,
             );
@@ -232,7 +231,11 @@ impl Context {
                 move |receive_task, send_result, state| {
                     let f = f.clone();
 
-                    handle_request2(receive_task, send_result, f, state)
+                    let input = receive_task.recv().unwrap();
+
+                    let result = f(state, &input);
+
+                    send_result.send(result).unwrap();
                 },
                 state,
             );
@@ -343,29 +346,4 @@ fn launch_threadpool2<T: Clone + Send + 'static, U: Send + 'static, V: Send + 's
             }
         });
     }
-}
-fn handle_request<T, U, V, W: Ord>(
-    receive_task: &Receiver<U, W>,
-    send_result: &crossbeam_channel::Sender<(V, usize)>,
-    f: impl Fn(&T, &U) -> (V, usize),
-    state: &T,
-) {
-    let (input, _priority) = block_on(receive_task.recv()).unwrap();
-
-    let result = f(state, &input);
-
-    send_result.send(result).unwrap();
-}
-
-fn handle_request2<T, U, V>(
-    receive_task: &crossbeam_channel::Receiver<U>,
-    send_result: &crossbeam_channel::Sender<V>,
-    f: impl Fn(&T, &U) -> V,
-    state: &T,
-) {
-    let input = receive_task.recv().unwrap();
-
-    let result = f(state, &input);
-
-    send_result.send(result).unwrap();
 }
