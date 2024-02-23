@@ -5,53 +5,56 @@ use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::cmp::{max, min};
+use std::sync::Arc;
+use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 
-///// For unchecked/default binary functions with one scalar input
-//impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>
-//for GpuFunctionExecutor<F>
-//    where
-//        F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaUnsignedRadixCiphertext,
-//{
-//    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-//        self.setup_from_keys(cks, &sks);
-//    }
-//
-//    fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> RadixCiphertext {
-//        let context = self
-//            .context
-//            .as_ref()
-//            .expect("setup was not properly called");
-//
-//        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
-//
-//        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
-//
-//        gpu_result.as_ref().to_radix_ciphertext(&context.stream)
-//    }
-//}
-//
-///// For unchecked/default binary functions with one scalar input
-//impl<F> FunctionExecutor<(RadixCiphertext, u64), RadixCiphertext> for GpuFunctionExecutor<F>
-//    where
-//        F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaUnsignedRadixCiphertext,
-//{
-//    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
-//        self.setup_from_keys(cks, &sks);
-//    }
-//
-//    fn execute(&mut self, input: (RadixCiphertext, u64)) -> RadixCiphertext {
-//        let context = self
-//            .context
-//            .as_ref()
-//            .expect("setup was not properly called");
-//
-//        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&input.0, &context.stream);
-//
-//        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
-//
-//        gpu_result.as_ref().to_radix_ciphertext(&context.stream)
-//    }
-//}
+
+/// For unchecked/default binary functions with one scalar input
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>
+for GpuFunctionExecutor<F>
+    where
+        F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, u64, &CudaStream) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext{ciphertext: CudaRadixCiphertext::from_radix_ciphertext(input.0, &context.stream)};
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+
+        gpu_result.to_radix_ciphertext(&context.stream)
+    }
+}
+
+/// For unchecked/default binary functions with one scalar input
+impl<F> FunctionExecutor<(RadixCiphertext, u64), RadixCiphertext> for GpuFunctionExecutor<F>
+    where
+        F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, u64, &CudaStream) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (RadixCiphertext, u64)) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext{ciphertext: CudaRadixCiphertext::from_radix_ciphertext(&input.0, &context.stream)};
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+
+        gpu_result.to_radix_ciphertext(&context.stream)
+    }
+}
 
 // Unchecked operations
 create_gpu_parametrized_test!(integer_unchecked_mul);
@@ -2065,7 +2068,7 @@ where
     u32: CastFrom<Scalar>,
     T: CudaIntegerRadixCiphertext,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_left_shift::<Scalar, T>);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_left_shift::<u64, CudaUnsignedRadixCiphertext>);
     unchecked_scalar_left_shift_test(param, executor);
 }
 
@@ -2076,7 +2079,7 @@ where
     u32: CastFrom<Scalar>,
     T: CudaIntegerRadixCiphertext,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_right_shift::<Scalar, T>);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_right_shift::<u64, CudaUnsignedRadixCiphertext>);
     unchecked_scalar_right_shift_test(param, executor);
 }
 
@@ -2087,7 +2090,7 @@ where
     u32: CastFrom<Scalar>,
     T: CudaIntegerRadixCiphertext,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_right_shift::<Scalar, T>);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_right_shift::<u64, CudaUnsignedRadixCiphertext>);
     default_scalar_right_shift_test(param, executor);
 }
 
@@ -2098,7 +2101,7 @@ where
     u32: CastFrom<Scalar>,
     T: CudaIntegerRadixCiphertext,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_left_shift::<Scalar, T>);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_left_shift::<u64, CudaUnsignedRadixCiphertext>);
     default_scalar_left_shift_test(param, executor);
 }
 
