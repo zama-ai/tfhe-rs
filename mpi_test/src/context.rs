@@ -1,6 +1,7 @@
 use mpi::environment::Universe;
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::*;
+use mpi::Threading;
 
 pub struct Context {
     pub universe: Universe,
@@ -14,7 +15,7 @@ pub struct Context {
 #[allow(clippy::new_without_default)]
 impl Context {
     pub fn new() -> Self {
-        let universe = mpi::initialize().unwrap();
+        let (universe, _) = mpi::initialize_with_threading(Threading::Multiple).unwrap();
         let world = universe.world();
 
         let size = world.size() as usize;

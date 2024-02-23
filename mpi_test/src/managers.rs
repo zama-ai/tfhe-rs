@@ -9,8 +9,8 @@ use tfhe::shortint::Ciphertext;
 const MAX_SIZE: usize = 100_000;
 
 pub struct Receiving {
-    buffer: Vec<u8>,
-    future: Request<'static, [u8]>,
+    pub buffer: Vec<u8>,
+    pub future: Request<'static, [u8]>,
 }
 
 // impl Drop for Receiving {
