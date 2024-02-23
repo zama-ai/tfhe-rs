@@ -34,7 +34,9 @@ impl Context {
             let cut_into_nodes = |graph: &mut Graph<Node, u64>, number: u64| {
                 cut_into_block(number)
                     .into_iter()
-                    .map(|block| graph.add_node(Node::Computed(cks.unchecked_encrypt(block))))
+                    .map(|block| {
+                        graph.add_node(Node::Computed(Arc::new(cks.unchecked_encrypt(block))))
+                    })
                     .collect::<Vec<_>>()
             };
 

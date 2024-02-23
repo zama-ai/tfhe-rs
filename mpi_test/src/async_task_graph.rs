@@ -1,5 +1,5 @@
 use crate::context::Context;
-use crate::managers::{advance_receiving, Receiving, Sending};
+use crate::managers::{Receiving, Sending};
 use async_priority_channel::{unbounded, Receiver, Sender};
 use futures::executor::block_on;
 use mpi::topology::Process;
@@ -37,13 +37,15 @@ impl Context {
     pub fn async_task_graph_queue_master<
         T: Sync + Clone + Send + 'static,
         U: TaskGraph<Task = Task, Result = Result>,
-        Task: Serialize + DeserializeOwned + Send + 'static,
+        Task: Send + 'static,
+        RemoteTask: Serialize + DeserializeOwned + Send + 'static,
         Result: Serialize + DeserializeOwned + Send + 'static,
     >(
         &self,
         task_graph: &mut U,
         state: T,
-        f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
+        f: impl Fn(&T, Task) -> Result + Sync + Clone + Send + 'static,
+        convert: impl Fn(&T, Task) -> RemoteTask + Sync + Clone + Send + 'static,
     ) {
         let (send_task, receive_task) = unbounded::<Task, Priority>();
         let (send_result, receive_result) = crossbeam_channel::unbounded::<(Result, usize)>();
@@ -71,7 +73,7 @@ impl Context {
 
                     let (input, _priority) = block_on(receive_task.recv()).unwrap();
 
-                    let result = f(state, &input);
+                    let result = f(state, input);
 
                     send_result.send((result, 0)).unwrap();
                 },
@@ -85,13 +87,19 @@ impl Context {
                 let process_at_rank: Process<'static> =
                     unsafe { transmute(self.world.process_at_rank(rank as i32)) };
 
+                let convert = convert.clone();
+
+                let state = state.clone();
+
                 std::thread::spawn(move || {
                     // set_current_thread_priority(priority).unwrap();
 
                     let mut sent_inputs = vec![];
 
                     while let Ok(task) = receive_task.recv() {
-                        let buffer = bincode::serialize(&task).unwrap();
+                        let remote_task = convert(&state, task);
+
+                        let buffer = bincode::serialize(&remote_task).unwrap();
                         sent_inputs.push(Sending::new(buffer, &process_at_rank, MASTER_TO_WORKER))
                     }
 
@@ -157,9 +165,7 @@ impl Context {
         charge: &mut ClusterCharge,
         send_task: &Sender<U::Task, Priority>,
         sent_inputs: &[crossbeam_channel::Sender<U::Task>],
-    ) where
-        U::Task: Serialize + DeserializeOwned,
-    {
+    ) {
         let new_tasks = task_graph.commit_result(result);
 
         for (priority, task) in new_tasks {
@@ -167,7 +173,7 @@ impl Context {
         }
     }
 
-    fn enqueue_request<Task: Serialize + DeserializeOwned>(
+    fn enqueue_request<Task>(
         &self,
         charge: &mut ClusterCharge,
         send_task: &Sender<Task, Priority>,
@@ -198,17 +204,17 @@ impl Context {
 
     pub fn async_task_graph_queue_worker<
         T: Sync + Clone + Send + 'static,
-        Task: Serialize + DeserializeOwned + Send,
+        RemoteTask: Serialize + DeserializeOwned + Send,
         Result: Serialize + DeserializeOwned + Send,
     >(
         &self,
         state: T,
-        f: impl Fn(&T, &Task) -> Result + Sync + Clone + Send + 'static,
+        f: impl Fn(&T, RemoteTask) -> Result + Sync + Clone + Send + 'static,
     ) {
         let f = move |state: &T, serialized_input: &Vec<u8>| {
             let input = bincode::deserialize(serialized_input).unwrap();
 
-            let result = f(state, &input);
+            let result = f(state, input);
 
             bincode::serialize(&result).unwrap()
         };

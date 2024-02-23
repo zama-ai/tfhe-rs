@@ -5,14 +5,16 @@ use logging_timer::time;
 use mpi::traits::*;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::stable_graph::NodeIndex;
+use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::Graph;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tfhe::shortint::server_key::LookupTableOwned;
-use tfhe::shortint::{self, Ciphertext, ServerKey};
+use tfhe::shortint::{Ciphertext, ServerKey};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IndexedCt {
@@ -33,22 +35,64 @@ pub enum Lut {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct IndexedCtsAndLut {
+    index: usize,
+    cts_and_weights: SmallVec<[(u64, Arc<Ciphertext>); 5]>,
+    lut: Lut,
+}
+
+impl IndexedCtsAndLut {
+    fn multisum(self, sks: &ServerKey) -> IndexedCtAndLut {
+        let IndexedCtsAndLut {
+            index,
+            cts_and_weights,
+            lut,
+        } = self;
+
+        let mut cts_and_weights = cts_and_weights.into_iter();
+
+        let (first_scalar, first_ct) = cts_and_weights.next().unwrap();
+
+        let mut multisum_result = sks.unchecked_scalar_mul(&first_ct, first_scalar as u8);
+
+        for (scalar, ct) in cts_and_weights {
+            sks.unchecked_add_scalar_mul_assign(&mut multisum_result, &ct, scalar as u8);
+        }
+
+        IndexedCtAndLut {
+            index,
+            ct: multisum_result,
+            lut,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct IndexedCtAndLut {
     index: usize,
     ct: Ciphertext,
     lut: Lut,
 }
 
+impl IndexedCtAndLut {
+    fn pbs(self, sks: &ServerKey, luts: &Luts) -> IndexedCt {
+        IndexedCt {
+            ct: sks.apply_lookup_table(&self.ct, luts.get(self.lut)),
+            index: self.index,
+        }
+    }
+}
+
 #[derive(Clone)]
 
 pub enum Node {
-    Computed(shortint::Ciphertext),
+    Computed(Arc<Ciphertext>),
     BootsrapQueued,
     ToCompute { lookup_table: Lut },
 }
 
 impl Node {
-    fn ct(&self) -> Option<&shortint::Ciphertext> {
+    fn ct(&self) -> Option<&Arc<Ciphertext>> {
         match self {
             Node::Computed(ct) => Some(ct),
             _ => None,
@@ -69,7 +113,6 @@ impl std::fmt::Debug for Node {
 pub struct FheGraph {
     graph: Graph<(Priority, Node), u64>,
     not_computed_nodes_count: usize,
-    sks: Arc<ServerKey>,
 }
 
 fn insert_predecessors_recursively(
@@ -99,7 +142,7 @@ fn insert_predecessors_recursively(
 }
 
 impl FheGraph {
-    pub fn new(graph: Graph<Node, u64>, sks: Arc<ServerKey>) -> Self {
+    pub fn new(graph: Graph<Node, u64>) -> Self {
         let not_computed_nodes_count = graph
             .node_weights()
             .filter(|node| !matches!(&node, Node::Computed(_)))
@@ -128,7 +171,6 @@ impl FheGraph {
         Self {
             graph,
             not_computed_nodes_count,
-            sks,
         }
     }
     fn test_graph_init(&self) {
@@ -163,29 +205,21 @@ impl FheGraph {
     }
 
     #[time]
-    fn compute_multisum(&self, index: NodeIndex, sks: &ServerKey) -> Ciphertext {
-        let mut iterator = self.graph.edges_directed(index, Incoming);
-
-        let first_predecessor_edge = iterator.next().unwrap();
-        let first_predecessor = self.graph[first_predecessor_edge.source()].1.ct().unwrap();
-
-        let first_scalar = *first_predecessor_edge.weight();
-
-        let mut multisum_result = sks.unchecked_scalar_mul(first_predecessor, first_scalar as u8);
-
-        for edge in iterator {
-            let scalar = *edge.weight();
-
-            let ct = self.graph[edge.source()].1.ct().unwrap();
-
-            sks.unchecked_add_scalar_mul_assign(&mut multisum_result, ct, scalar as u8);
-        }
-        multisum_result
+    fn predecessors_list(&self, index: NodeIndex) -> SmallVec<[(u64, Arc<Ciphertext>); 5]> {
+        self.graph
+            .edges_directed(index, Incoming)
+            .map(|edge| {
+                (
+                    *edge.weight(),
+                    self.graph[edge.source()].1.ct().unwrap().clone(),
+                )
+            })
+            .collect()
     }
 
     #[time]
-    fn multisum_and_build_task(&mut self, index: NodeIndex) -> (Priority, IndexedCtAndLut) {
-        let multisum_result = self.compute_multisum(index, &self.sks);
+    fn build_task(&mut self, index: NodeIndex) -> (Priority, IndexedCtsAndLut) {
+        let cts_and_weights = self.predecessors_list(index);
 
         let lut = match self.graph.node_weight(index) {
             Some((_, Node::ToCompute { lookup_table })) => lookup_table.to_owned(),
@@ -196,9 +230,9 @@ impl FheGraph {
 
         (
             Priority(0),
-            IndexedCtAndLut {
+            IndexedCtsAndLut {
                 index: index.index(),
-                ct: multisum_result,
+                cts_and_weights,
                 lut,
             },
         )
@@ -206,12 +240,12 @@ impl FheGraph {
 }
 
 impl TaskGraph for FheGraph {
-    type Task = IndexedCtAndLut;
+    type Task = IndexedCtsAndLut;
 
     type Result = IndexedCt;
 
     #[time]
-    fn init(&mut self) -> Vec<(Priority, IndexedCtAndLut)> {
+    fn init(&mut self) -> Vec<(Priority, IndexedCtsAndLut)> {
         self.test_graph_init();
 
         let nodes_to_compute: Vec<_> = self
@@ -237,12 +271,12 @@ impl TaskGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| self.multisum_and_build_task(index))
+            .map(|index| self.build_task(index))
             .collect()
     }
 
     #[time]
-    fn commit_result(&mut self, result: IndexedCt) -> Vec<(Priority, IndexedCtAndLut)> {
+    fn commit_result(&mut self, result: IndexedCt) -> Vec<(Priority, IndexedCtsAndLut)> {
         self.not_computed_nodes_count -= 1;
 
         // dbg!(self.not_computed_nodes_count);
@@ -254,7 +288,7 @@ impl TaskGraph for FheGraph {
         let node_mut = self.graph.node_weight_mut(index).unwrap();
 
         assert!(matches!(node_mut.1, Node::BootsrapQueued));
-        node_mut.1 = Node::Computed(ct);
+        node_mut.1 = Node::Computed(Arc::new(ct));
 
         let nodes_to_compute: Vec<_> = self
             .graph
@@ -281,7 +315,7 @@ impl TaskGraph for FheGraph {
 
         nodes_to_compute
             .into_iter()
-            .map(|index| self.multisum_and_build_task(index))
+            .map(|index| self.build_task(index))
             .collect()
     }
 
@@ -303,7 +337,7 @@ impl Context {
         let mut sks_serialized = bincode::serialize(sks.as_ref()).unwrap();
         let mut sks_serialized_len = sks_serialized.len();
 
-        let mut graph = FheGraph::new(graph, sks.clone());
+        let mut graph = FheGraph::new(graph);
 
         graph.assert_finishable();
 
@@ -313,9 +347,12 @@ impl Context {
 
         let start = Instant::now();
 
-        self.async_task_graph_queue_master(&mut graph, (sks, luts), move |sks, input| {
-            run_pbs(input, &sks.0, &sks.1)
-        });
+        self.async_task_graph_queue_master::<_, _, IndexedCtsAndLut, IndexedCtAndLut, IndexedCt>(
+            &mut graph,
+            (sks, luts),
+            move |(sks, luts), input| input.multisum(sks).pbs(sks, luts),
+            move |(sks, _), task| task.multisum(sks),
+        );
 
         let duration = start.elapsed();
 
@@ -339,18 +376,12 @@ impl Context {
 
         let luts = Luts::new(&sks);
 
-        self.async_task_graph_queue_worker((sks, luts), |(sks, luts), input| {
-            run_pbs(input, sks, luts)
-        });
+        self.async_task_graph_queue_worker::<_, IndexedCtAndLut, IndexedCt>(
+            (sks, luts),
+            |(sks, luts), input| input.pbs(sks, luts),
+        );
 
         panic!()
-    }
-}
-
-fn run_pbs(input: &IndexedCtAndLut, sks: &ServerKey, luts: &Luts) -> IndexedCt {
-    IndexedCt {
-        ct: sks.apply_lookup_table(&input.ct, luts.get(input.lut)),
-        index: input.index,
     }
 }
 
