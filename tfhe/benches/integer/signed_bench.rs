@@ -337,6 +337,12 @@ define_server_key_bench_unary_signed_clean_input_fn!(
     method_name: abs_parallelized,
     display_name: abs
 );
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: leading_zeros, display_name: leading_zeros);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: leading_ones, display_name: leading_ones);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_zeros, display_name: trailing_zeros);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: trailing_ones, display_name: trailing_ones);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: ilog2, display_name: ilog2);
+define_server_key_bench_unary_signed_clean_input_fn!(method_name: checked_ilog2, display_name: checked_ilog2);
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: add_parallelized,
@@ -492,6 +498,12 @@ criterion_group!(
     right_shift_parallelized,
     rotate_left_parallelized,
     rotate_right_parallelized,
+    leading_zeros,
+    leading_ones,
+    trailing_zeros,
+    trailing_ones,
+    ilog2,
+    checked_ilog2,
 );
 
 criterion_group!(

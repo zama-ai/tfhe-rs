@@ -573,9 +573,10 @@ impl ServerKey {
         (carries_out, last_block_out_carry)
     }
 
+    /// Computes a prefix sum/scan in parallel using Hillis & Steel algorithm
     pub(crate) fn compute_prefix_sum_hillis_steele<F>(
         &self,
-        mut generates_or_propagates: Vec<Ciphertext>,
+        mut blocks: Vec<Ciphertext>,
         sum_function: F,
     ) -> Vec<Ciphertext>
     where
@@ -583,27 +584,27 @@ impl ServerKey {
     {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
 
-        let num_blocks = generates_or_propagates.len();
-        let num_steps = generates_or_propagates.len().ceil_ilog2() as usize;
+        let num_blocks = blocks.len();
+        let num_steps = blocks.len().ceil_ilog2() as usize;
 
         let mut space = 1;
-        let mut step_output = generates_or_propagates.clone();
+        let mut step_output = blocks.clone();
         for _ in 0..num_steps {
             step_output[space..num_blocks]
                 .par_iter_mut()
                 .enumerate()
                 .for_each(|(i, block)| {
-                    let prev_block_carry = &generates_or_propagates[i];
+                    let prev_block_carry = &blocks[i];
                     sum_function(block, prev_block_carry);
                 });
             for i in space..num_blocks {
-                generates_or_propagates[i].clone_from(&step_output[i]);
+                blocks[i].clone_from(&step_output[i]);
             }
 
             space *= 2;
         }
 
-        generates_or_propagates
+        blocks
     }
 
     /// This add_assign two numbers
@@ -773,11 +774,8 @@ impl ServerKey {
 
     /// Computes the sum of the ciphertexts in parallel.
     ///
-    /// - Returns None if ciphertexts is empty
-    ///
-    /// - Expects all ciphertexts to have empty carries
-    /// - Expects all ciphertexts to have the same size
-    pub fn unchecked_sum_ciphertexts_vec_parallelized<T>(
+    /// Returns a result that has non propagated carries
+    pub(crate) fn unchecked_partial_sum_ciphertexts_vec_parallelized<T>(
         &self,
         mut ciphertexts: Vec<T>,
     ) -> Option<T>
@@ -893,9 +891,26 @@ impl ServerKey {
             self.unchecked_add_assign(result, term);
         }
 
+        Some(result.clone())
+    }
+
+    /// Computes the sum of the ciphertexts in parallel.
+    ///
+    /// - Returns None if ciphertexts is empty
+    ///
+    /// - Expects all ciphertexts to have empty carries
+    /// - Expects all ciphertexts to have the same size
+    pub fn unchecked_sum_ciphertexts_vec_parallelized<T>(&self, ciphertexts: Vec<T>) -> Option<T>
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let non_propagated_result =
+            self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts)?;
+        let num_blocks = non_propagated_result.blocks().len();
+
         let (message_blocks, carry_blocks) = rayon::join(
             || {
-                result
+                non_propagated_result
                     .blocks()
                     .par_iter()
                     .map(|block| self.key.message_extract(block))
@@ -903,7 +918,7 @@ impl ServerKey {
             },
             || {
                 let mut carry_blocks = Vec::with_capacity(num_blocks);
-                result.blocks()[..num_blocks - 1] // last carry is not interesting
+                non_propagated_result.blocks()[..num_blocks - 1] // last carry is not interesting
                     .par_iter()
                     .map(|block| self.key.carry_extract(block))
                     .collect_into_vec(&mut carry_blocks);
@@ -1313,6 +1328,7 @@ mod tests {
             );
         }
     }
+
     #[test]
     fn test_hillis_steele_choice_4_threads() {
         const NUM_THREADS: usize = 4;
