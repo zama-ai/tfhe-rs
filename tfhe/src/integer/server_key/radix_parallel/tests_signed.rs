@@ -1537,6 +1537,17 @@ create_parametrized_test!(integer_signed_default_trailing_zeros);
 create_parametrized_test!(integer_signed_default_trailing_ones);
 create_parametrized_test!(integer_signed_default_leading_zeros);
 create_parametrized_test!(integer_signed_default_leading_ones);
+create_parametrized_test!(integer_signed_default_ilog2);
+create_parametrized_test!(integer_signed_default_checked_ilog2 {
+    // uses comparison so 1_1 parameters are not supported
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 
 fn integer_signed_default_add<P>(param: P)
 where
@@ -2648,6 +2659,22 @@ where
     P: Into<PBSParameters>,
 {
     crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_leading_ones_test(
+        param,
+    );
+}
+
+fn integer_signed_default_ilog2<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_ilog2_test(param);
+}
+
+fn integer_signed_default_checked_ilog2<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_checked_ilog2_test(
         param,
     );
 }

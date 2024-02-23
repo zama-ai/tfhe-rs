@@ -234,6 +234,17 @@ create_parametrized_test!(integer_default_trailing_zeros);
 create_parametrized_test!(integer_default_trailing_ones);
 create_parametrized_test!(integer_default_leading_zeros);
 create_parametrized_test!(integer_default_leading_ones);
+create_parametrized_test!(integer_default_ilog2);
+create_parametrized_test!(integer_default_checked_ilog2 {
+    // This uses comparisons, so require more than 1 bit
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_mul);
@@ -883,6 +894,22 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones);
     default_leading_ones_test(param, executor);
+}
+
+fn integer_default_ilog2<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::ilog2);
+    default_ilog2_test(param, executor);
+}
+
+fn integer_default_checked_ilog2<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2);
+    default_checked_ilog2_test(param, executor);
 }
 
 //=============================================================================
