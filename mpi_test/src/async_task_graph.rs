@@ -240,29 +240,34 @@ impl Context {
                 state,
             );
         }
-
         let root_process = self.world.process_at_rank(self.root_rank);
 
-        let mut receives = VecDeque::new();
+        {
+            let root_process: Process<'static> =
+                unsafe { transmute(self.world.process_at_rank(self.root_rank)) };
 
-        for _ in 0..100 {
-            receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)))
+            std::thread::spawn(move || {
+                let mut receives = VecDeque::new();
+
+                for _ in 0..100 {
+                    receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)))
+                }
+                loop {
+                    let Receiving { buffer, future } = receives.pop_front().unwrap().unwrap();
+
+                    receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)));
+
+                    future.wait();
+
+                    send_task.send(buffer).unwrap();
+                }
+            });
         }
 
         let mut send: VecDeque<Sending> = VecDeque::new();
 
         'outer: loop {
-            if let Some(input) = advance_receiving(receives.front_mut().unwrap()) {
-                assert!(receives.pop_front().unwrap().is_none());
-
-                receives.push_back(Some(Receiving::new(&root_process, MASTER_TO_WORKER)));
-
-                send_task.send(input).unwrap();
-
-                // handle_request(&receive_task, &send_result, &f, state.clone());
-            }
-
-            while let Ok(output) = receive_result.try_recv() {
+            if let Ok(output) = receive_result.recv() {
                 send.push_back(Sending::new(output, &root_process, WORKER_TO_MASTER));
             }
 
