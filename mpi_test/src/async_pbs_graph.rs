@@ -164,22 +164,19 @@ impl FheGraph {
 
     #[time]
     fn compute_multisum(&self, index: NodeIndex, sks: &ServerKey) -> Ciphertext {
-        let mut iterator = self.graph.neighbors_directed(index, Incoming);
+        let mut iterator = self.graph.edges_directed(index, Incoming);
 
-        let first_predecessor_index = iterator.next().unwrap();
-        let first_predecessor = self.graph[first_predecessor_index].1.ct().unwrap();
+        let first_predecessor_edge = iterator.next().unwrap();
+        let first_predecessor = self.graph[first_predecessor_edge.source()].1.ct().unwrap();
 
-        let first_scalar = self.graph[self
-            .graph
-            .find_edge(first_predecessor_index, index)
-            .unwrap()];
+        let first_scalar = *first_predecessor_edge.weight();
 
         let mut multisum_result = sks.unchecked_scalar_mul(first_predecessor, first_scalar as u8);
 
-        for predecessor_index in iterator {
-            let scalar = self.graph[self.graph.find_edge(predecessor_index, index).unwrap()];
+        for edge in iterator {
+            let scalar = *edge.weight();
 
-            let ct = self.graph[predecessor_index].1.ct().unwrap();
+            let ct = self.graph[edge.source()].1.ct().unwrap();
 
             sks.unchecked_add_scalar_mul_assign(&mut multisum_result, ct, scalar as u8);
         }
