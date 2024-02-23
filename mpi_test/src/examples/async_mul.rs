@@ -254,13 +254,13 @@ fn sum_blocks(
 
         let len_next_iteration = messages.len() - group_size + 1;
 
-        let number = if len_next_iteration < group_size {
+        let to_add_now = if len_next_iteration < group_size {
             len_next_iteration
         } else {
             group_size
         };
 
-        for _ in 0..number {
+        for _ in 0..to_add_now {
             let NodeWithDepth { node, depth } = messages.pop().unwrap();
 
             if depth > max_depth {
