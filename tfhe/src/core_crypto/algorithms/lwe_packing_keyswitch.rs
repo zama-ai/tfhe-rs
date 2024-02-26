@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_add_assign, slice_wrapping_sub_scalar_mul_assign,
@@ -708,10 +707,10 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext_with_thread
     let mut intermediate_buffers = Vec::with_capacity(thread_count);
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
-    let chunk_size = divide_ceil(
-        input_lwe_ciphertext_list.lwe_ciphertext_count().0,
-        thread_count,
-    );
+    let chunk_size = input_lwe_ciphertext_list
+        .lwe_ciphertext_count()
+        .0
+        .div_ceil(thread_count);
 
     // for each ciphertext, call mono_key_switch
     input_lwe_ciphertext_list

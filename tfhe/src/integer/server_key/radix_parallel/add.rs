@@ -6,7 +6,6 @@ use crate::shortint::Ciphertext;
 use std::ops::RangeInclusive;
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
@@ -55,7 +54,7 @@ fn should_hillis_steele_propagation_be_faster(num_blocks: usize, num_threads: us
 
     // The unit of latency is a PBS
     let compute_latency_of_one_layer = |num_blocks: usize, num_threads: usize| -> usize {
-        let latency = divide_ceil(num_blocks, num_threads);
+        let latency = num_blocks.div_ceil(num_threads);
         if num_blocks >= penalty_threshold {
             latency * PARALLEL_LATENCY_PENALTY
         } else {

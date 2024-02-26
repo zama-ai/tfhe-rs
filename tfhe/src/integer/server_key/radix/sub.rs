@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::integer::server_key::CheckError;
@@ -123,7 +122,7 @@ impl ServerKey {
             );
 
             // z = ceil( degree / 2^p ) x 2^p
-            let mut z = divide_ceil(right_block.degree.get(), msg_mod);
+            let mut z = right_block.degree.get().div_ceil(msg_mod);
             z = z.wrapping_mul(msg_mod);
             // In the actual operation, preceding_scaled_z is added to the ciphertext
             // before doing lwe_ciphertext_opposite:

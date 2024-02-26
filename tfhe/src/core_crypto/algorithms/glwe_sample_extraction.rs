@@ -2,7 +2,6 @@
 //! _sample extract_ in the literature. Allowing to extract a single
 //! [`LWE Ciphertext`](`LweCiphertext`) from a given [`GLWE ciphertext`](`GlweCiphertext`).
 
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{MonomialDegree, *};
@@ -391,7 +390,7 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext_with_thread_count<
     let (glwe_mask, glwe_body) = input_glwe.get_mask_and_body();
 
     let thread_count = thread_count.0.min(rayon::current_num_threads());
-    let chunk_size = divide_ceil(polynomial_size.0, thread_count);
+    let chunk_size = polynomial_size.0.div_ceil(thread_count);
 
     glwe_body
         .as_ref()

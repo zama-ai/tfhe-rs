@@ -7,7 +7,6 @@
 //! &nbsp;&nbsp;&nbsp;&nbsp; J. Cryptol 33, 34–91 (2020). \
 //! &nbsp;&nbsp;&nbsp;&nbsp; <https://doi.org/10.1007/s00145-019-09319-x>
 
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -185,7 +184,7 @@ pub fn par_private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext_with
     let output_glwe_ciphertext_modulus = output_glwe_ciphertext.ciphertext_modulus();
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
-    let chunk_size = divide_ceil(input_lwe_ciphertext.lwe_size().0, thread_count);
+    let chunk_size = input_lwe_ciphertext.lwe_size().0.div_ceil(thread_count);
 
     lwe_pfpksk
         .par_chunks(chunk_size)

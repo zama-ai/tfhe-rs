@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::{
     BooleanBlock, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
     SignedRadixCiphertext,
@@ -153,10 +152,8 @@ impl ServerKey {
 
         // `num_bits_in_ciphertext` is the max value we want to represent
         // its ilog2 + 1 gives use how many bits we need to be able to represent it.
-        let counter_num_blocks = divide_ceil(
-            num_bits_in_ciphertext.ilog2() + 1,
-            self.message_modulus().0.ilog2(),
-        );
+        let counter_num_blocks =
+            (num_bits_in_ciphertext.ilog2() + 1).div_ceil(self.message_modulus().0.ilog2());
 
         let cts = leading_count_per_blocks
             .into_iter()
@@ -241,10 +238,8 @@ impl ServerKey {
         // We add `1` to this number as we are going to use signed numbers later
         //
         // The ilog2 of a number that is on n bits, is in range 1..=n-1
-        let counter_num_blocks = divide_ceil(
-            (num_bits_in_ciphertext - 1).ilog2() + 1 + 1,
-            self.message_modulus().0.ilog2(),
-        ) as usize;
+        let counter_num_blocks = ((num_bits_in_ciphertext - 1).ilog2() + 1 + 1)
+            .div_ceil(self.message_modulus().0.ilog2()) as usize;
 
         // x.ilog2() = (x.num_bit() - 1) - x.leading_zeros()
         // - (x.num_bit() - 1) is trivially known
@@ -316,7 +311,7 @@ impl ServerKey {
                     // bitnot the carry
                     (!x) % self.key.message_modulus.0 as u64
                 });
-                let mut carry_blocks = Vec::with_capacity(counter_num_blocks as usize);
+                let mut carry_blocks = Vec::with_capacity(counter_num_blocks);
                 result.blocks()[..counter_num_blocks - 1] // last carry is not interesting
                     .par_iter()
                     .map(|block| self.key.apply_lookup_table(block, &lut))
@@ -882,10 +877,9 @@ pub(crate) mod tests_unsigned {
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
-            let counter_num_blocks = divide_ceil(
-                (num_bits - 1).ilog2() + 1 + 1,
-                cks.parameters().message_modulus().0.ilog2(),
-            ) as usize;
+            let counter_num_blocks = ((num_bits - 1).ilog2() + 1 + 1)
+                .div_ceil(cks.parameters().message_modulus().0.ilog2())
+                as usize;
             let expected_result = (1u32
                 << (counter_num_blocks as u32 * cks.parameters().message_modulus().0.ilog2()))
                 - 1;
@@ -1007,10 +1001,9 @@ pub(crate) mod tests_unsigned {
             assert_eq!(is_ok.as_ref().degree.get(), 1);
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
-            let counter_num_blocks = divide_ceil(
-                (num_bits - 1).ilog2() + 1 + 1,
-                cks.parameters().message_modulus().0.ilog2(),
-            ) as usize;
+            let counter_num_blocks = ((num_bits - 1).ilog2() + 1 + 1)
+                .div_ceil(cks.parameters().message_modulus().0.ilog2())
+                as usize;
             let expected_result = (1u32
                 << (counter_num_blocks as u32 * cks.parameters().message_modulus().0.ilog2()))
                 - 1;
@@ -1312,10 +1305,9 @@ pub(crate) mod tests_signed {
                 let expected_result = if clear < 0 {
                     num_bits - 1
                 } else {
-                    let counter_num_blocks = divide_ceil(
-                        (num_bits - 1).ilog2() + 1 + 1,
-                        cks.parameters().message_modulus().0.ilog2(),
-                    ) as usize;
+                    let counter_num_blocks = ((num_bits - 1).ilog2() + 1 + 1)
+                        .div_ceil(cks.parameters().message_modulus().0.ilog2())
+                        as usize;
                     (1u32
                         << (counter_num_blocks as u32
                             * cks.parameters().message_modulus().0.ilog2()))
@@ -1439,10 +1431,9 @@ pub(crate) mod tests_signed {
                 let expected_result = if clear < 0 {
                     num_bits - 1
                 } else {
-                    let counter_num_blocks = divide_ceil(
-                        (num_bits - 1).ilog2() + 1 + 1,
-                        cks.parameters().message_modulus().0.ilog2(),
-                    ) as usize;
+                    let counter_num_blocks = ((num_bits - 1).ilog2() + 1 + 1)
+                        .div_ceil(cks.parameters().message_modulus().0.ilog2())
+                        as usize;
                     (1u32
                         << (counter_num_blocks as u32
                             * cks.parameters().message_modulus().0.ilog2()))

@@ -1,5 +1,5 @@
 use super::CiphertextNoiseDegree;
-use crate::core_crypto::algorithms::misc::divide_ceil;
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
@@ -230,7 +230,7 @@ impl ServerKey {
         let encoded_scalar = Plaintext(scalar as u64 * delta);
         lwe_ciphertext_plaintext_sub_assign(&mut ct.ct, encoded_scalar);
 
-        let correcting_term = divide_ceil(ct.degree.get(), msg_mod).max(1) * msg_mod;
+        let correcting_term = ct.degree.get().div_ceil(msg_mod).max(1) * msg_mod;
         let encoded_msg_mod = Plaintext(correcting_term as u64 * delta);
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_msg_mod);
 

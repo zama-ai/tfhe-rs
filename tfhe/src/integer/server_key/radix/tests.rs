@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
@@ -1178,7 +1177,7 @@ fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
     // The test only involves trivial types so we can afford to test more
     for bit_size in 1..=127 {
         assert!(bit_size < i128::BITS);
-        let num_blocks = divide_ceil(bit_size, num_bits_in_one_block);
+        let num_blocks = bit_size.div_ceil(num_bits_in_one_block);
         // If num_bits_in_one_block is not a multiple of bit_size, then
         // the actual number of bits is not the same as bit size (we end up with more)
         let actual_num_bits = num_blocks * num_bits_in_one_block;
@@ -1233,7 +1232,7 @@ fn integer_signed_decryption_correctly_sign_extend(param: impl Into<PBSParameter
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let num_bits_in_one_block = sks.message_modulus().0.ilog2();
-    let num_blocks = divide_ceil(64, num_bits_in_one_block);
+    let num_blocks = 64u32.div_ceil(num_bits_in_one_block);
     let value = -1i64;
 
     let encrypted = cks.encrypt_signed_radix(value, num_blocks as usize);

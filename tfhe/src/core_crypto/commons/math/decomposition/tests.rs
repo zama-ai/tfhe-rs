@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposer, SignedDecomposerNonNative,
@@ -34,7 +33,7 @@ where
     <T as UnsignedInteger>::Signed: Debug + SignedInteger,
 {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = divide_ceil(100_000, valid_decomposers.len());
+    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
 
     for decomposer in valid_decomposers {
         for _ in 0..runs_per_decomposer {
@@ -77,7 +76,7 @@ fn test_decompose_recompose_u64() {
 
 fn test_round_to_closest_representable<T: UnsignedTorus>() {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = divide_ceil(100_000, valid_decomposers.len());
+    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
 
     // Checks that the decomposing and recomposing a value brings the closest representable
     for decomposer in valid_decomposers {
@@ -113,7 +112,7 @@ fn test_round_to_closest_representable_u64() {
 
 fn test_round_to_closest_twice<T: UnsignedTorus + Debug>() {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = divide_ceil(100_000, valid_decomposers.len());
+    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
 
     for decomposer in valid_decomposers {
         for _ in 0..runs_per_decomposer {

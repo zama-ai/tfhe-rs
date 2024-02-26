@@ -1,5 +1,4 @@
 use super::*;
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 
 /// The distribution $TUniform(1, -2^b, 2^b)$ is defined as follows, any value in the interval
@@ -62,7 +61,7 @@ macro_rules! implement_t_uniform_uint {
             ) -> Self {
                 let mut buf = [0; std::mem::size_of::<$T>()];
                 let required_bits = bound_log2 + 2;
-                let required_bytes = divide_ceil(required_bits, u8::BITS) as usize;
+                let required_bytes = required_bits.div_ceil(u8::BITS) as usize;
                 let mod_mask = <$T>::MAX >> (<$T>::BITS - required_bits);
 
                 // For small moduli compared to the native type allows to avoid wasting too much

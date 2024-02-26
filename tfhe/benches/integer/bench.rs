@@ -11,7 +11,6 @@ use itertools::iproduct;
 use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
-use tfhe::core_crypto::algorithms::misc::divide_ceil;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::keycache::NamedParam;
@@ -561,7 +560,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                let nb_ctxt = divide_ceil(bit_size, param.message_modulus().0.ilog2() as usize);
+                let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
                 let cks = RadixClientKey::from((cks, nb_ctxt));
 
                 let encrypt_values = || {
@@ -1190,7 +1189,6 @@ mod cuda {
     use super::*;
     use crate::utilities::{write_to_json, EnvConfig, OperatorType};
     use criterion::{criterion_group, Criterion};
-    use tfhe::core_crypto::algorithms::misc::divide_ceil;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
@@ -1928,7 +1926,7 @@ mod cuda {
                 .bit_sizes()
                 .iter()
                 .copied()
-                .map(|bit| divide_ceil(bit, param.message_modulus().0.ilog2() as usize))
+                .map(|bit| bit.div_ceil(param.message_modulus().0.ilog2() as usize))
                 .collect::<Vec<_>>();
             let param_name = param.name();
 
@@ -2265,7 +2263,7 @@ fn bench_server_key_cast_function<F>(
             .bit_sizes()
             .iter()
             .copied()
-            .map(|bit| divide_ceil(bit, param.message_modulus().0.ilog2() as usize))
+            .map(|bit| bit.div_ceil(param.message_modulus().0.ilog2() as usize))
             .collect::<Vec<_>>();
         let param_name = param.name();
 

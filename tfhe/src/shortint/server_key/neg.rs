@@ -1,7 +1,6 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::{Ciphertext, ServerKey};
@@ -225,7 +224,7 @@ impl ServerKey {
         let msg_mod = ct.message_modulus.0;
         // Ensure z is always >= 1 (which would not be the case if degree == 0)
         // some algorithms (e.g. overflowing_sub) require this even for trivial zeros
-        let mut z = divide_ceil(ct.degree.get(), msg_mod).max(1) as u64;
+        let mut z = ct.degree.get().div_ceil(msg_mod).max(1) as u64;
         z *= msg_mod as u64;
 
         // Value of the shift we multiply our messages by
