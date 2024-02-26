@@ -298,12 +298,7 @@ fn sum_blocks(
 
     let mut adding = vec![];
 
-    let mut max_depth = 0;
-
-    while let Some(NodeWithDepth { node, depth }) = messages.pop() {
-        if depth > max_depth {
-            max_depth = depth;
-        }
+    while let Some(NodeWithDepth { node, .. }) = messages.pop() {
         adding.push(node);
     }
 
