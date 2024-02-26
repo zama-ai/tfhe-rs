@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
@@ -104,7 +103,7 @@ impl ServerKey {
                 MaxDegree::from_msg_carry_modulus(block.message_modulus, block.carry_modulus);
 
             // z = ceil( degree / 2^p ) x 2^p
-            let mut z = divide_ceil(block.degree.get(), msg_mod);
+            let mut z = block.degree.get().div_ceil(msg_mod);
             z = z.wrapping_mul(msg_mod);
             // In the actual operation, preceding_scaled_z is added to the ciphertext
             // before doing lwe_ciphertext_opposite:

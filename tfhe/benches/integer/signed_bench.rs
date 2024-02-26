@@ -9,7 +9,6 @@ use itertools::iproduct;
 use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
-use tfhe::core_crypto::algorithms::misc::divide_ceil;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
@@ -1139,7 +1138,7 @@ fn bench_server_key_signed_cast_function<F>(
             .bit_sizes()
             .iter()
             .copied()
-            .map(|bit| divide_ceil(bit, param.message_modulus().0.ilog2() as usize))
+            .map(|bit| bit.div_ceil(param.message_modulus().0.ilog2() as usize))
             .collect::<Vec<_>>();
         let param_name = param.name();
 

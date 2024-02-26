@@ -93,6 +93,9 @@ pub trait UnsignedInteger:
         // ilog2 returns the rounded down log2
         self.ilog2() + u32::from(!self.is_power_of_two())
     }
+    /// Integer division rounding up.
+    #[must_use]
+    fn div_ceil(self, divisor: Self) -> Self;
     /// Return the casting of the current value to the signed type of the same size.
     fn into_signed(self) -> Self::Signed;
     /// Return a bit representation of the integer, where blocks of length `block_length` are
@@ -239,6 +242,10 @@ macro_rules! implement {
             #[inline]
             fn ilog2(self) -> u32 {
                 self.ilog2()
+            }
+            #[inline]
+            fn div_ceil(self, divisor: Self) -> Self {
+                self.div_ceil(divisor)
             }
         }
     };

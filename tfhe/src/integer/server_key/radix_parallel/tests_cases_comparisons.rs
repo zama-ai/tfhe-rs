@@ -1,4 +1,3 @@
-use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
@@ -42,7 +41,7 @@ fn test_unchecked_function<UncheckedFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let num_bits_per_block = param.message_modulus.0.ilog2() as usize;
-    let num_block = divide_ceil(T::BITS, num_bits_per_block);
+    let num_block = 256usize.div_ceil(num_bits_per_block);
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -97,7 +96,7 @@ fn test_smart_function<SmartFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -175,7 +174,7 @@ fn test_default_function<SmartFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -406,7 +405,7 @@ fn test_signed_unchecked_function<UncheckedFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
 
     // Some hard coded tests
     let pairs = [
@@ -474,7 +473,7 @@ fn test_signed_smart_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -556,7 +555,7 @@ fn test_signed_default_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -791,7 +790,7 @@ fn test_unchecked_scalar_function<UncheckedFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
 
     for _ in 0..num_test {
         let clear_a = rng.gen::<T>();
@@ -829,7 +828,7 @@ fn test_smart_scalar_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -887,7 +886,7 @@ fn test_default_scalar_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -1139,7 +1138,7 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
 
 fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(128usize, param.message_modulus.0.ilog2() as usize);
+    let num_block = 128usize.div_ceil(param.message_modulus.0.ilog2() as usize);
 
     let mut rng = thread_rng();
 
@@ -1226,7 +1225,7 @@ fn test_signed_unchecked_scalar_function<UncheckedFn, ClearF, T>(
     let mut rng = rand::thread_rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
 
     // Some hard coded tests
     let pairs = [
@@ -1285,7 +1284,7 @@ fn test_signed_smart_scalar_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,
@@ -1343,7 +1342,7 @@ fn test_signed_default_scalar_function<SmartFn, ClearF, T>(
     Standard: Distribution<T>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = divide_ceil(T::BITS, param.message_modulus.0.ilog2() as usize);
+    let num_block = T::BITS.div_ceil(param.message_modulus.0.ilog2() as usize);
     assert_eq!(
         T::BITS as u32 % param.message_modulus.0.ilog2(),
         0,

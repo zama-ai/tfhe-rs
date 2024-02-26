@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::algorithms::misc::divide_ceil;
+
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 
 /// A distribution type representing uniform sampling for unsigned integer types. The value is
@@ -32,7 +32,7 @@ macro_rules! implement_uniform_uint {
                 let mut buf = [0; std::mem::size_of::<$T>()];
 
                 let modulus_bits = custom_modulus.ceil_ilog2();
-                let required_bytes = divide_ceil(modulus_bits, u8::BITS) as usize;
+                let required_bytes = modulus_bits.div_ceil(u8::BITS) as usize;
                 let mod_mask = <$T>::MAX >> (<$T>::BITS - modulus_bits);
 
                 loop {

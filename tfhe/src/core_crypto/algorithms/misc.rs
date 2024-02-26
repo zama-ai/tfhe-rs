@@ -3,16 +3,6 @@
 use crate::core_crypto::prelude::*;
 
 #[inline]
-pub fn divide_ceil<Scalar>(numerator: Scalar, denominator: Scalar) -> Scalar
-where
-    Scalar: UnsignedInteger,
-{
-    // Should be a single instruction on x86 and likely other processors
-    let (div, rem) = (numerator / denominator, numerator % denominator);
-    div + Scalar::from(rem != Scalar::ZERO)
-}
-
-#[inline]
 pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Scalar) -> Scalar {
     // // Does the following without overflowing (which can happen with the addition of denom / 2)
     // (numerator + denominator / Scalar::TWO) / denominator
@@ -243,7 +233,7 @@ mod test {
             let ceiled = div_f64.ceil();
             let expected_ceiled_u64: u64 = ceiled as u64;
 
-            let ceiled = divide_ceil(num_u64, denom_u64);
+            let ceiled = num_u64.div_ceil(denom_u64);
             assert_eq!(expected_ceiled_u64, ceiled);
         }
     }

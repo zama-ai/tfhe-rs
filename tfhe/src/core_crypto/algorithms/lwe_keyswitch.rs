@@ -1,7 +1,6 @@
 //! Module containing primitives pertaining to [`LWE ciphertext
 //! keyswitch`](`LweKeyswitchKey#lwe-keyswitch`).
 
-use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
@@ -464,7 +463,7 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
     let mut intermediate_accumulators = Vec::with_capacity(thread_count);
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
-    let chunk_size = divide_ceil(input_lwe_ciphertext.lwe_size().0, thread_count);
+    let chunk_size = input_lwe_ciphertext.lwe_size().0.div_ceil(thread_count);
 
     lwe_keyswitch_key
         .par_chunks(chunk_size)
