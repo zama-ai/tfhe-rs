@@ -66,7 +66,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware "rtx4090"
+          --hardware "rtx4090" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
