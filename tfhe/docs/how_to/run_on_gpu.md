@@ -13,12 +13,12 @@ To use the `TFHE-rs GPU backend` in your project, you first need to add it as a 
 
 If you are using an `x86` machine:
 ```toml
-tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "x86_64-unix", "gpu" ] }
+tfhe = { version = "0.6.0", features = [ "boolean", "shortint", "integer", "x86_64-unix", "gpu" ] }
 ```
 
 If you are using an `ARM` machine:
 ```toml
-tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "aarch64-unix", "gpu" ] }
+tfhe = { version = "0.6.0", features = [ "boolean", "shortint", "integer", "aarch64-unix", "gpu" ] }
 ```
 
 
