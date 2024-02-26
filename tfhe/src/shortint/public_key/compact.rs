@@ -141,6 +141,11 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
+        let encryption_noise = match self.pbs_order {
+            crate::shortint::PBSOrder::KeyswitchBootstrap => self.parameters.glwe_modular_std_dev(),
+            crate::shortint::PBSOrder::BootstrapKeyswitch => self.parameters.lwe_modular_std_dev(),
+        };
+
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         {
@@ -150,8 +155,8 @@ impl CompactPublicKey {
                     &self.key,
                     &mut ct_list,
                     &plaintext_list,
-                    self.parameters.glwe_modular_std_dev(),
-                    self.parameters.lwe_modular_std_dev(),
+                    encryption_noise,
+                    encryption_noise,
                     &mut engine.secret_generator,
                     &mut engine.encryption_generator,
                 );
@@ -167,8 +172,8 @@ impl CompactPublicKey {
                     &self.key,
                     &mut ct_list,
                     &plaintext_list,
-                    self.parameters.glwe_modular_std_dev(),
-                    self.parameters.lwe_modular_std_dev(),
+                    encryption_noise,
+                    encryption_noise,
                     &mut engine.secret_generator,
                     &mut engine.encryption_generator,
                 );
