@@ -65,9 +65,11 @@ fs2 = { version = "0.4.3", optional = true }
 itertools = "0.10.5"
 
 # wasm deps
-wasm-bindgen = { version = "0.2.86", features = [
+wasm-bindgen = { version = "=0.2.86", features = [
     "serde-serialize",
 ], optional = true }
+# MSRV was bumped in a minor update, pin to still be able to build in CI
+bumpalo = { version = "=3.14" }
 wasm-bindgen-rayon = { version = "1.0", optional = true }
 js-sys = { version = "0.3", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
