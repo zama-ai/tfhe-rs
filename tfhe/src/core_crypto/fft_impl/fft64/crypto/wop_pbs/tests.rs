@@ -88,11 +88,13 @@ pub fn test_extract_bits() {
             &mut encryption_generator,
         );
 
+    let input_lwe_dimension = lwe_big_sk.lwe_dimension();
+
     let req = || {
         StackReq::try_any_of([
             fill_with_forward_fourier_scratch(fft)?,
             extract_bits_scratch::<u64>(
-                lwe_dimension,
+                input_lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
@@ -597,6 +599,8 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         PodStack::new(&mut mem),
     );
 
+    let input_lwe_dimension = lwe_big_sk.lwe_dimension();
+
     let ksk_lwe_big_to_small: LweKeyswitchKeyOwned<u64> =
         allocate_and_generate_new_lwe_keyswitch_key(
             &lwe_big_sk,
@@ -661,7 +665,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
 
         let mut mem = GlobalPodBuffer::new(
             extract_bits_scratch::<u64>(
-                lwe_dimension,
+                input_lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
                 fourier_bsk.glwe_size(),
                 polynomial_size,
