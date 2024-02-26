@@ -274,19 +274,19 @@ fn sum_blocks(
 
             messages.push(NodeWithDepth {
                 node: sum,
-                depth: max_depth,
+                depth: max_depth + 1,
             });
 
             carries.push(NodeWithDepth {
                 node: carry.unwrap(),
-                depth: max_depth,
+                depth: max_depth + 1,
             });
         } else {
             let (sum, carry) = checked_add(graph, sks, &adding, false);
 
             messages.push(NodeWithDepth {
                 node: sum,
-                depth: max_depth,
+                depth: max_depth + 1,
             });
 
             assert!(carry.is_none());
