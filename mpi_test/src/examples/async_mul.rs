@@ -247,18 +247,10 @@ fn sum_blocks(
         return (messages.pop().unwrap().node, None);
     }
 
-    while messages.len() > group_size {
-        let mut adding = vec![];
+    let mut sum_n_most_shallow_terms = |messages: &mut BinaryHeap<NodeWithDepth>, to_add_now| {
+        let mut adding: Vec<NodeIndex> = vec![];
 
         let mut max_depth = 0;
-
-        let len_next_iteration = messages.len() - group_size + 1;
-
-        let to_add_now = if len_next_iteration < group_size {
-            len_next_iteration
-        } else {
-            group_size
-        };
 
         for _ in 0..to_add_now {
             let NodeWithDepth { node, depth } = messages.pop().unwrap();
@@ -291,10 +283,26 @@ fn sum_blocks(
 
             assert!(carry.is_none());
         }
-    }
+    };
 
-    assert!(messages.len() > 1);
-    assert!(messages.len() <= group_size);
+    if messages.len() > group_size {
+        let n = (messages.len() - group_size) / (group_size - 1);
+        let y = messages.len() - group_size - n * (group_size - 1);
+
+        assert_eq!(messages.len(), group_size + (group_size - 1) * n + y);
+
+        if y != 0 {
+            sum_n_most_shallow_terms(&mut messages, y + 1);
+        }
+
+        assert_eq!(messages.len(), group_size + (group_size - 1) * n);
+
+        for _ in 0..n {
+            sum_n_most_shallow_terms(&mut messages, group_size);
+        }
+
+        assert!(messages.len() == group_size);
+    }
 
     let mut adding = vec![];
 
