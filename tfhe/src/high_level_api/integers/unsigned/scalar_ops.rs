@@ -1021,7 +1021,7 @@ generic_integer_impl_scalar_left_operation!(
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                     with_thread_local_cuda_stream(|stream| {
-                        let mut result = cuda_key.key.create_trivial_radix(lhs, rhs.ciphertext.on_gpu().info.blocks.len(), stream);
+                        let mut result = cuda_key.key.create_trivial_radix(lhs, rhs.ciphertext.on_gpu().ciphertext.info.blocks.len(), stream);
                         cuda_key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
                         RadixCiphertext::Cuda(result)
                     })

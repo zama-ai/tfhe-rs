@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 impl CudaServerKey {
@@ -13,7 +13,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -37,8 +37,8 @@ impl CudaServerKey {
     /// let ctxt_1 = cks.encrypt_radix(clear_1, number_of_blocks);
     /// let ctxt_2 = cks.encrypt_radix(clear_2, number_of_blocks);
     ///
-    /// let mut d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-    /// let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+    /// let mut d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    /// let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
     ///
     /// // Compute homomorphically a multiplication
     /// let mut d_ct_res = sks.unchecked_mul(&mut d_ctxt_1, &d_ctxt_2, &mut stream);
@@ -50,10 +50,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_mul(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_mul_assign(&mut result, ct_right, stream);
         result
@@ -65,17 +65,17 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_mul_assign_async(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
-        let num_blocks = ct_left.d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_mul_integer_radix_classic_kb_assign_async(
-                    &mut ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -92,8 +92,8 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_mul_integer_radix_multibit_kb_assign_async(
-                    &mut ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -111,13 +111,13 @@ impl CudaServerKey {
             }
         };
 
-        ct_left.info = ct_left.info.after_mul();
+        ct_left.as_mut().info = ct_left.as_ref().info.after_mul();
     }
 
     pub fn unchecked_mul_assign(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -136,7 +136,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -160,8 +160,8 @@ impl CudaServerKey {
     /// let ctxt_1 = cks.encrypt_radix(clear_1, number_of_blocks);
     /// let ctxt_2 = cks.encrypt_radix(clear_2, number_of_blocks);
     ///
-    /// let mut d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-    /// let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+    /// let mut d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
+    /// let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
     ///
     /// // Compute homomorphically a multiplication
     /// let mut d_ct_res = sks.mul(&mut d_ctxt_1, &d_ctxt_2, &mut stream);
@@ -173,10 +173,10 @@ impl CudaServerKey {
     /// ```
     pub fn mul(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.mul_assign(&mut result, ct_right, stream);
         result
@@ -188,8 +188,8 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn mul_assign_async(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -223,8 +223,8 @@ impl CudaServerKey {
 
     pub fn mul_assign(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
         unsafe {

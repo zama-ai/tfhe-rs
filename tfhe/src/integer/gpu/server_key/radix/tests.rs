@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
@@ -155,10 +155,10 @@ impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCi
 where
     F: Fn(
         &CudaServerKey,
-        &CudaRadixCiphertext,
-        &CudaRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
         &CudaStream,
-    ) -> CudaRadixCiphertext,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -170,8 +170,8 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
 
@@ -183,7 +183,12 @@ where
 impl<'a, F> FunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>
     for GpuUncheckedFnExecutor<F>
 where
-    F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaRadixCiphertext, &CudaStream),
+    F: Fn(
+        &CudaServerKey,
+        &mut CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStream,
+    ),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -195,8 +200,9 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let mut d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+        let mut d_ctxt_1 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
 
         (self.func)(&context.sks, &mut d_ctxt_1, &d_ctxt_2, &context.stream);
 
@@ -208,7 +214,12 @@ where
 impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>
     for GpuUncheckedFnExecutor<F>
 where
-    F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaRadixCiphertext,
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        u64,
+        &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -220,7 +231,7 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
 
@@ -231,7 +242,12 @@ where
 /// For unchecked/default binary functions with one scalar input
 impl<F> FunctionExecutor<(RadixCiphertext, u64), RadixCiphertext> for GpuUncheckedFnExecutor<F>
 where
-    F: Fn(&CudaServerKey, &CudaRadixCiphertext, u64, &CudaStream) -> CudaRadixCiphertext,
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        u64,
+        &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -243,7 +259,8 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&input.0, &context.stream);
+        let d_ctxt_1 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&input.0, &context.stream);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
 
@@ -254,7 +271,7 @@ where
 // Unary Function
 impl<'a, F> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext> for GpuUncheckedFnExecutor<F>
 where
-    F: Fn(&CudaServerKey, &CudaRadixCiphertext, &CudaStream) -> CudaRadixCiphertext,
+    F: Fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &CudaStream) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -266,7 +283,7 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input, &context.stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input, &context.stream);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &context.stream);
 
@@ -277,7 +294,7 @@ where
 // Unary assign Function
 impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, ()> for GpuUncheckedFnExecutor<F>
 where
-    F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaStream),
+    F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, &CudaStream),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -289,7 +306,8 @@ where
             .as_ref()
             .expect("setup was not properly called");
 
-        let mut d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(input, &context.stream);
+        let mut d_ctxt_1 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input, &context.stream);
 
         (self.func)(&context.sks, &mut d_ctxt_1, &context.stream);
 
@@ -385,7 +403,7 @@ where
         let ctxt = cks.encrypt_radix(clear, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt = CudaRadixCiphertext::from_radix_ciphertext(&ctxt, &stream);
+        let d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_bitnot(&d_ctxt, &stream);
@@ -429,8 +447,8 @@ where
         let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_bitand(&d_ctxt_0, &d_ctxt_1, &stream);
@@ -472,8 +490,8 @@ where
         let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_bitor(&d_ctxt_0, &d_ctxt_1, &stream);
@@ -514,8 +532,8 @@ where
         let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_bitxor(&d_ctxt_0, &d_ctxt_1, &stream);
@@ -555,7 +573,7 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_scalar_bitand(&d_ctxt_0, clear_1, &stream);
@@ -594,7 +612,7 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_scalar_bitor(&d_ctxt_0, clear_1, &stream);
@@ -634,7 +652,7 @@ where
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_0 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
+        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
 
         // add the two ciphertexts
         let d_ct_res = sks.unchecked_scalar_bitxor(&d_ctxt_0, clear_1, &stream);
@@ -675,8 +693,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         // let h_ct_res = h_sks.unchecked_eq(&ctxt_1, &ctxt_2);
         let d_ct_res = sks.unchecked_eq(&d_ctxt_1, &d_ctxt_2, &stream);
@@ -726,8 +744,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_ne(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -776,8 +794,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_gt(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -817,8 +835,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_ge(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -858,8 +876,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         // let _ = h_sks.unchecked_lt(&ctxt_1, &ctxt_2);
         let d_ct_res = sks.unchecked_lt(&d_ctxt_1, &d_ctxt_2, &stream);
@@ -898,8 +916,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_le(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -938,7 +956,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_eq(&d_ctxt_1, clear2, &stream);
 
@@ -984,7 +1002,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_ne(&d_ctxt_1, clear2, &stream);
 
@@ -1030,7 +1048,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_gt(&d_ctxt_1, clear2, &stream);
 
@@ -1050,7 +1068,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_gt(&d_ctxt_1, clear2, &stream);
 
@@ -1088,7 +1106,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_ge(&d_ctxt_1, clear2, &stream);
 
@@ -1108,7 +1126,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_ge(&d_ctxt_1, clear2, &stream);
 
@@ -1147,7 +1165,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_lt(&d_ctxt_1, clear2, &stream);
 
@@ -1167,7 +1185,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_lt(&d_ctxt_1, clear2, &stream);
 
@@ -1206,7 +1224,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_le(&d_ctxt_1, clear2, &stream);
 
@@ -1226,7 +1244,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_le(&d_ctxt_1, clear2, &stream);
 
@@ -1266,8 +1284,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_max(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1307,8 +1325,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.unchecked_min(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1347,7 +1365,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
@@ -1367,7 +1385,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
@@ -1388,7 +1406,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_max(&d_ctxt_1, clear2, &stream);
 
@@ -1425,7 +1443,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
@@ -1445,7 +1463,7 @@ where
     let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
     // Copy to the GPU
-    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+    let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
     let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
@@ -1466,7 +1484,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.unchecked_scalar_min(&d_ctxt_1, clear2, &stream);
 
@@ -1508,9 +1526,10 @@ where
         let ctxt_condition = cks.encrypt_radix(clear_condition, 1);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
-        let d_ctxt_condition = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_condition =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
 
         let d_ct_res = sks.unchecked_if_then_else(&d_ctxt_condition, &d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1660,8 +1679,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         // let h_ct_res = h_sks.eq(&ctxt_1, &ctxt_2);
         let d_ct_res = sks.eq(&d_ctxt_1, &d_ctxt_2, &stream);
@@ -1711,8 +1730,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         // let h_ct_res = h_sks.eq(&ctxt_1, &ctxt_2);
         let d_ct_res = sks.ne(&d_ctxt_1, &d_ctxt_2, &stream);
@@ -1762,8 +1781,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.gt(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1803,8 +1822,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.ge(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1844,8 +1863,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         // let _ = h_sks.lt(&ctxt_1, &ctxt_2);
         let d_ct_res = sks.lt(&d_ctxt_1, &d_ctxt_2, &stream);
@@ -1884,8 +1903,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.le(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -1924,7 +1943,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_eq(&d_ctxt_1, clear2, &stream);
 
@@ -1970,7 +1989,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_ne(&d_ctxt_1, clear2, &stream);
 
@@ -2016,7 +2035,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_gt(&d_ctxt_1, clear2, &stream);
 
@@ -2055,7 +2074,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_ge(&d_ctxt_1, clear2, &stream);
 
@@ -2094,7 +2113,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_lt(&d_ctxt_1, clear2, &stream);
 
@@ -2133,7 +2152,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_le(&d_ctxt_1, clear2, &stream);
 
@@ -2223,9 +2242,10 @@ where
         let ctxt_condition = cks.encrypt_radix(clear_condition, 1);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
-        let d_ctxt_condition = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_condition =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
 
         let d_ct_res = sks.if_then_else(&d_ctxt_condition, &d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -2263,8 +2283,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.max(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -2304,8 +2324,8 @@ where
         let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
 
         let d_ct_res = sks.min(&d_ctxt_1, &d_ctxt_2, &stream);
 
@@ -2344,7 +2364,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_max(&d_ctxt_1, clear2, &stream);
 
@@ -2383,7 +2403,7 @@ where
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
 
         // Copy to the GPU
-        let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
+        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
 
         let d_ct_res = sks.scalar_min(&d_ctxt_1, clear2, &stream);
 

@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
 use itertools::Itertools;
 
@@ -17,7 +17,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -33,7 +33,7 @@ impl CudaServerKey {
     /// let scalar = 40;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.unchecked_scalar_add(&d_ct, scalar, &mut stream);
@@ -45,10 +45,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_scalar_add<T>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         T: DecomposableInto<u8>,
     {
@@ -63,7 +63,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_scalar_add_assign_async<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -75,7 +75,7 @@ impl CudaServerKey {
                 BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
             let mut d_decomposed_scalar =
-                CudaVec::<u64>::new_async(ct.d_blocks.lwe_ciphertext_count().0, stream);
+                CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream);
             let scalar64 = decomposer
                 .collect_vec()
                 .iter()
@@ -84,11 +84,11 @@ impl CudaServerKey {
                 .collect_vec();
             d_decomposed_scalar.copy_from_cpu_async(scalar64.as_slice(), stream);
 
-            let lwe_dimension = ct.d_blocks.lwe_dimension();
+            let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
             // If the scalar is decomposed using less than the number of blocks our ciphertext
             // has, we just don't touch ciphertext's last blocks
             stream.scalar_addition_integer_radix_assign_async(
-                &mut ct.d_blocks.0.d_vec,
+                &mut ct.as_mut().d_blocks.0.d_vec,
                 &d_decomposed_scalar,
                 lwe_dimension,
                 scalar64.len() as u32,
@@ -97,12 +97,12 @@ impl CudaServerKey {
             );
         }
 
-        ct.info = ct.info.after_scalar_add(scalar);
+        ct.as_mut().info = ct.as_ref().info.after_scalar_add(scalar);
     }
 
     pub fn unchecked_scalar_add_assign<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -125,7 +125,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -141,7 +141,7 @@ impl CudaServerKey {
     /// let scalar = 40;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.scalar_add(&d_ct, scalar, &mut stream);
@@ -153,10 +153,10 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_add<T>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         T: DecomposableInto<u8>,
     {
@@ -171,7 +171,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn scalar_add_assign_async<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -185,8 +185,12 @@ impl CudaServerKey {
         self.full_propagate_assign_async(ct, stream);
     }
 
-    pub fn scalar_add_assign<T>(&self, ct: &mut CudaRadixCiphertext, scalar: T, stream: &CudaStream)
-    where
+    pub fn scalar_add_assign<T>(
+        &self,
+        ct: &mut CudaUnsignedRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) where
         T: DecomposableInto<u8>,
     {
         unsafe {
