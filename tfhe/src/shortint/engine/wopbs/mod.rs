@@ -29,7 +29,7 @@ impl ShortintEngine {
             &cks.glwe_secret_key,
             wop_params.pfks_base_log,
             wop_params.pfks_level,
-            wop_params.pfks_modular_std_dev,
+            wop_params.pfks_noise_distribution(),
             wop_params.ciphertext_modulus,
             &mut self.encryption_generator,
         );
@@ -74,7 +74,7 @@ impl ShortintEngine {
                 &glwe_secret_key,
                 parameters.pbs_base_log,
                 parameters.pbs_level,
-                parameters.glwe_modular_std_dev,
+                parameters.glwe_noise_distribution(),
                 parameters.ciphertext_modulus,
                 &mut self.encryption_generator,
             );
@@ -130,7 +130,7 @@ impl ShortintEngine {
             &glwe_secret_key,
             parameters.pfks_base_log,
             parameters.pfks_level,
-            parameters.pfks_modular_std_dev,
+            parameters.pfks_noise_distribution(),
             parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );

@@ -18,7 +18,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
 
     let input_lwe_dimension = params.input_lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
@@ -90,7 +90,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
             &input_lwe_secret_key,
             &output_glwe_secret_key,
             &mut bsk,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut rsc.encryption_random_generator,
         );
 

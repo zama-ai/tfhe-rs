@@ -46,7 +46,8 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// let polynomial_size = PolynomialSize(2048);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
@@ -86,7 +87,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     &glwe_sk,
 ///     pbs_base_log,
 ///     pbs_level,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     seeder,
 /// );
@@ -359,7 +360,8 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 /// let polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
 /// let decomp_level_count = DecompositionLevelCount(1);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -394,7 +396,7 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     msg_ggsw,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -408,7 +410,7 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///     &glwe_secret_key,
 ///     &mut ct,
 ///     &ct_plaintexts,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -594,7 +596,8 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// let polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
 /// let decomp_level_count = DecompositionLevelCount(1);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -629,7 +632,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     &glwe_secret_key,
 ///     &mut ggsw_0,
 ///     msg_ggsw_0,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -650,7 +653,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     &glwe_secret_key,
 ///     &mut ggsw_1,
 ///     msg_ggsw_1,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -667,7 +670,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     &glwe_secret_key,
 ///     &mut ct0,
 ///     &ct0_plaintexts,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -675,7 +678,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     &glwe_secret_key,
 ///     &mut ct1,
 ///     &ct1_plaintexts,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -833,7 +836,8 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// let polynomial_size = PolynomialSize(2048);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
@@ -873,7 +877,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 ///     &glwe_sk,
 ///     pbs_base_log,
 ///     pbs_level,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     seeder,
 /// );
@@ -1145,8 +1149,10 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     StandardDev(0.000007069849454709433 * 0.000007069849454709433),
 ///     0.0,
 /// );
-/// let glwe_modular_std_dev =
-///     StandardDev(0.00000000000000029403601535432533 * 0.00000000000000029403601535432533);
+/// let glwe_noise_distribution = Gaussian::from_dispersion_parameter(
+///     StandardDev(0.00000000000000029403601535432533 * 0.00000000000000029403601535432533),
+///     0.0,
+/// );
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
@@ -1186,7 +1192,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &glwe_sk,
 ///     pbs_base_log,
 ///     pbs_level,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     seeder,
 /// );

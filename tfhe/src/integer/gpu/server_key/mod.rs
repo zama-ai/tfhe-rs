@@ -89,7 +89,7 @@ impl CudaServerKey {
                         &cks.key.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
@@ -107,7 +107,7 @@ impl CudaServerKey {
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
                         pbs_params.grouping_factor,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );

@@ -100,7 +100,8 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 /// let polynomial_size = PolynomialSize(2048);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
@@ -149,7 +150,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 ///     &small_lwe_sk,
 ///     &glwe_sk,
 ///     &mut bsk,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -846,7 +847,8 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 /// let polynomial_size = PolynomialSize(2048);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
@@ -895,7 +897,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 ///     &small_lwe_sk,
 ///     &glwe_sk,
 ///     &mut bsk,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///

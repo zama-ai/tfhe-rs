@@ -1,8 +1,8 @@
 //! Module containing primitives pertaining to the Wopbs (WithOut padding PBS).
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -24,6 +24,7 @@ use rayon::prelude::*;
 /// key generation times.
 pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
+    NoiseDistribution,
     LweKeyCont,
     GlweKeyCont,
     Gen,
@@ -32,12 +33,13 @@ pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     LweKeyCont: Container<Element = Scalar>,
     GlweKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -64,7 +66,7 @@ where
         &mut cbs_pfpksk_list,
         input_lwe_secret_key,
         output_glwe_secret_key,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -79,6 +81,7 @@ where
 /// times.
 pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
+    NoiseDistribution,
     OutputCont,
     LweKeyCont,
     GlweKeyCont,
@@ -87,10 +90,11 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyList<OutputCont>,
     input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     OutputCont: ContainerMut<Element = Scalar>,
     LweKeyCont: Container<Element = Scalar>,
     GlweKeyCont: Container<Element = Scalar>,
@@ -149,7 +153,7 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
             input_lwe_secret_key,
             output_glwe_secret_key,
             &mut lwe_pfpksk,
-            noise_parameters,
+            noise_distribution,
             &mut loop_generator,
             |x| Scalar::ZERO.wrapping_sub(x),
             &polynomial_to_encrypt,
@@ -164,6 +168,7 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
 /// See [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized`] for usage.
 pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
+    NoiseDistribution,
     LweKeyCont,
     GlweKeyCont,
     Gen,
@@ -172,12 +177,13 @@ pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_parameters: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     LweKeyCont: Container<Element = Scalar> + Sync,
     GlweKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
@@ -215,6 +221,7 @@ where
 /// this function for better key generation times as the generated keys can be quite large.
 pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
+    NoiseDistribution,
     OutputCont,
     LweKeyCont,
     GlweKeyCont,
@@ -223,10 +230,11 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
     output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyList<OutputCont>,
     input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     LweKeyCont: Container<Element = Scalar> + Sync,
     GlweKeyCont: Container<Element = Scalar> + Sync,
@@ -286,7 +294,7 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
                     input_lwe_secret_key,
                     output_glwe_secret_key,
                     &mut lwe_pfpksk,
-                    noise_parameters,
+                    noise_distribution,
                     &mut loop_generator,
                     |x| Scalar::ZERO.wrapping_sub(x),
                     &polynomial_to_encrypt,
@@ -436,6 +444,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let var_small = Variance::from_variance(2f64.powf(-80.0));
 /// let var_big = Variance::from_variance(2f64.powf(-70.0));
 /// let gaussian_big = Gaussian::from_dispersion_parameter(var_big, 0.0);
+/// let gaussian_small = Gaussian::from_dispersion_parameter(var_small, 0.0);
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -462,7 +471,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &glwe_sk,
 ///     bsk_base_log,
 ///     bsk_level_count,
-///     var_small,
+///     gaussian_small,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -496,7 +505,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &glwe_sk,
 ///     pfpksk_base_log,
 ///     pfpksk_level_count,
-///     var_small,
+///     gaussian_small,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
