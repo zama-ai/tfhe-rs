@@ -108,7 +108,7 @@ jobs:
   cuda-core-crypto-benchmarks:
     name: Cuda core crypto benchmarks  (RTX 4090)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || contains(github.event.label.name, '4090_bench') }}
-    needs: cuda_integer_bench
+    needs: cuda-integer-benchmarks
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}_cuda_core_crypto_bench
       cancel-in-progress: true
@@ -189,6 +189,7 @@ jobs:
     name: Remove 4090 bench label
     if: ${{ github.event_name == 'pull_request' }} 
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
+    runs-on: ["self-hosted", "4090-desktop"]
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
