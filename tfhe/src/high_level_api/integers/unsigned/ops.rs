@@ -13,6 +13,8 @@ use crate::high_level_api::traits::{
     DivRem, FheBootstrap, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::{FheBool, FheUint};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -734,7 +736,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                     with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .add(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .add(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }

@@ -23,12 +23,13 @@ mod ilog2;
 #[cfg(test)]
 pub(crate) mod tests_cases_comparisons;
 #[cfg(test)]
+pub(crate) mod tests_cases_signed;
+#[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
-
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 
 use super::ServerKey;

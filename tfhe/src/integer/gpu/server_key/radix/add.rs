@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
 
 impl CudaServerKey {
@@ -22,7 +22,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -41,8 +41,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.add(&d_ct1, &d_ct2, &mut stream);
@@ -53,12 +53,12 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn add(
+    pub fn add<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.add_assign(&mut result, ct_right, stream);
         result
@@ -68,10 +68,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn add_assign_async(
+    pub unsafe fn add_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -102,10 +102,10 @@ impl CudaServerKey {
         self.propagate_single_carry_assign_async(lhs, stream);
     }
 
-    pub fn add_assign(
+    pub fn add_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -116,7 +116,7 @@ impl CudaServerKey {
 
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -135,8 +135,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.unchecked_add(&d_ct1, &d_ct2, &mut stream);
@@ -147,12 +147,12 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn unchecked_add(
+    pub fn unchecked_add<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_add_assign(&mut result, ct_right, stream);
         result
@@ -162,45 +162,47 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_add_assign_async(
+    pub unsafe fn unchecked_add_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
+        let ciphertext_left = ct_left.as_mut();
+        let ciphertext_right = ct_right.as_ref();
         assert_eq!(
-            ct_left.d_blocks.lwe_dimension(),
-            ct_right.d_blocks.lwe_dimension(),
+            ciphertext_left.d_blocks.lwe_dimension(),
+            ciphertext_right.d_blocks.lwe_dimension(),
             "Mismatched lwe dimension between ct_left ({:?}) and ct_right ({:?})",
-            ct_left.d_blocks.lwe_dimension(),
-            ct_right.d_blocks.lwe_dimension()
+            ciphertext_left.d_blocks.lwe_dimension(),
+            ciphertext_right.d_blocks.lwe_dimension()
         );
 
         assert_eq!(
-            ct_left.d_blocks.ciphertext_modulus(),
-            ct_right.d_blocks.ciphertext_modulus(),
+            ciphertext_left.d_blocks.ciphertext_modulus(),
+            ciphertext_right.d_blocks.ciphertext_modulus(),
             "Mismatched moduli between ct_left ({:?}) and ct_right ({:?})",
-            ct_left.d_blocks.ciphertext_modulus(),
-            ct_right.d_blocks.ciphertext_modulus()
+            ciphertext_left.d_blocks.ciphertext_modulus(),
+            ciphertext_right.d_blocks.ciphertext_modulus()
         );
 
-        let lwe_dimension = ct_left.d_blocks.lwe_dimension();
-        let lwe_ciphertext_count = ct_left.d_blocks.lwe_ciphertext_count();
+        let lwe_dimension = ciphertext_left.d_blocks.lwe_dimension();
+        let lwe_ciphertext_count = ciphertext_left.d_blocks.lwe_ciphertext_count();
 
         stream.unchecked_add_integer_radix_assign_async(
-            &mut ct_left.d_blocks.0.d_vec,
-            &ct_right.d_blocks.0.d_vec,
+            &mut ciphertext_left.d_blocks.0.d_vec,
+            &ciphertext_right.d_blocks.0.d_vec,
             lwe_dimension,
             lwe_ciphertext_count.0 as u32,
         );
 
-        ct_left.info = ct_left.info.after_add(&ct_right.info);
+        ciphertext_left.info = ciphertext_left.info.after_add(&ciphertext_right.info);
     }
 
-    pub fn unchecked_add_assign(
+    pub fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {

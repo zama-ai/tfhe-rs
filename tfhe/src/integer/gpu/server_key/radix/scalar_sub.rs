@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::TwosComplementNegation;
 
@@ -17,7 +17,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -33,7 +33,7 @@ impl CudaServerKey {
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.unchecked_scalar_sub(&d_ct, scalar, &mut stream);
@@ -45,10 +45,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_scalar_sub<T>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
     {
@@ -63,7 +63,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_scalar_sub_assign_async<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -71,12 +71,12 @@ impl CudaServerKey {
     {
         let negated_scalar = scalar.twos_complement_negation();
         self.unchecked_scalar_add_assign_async(ct, negated_scalar, stream);
-        ct.info = ct.info.after_scalar_sub(scalar);
+        ct.as_mut().info = ct.as_ref().info.after_scalar_sub(scalar);
     }
 
     pub fn unchecked_scalar_sub_assign<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -99,7 +99,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -115,7 +115,7 @@ impl CudaServerKey {
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
     ///
     /// // Compute homomorphically an addition:
     /// let d_ct_res = sks.scalar_sub(&d_ct, scalar, &mut stream);
@@ -127,10 +127,10 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_sub<T>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
     {
@@ -145,7 +145,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn scalar_sub_assign_async<T>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         scalar: T,
         stream: &CudaStream,
     ) where
@@ -159,8 +159,12 @@ impl CudaServerKey {
         self.full_propagate_assign_async(ct, stream);
     }
 
-    pub fn scalar_sub_assign<T>(&self, ct: &mut CudaRadixCiphertext, scalar: T, stream: &CudaStream)
-    where
+    pub fn scalar_sub_assign<T>(
+        &self,
+        ct: &mut CudaUnsignedRadixCiphertext,
+        scalar: T,
+        stream: &CudaStream,
+    ) where
         T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
     {
         unsafe {
