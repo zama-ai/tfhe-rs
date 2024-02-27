@@ -1,21 +1,27 @@
+pub(crate) mod test_add;
+
+use super::tests_cases_unsigned::*;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use paste::paste;
+use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
 
-use super::tests_cases_unsigned::*;
-
+/// Number of loop iteration within randomized tests
+#[cfg(not(tarpaulin))]
+pub(crate) const NB_TESTS: usize = 30;
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS_SMALLER: usize = 10;
-
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS: usize = 1;
 #[cfg(tarpaulin)]
 pub(crate) const NB_TESTS_SMALLER: usize = 1;
 
@@ -24,7 +30,88 @@ pub(crate) const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
 pub(crate) const NB_CTXT: usize = 2;
 
-macro_rules! create_parametrized_test{
+pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
+    rng.gen_range(1..modulus)
+}
+
+/// helper function to do a rotate left when the type used to store
+/// the value is bigger than the actual intended bit size
+pub(crate) fn rotate_left_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // rotated will be
+    // [0000000000xx|xx00]
+    // 64           b    0
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    let shifted_mask = mask.wrapping_shl(n) & !mask;
+
+    let rotated = value.rotate_left(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> actual_bit_size)
+}
+
+/// helper function to do a rotate right when the type used to store
+/// the value is bigger than the actual intended bit size
+pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // mask: [000000000000|mmmm]
+    // shifted_ mask: [mm0000000000|0000]
+    //
+    // rotated will be
+    // [xx0000000000|00xx]
+    // 64           b    0
+    //
+    // To get the 'cycled' bits where they should be,
+    // we get them using a mask then shift
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    // shifted mask only needs the bits that cycled
+    let shifted_mask = mask.rotate_right(n) & !mask;
+
+    let rotated = value.rotate_right(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
+}
+
+pub(crate) fn overflowing_sub_under_modulus(lhs: u64, rhs: u64, modulus: u64) -> (u64, bool) {
+    assert!(
+        !(modulus.is_power_of_two() && (modulus - 1).overflowing_mul(2).1),
+        "If modulus is not a power of two, then  must not overflow u64"
+    );
+    let (result, overflowed) = lhs.overflowing_sub(rhs);
+    (result % modulus, overflowed)
+}
+
+pub(crate) fn overflowing_add_under_modulus(lhs: u64, rhs: u64, modulus: u64) -> (u64, bool) {
+    let (result, overflowed) = lhs.overflowing_add(rhs);
+    (result % modulus, overflowed || result >= modulus)
+}
+
+pub(crate) fn overflowing_sum_slice_under_modulus(elems: &[u64], modulus: u64) -> (u64, bool) {
+    let mut s = 0u64;
+    let mut o = false;
+    for e in elems.iter().copied() {
+        let (curr_s, curr_o) = overflowing_add_under_modulus(s, e, modulus);
+        s = curr_s;
+        o |= curr_o;
+    }
+    (s, o)
+}
+
+pub(crate) fn overflowing_mul_under_modulus(a: u64, b: u64, modulus: u64) -> (u64, bool) {
+    let (mut result, mut overflow) = a.overflowing_mul(b);
+    overflow |= result >= modulus;
+    result %= modulus;
+    (result, overflow)
+}
+
+macro_rules! create_parametrized_test {
     (
         $name:ident {
             $($(#[$cfg:meta])* $param:ident),*
@@ -205,30 +292,9 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
-create_parametrized_test!(integer_default_add);
-create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(
-    integer_default_add_work_efficient {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
@@ -407,10 +473,8 @@ create_parametrized_test!(integer_default_checked_ilog2 {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 
-create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_mul);
 
-create_parametrized_test!(integer_unchecked_add_assign);
 create_parametrized_test!(
     integer_full_propagate {
         coverage => {
@@ -549,22 +613,6 @@ where
 // Unchecked Tests
 //=============================================================================
 
-fn integer_unchecked_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_parallelized);
-    unchecked_add_test(param, executor);
-}
-
-fn integer_unchecked_add_assign<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_assign_parallelized);
-    unchecked_add_assign_test(param, executor);
-}
-
 fn integer_unchecked_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -676,14 +724,6 @@ where
 //=============================================================================
 // Smart Tests
 //=============================================================================
-
-fn integer_smart_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_add_parallelized);
-    smart_add_test(param, executor);
-}
 
 fn integer_smart_sub<P>(param: P)
 where
@@ -898,22 +938,6 @@ where
 // Default Tests
 //=============================================================================
 
-fn integer_default_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
-    default_add_test(param, executor);
-}
-
-fn integer_default_overflowing_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
-    default_overflowing_add_test(param, executor);
-}
-
 fn integer_default_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -928,15 +952,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     default_overflowing_sub_test(param, executor);
-}
-
-// Smaller test for this one
-fn integer_default_add_work_efficient<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized_work_efficient);
-    default_add_test(param, executor);
 }
 
 fn integer_default_sub_work_efficient<P>(param: P)
@@ -1042,6 +1057,7 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros);
     default_trailing_zeros_test(param, executor);
 }
+
 fn integer_default_trailing_ones<P>(param: P)
 where
     P: Into<PBSParameters>,
