@@ -23,11 +23,26 @@ use tfhe::shortint::parameters::{
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+// const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
+//     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+// ];
+
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 12] = [
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p64,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p64,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p80,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p80,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p80,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p128,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p128,
 ];
 
 #[cfg(not(feature = "gpu"))]
@@ -68,18 +83,19 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
                 )
             })
             .collect::<Vec<(String, CryptoParametersRecord<Scalar>)>>();
-        let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
-            .iter()
-            .map(|params| {
-                (
-                    params.name(),
-                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
-                        .to_owned()
-                        .into(),
-                )
-            })
-            .collect();
-        [classic, multi_bit].concat()
+        // let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
+        //     .iter()
+        //     .map(|params| {
+        //         (
+        //             params.name(),
+        //             <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+        //                 .to_owned()
+        //                 .into(),
+        //         )
+        //     })
+        //     .collect();
+        // [classic, multi_bit].concat()
+        classic
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
             .iter()
@@ -287,11 +303,13 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::cuda_keyswitch_group;
+use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p128, PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64, PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p80, PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80, PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p128, PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p64, PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p80, PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p128, PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p64, PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p80};
 
 criterion_group!(
     name = keyswitch_group;
     config = Criterion::default().sample_size(2000);
-    targets = keyswitch::<u64>, keyswitch::<u32>
+    // targets = keyswitch::<u64>, keyswitch::<u32>
+    targets = keyswitch::<u64>
 );
 #[cfg(not(feature = "gpu"))]
 criterion_main!(keyswitch_group);
