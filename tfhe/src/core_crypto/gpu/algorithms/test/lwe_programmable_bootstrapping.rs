@@ -172,23 +172,3 @@ fn lwe_encrypt_pbs_decrypt<
 }
 
 create_gpu_parametrized_test!(lwe_encrypt_pbs_decrypt);
-
-// DISCLAIMER: all parameters here are not guaranteed to be secure or yield correct computations
-pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestParams {
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(4.9982771e-11),
-    glwe_modular_std_dev: StandardDev(8.6457178e-32),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    pfks_level: DecompositionLevelCount(1),
-    pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
-    cbs_level: DecompositionLevelCount(0),
-    cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-};

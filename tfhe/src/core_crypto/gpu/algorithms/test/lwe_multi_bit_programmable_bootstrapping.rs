@@ -8,24 +8,11 @@ use crate::core_crypto::gpu::{
 };
 use itertools::Itertools;
 
-pub struct MultiBitParams<Scalar: UnsignedInteger> {
-    pub input_lwe_dimension: LweDimension,
-    pub lwe_modular_std_dev: StandardDev,
-    pub decomp_base_log: DecompositionBaseLog,
-    pub decomp_level_count: DecompositionLevelCount,
-    pub glwe_dimension: GlweDimension,
-    pub polynomial_size: PolynomialSize,
-    pub glwe_modular_std_dev: StandardDev,
-    pub message_modulus_log: CiphertextModulusLog,
-    pub ciphertext_modulus: CiphertextModulus<Scalar>,
-    pub grouping_factor: LweBskGroupingFactor,
-}
-
 #[allow(clippy::too_many_arguments)]
 fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
 >(
-    params: &MultiBitParams<Scalar>,
+    params: &MultiBitTestParams<Scalar>,
 ) {
     assert!(Scalar::BITS <= 64);
 
@@ -189,31 +176,3 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
 }
 
 create_gpu_multi_bit_parametrized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom_mod);
-
-// DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
-// correct computations
-const TEST_PARAMS_MULTI_BIT_2_2_2: MultiBitParams<u64> = MultiBitParams {
-    input_lwe_dimension: LweDimension(818),
-    lwe_modular_std_dev: StandardDev(1.3880686109937e-11),
-    decomp_base_log: DecompositionBaseLog(22),
-    decomp_level_count: DecompositionLevelCount(1),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(1.1919984450689246e-23),
-    message_modulus_log: CiphertextModulusLog(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(2),
-};
-
-const TEST_PARAMS_MULTI_BIT_2_2_3: MultiBitParams<u64> = MultiBitParams {
-    input_lwe_dimension: LweDimension(888),
-    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
-    decomp_base_log: DecompositionBaseLog(21),
-    decomp_level_count: DecompositionLevelCount(1),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
-    message_modulus_log: CiphertextModulusLog(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(3),
-};
