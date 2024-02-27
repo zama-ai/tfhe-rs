@@ -40,8 +40,8 @@ macro_rules! create_gpu_multi_bit_parametrized_test{
      ($name:ident)=> {
         create_gpu_multi_bit_parametrized_test!($name
         {
-            TEST_PARAMS_MULTI_BIT_2_2_2,
-            TEST_PARAMS_MULTI_BIT_2_2_3
+            MULTI_BIT_2_2_2_PARAMS,
+            MULTI_BIT_2_2_3_PARAMS
         });
     };
 }
