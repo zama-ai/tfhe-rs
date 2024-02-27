@@ -1,6 +1,6 @@
 # Table of contents
 
-* [WELCOME](README.md)
+* [Welcome to TFHE-rs](README.md)
 
 ## Getting Started
 
@@ -11,26 +11,6 @@
 * [Benchmarks](getting\_started/benchmarks.md)
 * [Security and Cryptography](getting\_started/security\_and\_cryptography.md)
 
-## FUNDAMENTALS
-
-* [Serialize/Deserialize](foundamentals/serialization.md)
-* [Compress Ciphertexts/Keys](foundamentals/compress.md)
-* [Use Public Key Encryption](foundamentals/public\_key.md)
-* [Use Trivial Ciphertext](foundamentals/trivial\_ciphertext.md)
-
-## GUIDES
-
-* [Run on GPU](guides/run\_on\_gpu.md)
-* [Configure Rust](guides/rust\_configuration.md)
-* [Detect Overflow](guides/overflow\_operations.md)
-* [Generic Function Bounds](guides/trait\_bounds.md)
-* [Use Parallelized PBS](guides/parallelized\_pbs.md)
-* [Migrate Data to Newer Versions of TFHE-rs](guides/migrate\_data.md)
-* [Use the C API](guides/c\_api.md)
-* [Use the JS on WASM API](guides/js\_on\_wasm\_api.md)
-* [Use multi-threading using the rayon crate](guides/rayon\_crate.md)
-* [Debug](guides/debug.md)
-
 ## Tutorials
 
 * [Homomorphic Parity Bit](tutorials/parity\_bit.md)
@@ -38,6 +18,33 @@
 * [SHA256 with Boolean API](tutorials/sha256\_bool.md)
 * [Dark Market with Integer API](tutorials/dark\_market.md)
 * [Homomorphic Regular Expressions Integer API](tutorials/regex.md)
+* [See all tutorials](tutorials/see-all-tutorials.md)
+
+## FUNDAMENTALS
+
+* [Configure and create keys](fundamentals/configure-and-create-keys.md)
+* [Set the server key](fundamentals/set-the-server-key.md)
+* [Encrypt data](fundamentals/encrypt-data.md)
+* [Compute and decrypt](fundamentals/compute-and-decrypt.md)
+* [Serialize/Deserialize](foundamentals/serialization.md)
+* [Compress ciphertexts/keys](foundamentals/compress.md)
+* [Use trivial ciphertext](foundamentals/trivial\_ciphertext.md)
+
+## GUIDES
+
+* [Run on GPU](guides/run\_on\_gpu.md)
+* [Configure Rust](guides/rust\_configuration.md)
+* [Detect Overflow](guides/overflow\_operations.md)
+* [Generic Function Bounds](guides/trait\_bounds.md)
+* [Use Public Key Encryption](guides/public\_key.md)
+* [Use Parallelized PBS](guides/parallelized\_pbs.md)
+* [Migrate Data to Newer Versions of TFHE-rs](guides/migrate\_data.md)
+* [Use the C API](guides/c\_api.md)
+* [Use the JS on WASM API](guides/js\_on\_wasm\_api.md)
+* [Use multi-threading using the rayon crate](guides/rayon\_crate.md)
+* [Debug](guides/debug.md)
+* [How to count PBS](guides/how-to-count-pbs.md)
+* [PRF How to generate homomorphic randomness](guides/prf-how-to-generate-homomorphic-randomness.md)
 
 ## REFERENCES
 

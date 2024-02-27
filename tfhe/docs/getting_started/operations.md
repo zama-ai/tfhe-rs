@@ -1,9 +1,11 @@
-# Homomorphic Types and Operations
+# Types & Operations
 
 ## Types
+
 `TFHE-rs` includes two main types to represent encrypted data:
-- `FheUint`: this is the homomorphic equivalent of Rust unsigned integers `u8, u16, ...`
-- `FheInt`: this is the homomorphic equivalent of Rust (signed) integers `i8, i16, ...`
+
+* `FheUint`: this is the homomorphic equivalent of Rust unsigned integers `u8, u16, ...`
+* `FheInt`: this is the homomorphic equivalent of Rust (signed) integers `i8, i16, ...`
 
 In the same manner as many programming languages, the number of bits used to represent the data must be chosen when declaring a variable. For instance:
 
@@ -19,35 +21,35 @@ In the same manner as many programming languages, the number of bits used to rep
 ```
 
 ## Operation list
-The table below contains an overview of the available operations in `TFHE-rs`. The notation `Enc` (for Encypted) either refers to `FheInt` or `FheUint`, for any size between 1 and 256-bits.
+
+The table below contains an overview of the available operations in `TFHE-rs`. The notation `Enc` (for Encrypted) either refers to `FheInt` or `FheUint`, for any size between 1 and 256-bits.
 
 More details, and further examples, are given in the following sections.
 
-| name                  | symbol         | `Enc`/`Enc`        | `Enc`/ `Int`             |
-|-----------------------|----------------|--------------------|--------------------------|
-| Neg                   | `-`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Add                   | `+`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Sub                   | `-`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Mul                   | `*`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Div                   | `/`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Rem                   | `%`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Not                   | `!`            | :heavy_check_mark: | :heavy_check_mark:       |
-| BitAnd                | `&`            | :heavy_check_mark: | :heavy_check_mark:       |
-| BitOr                 | `\|`           | :heavy_check_mark: | :heavy_check_mark:       |
-| BitXor                | `^`            | :heavy_check_mark: | :heavy_check_mark:       |
-| Shr                   | `>>`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Shl                   | `<<`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Min                   | `min`          | :heavy_check_mark: | :heavy_check_mark:       |
-| Max                   | `max`          | :heavy_check_mark: | :heavy_check_mark:       |
-| Greater than          | `gt`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Greater or equal than | `ge`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Lower than            | `lt`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Lower or equal than   | `le`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Equal                 | `eq`           | :heavy_check_mark: | :heavy_check_mark:       |
-| Cast (into dest type) | `cast_into`    | :heavy_check_mark: | :heavy_multiplication_x: |
-| Cast (from src type)  | `cast_from`    | :heavy_check_mark: | :heavy_multiplication_x: |
-| Ternary operator      | `if_then_else` | :heavy_check_mark: | :heavy_multiplication_x: |
-
+| name                  | symbol         | `Enc`/`Enc`          | `Enc`/ `Int`               |
+| --------------------- | -------------- | -------------------- | -------------------------- |
+| Neg                   | `-`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Add                   | `+`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Sub                   | `-`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Mul                   | `*`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Div                   | `/`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Rem                   | `%`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Not                   | `!`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitAnd                | `&`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitOr                 | `\|`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitXor                | `^`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shr                   | `>>`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shl                   | `<<`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Min                   | `min`          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Max                   | `max`          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater than          | `gt`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater or equal than | `ge`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Lower than            | `lt`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Lower or equal than   | `le`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Equal                 | `eq`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Cast (into dest type) | `cast_into`    | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Cast (from src type)  | `cast_from`    | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Ternary operator      | `if_then_else` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
 
 ## Integer
 
@@ -59,17 +61,16 @@ Homomorphic integer types support arithmetic operations.
 
 The list of supported operations is:
 
-| name                                                     | symbol | type   |
-|----------------------------------------------------------|--------|--------|
-| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)  | `-`    | Unary  |
-| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html)  | `+`    | Binary |
-| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html)  | `-`    | Binary |
-| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html)  | `*`    | Binary |
-| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)* | `/`    | Binary |
-| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)* | `%`    | Binary |
+| name                                                      | symbol | type   |
+| --------------------------------------------------------- | ------ | ------ |
+| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)   | `-`    | Unary  |
+| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html)   | `+`    | Binary |
+| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html)   | `-`    | Binary |
+| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html)   | `*`    | Binary |
+| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)\* | `/`    | Binary |
+| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)\* | `%`    | Binary |
 
-For division by 0, the convention is to return `modulus - 1`. For instance, for `FheUint8`, the modulus is $$2^8=256$$, so a division by 0 will return an encryption of 255.
-For the remainder operator, the convention is to return the first input without any modification.  For instance, if `ct1 = FheUint8(63)` and `ct2 = FheUint8(0)` then `ct1 % ct2` will return `FheUint8(63)`.
+For division by 0, the convention is to return `modulus - 1`. For instance, for `FheUint8`, the modulus is $$2^8=256$$, so a division by 0 will return an encryption of 255. For the remainder operator, the convention is to return the first input without any modification. For instance, if `ct1 = FheUint8(63)` and `ct2 = FheUint8(0)` then `ct1 % ct2` will return `FheUint8(63)`.
 
 A simple example of how to use these operations:
 
@@ -116,16 +117,16 @@ Homomorphic integer types support some bitwise operations.
 
 The list of supported operations is:
 
-| name                                                                                 | symbol         | type   |
-|--------------------------------------------------------------------------------------|----------------|--------|
-| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)                              | `!`            | Unary  |
-| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html)                        | `&`            | Binary |
-| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)                          | `\|`           | Binary |
-| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html)                        | `^`            | Binary |
-| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)                              | `>>`           | Binary |
-| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)                              | `<<`           | Binary |
-| [Rotate Right](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_right) | `rotate_right` | Binary |
-| [Rotate Left](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_left)   | `rotate_left`  | Binary |
+| name                                                                                  | symbol         | type   |
+| ------------------------------------------------------------------------------------- | -------------- | ------ |
+| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)                               | `!`            | Unary  |
+| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html)                         | `&`            | Binary |
+| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)                           | `\|`           | Binary |
+| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html)                         | `^`            | Binary |
+| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)                               | `>>`           | Binary |
+| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)                               | `<<`           | Binary |
+| [Rotate Right](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate\_right) | `rotate_right` | Binary |
+| [Rotate Left](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate\_left)   | `rotate_left`  | Binary |
 
 A simple example of how to use these operations:
 
@@ -173,13 +174,13 @@ You will need to use different methods instead of using symbols for the comparis
 The list of supported operations is:
 
 | name                                                                        | symbol | type   |
-|-----------------------------------------------------------------------------|--------|--------|
-| [Equal           ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `eq`   | Binary |
-| [Not Equal       ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `ne`   | Binary |
-| [Greater Than    ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `gt`   | Binary |
+| --------------------------------------------------------------------------- | ------ | ------ |
+| [Equal](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)             | `eq`   | Binary |
+| [Not Equal](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)         | `ne`   | Binary |
+| [Greater Than](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)     | `gt`   | Binary |
 | [Greater or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `ge`   | Binary |
-| [Lower           ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `lt`   | Binary |
-| [Lower or Equal  ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `le`   | Binary |
+| [Lower](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)            | `lt`   | Binary |
+| [Lower or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)   | `le`   | Binary |
 
 A simple example of how to use these operations:
 
@@ -260,10 +261,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ### Ternary conditional operator.
+
 The ternary conditional operator allows computing conditional instructions of the form `if cond { choice_if } else { choice_else }`.
 
 | name             | symbol         | type    |
-|------------------|----------------|---------|
+| ---------------- | -------------- | ------- |
 | Ternary operator | `if_then_else` | Ternary |
 
 The syntax is `encrypted_condition.if_then_else(encrypted_choice_if, encrypted_choice_else)`. The `encrypted_condition` should be an encryption of 0 or 1 in order to be valid.
@@ -309,10 +311,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-
 ### Casting.
-Casting between integer types is possible via the `cast_from` associated function
-or the `cast_into` method.
+
+Casting between integer types is possible via the `cast_from` associated function or the `cast_into` method.
 
 ```rust
 use tfhe::prelude::*;
@@ -369,7 +370,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
-
 
 ## Boolean Operations
 
