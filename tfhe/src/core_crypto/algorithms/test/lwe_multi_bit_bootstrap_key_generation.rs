@@ -1,7 +1,9 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seed};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, DynamicDistribution, Seed,
+};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
@@ -41,6 +43,9 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
         let deterministic_seeder_seed =
             Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
 
+        let noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev::from_standard_dev(10.));
+
         while lwe_dim.0 % grouping_factor.0 != 0 {
             lwe_dim = LweDimension(lwe_dim.0 + 1);
         }
@@ -74,7 +79,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &lwe_sk,
             &glwe_sk,
             &mut parallel_multi_bit_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut encryption_generator,
         );
 
@@ -98,7 +103,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &lwe_sk,
             &glwe_sk,
             &mut sequential_multi_bit_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut encryption_generator,
         );
 
@@ -120,7 +125,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &lwe_sk,
             &glwe_sk,
             &mut sequential_seeded_multi_bit_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
         );
 
@@ -140,7 +145,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             &lwe_sk,
             &glwe_sk,
             &mut parallel_seeded_multi_bit_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
         );
 

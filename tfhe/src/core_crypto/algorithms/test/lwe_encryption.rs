@@ -925,9 +925,7 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = LweDimension(params.polynomial_size.0);
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
-    let glwe_noise_distribution =
-        DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev);
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);

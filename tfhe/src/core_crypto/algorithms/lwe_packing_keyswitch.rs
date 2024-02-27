@@ -22,7 +22,8 @@ use rayon::prelude::*;
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
@@ -51,7 +52,7 @@ use rayon::prelude::*;
 ///     &output_glwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -199,7 +200,8 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
@@ -228,7 +230,7 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 ///     &output_glwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -393,7 +395,8 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
@@ -422,7 +425,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 ///     &output_glwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
@@ -529,7 +532,8 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let output_polynomial_size = PolynomialSize(2048);
 /// let decomp_base_log = DecompositionBaseLog(23);
@@ -558,7 +562,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 ///     &output_glwe_secret_key,
 ///     decomp_base_log,
 ///     decomp_level_count,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );

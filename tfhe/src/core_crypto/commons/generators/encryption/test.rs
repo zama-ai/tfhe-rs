@@ -1,5 +1,5 @@
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
+use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::math::random::Gaussian;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
@@ -43,7 +43,7 @@ fn test_gaussian_sampling_margin_factor_does_not_panic() {
         &glwe_sk,
         params.dec_base_log,
         params.dec_level_count,
-        Variance(0.),
+        Gaussian::from_standard_dev(StandardDev(0.0), 0.0),
         CiphertextModulus::new_native(),
         &mut enc_generator,
     );
@@ -151,10 +151,12 @@ fn noise_gen_slice_native<Scalar: UnsignedTorus>() {
 
     let bits = (Scalar::BITS / 2) as i32;
 
+    let gaussian = Gaussian::from_standard_dev(StandardDev(2.0f64.powi(-bits)), 0.0);
+
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_gaussian_noise(&mut vec, StandardDev(2.0f64.powi(-bits)));
+        gen.fill_slice_with_random_noise_from_distribution(&mut vec, gaussian);
         if vec.iter().all(|&x| x != Scalar::ZERO) {
             break;
         }
@@ -184,14 +186,14 @@ fn test_normal_random_encryption_native<Scalar: UnsignedTorus>() {
     const RUNS: usize = 10000;
     const SAMPLES_PER_RUN: usize = 1000;
     let mut rng = new_encryption_random_generator();
+
+    let gaussian = Gaussian::from_standard_dev(StandardDev(f64::powi(2., -20)), 0.0);
+
     let failures: f64 = (0..RUNS)
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.fill_slice_with_random_gaussian_noise(
-                &mut samples,
-                StandardDev(f64::powi(2., -20)),
-            );
+            rng.fill_slice_with_random_noise_from_distribution(&mut samples, gaussian);
 
             let samples: Vec<f64> = samples
                 .iter()
@@ -242,13 +244,16 @@ fn test_normal_random_encryption_add_assign_native<Scalar: UnsignedTorus>() {
     const RUNS: usize = 10000;
     const SAMPLES_PER_RUN: usize = 1000;
     let mut rng = new_encryption_random_generator();
+
+    let gaussian = Gaussian::from_standard_dev(StandardDev(f64::powi(2., -20)), 0.0);
+
     let failures: f64 = (0..RUNS)
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(
+            rng.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign(
                 &mut samples,
-                StandardDev(f64::powi(2., -20)),
+                gaussian,
             );
 
             let samples: Vec<f64> = samples
@@ -307,12 +312,14 @@ fn noise_gen_slice_custom_mod<Scalar: UnsignedTorus>(
         ciphertext_modulus.get_custom_modulus().ilog2() as i32 / 2
     };
 
+    let gaussian = Gaussian::from_standard_dev(StandardDev(2.0f64.powi(-bits)), 0.0);
+
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
     while retries >= 0 {
-        gen.fill_slice_with_random_gaussian_noise_custom_mod(
+        gen.fill_slice_with_random_noise_from_distribution_custom_mod(
             &mut vec,
-            StandardDev(2.0f64.powi(-bits)),
+            gaussian,
             ciphertext_modulus,
         );
         if vec.iter().all(|&x| x != Scalar::ZERO) {
@@ -361,13 +368,16 @@ fn test_normal_random_encryption_custom_mod<Scalar: UnsignedTorus>(
     const RUNS: usize = 10000;
     const SAMPLES_PER_RUN: usize = 1000;
     let mut rng = new_encryption_random_generator();
+
+    let gaussian = Gaussian::from_standard_dev(StandardDev(f64::powi(2., -20)), 0.0);
+
     let failures: f64 = (0..RUNS)
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.fill_slice_with_random_gaussian_noise_custom_mod(
+            rng.fill_slice_with_random_noise_from_distribution_custom_mod(
                 &mut samples,
-                StandardDev(f64::powi(2., -20)),
+                gaussian,
                 ciphertext_modulus,
             );
 
@@ -454,13 +464,16 @@ fn test_normal_random_encryption_add_assign_custom_mod<Scalar: UnsignedTorus>(
     const RUNS: usize = 10000;
     const SAMPLES_PER_RUN: usize = 1000;
     let mut rng = new_encryption_random_generator();
+
+    let gaussian = Gaussian::from_standard_dev(StandardDev(f64::powi(2., -20)), 0.0);
+
     let failures: f64 = (0..RUNS)
         .map(|_| {
             let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-            rng.unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
+            rng.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign(
                 &mut samples,
-                StandardDev(f64::powi(2., -20)),
+                gaussian,
                 ciphertext_modulus,
             );
 

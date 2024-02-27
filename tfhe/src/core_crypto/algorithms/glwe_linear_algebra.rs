@@ -19,7 +19,8 @@ use crate::core_crypto::entities::*;
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -53,7 +54,7 @@ use crate::core_crypto::entities::*;
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -111,7 +112,8 @@ pub fn glwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -145,7 +147,7 @@ pub fn glwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -214,7 +216,8 @@ pub fn glwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -248,7 +251,7 @@ pub fn glwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -305,7 +308,8 @@ pub fn glwe_ciphertext_plaintext_list_add_assign<Scalar, InCont, PlainCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -339,7 +343,7 @@ pub fn glwe_ciphertext_plaintext_list_add_assign<Scalar, InCont, PlainCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -396,7 +400,8 @@ pub fn glwe_ciphertext_plaintext_list_sub_assign<Scalar, InCont, PlainCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -430,7 +435,7 @@ pub fn glwe_ciphertext_plaintext_list_sub_assign<Scalar, InCont, PlainCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -487,7 +492,8 @@ pub fn glwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -521,7 +527,7 @@ pub fn glwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -577,7 +583,8 @@ pub fn glwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -611,7 +618,7 @@ pub fn glwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -657,7 +664,8 @@ where
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -692,7 +700,7 @@ where
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -740,7 +748,8 @@ pub fn glwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -775,7 +784,7 @@ pub fn glwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -835,7 +844,8 @@ pub fn glwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -869,7 +879,7 @@ pub fn glwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -927,7 +937,8 @@ pub fn glwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(2048);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -961,7 +972,7 @@ pub fn glwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///

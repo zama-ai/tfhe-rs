@@ -13,7 +13,7 @@
 //! implementations of this trait, for different distributions. Note, though, that instead of
 //! using the [`RandomGenerable`] methods, you should use the various methods exposed by
 //! [`RandomGenerator`] instead.
-use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
+use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
 use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
 
 /// Convenience alias for the most efficient CSPRNG implementation available.
@@ -113,15 +113,27 @@ impl<T: UnsignedInteger> DynamicDistribution<T> {
         Self::Gaussian(Gaussian::from_standard_dev(std, 0.0))
     }
 
-    pub fn new_gaussian(std: impl DispersionParameter) -> Self {
+    pub fn new_gaussian(dispersion: impl DispersionParameter) -> Self {
         Self::Gaussian(Gaussian::from_standard_dev(
-            StandardDev(std.get_standard_dev()),
+            StandardDev(dispersion.get_standard_dev()),
             0.0,
         ))
     }
 
     pub const fn new_t_uniform(bound_log2: u32) -> Self {
         Self::TUniform(TUniform::new(bound_log2))
+    }
+
+    #[track_caller]
+    pub fn gaussian_variance(&self) -> Variance {
+        match self {
+            Self::Gaussian(gaussian) => {
+                Variance(StandardDev::from_standard_dev(gaussian.std).get_variance())
+            }
+            Self::TUniform(_) => {
+                panic!("Tried to get gaussian variance from a non gaussian distribution")
+            }
+        }
     }
 }
 

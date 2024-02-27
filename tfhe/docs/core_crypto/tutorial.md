@@ -50,7 +50,8 @@ pub fn main() {
     let polynomial_size = PolynomialSize(2048);
     let lwe_noise_distribution =
         Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-    let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+    let glwe_noise_distribution =
+        Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
     let pbs_base_log = DecompositionBaseLog(23);
     let pbs_level = DecompositionLevelCount(1);
     let ciphertext_modulus = CiphertextModulus::new_native();
@@ -89,7 +90,7 @@ pub fn main() {
         &glwe_sk,
         pbs_base_log,
         pbs_level,
-        glwe_modular_std_dev,
+        glwe_noise_distribution,
         ciphertext_modulus,
         &mut encryption_generator,
     );

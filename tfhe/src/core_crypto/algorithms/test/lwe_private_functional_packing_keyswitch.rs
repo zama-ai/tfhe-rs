@@ -18,7 +18,8 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
         let output_glwe_size = output_glwe_dimension.to_glwe_size();
         let output_polynomial_size = PolynomialSize(2048);
         // ~ 2^-20
-        let std_dev = StandardDev(0.0000006791658447437413);
+        let noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0000006791658447437413));
 
         let mut rsc = TestResources::new();
 
@@ -52,7 +53,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                 &input_lwe_secret_key,
                 &output_glwe_secret_key,
                 &mut lwe_pfpksk,
-                std_dev,
+                noise_distribution,
                 &mut rsc.encryption_random_generator,
                 UnsignedInteger::wrapping_neg,
                 &polynomial,
@@ -114,7 +115,9 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                 crate::core_crypto::commons::test_tools::random_usize_between(5..10),
             );
             // ~ 2^-20
-            let std_dev = StandardDev(0.0000006791658447437413);
+            let noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+                0.0000006791658447437413,
+            ));
 
             let mut rsc = TestResources::new();
 
@@ -148,7 +151,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                     &input_lwe_secret_key,
                     &output_glwe_secret_key,
                     &mut lwe_pfpksk,
-                    std_dev,
+                    noise_distribution,
                     &mut rsc.encryption_random_generator,
                     UnsignedInteger::wrapping_neg,
                     &polynomial,
@@ -217,7 +220,8 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
         let output_glwe_size = output_glwe_dimension.to_glwe_size();
         let output_polynomial_size = PolynomialSize(2048);
         // ~ 2^-20
-        let std_dev = StandardDev(0.0000006791658447437413);
+        let noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0000006791658447437413));
 
         let lwe_ciphertext_count = LweCiphertextCount(320); // 32 blocks 2_2 times 10 (thus 10 64bits integer)
 
@@ -253,7 +257,7 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
                 &input_lwe_secret_key,
                 &output_glwe_secret_key,
                 &mut lwe_pfpksk,
-                std_dev,
+                noise_distribution,
                 &mut rsc.encryption_random_generator,
                 UnsignedInteger::wrapping_neg,
                 &polynomial,
@@ -316,7 +320,9 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
                 crate::core_crypto::commons::test_tools::random_usize_between(5..10),
             );
             // ~ 2^-20
-            let std_dev = StandardDev(0.0000006791658447437413);
+            let noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+                0.0000006791658447437413,
+            ));
 
             let mut rsc = TestResources::new();
 
@@ -350,7 +356,7 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
                     &input_lwe_secret_key,
                     &output_glwe_secret_key,
                     &mut lwe_pfpksk,
-                    std_dev,
+                    noise_distribution,
                     &mut rsc.encryption_random_generator,
                     UnsignedInteger::wrapping_neg,
                     &polynomial,

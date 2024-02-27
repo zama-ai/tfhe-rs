@@ -23,7 +23,9 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
     let polynomial_size = PolynomialSize(1024);
     let decomp_base_log = DecompositionBaseLog(8);
     let decomp_level_count = DecompositionLevelCount(3);
-    let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+    let glwe_noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    ));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -67,7 +69,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             &glwe_secret_key,
             &mut ser_ggsw,
             plaintext,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut encryption_generator,
         );
 
@@ -92,7 +94,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             &glwe_secret_key,
             &mut par_ggsw,
             plaintext,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut encryption_generator,
         );
 
@@ -116,7 +118,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             &glwe_secret_key,
             &mut ser_seeded_ggsw,
             plaintext,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut deterministic_seeder,
         );
 
@@ -137,7 +139,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             &glwe_secret_key,
             &mut par_seeded_ggsw,
             plaintext,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut deterministic_seeder,
         );
 
@@ -180,7 +182,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence_u64_custom_mod() {
 fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let decomposition_base_log = params.pbs_base_log;
     let decomposition_level_count = params.pbs_level;
@@ -220,7 +222,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
                 &glwe_sk,
                 &mut ggsw,
                 plaintext,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -248,7 +250,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let decomposition_base_log = params.pbs_base_log;
     let decomposition_level_count = params.pbs_level;
@@ -288,7 +290,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 &glwe_sk,
                 &mut ggsw,
                 plaintext,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -316,7 +318,7 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let decomposition_base_log = params.pbs_base_log;
     let decomposition_level_count = params.pbs_level;
@@ -357,7 +359,7 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut seeded_ggsw,
                 plaintext,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 rsc.seeder.as_mut(),
             );
 
@@ -387,7 +389,7 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let decomposition_base_log = params.pbs_base_log;
     let decomposition_level_count = params.pbs_level;
@@ -428,7 +430,7 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
                 &glwe_sk,
                 &mut seeded_ggsw,
                 plaintext,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 rsc.seeder.as_mut(),
             );
 

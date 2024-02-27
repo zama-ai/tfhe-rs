@@ -286,7 +286,7 @@ impl Bootstrapper {
                 &cks.glwe_secret_key,
                 cks.parameters.pbs_base_log,
                 cks.parameters.pbs_level,
-                cks.parameters.glwe_modular_std_dev,
+                cks.parameters.glwe_noise_distribution(),
                 CiphertextModulus::new_native(),
                 &mut self.encryption_generator,
             );
@@ -342,7 +342,7 @@ impl Bootstrapper {
             &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
-            cks.parameters.glwe_modular_std_dev,
+            cks.parameters.glwe_noise_distribution(),
             CiphertextModulus::new_native(),
             &mut self.seeder,
         );
@@ -353,7 +353,7 @@ impl Bootstrapper {
             &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
-            cks.parameters.glwe_modular_std_dev,
+            cks.parameters.glwe_noise_distribution(),
             CiphertextModulus::new_native(),
             &mut self.seeder,
         );

@@ -159,6 +159,14 @@ impl ClassicPBSParameters {
             noise_level,
         }
     }
+
+    pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        DynamicDistribution::new_gaussian_from_std_dev(self.lwe_modular_std_dev)
+    }
+
+    pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        DynamicDistribution::new_gaussian_from_std_dev(self.glwe_modular_std_dev)
+    }
 }
 
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
@@ -257,22 +265,14 @@ impl PBSParameters {
     }
     pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         match self {
-            Self::PBS(params) => {
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev)
-            }
-            Self::MultiBitPBS(params) => {
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev)
-            }
+            Self::PBS(params) => params.lwe_noise_distribution(),
+            Self::MultiBitPBS(params) => params.lwe_noise_distribution(),
         }
     }
     pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         match self {
-            Self::PBS(params) => {
-                DynamicDistribution::new_gaussian_from_std_dev(params.glwe_modular_std_dev)
-            }
-            Self::MultiBitPBS(params) => {
-                DynamicDistribution::new_gaussian_from_std_dev(params.glwe_modular_std_dev)
-            }
+            Self::PBS(params) => params.glwe_noise_distribution(),
+            Self::MultiBitPBS(params) => params.glwe_noise_distribution(),
         }
     }
     pub const fn pbs_base_log(&self) -> DecompositionBaseLog {

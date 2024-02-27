@@ -51,21 +51,13 @@ pub fn generate_keys<
 
     let big_lwe_sk = glwe_sk.clone().into_lwe_secret_key();
 
-    // TODO, once primitives use Distribution as inputs remove this adaptation layer
-    let lwe_std_dev = match params.lwe_noise_distribution {
-        DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev(),
-        DynamicDistribution::TUniform(_) => {
-            panic!("Unsupported distribution for lwe_pfpksk_list generation")
-        }
-    };
-
     // allocation and generation of the key in coef domain:
     let std_bsk = allocate_and_generate_new_lwe_bootstrap_key(
         &small_lwe_sk,
         &glwe_sk,
         params.pbs_base_log,
         params.pbs_level,
-        lwe_std_dev,
+        params.lwe_noise_distribution,
         params.ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -92,7 +84,7 @@ pub fn generate_keys<
         &glwe_sk,
         params.pfks_base_log,
         params.pfks_level,
-        lwe_std_dev,
+        params.lwe_noise_distribution,
         params.ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -119,7 +111,7 @@ pub fn test_extract_bits() {
     let base_log_ksk = DecompositionBaseLog(4);
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
-    let noise_distribution_std = DynamicDistribution::new_gaussian(std);
+    let noise_distribution = DynamicDistribution::new_gaussian(std);
 
     let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -143,7 +135,7 @@ pub fn test_extract_bits() {
         &glwe_sk,
         base_log_bsk,
         level_bsk,
-        std,
+        noise_distribution,
         ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -166,7 +158,7 @@ pub fn test_extract_bits() {
             &lwe_small_sk,
             base_log_ksk,
             level_ksk,
-            noise_distribution_std,
+            noise_distribution,
             ciphertext_modulus,
             &mut rsc.encryption_random_generator,
         );
@@ -217,7 +209,7 @@ pub fn test_extract_bits() {
             &lwe_big_sk,
             &mut lwe_in,
             message,
-            noise_distribution_std,
+            noise_distribution,
             &mut rsc.encryption_random_generator,
         );
 
@@ -282,7 +274,7 @@ fn test_circuit_bootstrapping_binary() {
     let base_log_cbs = DecompositionBaseLog(10);
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
-    let noise_distribution_std = DynamicDistribution::new_gaussian(std);
+    let noise_distribution = DynamicDistribution::new_gaussian(std);
 
     let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -305,7 +297,7 @@ fn test_circuit_bootstrapping_binary() {
         &glwe_sk,
         base_log_bsk,
         level_bsk,
-        std,
+        noise_distribution,
         ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -333,7 +325,7 @@ fn test_circuit_bootstrapping_binary() {
         &glwe_sk,
         base_log_pksk,
         level_pksk,
-        std,
+        noise_distribution,
         ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
@@ -351,7 +343,7 @@ fn test_circuit_bootstrapping_binary() {
             &lwe_sk,
             &mut lwe_in,
             message,
-            noise_distribution_std,
+            noise_distribution,
             &mut rsc.encryption_random_generator,
         );
 
@@ -468,6 +460,7 @@ pub fn test_cmux_tree() {
     let polynomial_size = PolynomialSize(512);
     let glwe_dimension = GlweDimension(1);
     let std = LogStandardDev::from_log_standard_dev(-60.);
+    let noise_distribution = DynamicDistribution::new_gaussian(std);
     let level = DecompositionLevelCount(3);
     let base_log = DecompositionBaseLog(6);
     let ciphertext_modulus = CiphertextModulus::new_native();
@@ -550,7 +543,7 @@ pub fn test_cmux_tree() {
                 &glwe_sk,
                 &mut ggsw,
                 single_bit_msg,
-                std,
+                noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -603,7 +596,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let level_ksk = DecompositionLevelCount(9);
     let base_log_ksk = DecompositionBaseLog(1);
     let std_big = params.glwe_modular_std_dev;
-    let noise_distribution_big_std = DynamicDistribution::new_gaussian_from_std_dev(std_big);
+    let noise_distribution_big_std = DynamicDistribution::new_gaussian(std_big);
 
     let mut rsc = TestResources::new();
 

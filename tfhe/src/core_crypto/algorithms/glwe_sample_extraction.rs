@@ -26,7 +26,8 @@ use rayon::prelude::*;
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -59,7 +60,7 @@ use rayon::prelude::*;
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -164,7 +165,8 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -194,7 +196,7 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -270,7 +272,8 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
-/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -300,7 +303,7 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont
 ///     &glwe_secret_key,
 ///     &mut glwe,
 ///     &plaintext_list,
-///     glwe_modular_std_dev,
+///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
 ///
