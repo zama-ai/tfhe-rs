@@ -3,10 +3,9 @@
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
-use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::PlaintextCount;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -69,14 +68,15 @@ use rayon::prelude::*;
 /// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
 /// assert_eq!(decrypted, plaintext);
 /// ```
-pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -143,7 +143,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
                 (row_index, last_row_index),
                 factor,
                 &mut row_as_glwe,
-                noise_parameters,
+                noise_distribution,
                 &mut generator,
             );
         }
@@ -209,14 +209,15 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
 /// assert_eq!(decrypted, plaintext);
 /// ```
-pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
@@ -283,7 +284,7 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
                         (row_index, last_row_index),
                         factor,
                         &mut row_as_glwe,
-                        noise_parameters,
+                        noise_distribution,
                         &mut generator,
                     );
                 });
@@ -297,15 +298,16 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_constant_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
+fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
     row_as_glwe: &mut GlweCiphertext<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -327,7 +329,7 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
         body.as_mut().fill(Scalar::ZERO);
         body.as_mut()[0] = factor.wrapping_neg();
     }
-    encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
+    encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_distribution, generator);
 }
 
 /// Convenience function to share the core logic of the seeded GGSW encryption between all
@@ -339,6 +341,7 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
 /// the right bytes are generated at the right time.
 pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     Gen,
@@ -346,12 +349,13 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar> + std::fmt::Debug,
+    OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
     // Generators used to have same sequential and parallel key generation
@@ -400,7 +404,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
                 (row_index, last_row_index),
                 factor,
                 &mut row_as_glwe,
-                noise_parameters,
+                noise_distribution,
                 &mut loop_generator,
             );
         }
@@ -464,16 +468,23 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 ///     seeder,
 /// );
 /// ```
-pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
+pub fn encrypt_constant_seeded_ggsw_ciphertext<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    NoiseSeeder,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar> + std::fmt::Debug,
+    OutputCont: ContainerMut<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
@@ -502,7 +513,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Nois
         glwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }
@@ -516,6 +527,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Nois
 /// the right bytes are generated at the right time.
 pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     Gen,
@@ -523,10 +535,11 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
@@ -576,7 +589,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
                         (row_index, last_row_index),
                         factor,
                         &mut row_as_glwe,
-                        noise_parameters,
+                        noise_distribution,
                         &mut generator,
                     );
                 });
@@ -642,14 +655,21 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 ///     seeder,
 /// );
 /// ```
-pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
+pub fn par_encrypt_constant_seeded_ggsw_ciphertext<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    NoiseSeeder,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
@@ -680,7 +700,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, 
         glwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }
@@ -691,15 +711,22 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, 
 /// ([`par_encrypt_constant_seeded_ggsw_ciphertext`]) variants of the GGSW ciphertext encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
+fn encrypt_constant_seeded_ggsw_level_matrix_row<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
     row_as_glwe: &mut SeededGlweCiphertext<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -724,7 +751,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Ge
     encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
         glwe_secret_key,
         row_as_glwe,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }

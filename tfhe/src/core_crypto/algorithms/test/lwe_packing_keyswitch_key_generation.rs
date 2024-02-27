@@ -19,7 +19,9 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
     let input_lwe_dimension = LweDimension(742);
     let output_glwe_dimension = GlweDimension(1);
     let output_polynomial_size = PolynomialSize(2048);
-    let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+    let glwe_noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    ));
     let decomp_base_log = DecompositionBaseLog(3);
     let decomp_level_count = DecompositionLevelCount(5);
 
@@ -64,7 +66,7 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
             &input_lwe_secret_key,
             &output_glwe_secret_key,
             &mut pksk,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut encryption_generator,
         );
 
@@ -91,7 +93,7 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
             &input_lwe_secret_key,
             &output_glwe_secret_key,
             &mut seeded_pksk,
-            glwe_modular_std_dev,
+            glwe_noise_distribution,
             &mut deterministic_seeder,
         );
 

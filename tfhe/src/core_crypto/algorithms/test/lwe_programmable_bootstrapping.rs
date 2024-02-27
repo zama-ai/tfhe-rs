@@ -40,7 +40,7 @@ pub fn generate_keys<
         &input_lwe_secret_key,
         &output_glwe_secret_key,
         &mut bsk,
-        params.glwe_modular_std_dev,
+        params.glwe_noise_distribution,
         &mut rsc.encryption_random_generator,
     );
 
@@ -381,7 +381,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U128: ClassicTestParams<u128> = ClassicTestP
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         4.9982771e-11,
     )),
-    glwe_modular_std_dev: StandardDev(8.6457178e-32),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        8.6457178e-32,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -402,7 +404,9 @@ pub const TEST_PARAMS_3_BITS_127_U128: ClassicTestParams<u128> = ClassicTestPara
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         4.9982771e-11,
     )),
-    glwe_modular_std_dev: StandardDev(8.6457178e-32),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        8.6457178e-32,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),

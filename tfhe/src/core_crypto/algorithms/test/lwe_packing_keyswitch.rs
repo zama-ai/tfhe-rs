@@ -28,7 +28,7 @@ fn generate_keys<Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOw
         &glwe_sk,
         params.pbs_base_log,
         params.pbs_level,
-        params.glwe_modular_std_dev,
+        params.glwe_noise_distribution,
         params.ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );

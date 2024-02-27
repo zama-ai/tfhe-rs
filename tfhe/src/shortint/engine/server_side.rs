@@ -66,7 +66,7 @@ impl ShortintEngine {
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.ciphertext_modulus,
                         &mut self.encryption_generator,
                     );
@@ -93,7 +93,7 @@ impl ShortintEngine {
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
                         pbs_params.grouping_factor,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.ciphertext_modulus,
                         &mut self.encryption_generator,
                     );
@@ -199,7 +199,7 @@ impl ShortintEngine {
                     &cks.glwe_secret_key,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
-                    pbs_params.glwe_modular_std_dev,
+                    pbs_params.glwe_noise_distribution(),
                     pbs_params.ciphertext_modulus,
                     &mut self.seeder,
                 );
@@ -210,7 +210,7 @@ impl ShortintEngine {
                     &cks.glwe_secret_key,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
-                    pbs_params.glwe_modular_std_dev,
+                    pbs_params.glwe_noise_distribution(),
                     pbs_params.ciphertext_modulus,
                     &mut self.seeder,
                 );
@@ -225,7 +225,7 @@ impl ShortintEngine {
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.grouping_factor,
                         pbs_params.ciphertext_modulus,
                         &mut self.seeder,
@@ -238,7 +238,7 @@ impl ShortintEngine {
                         &cks.glwe_secret_key,
                         pbs_params.pbs_base_log,
                         pbs_params.pbs_level,
-                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.glwe_noise_distribution(),
                         pbs_params.grouping_factor,
                         pbs_params.ciphertext_modulus,
                         &mut self.seeder,

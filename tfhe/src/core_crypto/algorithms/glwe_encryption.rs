@@ -5,23 +5,30 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_scalar_div_assign, slice_wrapping_scalar_mul_assign,
 };
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// Convenience function to share the core logic of the GLWE assign encryption between all functions
 /// needing it.
-pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont, Scalar, Gen>(
+pub fn fill_glwe_mask_and_body_for_encryption_assign<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_mask: &mut GlweMask<MaskCont>,
     output_body: &mut GlweBody<BodyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     BodyCont: ContainerMut<Element = Scalar>,
     MaskCont: ContainerMut<Element = Scalar>,
@@ -41,9 +48,9 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 
     generator
         .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
-    generator.unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
+    generator.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign(
         output_body.as_mut(),
-        noise_parameters,
+        noise_distribution,
         ciphertext_modulus,
     );
 
@@ -134,13 +141,14 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
+pub fn encrypt_glwe_ciphertext_assign<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GlweCiphertext<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -166,7 +174,7 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
         glwe_secret_key,
         &mut mask,
         &mut body,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
@@ -178,16 +186,18 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 /// the right bytes are generated at the right time.
 pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     Gen,
 >(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGlweCiphertext<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -224,22 +234,31 @@ pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
         glwe_secret_key,
         &mut mask,
         &mut body,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
 
 /// Convenience function to share the core logic of the GLWE encryption between all functions
 /// needing it.
-pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, MaskCont, Scalar, Gen>(
+pub fn fill_glwe_mask_and_body_for_encryption<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    InputCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_mask: &mut GlweMask<MaskCont>,
     output_body: &mut GlweBody<BodyCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     BodyCont: ContainerMut<Element = Scalar>,
@@ -257,9 +276,9 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 
     generator
         .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
-    generator.fill_slice_with_random_gaussian_noise_custom_mod(
+    generator.fill_slice_with_random_noise_from_distribution_custom_mod(
         output_body.as_mut(),
-        noise_parameters,
+        noise_distribution,
         ciphertext_modulus,
     );
 
@@ -354,14 +373,15 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
+pub fn encrypt_glwe_ciphertext<Scalar, NoiseDistribution, KeyCont, InputCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
     input_plaintext_list: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -396,7 +416,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
         &mut mask,
         &mut body,
         input_plaintext_list,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
@@ -483,14 +503,22 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>(
+pub fn encrypt_glwe_ciphertext_list<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    InputCont,
+    OutputCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_glwe_ciphertext_list: &mut GlweCiphertextList<OutputCont>,
     input_plaintext_list: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -533,7 +561,7 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
             glwe_secret_key,
             &mut ciphertext,
             &encoded,
-            noise_parameters,
+            noise_distribution,
             generator,
         );
     }
@@ -835,6 +863,7 @@ where
 /// functions needing it.
 pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     InputCont,
@@ -843,10 +872,11 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_glwe_ciphertext: &mut SeededGlweCiphertext<OutputCont>,
     input_plaintext_list: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -891,7 +921,7 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
         &mut tmp_mask,
         &mut body,
         input_plaintext_list,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 }
@@ -971,14 +1001,22 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, NoiseSeeder>(
+pub fn encrypt_seeded_glwe_ciphertext<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    InputCont,
+    OutputCont,
+    NoiseSeeder,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_glwe_ciphertext: &mut SeededGlweCiphertext<OutputCont>,
     input_plaintext_list: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -994,7 +1032,7 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
         glwe_secret_key,
         output_glwe_ciphertext,
         input_plaintext_list,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }
@@ -1008,6 +1046,7 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
 /// the right bytes are generated at the right time.
 pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     Scalar,
+    NoiseDistribution,
     KeyCont,
     OutputCont,
     InputCont,
@@ -1016,10 +1055,11 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGlweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -1067,7 +1107,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
             &mut output_mask,
             &mut output_glwe.get_mut_body(),
             &plaintext_list,
-            noise_parameters,
+            noise_distribution,
             generator,
         );
     }
@@ -1153,14 +1193,22 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
 /// ```
-pub fn encrypt_seeded_glwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, NoiseSeeder>(
+pub fn encrypt_seeded_glwe_ciphertext_list<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    NoiseSeeder,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGlweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
@@ -1176,7 +1224,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCon
         glwe_secret_key,
         output,
         encoded,
-        noise_parameters,
+        noise_distribution,
         &mut generator,
     );
 }

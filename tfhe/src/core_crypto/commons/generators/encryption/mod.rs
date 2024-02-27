@@ -4,12 +4,10 @@ pub(crate) mod mask_random_generator;
 pub(crate) mod noise_random_generator;
 #[cfg(test)]
 mod test;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Distribution, Gaussian, ParallelByteRandomGenerator, RandomGenerable,
-    Seed, Seeder, Uniform,
+    ByteRandomGenerator, Distribution, ParallelByteRandomGenerator, RandomGenerable, Seed, Seeder,
+    Uniform,
 };
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweSize,
@@ -335,66 +333,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             .unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign(
                 output,
                 distribution,
-                custom_modulus,
-            );
-    }
-
-    // Fills the input slice with random noise, using the noise generator.
-    pub(crate) fn fill_slice_with_random_gaussian_noise<Scalar>(
-        &mut self,
-        output: &mut [Scalar],
-        std: impl DispersionParameter,
-    ) where
-        Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
-    {
-        self.noise
-            .fill_slice_with_random_gaussian_noise(output, std);
-    }
-
-    // Fills the input slice with random noise, using the noise generator.
-    pub(crate) fn fill_slice_with_random_gaussian_noise_custom_mod<Scalar>(
-        &mut self,
-        output: &mut [Scalar],
-        std: impl DispersionParameter,
-        custom_modulus: CiphertextModulus<Scalar>,
-    ) where
-        Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
-    {
-        self.noise
-            .fill_slice_with_random_gaussian_noise_custom_mod(output, std, custom_modulus);
-    }
-
-    // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign<Scalar>(
-        &mut self,
-        output: &mut [Scalar],
-        std: impl DispersionParameter,
-    ) where
-        Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
-    {
-        self.noise
-            .unsigned_torus_slice_wrapping_add_random_gaussian_noise_assign(output, std);
-    }
-
-    // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign<
-        Scalar,
-    >(
-        &mut self,
-        output: &mut [Scalar],
-        std: impl DispersionParameter,
-        custom_modulus: CiphertextModulus<Scalar>,
-    ) where
-        Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
-    {
-        self.noise
-            .unsigned_torus_slice_wrapping_add_random_gaussian_noise_custom_mod_assign(
-                output,
-                std,
                 custom_modulus,
             );
     }

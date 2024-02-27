@@ -1,7 +1,9 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seed};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, DynamicDistribution, Seed,
+};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
@@ -35,6 +37,9 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
         let deterministic_seeder_seed =
             Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
 
+        let noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(StandardDev::from_standard_dev(10.));
+
         let mut secret_generator = new_secret_random_generator();
         let lwe_sk =
             allocate_and_generate_new_binary_lwe_secret_key(lwe_dim, &mut secret_generator);
@@ -63,7 +68,7 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
             &lwe_sk,
             &glwe_sk,
             &mut parallel_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut encryption_generator,
         );
 
@@ -86,7 +91,7 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
             &lwe_sk,
             &glwe_sk,
             &mut sequential_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut encryption_generator,
         );
 
@@ -107,7 +112,7 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
             &lwe_sk,
             &glwe_sk,
             &mut sequential_seeded_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
         );
 
@@ -126,7 +131,7 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
             &lwe_sk,
             &glwe_sk,
             &mut parallel_seeded_bsk,
-            StandardDev::from_standard_dev(10.),
+            noise_distribution,
             &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed),
         );
 

@@ -3,9 +3,9 @@
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
+use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -18,6 +18,7 @@ use rayon::prelude::*;
 /// generation times.
 pub fn generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     KSKeyCont,
@@ -28,12 +29,13 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKey<KSKeyCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
     f: ScalarFunc,
     polynomial: &Polynomial<PolyCont>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     KSKeyCont: ContainerMut<Element = Scalar>,
@@ -127,7 +129,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
             output_glwe_secret_key,
             &mut keyswitch_key_block,
             &messages,
-            noise_parameters,
+            noise_distribution,
             &mut loop_generator,
         );
     }
@@ -137,6 +139,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
 /// use this variant for better key generation times.
 pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     KSKeyCont,
@@ -147,12 +150,13 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKey<KSKeyCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
     f: ScalarFunc,
     polynomial: &Polynomial<PolyCont>,
 ) where
-    Scalar: UnsignedTorus + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     KSKeyCont: ContainerMut<Element = Scalar> + Sync,
@@ -244,7 +248,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                     output_glwe_secret_key,
                     &mut keyswitch_key_block,
                     &messages,
-                    noise_parameters,
+                    noise_distribution,
                     &mut loop_generator,
                 );
             },
@@ -280,6 +284,7 @@ mod test {
                 Seed(crate::core_crypto::commons::test_tools::random_uint_between(0..u128::MAX));
 
             let var_small = Variance::from_variance(2f64.powf(-80.0));
+            let gaussian_small = Gaussian::from_dispersion_parameter(var_small, 0.0);
 
             let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -308,7 +313,7 @@ mod test {
                 &glwe_sk,
                 pfpksk_base_log,
                 pfpksk_level_count,
-                var_small,
+                gaussian_small,
                 ciphertext_modulus,
                 &mut encryption_generator,
             );
@@ -326,7 +331,7 @@ mod test {
                 &glwe_sk,
                 pfpksk_base_log,
                 pfpksk_level_count,
-                var_small,
+                gaussian_small,
                 ciphertext_modulus,
                 &mut encryption_generator,
             );

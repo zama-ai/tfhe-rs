@@ -60,7 +60,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestPar
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000007069849454709433,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -81,7 +83,9 @@ pub const TEST_PARAMS_3_BITS_63_U64: ClassicTestParams<u64> = ClassicTestParams 
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000007069849454709433,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -102,7 +106,9 @@ pub const TEST_PARAMS_3_BITS_SOLINAS_U64: ClassicTestParams<u64> = ClassicTestPa
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000007069849454709433,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -123,7 +129,9 @@ pub const DUMMY_NATIVE_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000007069849454709433,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -144,7 +152,9 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000007069849454709433,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -167,7 +177,9 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000003152931493498455,
+    )),
     message_modulus_log: CiphertextModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(2),
@@ -183,7 +195,9 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000003152931493498455,
+    )),
     message_modulus_log: CiphertextModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(2),
@@ -199,7 +213,9 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000003152931493498455,
+    )),
     message_modulus_log: CiphertextModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
@@ -215,7 +231,9 @@ pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     decomp_level_count: DecompositionLevelCount(1),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000003152931493498455,
+    )),
     message_modulus_log: CiphertextModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(3),
@@ -232,7 +250,9 @@ pub const FFT_U32_PARAMS: FftTestParams<u32> = FftTestParams {
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000004998277131225527,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000000000000000000008645717832544903,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
@@ -245,7 +265,9 @@ pub const FFT_U64_PARAMS: FftTestParams<u64> = FftTestParams {
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000004998277131225527,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000000000000000000008645717832544903,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
@@ -258,7 +280,9 @@ pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000004998277131225527,
     )),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000000000000000000008645717832544903,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
@@ -269,7 +293,9 @@ pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.12345)),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000000000000000000008645717832544903,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ciphertext_modulus: CiphertextModulus::<u128>::new_native(),

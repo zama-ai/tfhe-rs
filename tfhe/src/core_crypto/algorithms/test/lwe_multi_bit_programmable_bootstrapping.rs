@@ -48,7 +48,7 @@ pub fn generate_keys<
         &input_lwe_secret_key,
         &output_glwe_secret_key,
         &mut bsk,
-        params.glwe_modular_std_dev,
+        params.glwe_noise_distribution,
         &mut rsc.encryption_random_generator,
     );
 

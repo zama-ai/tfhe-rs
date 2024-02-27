@@ -3,7 +3,8 @@
 use super::CiphertextConformanceParams;
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweDimension, PolynomialSize,
 };
 use crate::core_crypto::prelude::LweCiphertextParameters;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -79,6 +80,14 @@ impl MultiBitPBSParameters {
             degree,
             noise_level,
         }
+    }
+
+    pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        DynamicDistribution::new_gaussian_from_std_dev(self.lwe_modular_std_dev)
+    }
+
+    pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        DynamicDistribution::new_gaussian_from_std_dev(self.glwe_modular_std_dev)
     }
 }
 

@@ -83,7 +83,7 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
     poly_size: usize,
     level_count: usize,
     base_log: usize,
-    glwe_modular_variance: f64,
+    glwe_encryption_std_dev: f64,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -123,13 +123,14 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
             CiphertextModulus::new_native(),
         );
 
-        let glwe_encryption_std_dev = StandardDev(glwe_modular_variance);
+        let glwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
 
         encrypt_constant_ggsw_ciphertext(
             &glwe_sk,
             &mut ct,
             plaintext,
-            glwe_encryption_std_dev,
+            glwe_noise_distribution,
             &mut encryption_generator,
         );
     })
@@ -293,13 +294,14 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_bootstrapping_key(
             CiphertextModulus::new_native(),
         );
 
-        let glwe_encryption_std_dev = StandardDev(glwe_encryption_std_dev);
+        let glwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
 
         par_generate_lwe_bootstrap_key(
             &input_lwe_sk,
             &output_glwe_sk,
             &mut bsk,
-            glwe_encryption_std_dev,
+            glwe_noise_distribution,
             &mut encryption_random_generator,
         )
     })
@@ -380,13 +382,14 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
             CiphertextModulus::new_native(),
         );
 
-        let glwe_encryption_std_dev = StandardDev(glwe_encryption_std_dev);
+        let glwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
 
         par_generate_lwe_multi_bit_bootstrap_key(
             &input_lwe_sk,
             &output_glwe_sk,
             &mut bsk,
-            glwe_encryption_std_dev,
+            glwe_noise_distribution,
             &mut encryption_random_generator,
         );
     })
@@ -529,13 +532,14 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_private_functional_keyswit
             CiphertextModulus::new_native(),
         );
 
-        let lwe_encryption_std_dev = StandardDev(lwe_encryption_std_dev);
+        let lwe_noise_distribution =
+            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
 
         generate_circuit_bootstrap_lwe_pfpksk_list(
             &mut fp_ksk,
             &input_lwe_sk,
             &output_glwe_sk,
-            lwe_encryption_std_dev,
+            lwe_noise_distribution,
             &mut encryption_random_generator,
         )
     })

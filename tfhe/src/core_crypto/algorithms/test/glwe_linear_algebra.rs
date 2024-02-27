@@ -10,7 +10,7 @@ fn glwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -44,7 +44,7 @@ fn glwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -89,7 +89,7 @@ create_parametrized_test!(glwe_encrypt_add_assign_decrypt_custom_mod);
 fn glwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -123,7 +123,7 @@ fn glwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -172,7 +172,7 @@ fn glwe_encrypt_plaintext_list_add_assign_decrypt_custom_mod<Scalar: UnsignedTor
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -206,7 +206,7 @@ fn glwe_encrypt_plaintext_list_add_assign_decrypt_custom_mod<Scalar: UnsignedTor
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -251,7 +251,7 @@ fn glwe_encrypt_plaintext_list_sub_assign_decrypt_custom_mod<Scalar: UnsignedTor
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -285,7 +285,7 @@ fn glwe_encrypt_plaintext_list_sub_assign_decrypt_custom_mod<Scalar: UnsignedTor
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -330,7 +330,7 @@ fn glwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -365,7 +365,7 @@ fn glwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -410,7 +410,7 @@ fn glwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -445,7 +445,7 @@ fn glwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -490,7 +490,7 @@ fn glwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -524,7 +524,7 @@ fn glwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -571,7 +571,7 @@ fn glwe_encrypt_cleartext_mul_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -606,7 +606,7 @@ fn glwe_encrypt_cleartext_mul_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -653,7 +653,7 @@ fn glwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -688,7 +688,7 @@ fn glwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -737,7 +737,7 @@ fn glwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -771,7 +771,7 @@ fn glwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -816,7 +816,7 @@ create_parametrized_test!(glwe_encrypt_sub_assign_decrypt_custom_mod);
 fn glwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -850,7 +850,7 @@ fn glwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
                 &glwe_sk,
                 &mut glwe,
                 &plaintext_list,
-                glwe_modular_std_dev,
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 

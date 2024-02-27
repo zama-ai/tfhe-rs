@@ -2,9 +2,8 @@
 //! [`standard LWE multi_bit bootstrap keys`](`LweMultiBitBootstrapKey`).
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -84,14 +83,22 @@ use rayon::prelude::*;
 ///     }
 /// }
 /// ```
-pub fn generate_lwe_multi_bit_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
+pub fn generate_lwe_multi_bit_bootstrap_key<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    Gen,
+>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     output: &mut LweMultiBitBootstrapKey<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + CastFrom<usize>,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -164,7 +171,7 @@ pub fn generate_lwe_multi_bit_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont,
                 output_glwe_secret_key,
                 &mut ggsw,
                 Plaintext(key_bits_plaintext),
-                noise_parameters,
+                noise_distribution,
                 &mut inner_loop_generator,
             );
         }
@@ -174,6 +181,7 @@ pub fn generate_lwe_multi_bit_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont,
 #[allow(clippy::too_many_arguments)]
 pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     Gen,
@@ -183,12 +191,13 @@ pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweMultiBitBootstrapKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus + CastFrom<usize>,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
@@ -208,7 +217,7 @@ where
         input_lwe_secret_key,
         output_glwe_secret_key,
         &mut bsk,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -301,6 +310,7 @@ where
 /// ```
 pub fn par_generate_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     OutputCont,
@@ -309,10 +319,11 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     output: &mut LweMultiBitBootstrapKey<OutputCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -390,7 +401,7 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
                             output_glwe_secret_key,
                             ggsw,
                             Plaintext(key_bits_plaintext),
-                            noise_parameters,
+                            noise_distribution,
                             &mut inner_loop_generator,
                         );
                     });
@@ -429,6 +440,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     Gen,
@@ -438,12 +450,13 @@ pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweMultiBitBootstrapKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
@@ -463,7 +476,7 @@ where
         input_lwe_secret_key,
         output_glwe_secret_key,
         &mut bsk,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -479,6 +492,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     OutputCont,
@@ -487,10 +501,11 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     output: &mut SeededLweMultiBitBootstrapKey<OutputCont>,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus + CastFrom<usize>,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -593,7 +608,7 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
                 output_glwe_secret_key,
                 &mut ggsw,
                 Plaintext(key_bits_plaintext),
-                noise_parameters,
+                noise_distribution,
                 &mut inner_loop_generator,
             );
         }
@@ -609,6 +624,7 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
 #[allow(clippy::too_many_arguments)]
 pub fn allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     NoiseSeeder,
@@ -617,13 +633,14 @@ pub fn allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter,
+    noise_distribution: NoiseDistribution,
     grouping_factor: LweBskGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus + CastFrom<usize>,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
@@ -645,7 +662,7 @@ where
         input_lwe_secret_key,
         output_glwe_secret_key,
         &mut bsk,
-        noise_parameters,
+        noise_distribution,
         noise_seeder,
     );
 
@@ -657,6 +674,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     OutputCont,
@@ -665,10 +683,11 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     output: &mut SeededLweMultiBitBootstrapKey<OutputCont>,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -752,7 +771,7 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
                             output_glwe_secret_key,
                             ggsw,
                             Plaintext(key_bits_plaintext),
-                            noise_parameters,
+                            noise_distribution,
                             &mut inner_loop_generator,
                         );
                     });
@@ -766,6 +785,7 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
 #[allow(clippy::too_many_arguments)]
 pub fn par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     Scalar,
+    NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
     NoiseSeeder,
@@ -774,13 +794,14 @@ pub fn par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: impl DispersionParameter + Sync,
+    noise_distribution: NoiseDistribution,
     grouping_factor: LweBskGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
 where
-    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     // Maybe Sized allows to pass Box<dyn Seeder>.
@@ -802,7 +823,7 @@ where
         input_lwe_secret_key,
         output_glwe_secret_key,
         &mut bsk,
-        noise_parameters,
+        noise_distribution,
         noise_seeder,
     );
 

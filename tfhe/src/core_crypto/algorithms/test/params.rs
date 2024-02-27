@@ -52,7 +52,7 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub glwe_modular_std_dev: StandardDev,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
@@ -74,7 +74,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub decomp_level_count: DecompositionLevelCount,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub glwe_modular_std_dev: StandardDev,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub message_modulus_log: CiphertextModulusLog,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
     pub grouping_factor: LweBskGroupingFactor,
@@ -91,7 +91,7 @@ impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
             && self.decomp_level_count == other.decomp_level_count
             && self.glwe_dimension == other.glwe_dimension
             && self.polynomial_size == other.polynomial_size
-            && self.glwe_modular_std_dev == other.glwe_modular_std_dev
+            && self.glwe_noise_distribution == other.glwe_noise_distribution
             && self.message_modulus_log == other.message_modulus_log
             && self.ciphertext_modulus == other.ciphertext_modulus
             && self.grouping_factor == other.grouping_factor
@@ -99,13 +99,13 @@ impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
 }
 
 // Parameters to test FFT implementation
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FftTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub glwe_modular_std_dev: StandardDev,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -128,13 +128,13 @@ pub struct FftWopPbsTestParams<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PackingKeySwitchTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub glwe_modular_std_dev: StandardDev,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub message_modulus_log: CiphertextModulusLog,
@@ -150,7 +150,7 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> From<ClassicTe
             glwe_dimension: params.glwe_dimension,
             polynomial_size: params.polynomial_size,
             lwe_noise_distribution: params.lwe_noise_distribution,
-            glwe_modular_std_dev: params.glwe_modular_std_dev,
+            glwe_noise_distribution: params.glwe_noise_distribution,
             pbs_base_log: params.pbs_base_log,
             pbs_level: params.pbs_level,
             message_modulus_log: params.message_modulus_log,
@@ -187,7 +187,7 @@ impl<Scalar: UnsignedInteger> NamedParam for FftTestParams<Scalar> {
                 self.glwe_dimension.0, self.polynomial_size.0, self.pbs_base_log.0,
                 self.pbs_level.0,
                 self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_noise_distribution,
-                self.glwe_modular_std_dev.0.to_string().replace('.', "-"),
+                self.glwe_noise_distribution,
             )
     }
 }
@@ -211,7 +211,7 @@ impl<Scalar: UnsignedInteger> NamedParam for PackingKeySwitchTestParams<Scalar> 
                 self.glwe_dimension.0, self.polynomial_size.0, self.pbs_base_log.0,
                 self.pbs_level.0,
                 self.lwe_dimension.0, self.ciphertext_modulus, self.lwe_noise_distribution,
-                self.glwe_modular_std_dev.0.to_string().replace('.', "-"),
+                self.glwe_noise_distribution,
             )
     }
 }

@@ -42,6 +42,10 @@ impl WopbsParameters {
     pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         DynamicDistribution::new_gaussian_from_std_dev(self.glwe_modular_std_dev)
     }
+
+    pub const fn pfks_noise_distribution(&self) -> DynamicDistribution<u64> {
+        DynamicDistribution::new_gaussian_from_std_dev(self.pfks_modular_std_dev)
+    }
 }
 
 pub const ALL_PARAMETER_VEC_WOPBS_NORM2: [WopbsParameters; 31] = [

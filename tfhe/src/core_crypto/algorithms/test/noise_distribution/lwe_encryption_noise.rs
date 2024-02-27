@@ -19,12 +19,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let expected_variance = match lwe_noise_distribution {
-        DynamicDistribution::Gaussian(gaussian) => Variance(gaussian.standard_dev().get_variance()),
-        DynamicDistribution::TUniform(_) => {
-            panic!("Unsupported distribution for noise measurement.")
-        }
-    };
+    let expected_variance = lwe_noise_distribution.gaussian_variance();
 
     let mut rsc = TestResources::new();
 
@@ -119,14 +114,15 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = LweDimension(params.polynomial_size.0);
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
-    let glwe_noise_distribution =
-        DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev);
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
+
+    let glwe_variance = glwe_noise_distribution.gaussian_variance();
+
     let expected_variance =
-        lwe_compact_public_key_encryption_expected_variance(glwe_modular_std_dev, lwe_dimension);
+        lwe_compact_public_key_encryption_expected_variance(glwe_variance, lwe_dimension);
 
     let mut rsc = TestResources::new();
 
@@ -206,16 +202,19 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
     let mut rsc = TestResources::new();
-    let noise = params.glwe_modular_std_dev;
+    let noise = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let encryption_rng = &mut rsc.encryption_random_generator;
-    let expected_variance = Variance(noise.get_variance());
+
+    assert!(matches!(noise, DynamicDistribution::Gaussian(_)));
+
+    let expected_variance = noise.gaussian_variance();
 
     let num_ouptuts = 100_000;
 
     let mut output: Vec<_> = vec![Scalar::ZERO; num_ouptuts];
 
-    encryption_rng.fill_slice_with_random_gaussian_noise_custom_mod(
+    encryption_rng.fill_slice_with_random_noise_from_distribution_custom_mod(
         &mut output,
         noise,
         ciphertext_modulus,
