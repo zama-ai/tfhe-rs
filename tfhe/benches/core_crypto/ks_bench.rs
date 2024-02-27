@@ -143,7 +143,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let id = format!("{bench_name}_{name}");
+        let id = format!("{bench_name}::{name}");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
@@ -251,7 +251,7 @@ mod cuda {
             }
             stream.synchronize();
 
-            let id = format!("{bench_name}_{name}");
+            let id = format!("{bench_name}::{name}");
             {
                 bench_group.bench_function(&id, |b| {
                     b.iter(|| {
