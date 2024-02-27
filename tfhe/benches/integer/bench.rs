@@ -1190,7 +1190,7 @@ mod cuda {
     use crate::utilities::{write_to_json, EnvConfig, OperatorType};
     use criterion::{criterion_group, Criterion};
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::integer::IntegerKeyKind;
@@ -1202,7 +1202,7 @@ mod cuda {
         display_name: &str,
         unary_op: F,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaStream),
+        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, &CudaStream),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1229,7 +1229,7 @@ mod cuda {
                     let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream)
+                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &stream)
                 };
 
                 b.iter_batched(
@@ -1263,7 +1263,12 @@ mod cuda {
         display_name: &str,
         binary_op: F,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &mut CudaRadixCiphertext, &CudaStream),
+        F: Fn(
+            &CudaServerKey,
+            &mut CudaUnsignedRadixCiphertext,
+            &mut CudaUnsignedRadixCiphertext,
+            &CudaStream,
+        ),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1295,8 +1300,10 @@ mod cuda {
                     let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
-                    let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
+                    let d_ctxt_1 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+                    let d_ctxt_2 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
 
                     (d_ctxt_1, d_ctxt_2)
                 };
@@ -1331,7 +1338,7 @@ mod cuda {
         binary_op: F,
         rng_func: G,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, ScalarType, &CudaStream),
+        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, ScalarType, &CudaStream),
         G: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
@@ -1364,7 +1371,8 @@ mod cuda {
                     let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+                    let d_ctxt_1 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
 
                     let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
 
@@ -1432,9 +1440,12 @@ mod cuda {
                     let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_else = cks.encrypt_radix(clear_1, num_block);
 
-                    let d_ct_cond = CudaRadixCiphertext::from_radix_ciphertext(&ct_cond, &stream);
-                    let d_ct_then = CudaRadixCiphertext::from_radix_ciphertext(&ct_then, &stream);
-                    let d_ct_else = CudaRadixCiphertext::from_radix_ciphertext(&ct_else, &stream);
+                    let d_ct_cond =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cond, &stream);
+                    let d_ct_then =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_then, &stream);
+                    let d_ct_else =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_else, &stream);
 
                     (d_ct_cond, d_ct_then, d_ct_else)
                 };
@@ -1908,7 +1919,7 @@ mod cuda {
         display_name: &str,
         cast_op: F,
     ) where
-        F: Fn(&CudaServerKey, CudaRadixCiphertext, usize),
+        F: Fn(&CudaServerKey, CudaUnsignedRadixCiphertext, usize),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1939,9 +1950,9 @@ mod cuda {
                     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
 
-                    let encrypt_one_value = || -> CudaRadixCiphertext {
+                    let encrypt_one_value = || -> CudaUnsignedRadixCiphertext {
                         let ct = cks.encrypt_radix(gen_random_u256(&mut rng), num_blocks);
-                        CudaRadixCiphertext::from_radix_ciphertext(&ct, &stream)
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream)
                     };
 
                     b.iter_batched(

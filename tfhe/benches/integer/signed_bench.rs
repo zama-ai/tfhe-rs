@@ -13,9 +13,11 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
 
-use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-};
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+#[cfg(not(feature = "gpu"))]
+use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+#[cfg(feature = "gpu")]
+use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
     let clearlow = rng.gen::<u128>();
@@ -37,6 +39,9 @@ impl Default for ParamsAndNumBlocksIter {
         let env_config = EnvConfig::new();
 
         if env_config.is_multi_bit {
+            #[cfg(feature = "gpu")]
+            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+            #[cfg(not(feature = "gpu"))]
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 
             let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
@@ -1194,29 +1199,179 @@ define_server_key_bench_cast_fn!(method_name: cast_to_signed, display_name: cast
 
 criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 
+#[cfg(feature = "gpu")]
+mod cuda {
+    use super::*;
+    use crate::utilities::{write_to_json, OperatorType};
+    use criterion::{criterion_group, Criterion};
+    use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+    use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe::integer::keycache::KEY_CACHE;
+    use tfhe::integer::IntegerKeyKind;
+    use tfhe::keycache::NamedParam;
+
+    /// Base function to bench a server key function that is a binary operation, input ciphertext
+    /// will contain only zero carries
+    fn bench_cuda_server_key_binary_signed_function_clean_inputs<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        binary_op: F,
+    ) where
+        F: Fn(
+            &CudaServerKey,
+            &mut CudaSignedRadixCiphertext,
+            &mut CudaSignedRadixCiphertext,
+            &CudaStream,
+        ),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_two_values = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_1 = tfhe::integer::I256::from((clearlow, clearhigh));
+                    let ct_1 = cks.encrypt_signed_radix(clear_1, num_block);
+
+                    let d_ctxt_1 =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
+                    let d_ctxt_2 =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_1, &stream);
+
+                    (d_ctxt_1, d_ctxt_2)
+                };
+
+                b.iter_batched(
+                    encrypt_two_values,
+                    |(mut ct_0, mut ct_1)| {
+                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_clean_input_signed_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                bench_cuda_server_key_binary_signed_function_clean_inputs(
+                    c,
+                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, lhs, rhs, stream| {
+                        server_key.$server_key_method(lhs, rhs, stream);
+                    }
+                )
+            }
+        }
+    }
+  );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_add,
+        display_name: add
+    );
+
+    //===========================================
+    // Default
+    //===========================================
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: add,
+        display_name: add
+    );
+
+    criterion_group!(unchecked_cuda_ops, cuda_unchecked_add,);
+
+    criterion_group!(default_cuda_ops, cuda_add,);
+}
+
+#[cfg(feature = "gpu")]
+use cuda::{default_cuda_ops, unchecked_cuda_ops};
+
+#[cfg(feature = "gpu")]
+fn go_through_gpu_bench_groups(val: &str) {
+    match val.to_lowercase().as_str() {
+        "default" => {
+            default_cuda_ops();
+        }
+        "unchecked" => {
+            unchecked_cuda_ops();
+        }
+        _ => panic!("unknown benchmark operations flavor"),
+    };
+}
+
+#[allow(dead_code)]
+fn go_through_cpu_bench_groups(val: &str) {
+    match val.to_lowercase().as_str() {
+        "default" => {
+            default_parallelized_ops();
+            default_parallelized_ops_comp();
+            default_scalar_parallelized_ops();
+            default_scalar_parallelized_ops_comp();
+            cast_ops()
+        }
+        "unchecked" => {
+            unchecked_ops();
+            unchecked_ops_comp();
+            unchecked_scalar_ops();
+            unchecked_scalar_ops_comp()
+        }
+        _ => panic!("unknown benchmark operations flavor"),
+    };
+}
+
 fn main() {
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
-            match val.to_lowercase().as_str() {
-                "default" => {
-                    default_parallelized_ops();
-                    default_parallelized_ops_comp();
-                    default_scalar_parallelized_ops();
-                    default_scalar_parallelized_ops_comp();
-                    cast_ops()
-                }
-                "unchecked" => {
-                    unchecked_ops();
-                    unchecked_ops_comp();
-                    unchecked_scalar_ops();
-                    unchecked_scalar_ops_comp()
-                }
-                _ => panic!("unknown benchmark operations flavor"),
-            };
+            #[cfg(feature = "gpu")]
+            go_through_gpu_bench_groups(&val);
+            #[cfg(not(feature = "gpu"))]
+            go_through_cpu_bench_groups(&val);
         }
         Err(_) => {
             default_parallelized_ops();
+            default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
+            default_scalar_parallelized_ops_comp();
             cast_ops()
         }
     };
