@@ -212,7 +212,8 @@ int cuda_get_number_of_p2p_enabled_gpus(uint32_t gpu_index) {
 
 void cuda_enable_p2p_access(uint32_t i, uint32_t j) {
   cudaSetDevice(i);
-  check_cuda_error(cudaDeviceEnablePeerAccess(j, 0)) cudaSetDevice(j);
+  check_cuda_error(cudaDeviceEnablePeerAccess(j, 0));
+  cudaSetDevice(j);
   check_cuda_error(cudaDeviceEnablePeerAccess(i, 0))
 }
 
