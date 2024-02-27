@@ -207,7 +207,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             .unaligned_bytes_required(),
         );
 
-        let id = format!("{bench_name}_{name}");
+        let id = format!("{bench_name}::{name}");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
@@ -299,7 +299,7 @@ fn multi_bit_pbs<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let id = format!("{bench_name}_{name}_parallelized");
+        let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -388,7 +388,7 @@ fn multi_bit_deterministic_pbs<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let id = format!("{bench_name}_{name}_parallelized");
+        let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
                 multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
@@ -498,7 +498,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         );
 
         for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
-            let id = format!("{bench_name}_{name}_{chunk_size}chunk");
+            let id = format!("{bench_name}::{name}::{chunk_size}chunk");
             {
                 bench_group.bench_function(&id, |b| {
                     b.iter(|| {
@@ -680,7 +680,7 @@ mod cuda {
             }
             stream.synchronize();
 
-            let id = format!("{bench_name}_{name}");
+            let id = format!("{bench_name}::{name}");
             {
                 bench_group.bench_function(&id, |b| {
                     b.iter(|| {
@@ -802,7 +802,7 @@ mod cuda {
             }
             stream.synchronize();
 
-            let id = format!("{bench_name}_{name}");
+            let id = format!("{bench_name}::{name}");
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
                     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
