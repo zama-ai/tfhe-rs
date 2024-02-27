@@ -692,8 +692,9 @@ pub(crate) mod tests_unsigned {
     use super::*;
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-        random_non_zero_value, FunctionExecutor, NB_CTXT, NB_TESTS_SMALLER,
+        FunctionExecutor, NB_CTXT, NB_TESTS_SMALLER,
     };
+    use crate::integer::server_key::radix_parallel::tests_unsigned::random_non_zero_value;
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     use crate::shortint::PBSParameters;
     use rand::Rng;
