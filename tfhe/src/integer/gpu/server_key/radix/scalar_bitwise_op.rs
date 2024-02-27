@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{BitOpType, CudaServerKey};
 
@@ -12,14 +12,14 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_scalar_bitop_assign_async<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         op: BitOpType,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
     {
-        let lwe_ciphertext_count = ct.d_blocks.lwe_ciphertext_count();
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let message_modulus = self.message_modulus.0;
 
         let h_clear_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
@@ -32,7 +32,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_scalar_bitop_integer_radix_classic_kb_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
+                    &mut ct.as_mut().d_blocks.0.d_vec,
                     &clear_blocks,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -56,7 +56,7 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_scalar_bitop_integer_radix_multibit_kb_assign_async(
-                    &mut ct.d_blocks.0.d_vec,
+                    &mut ct.as_mut().d_blocks.0.d_vec,
                     &clear_blocks,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -84,10 +84,10 @@ impl CudaServerKey {
 
     pub fn unchecked_scalar_bitand<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {
@@ -98,7 +98,7 @@ impl CudaServerKey {
 
     pub fn unchecked_scalar_bitand_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -106,17 +106,17 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, stream);
-            ct.info = ct.info.after_scalar_bitand(rhs);
+            ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
         }
         stream.synchronize();
     }
 
     pub fn unchecked_scalar_bitor<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {
@@ -127,7 +127,7 @@ impl CudaServerKey {
 
     pub fn unchecked_scalar_bitor_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -135,17 +135,17 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, stream);
-            ct.info = ct.info.after_scalar_bitor(rhs);
+            ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
         }
         stream.synchronize();
     }
 
     pub fn unchecked_scalar_bitxor<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {
@@ -156,7 +156,7 @@ impl CudaServerKey {
 
     pub fn unchecked_scalar_bitxor_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -164,7 +164,7 @@ impl CudaServerKey {
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, stream);
-            ct.info = ct.info.after_scalar_bitxor(rhs);
+            ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);
         }
         stream.synchronize();
     }
@@ -175,7 +175,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn scalar_bitand_assign_async<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -185,12 +185,12 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, stream);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, stream);
-        ct.info = ct.info.after_scalar_bitand(rhs);
+        ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
     }
 
     pub fn scalar_bitand_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -204,10 +204,10 @@ impl CudaServerKey {
 
     pub fn scalar_bitand<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {
@@ -222,7 +222,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn scalar_bitor_assign_async<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -232,12 +232,12 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, stream);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, stream);
-        ct.info = ct.info.after_scalar_bitor(rhs);
+        ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
     }
 
     pub fn scalar_bitor_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -251,10 +251,10 @@ impl CudaServerKey {
 
     pub fn scalar_bitor<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {
@@ -269,7 +269,7 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn scalar_bitxor_assign_async<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -279,12 +279,12 @@ impl CudaServerKey {
             self.full_propagate_assign_async(ct, stream);
         }
         self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, stream);
-        ct.info = ct.info.after_scalar_bitxor(rhs);
+        ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);
     }
 
     pub fn scalar_bitxor_assign<Scalar>(
         &self,
-        ct: &mut CudaRadixCiphertext,
+        ct: &mut CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
@@ -298,10 +298,10 @@ impl CudaServerKey {
 
     pub fn scalar_bitxor<Scalar>(
         &self,
-        ct: &CudaRadixCiphertext,
+        ct: &CudaUnsignedRadixCiphertext,
         rhs: Scalar,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext
+    ) -> CudaUnsignedRadixCiphertext
     where
         Scalar: DecomposableInto<u8>,
     {

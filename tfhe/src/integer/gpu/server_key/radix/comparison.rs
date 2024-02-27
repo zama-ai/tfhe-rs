@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{ComparisonType, CudaServerKey};
 
@@ -10,30 +10,30 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_comparison_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         op: ComparisonType,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         assert_eq!(
-            ct_left.d_blocks.lwe_dimension(),
-            ct_right.d_blocks.lwe_dimension()
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
         );
         assert_eq!(
-            ct_left.d_blocks.lwe_ciphertext_count(),
-            ct_right.d_blocks.lwe_ciphertext_count()
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
         let mut result = ct_left.duplicate_async(stream);
 
-        let lwe_ciphertext_count = ct_left.d_blocks.lwe_ciphertext_count();
+        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_comparison_integer_radix_classic_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -56,9 +56,9 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_comparison_integer_radix_multibit_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -91,13 +91,13 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_eq_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result =
             self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::EQ, stream);
-        result.info = result.info.after_eq();
+        result.as_mut().info = result.as_ref().info.after_eq();
         result
     }
 
@@ -111,7 +111,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -130,8 +130,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_eq(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -144,10 +144,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_eq(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_eq_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -159,13 +159,13 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_ne_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result =
             self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::NE, stream);
-        result.info = result.info.after_ne();
+        result.as_mut().info = result.as_ref().info.after_ne();
         result
     }
 
@@ -179,7 +179,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -198,8 +198,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_ne(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -212,10 +212,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_ne(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_ne_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -227,10 +227,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn eq_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -272,7 +272,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -291,8 +291,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.eq(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -305,10 +305,10 @@ impl CudaServerKey {
     /// ```
     pub fn eq(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.eq_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -320,10 +320,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn ne_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -365,7 +365,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -384,8 +384,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.ne(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -398,10 +398,10 @@ impl CudaServerKey {
     /// ```
     pub fn ne(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.ne_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -413,10 +413,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_gt_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::GT, stream)
     }
 
@@ -428,7 +428,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -447,8 +447,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_gt(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -461,10 +461,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_gt(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_gt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -476,10 +476,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_ge_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::GE, stream)
     }
 
@@ -489,10 +489,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn gt_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -526,10 +526,10 @@ impl CudaServerKey {
 
     pub fn gt(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.gt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -545,7 +545,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -564,8 +564,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_ge(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -578,10 +578,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_ge(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_ge_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -593,10 +593,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn ge_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -630,10 +630,10 @@ impl CudaServerKey {
 
     pub fn ge(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.ge_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -645,10 +645,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_lt_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::LT, stream)
     }
 
@@ -662,7 +662,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -681,8 +681,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_lt(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -695,10 +695,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_lt(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_lt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -710,10 +710,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn lt_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -747,10 +747,10 @@ impl CudaServerKey {
 
     pub fn lt(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.lt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -762,10 +762,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_le_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::LE, stream)
     }
 
@@ -779,7 +779,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -798,8 +798,8 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
     ///
     /// let d_ct_res = sks.unchecked_le(&d_ct1, &d_ct2, &mut stream);
     ///
@@ -812,10 +812,10 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_le(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_le_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -827,10 +827,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn le_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -864,10 +864,10 @@ impl CudaServerKey {
 
     pub fn le(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.le_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -879,29 +879,29 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_max_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         assert_eq!(
-            ct_left.d_blocks.lwe_dimension(),
-            ct_right.d_blocks.lwe_dimension()
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
         );
         assert_eq!(
-            ct_left.d_blocks.lwe_ciphertext_count(),
-            ct_right.d_blocks.lwe_ciphertext_count()
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
         let mut result = ct_left.duplicate_async(stream);
 
-        let lwe_ciphertext_count = ct_left.d_blocks.lwe_ciphertext_count();
+        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_comparison_integer_radix_classic_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -924,9 +924,9 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_comparison_integer_radix_multibit_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -955,10 +955,10 @@ impl CudaServerKey {
 
     pub fn unchecked_max(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_max_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -970,29 +970,29 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_min_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         assert_eq!(
-            ct_left.d_blocks.lwe_dimension(),
-            ct_right.d_blocks.lwe_dimension()
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
         );
         assert_eq!(
-            ct_left.d_blocks.lwe_ciphertext_count(),
-            ct_right.d_blocks.lwe_ciphertext_count()
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
         let mut result = ct_left.duplicate_async(stream);
 
-        let lwe_ciphertext_count = ct_left.d_blocks.lwe_ciphertext_count();
+        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_comparison_integer_radix_classic_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -1015,9 +1015,9 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_comparison_integer_radix_multibit_kb_async(
-                    &mut result.d_blocks.0.d_vec,
-                    &ct_left.d_blocks.0.d_vec,
-                    &ct_right.d_blocks.0.d_vec,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &ct_left.as_ref().d_blocks.0.d_vec,
+                    &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -1046,10 +1046,10 @@ impl CudaServerKey {
 
     pub fn unchecked_min(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_min_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -1061,10 +1061,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn max_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -1097,10 +1097,10 @@ impl CudaServerKey {
 
     pub fn max(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.max_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -1112,10 +1112,10 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn min_async(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -1148,10 +1148,10 @@ impl CudaServerKey {
 
     pub fn min(
         &self,
-        ct_left: &CudaRadixCiphertext,
-        ct_right: &CudaRadixCiphertext,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.min_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result

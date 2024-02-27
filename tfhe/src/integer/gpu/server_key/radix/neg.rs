@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
 
 impl CudaServerKey {
@@ -15,7 +15,7 @@ impl CudaServerKey {
     /// ```rust
     /// // Encrypt two messages:
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -32,7 +32,7 @@ impl CudaServerKey {
     ///
     /// // Encrypt a message
     /// let mut ctxt = cks.encrypt(msg);
-    /// let mut d_ctxt = CudaRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
     ///
     /// // Compute homomorphically a negation
     /// let d_res = sks.unchecked_neg(&mut d_ctxt, &mut stream);
@@ -44,9 +44,9 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_neg(
         &self,
-        ctxt: &CudaRadixCiphertext,
+        ctxt: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let result = unsafe { self.unchecked_neg_async(ctxt, stream) };
         stream.synchronize();
         result
@@ -58,9 +58,9 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_neg_async(
         &self,
-        ctxt: &CudaRadixCiphertext,
+        ctxt: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> CudaRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result = ctxt.duplicate_async(stream);
         self.unchecked_neg_assign_async(&mut result, stream);
         result
@@ -72,26 +72,31 @@ impl CudaServerKey {
     ///   not be dropped until stream is synchronised
     pub unsafe fn unchecked_neg_assign_async(
         &self,
-        ctxt: &mut CudaRadixCiphertext,
+        ctxt: &mut CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
-        let lwe_dimension = ctxt.d_blocks.lwe_dimension();
-        let lwe_ciphertext_count = ctxt.d_blocks.lwe_ciphertext_count();
+        let ciphertext = ctxt.as_mut();
+        let lwe_dimension = ciphertext.d_blocks.lwe_dimension();
+        let lwe_ciphertext_count = ciphertext.d_blocks.lwe_ciphertext_count();
 
-        let info = ctxt.info.blocks.first().unwrap();
+        let info = ciphertext.info.blocks.first().unwrap();
 
         stream.negate_integer_radix_assign_async(
-            &mut ctxt.d_blocks.0.d_vec,
+            &mut ciphertext.d_blocks.0.d_vec,
             lwe_dimension,
             lwe_ciphertext_count.0 as u32,
             info.message_modulus.0 as u32,
             info.carry_modulus.0 as u32,
         );
 
-        ctxt.info = ctxt.info.after_neg();
+        ciphertext.info = ciphertext.info.after_neg();
     }
 
-    pub fn unchecked_neg_assign(&self, ctxt: &mut CudaRadixCiphertext, stream: &CudaStream) {
+    pub fn unchecked_neg_assign(
+        &self,
+        ctxt: &mut CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) {
         unsafe {
             self.unchecked_neg_assign_async(ctxt, stream);
         }
@@ -110,7 +115,7 @@ impl CudaServerKey {
     /// ```rust
     /// // Encrypt two messages:
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -127,7 +132,7 @@ impl CudaServerKey {
     ///
     /// // Encrypt a message
     /// let mut ctxt = cks.encrypt(msg);
-    /// let mut d_ctxt = CudaRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
+    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
     ///
     /// // Compute homomorphically a negation
     /// let d_res = sks.neg(&mut d_ctxt, &mut stream);
@@ -137,7 +142,11 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&res);
     /// assert_eq!(modulus - msg, dec);
     /// ```
-    pub fn neg(&self, ctxt: &CudaRadixCiphertext, stream: &CudaStream) -> CudaRadixCiphertext {
+    pub fn neg(
+        &self,
+        ctxt: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext {
         let mut result = unsafe { ctxt.duplicate_async(stream) };
         self.neg_assign(&mut result, stream);
         result
@@ -147,7 +156,11 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn neg_assign_async(&self, ctxt: &mut CudaRadixCiphertext, stream: &CudaStream) {
+    pub unsafe fn neg_assign_async(
+        &self,
+        ctxt: &mut CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) {
         let mut tmp_ctxt;
 
         let ct = if ctxt.block_carries_are_empty() {
@@ -162,7 +175,7 @@ impl CudaServerKey {
         self.propagate_single_carry_assign_async(ct, stream);
     }
 
-    pub fn neg_assign(&self, ctxt: &mut CudaRadixCiphertext, stream: &CudaStream) {
+    pub fn neg_assign(&self, ctxt: &mut CudaUnsignedRadixCiphertext, stream: &CudaStream) {
         unsafe {
             self.neg_assign_async(ctxt, stream);
         }
