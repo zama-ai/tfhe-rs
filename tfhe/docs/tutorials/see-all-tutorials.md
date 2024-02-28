@@ -2,12 +2,12 @@
 
 ### Start here
 
-* Homomorphic parity bit
-* Homomorphic case changing on Ascii string&#x20;
-* SHA 256 with Boolean API
+* [Homomorphic parity bit](parity\_bit.md)
+* [Homomorphic case changing on Ascii string ](ascii\_fhe\_string.md)
+* [SHA 256 with Boolean API ](sha256\_bool.md)
 
 ### Go further
 
-* Dark market with integer API
-* Homomorphic regular expressions integer API
-* [\[Video tutorial\] Implement signed integers using TFHE-rs](https://www.youtube.com/watch?v=O0aGj\_xUo40)&#x20;
+* [\[Video tutorial\] Implement signed integers using TFHE-rs](https://www.youtube.com/watch?v=O0aGj\_xUo40) &#x20;
+* [Dark market with integer API](dark\_market.md)
+* [Homomorphic regular expressions integer API](regex.md)&#x20;
