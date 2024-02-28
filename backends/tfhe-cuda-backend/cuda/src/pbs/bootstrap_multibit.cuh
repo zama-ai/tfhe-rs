@@ -558,13 +558,16 @@ __host__ void host_multi_bit_pbs(
 
   // We have to assert everything on the main stream is done to safely launch
   // the producer streams
-  cuda_synchronize_stream(stream);
+//  cuda_synchronize_stream(stream);
+cudaEvent_t main_stream_event;
+    cudaEventCreateWithFlags(&main_stream_event, cudaEventDisableTiming);
+  cudaEventRecord(main_stream_event, stream->stream);
   int num_gpus = pbs_buffer->enabled_gpus.size();
   for (int producer_id = 0; producer_id < num_producers; producer_id++) {
     uint32_t producer_gpu_index =
         pbs_buffer->enabled_gpus[producer_id % num_gpus];
 
-    std::thread producer([stream, producer_gpu_index, producer_id, num_producers,
+    std::thread producer([stream, main_stream_event, producer_gpu_index, producer_id, num_producers,
                           lwe_array_in, lwe_input_indexes, bootstrapping_key,
                           pbs_buffer, glwe_dimension, lwe_dimension,
                           polynomial_size, grouping_factor, base_log,
@@ -572,6 +575,7 @@ __host__ void host_multi_bit_pbs(
                           &mtx, &keybundle_pool, max_pool_size]() {
       cudaSetDevice(producer_gpu_index);
       auto producer_stream = cuda_create_stream(producer_gpu_index);
+        cudaStreamWaitEvent(producer_stream->stream, main_stream_event, 0);
       producer_thread<Torus, params>(
           producer_stream, producer_id, num_producers, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -584,6 +588,7 @@ __host__ void host_multi_bit_pbs(
 
     producer_threads.emplace_back(std::move(producer));
   }
+//    cudaEventDestroy(main_stream_event);
 
   cudaSetDevice(stream->gpu_index);
   // std::thread consumer([&]() {
