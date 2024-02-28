@@ -125,6 +125,16 @@ impl<T: UnsignedInteger> DynamicDistribution<T> {
     }
 
     #[track_caller]
+    pub const fn gaussian_std_dev(&self) -> StandardDev {
+        match self {
+            Self::Gaussian(gaussian) => StandardDev(gaussian.std),
+            Self::TUniform(_) => {
+                panic!("Tried to get gaussian variance from a non gaussian distribution")
+            }
+        }
+    }
+
+    #[track_caller]
     pub fn gaussian_variance(&self) -> Variance {
         match self {
             Self::Gaussian(gaussian) => {

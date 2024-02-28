@@ -101,6 +101,8 @@ where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
     <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
 {
+    use crate::core_crypto::commons::parameters::DynamicDistribution;
+
     let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
         parameters_set.try_into().unwrap();
 
@@ -114,8 +116,12 @@ where
             lwe_dimension: wopbs_params.lwe_dimension,
             glwe_dimension: wopbs_params.glwe_dimension,
             polynomial_size: wopbs_params.polynomial_size,
-            lwe_modular_std_dev: wopbs_params.lwe_modular_std_dev,
-            glwe_modular_std_dev: wopbs_params.glwe_modular_std_dev,
+            lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                wopbs_params.lwe_modular_std_dev,
+            ),
+            glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                wopbs_params.glwe_modular_std_dev,
+            ),
             pbs_base_log: wopbs_params.pbs_base_log,
             pbs_level: wopbs_params.pbs_level,
             ks_base_log: wopbs_params.ks_base_log,

@@ -74,8 +74,8 @@ pub struct ClassicPBSParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
-    pub glwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
@@ -114,8 +114,12 @@ impl ClassicPBSParameters {
             lwe_dimension,
             glwe_dimension,
             polynomial_size,
-            lwe_modular_std_dev,
-            glwe_modular_std_dev,
+            lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                lwe_modular_std_dev,
+            ),
+            glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                glwe_modular_std_dev,
+            ),
             pbs_base_log,
             pbs_level,
             ks_base_log,
@@ -159,11 +163,11 @@ impl ClassicPBSParameters {
     }
 
     pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
-        DynamicDistribution::new_gaussian_from_std_dev(self.lwe_modular_std_dev)
+        self.lwe_noise_distribution
     }
 
     pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
-        DynamicDistribution::new_gaussian_from_std_dev(self.glwe_modular_std_dev)
+        self.glwe_noise_distribution
     }
 }
 
@@ -251,13 +255,13 @@ impl PBSParameters {
     }
     pub const fn lwe_modular_std_dev(&self) -> StandardDev {
         match self {
-            Self::PBS(params) => params.lwe_modular_std_dev,
+            Self::PBS(params) => params.lwe_noise_distribution.gaussian_std_dev(),
             Self::MultiBitPBS(params) => params.lwe_modular_std_dev,
         }
     }
     pub const fn glwe_modular_std_dev(&self) -> StandardDev {
         match self {
-            Self::PBS(params) => params.glwe_modular_std_dev,
+            Self::PBS(params) => params.glwe_noise_distribution.gaussian_std_dev(),
             Self::MultiBitPBS(params) => params.glwe_modular_std_dev,
         }
     }
@@ -646,8 +650,12 @@ pub const PARAM_MESSAGE_1_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(678),
     glwe_dimension: GlweDimension(5),
     polynomial_size: PolynomialSize(256),
-    lwe_modular_std_dev: StandardDev(0.000022810107419132102),
-    glwe_modular_std_dev: StandardDev(0.00000000037411618952047216),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000022810107419132102,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000037411618952047216,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(2),
@@ -661,8 +669,12 @@ pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(684),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.00002043784477291318),
-    glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00002043784477291318,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000034525330484572114,
+    )),
     pbs_base_log: DecompositionBaseLog(18),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(3),
@@ -676,8 +688,12 @@ pub const PARAM_MESSAGE_2_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(656),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000034119201269311964),
-    glwe_modular_std_dev: StandardDev(0.00000004053919869756513),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000034119201269311964,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000004053919869756513,
+    )),
     pbs_base_log: DecompositionBaseLog(8),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(4),
@@ -691,8 +707,12 @@ pub const PARAM_MESSAGE_1_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(3),
@@ -706,8 +726,12 @@ pub const PARAM_MESSAGE_2_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(3),
@@ -721,8 +745,12 @@ pub const PARAM_MESSAGE_3_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(3),
@@ -736,8 +764,12 @@ pub const PARAM_MESSAGE_1_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000006692125069956277),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000006692125069956277,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -751,8 +783,12 @@ pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -766,8 +802,12 @@ pub const PARAM_MESSAGE_3_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -781,8 +821,12 @@ pub const PARAM_MESSAGE_4_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000007069849454709433,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -796,8 +840,12 @@ pub const PARAM_MESSAGE_1_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(807),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
-    lwe_modular_std_dev: StandardDev(0.0000021515145918907506),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000021515145918907506,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -811,8 +859,12 @@ pub const PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(856),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
-    lwe_modular_std_dev: StandardDev(0.0000008775214009854235),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000008775214009854235,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(6),
@@ -826,8 +878,12 @@ pub const PARAM_MESSAGE_3_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(812),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
-    lwe_modular_std_dev: StandardDev(0.0000019633637461248447),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000019633637461248447,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -841,8 +897,12 @@ pub const PARAM_MESSAGE_4_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(808),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
-    lwe_modular_std_dev: StandardDev(0.0000021124945159091033),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000021124945159091033,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -856,8 +916,12 @@ pub const PARAM_MESSAGE_5_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(807),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
-    lwe_modular_std_dev: StandardDev(0.0000021515145918907506),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000021515145918907506,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -871,8 +935,12 @@ pub const PARAM_MESSAGE_1_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.000000757998020150446),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000757998020150446,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -886,8 +954,12 @@ pub const PARAM_MESSAGE_2_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.000000757998020150446),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000757998020150446,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -901,8 +973,12 @@ pub const PARAM_MESSAGE_3_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.000000757998020150446),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000757998020150446,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -916,8 +992,12 @@ pub const PARAM_MESSAGE_4_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.000000757998020150446),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000757998020150446,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -931,8 +1011,12 @@ pub const PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(875),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.0000006197725091905067),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006197725091905067,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(6),
@@ -946,8 +1030,12 @@ pub const PARAM_MESSAGE_6_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(915),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.00000029804653749339636),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000029804653749339636,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(4),
@@ -961,8 +1049,12 @@ pub const PARAM_MESSAGE_1_CARRY_6_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(11),
     pbs_level: DecompositionLevelCount(3),
     ks_level: DecompositionLevelCount(6),
@@ -976,8 +1068,12 @@ pub const PARAM_MESSAGE_2_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(934),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000021050318566634375),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000021050318566634375,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -991,8 +1087,12 @@ pub const PARAM_MESSAGE_3_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -1006,8 +1106,12 @@ pub const PARAM_MESSAGE_4_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -1021,8 +1125,12 @@ pub const PARAM_MESSAGE_5_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -1036,8 +1144,12 @@ pub const PARAM_MESSAGE_6_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -1051,8 +1163,12 @@ pub const PARAM_MESSAGE_7_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
-    lwe_modular_std_dev: StandardDev(0.00000022649232786295453),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000022649232786295453,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
@@ -1066,8 +1182,12 @@ pub const PARAM_MESSAGE_1_CARRY_7_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1004),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.00000005845871624688967),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000005845871624688967,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(11),
     pbs_level: DecompositionLevelCount(3),
     ks_level: DecompositionLevelCount(7),
@@ -1081,8 +1201,12 @@ pub const PARAM_MESSAGE_2_CARRY_6_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(987),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.00000007979529246348835),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000007979529246348835,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(11),
     pbs_level: DecompositionLevelCount(3),
     ks_level: DecompositionLevelCount(7),
@@ -1096,8 +1220,12 @@ pub const PARAM_MESSAGE_3_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(985),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.00000008277032914509569),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000008277032914509569,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(11),
     pbs_level: DecompositionLevelCount(3),
     ks_level: DecompositionLevelCount(7),
@@ -1111,8 +1239,12 @@ pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(996),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.00000006767666038309478),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000006767666038309478,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(7),
@@ -1126,8 +1258,12 @@ pub const PARAM_MESSAGE_5_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1020),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.000000043618425315728666),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000043618425315728666,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -1141,8 +1277,12 @@ pub const PARAM_MESSAGE_6_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1018),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.000000045244666805696514),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000000045244666805696514,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -1156,8 +1296,12 @@ pub const PARAM_MESSAGE_7_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1017),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.0000000460803851108693),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000460803851108693,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -1171,8 +1315,12 @@ pub const PARAM_MESSAGE_8_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1017),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.0000000460803851108693),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000460803851108693,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -1187,8 +1335,12 @@ pub const PARAM_MESSAGE_1_CARRY_1_PBS_KS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(783),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.0000033382067621812462),
-    glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000033382067621812462,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000034525330484572114,
+    )),
     pbs_base_log: DecompositionBaseLog(18),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(3),
@@ -1203,8 +1355,12 @@ pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(870),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.0000006791658447437413),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000006791658447437413,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(4),
@@ -1219,8 +1375,12 @@ pub const PARAM_MESSAGE_3_CARRY_3_PBS_KS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1025),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
-    lwe_modular_std_dev: StandardDev(0.00000003980397588319241),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000003980397588319241,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(5),
@@ -1235,8 +1395,12 @@ pub const PARAM_MESSAGE_4_CARRY_4_PBS_KS: ClassicPBSParameters = ClassicPBSParam
     lwe_dimension: LweDimension(1214),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
-    lwe_modular_std_dev: StandardDev(0.0000000012520482863081104),
-    glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000012520482863081104,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
     pbs_base_log: DecompositionBaseLog(15),
     pbs_level: DecompositionLevelCount(2),
     ks_level: DecompositionLevelCount(6),
