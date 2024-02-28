@@ -2,6 +2,7 @@
 #define CUDA_MULTI_BIT_H
 
 #include <cstdint>
+#include <string>
 
 extern "C" {
 void cuda_convert_lwe_multi_bit_bootstrap_key_64(
@@ -36,9 +37,7 @@ template <typename Torus> struct pbs_multibit_buffer {
   double2 *global_accumulator_fft;
   Torus *global_accumulator;
 
-  std::vector<int> enabled_gpus;
-
-  uint32_t lwe_chunk_size = 2;
+  uint32_t lwe_chunk_size;
   int num_producers;
   int max_pool_size = 2;
 
@@ -47,15 +46,10 @@ template <typename Torus> struct pbs_multibit_buffer {
                       uint32_t input_lwe_ciphertext_count,
                       bool allocate_gpu_memory) {
 
-    enabled_gpus = cuda_get_p2p_enabled_gpus(stream->gpu_index);
-
-    for (int peer_device : enabled_gpus)
-      cuda_enable_p2p_access(peer_device, stream->gpu_index);
-
-    // gpuIndex can access gpuIndex's memory, so we insert
-    enabled_gpus.push_back(stream->gpu_index);
-
-    num_producers = std::max((size_t)2, enabled_gpus.size());
+      lwe_chunk_size = std::stoi(std::getenv("LWECHUNKSIZE"));
+      num_producers = std::stoi(std::getenv("NUMPRODUCERS"));
+      printf("lwe_chunk_size: %d\n", lwe_chunk_size);
+      printf("num_producers: %d\n", num_producers);
 
     if (allocate_gpu_memory) {
       global_accumulator_fft = (double2 *)cuda_malloc_async(

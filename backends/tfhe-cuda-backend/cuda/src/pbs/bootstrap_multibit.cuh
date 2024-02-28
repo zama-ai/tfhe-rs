@@ -418,7 +418,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
 
     auto keybundle_fft = (double2 *)cuda_malloc_async(
-        num_samples * chunk_size * level_count * (glwe_dimension + 1) *
+        num_samples * lwe_chunk_size * level_count * (glwe_dimension + 1) *
             (glwe_dimension + 1) * (polynomial_size / 2) * sizeof(double2),
         producer_stream);
 
@@ -543,6 +543,7 @@ __host__ void host_multi_bit_pbs(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx) {
+  cudaSetDevice(stream->gpu_index);
 
   int num_producers = pbs_buffer->num_producers;
   int max_pool_size = pbs_buffer->max_pool_size;
@@ -562,19 +563,15 @@ __host__ void host_multi_bit_pbs(
 cudaEvent_t main_stream_event;
     cudaEventCreateWithFlags(&main_stream_event, cudaEventDisableTiming);
   cudaEventRecord(main_stream_event, stream->stream);
-  int num_gpus = pbs_buffer->enabled_gpus.size();
   for (int producer_id = 0; producer_id < num_producers; producer_id++) {
-    uint32_t producer_gpu_index =
-        pbs_buffer->enabled_gpus[producer_id % num_gpus];
 
-    std::thread producer([stream, main_stream_event, producer_gpu_index, producer_id, num_producers,
+    std::thread producer([stream, main_stream_event, producer_id, num_producers,
                           lwe_array_in, lwe_input_indexes, bootstrapping_key,
                           pbs_buffer, glwe_dimension, lwe_dimension,
                           polynomial_size, grouping_factor, base_log,
                           level_count, num_samples, &cv_producers, &cv_consumer,
                           &mtx, &keybundle_pool, max_pool_size]() {
-      cudaSetDevice(producer_gpu_index);
-      auto producer_stream = cuda_create_stream(producer_gpu_index);
+      auto producer_stream = cuda_create_stream(stream->gpu_index);
         cudaStreamWaitEvent(producer_stream->stream, main_stream_event, 0);
       producer_thread<Torus, params>(
           producer_stream, producer_id, num_producers, lwe_array_in,
@@ -590,7 +587,6 @@ cudaEvent_t main_stream_event;
   }
 //    cudaEventDestroy(main_stream_event);
 
-  cudaSetDevice(stream->gpu_index);
   // std::thread consumer([&]() {
   //   auto consumer_stream = cuda_create_stream(gpu_index);
   consumer_thread<Torus, params>(
