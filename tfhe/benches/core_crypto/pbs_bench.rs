@@ -172,6 +172,16 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             );
         let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
 
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &output_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
         let fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
@@ -183,7 +193,8 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
+            // &input_lwe_secret_key,
+            &output_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_modular_std_dev.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -198,6 +209,13 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            // output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
         let mut out_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
             output_lwe_secret_key.lwe_dimension().to_lwe_size(),
@@ -219,12 +237,18 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             .unaligned_bytes_required(),
         );
 
-        let id = format!("{bench_name}_{name}");
+        let id = format!("{bench_name}_{name}_PBS_KS");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
-                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    keyswitch_lwe_ciphertext(
+                        &ksk_big_to_small,
                         &lwe_ciphertext_in,
+                        &mut out_ks_ct,
+                    );
+
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &out_ks_ct,
                         &mut out_pbs_ct,
                         &accumulator.as_view(),
                         &fourier_bsk,
