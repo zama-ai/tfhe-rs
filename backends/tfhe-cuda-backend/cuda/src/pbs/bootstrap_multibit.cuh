@@ -569,7 +569,6 @@ __host__ void host_multi_bit_pbs(
                           polynomial_size, grouping_factor, base_log,
                           level_count, num_samples, &cv_producers, &cv_consumer,
                           &mtx, &keybundle_pool, max_pool_size]() {
-      cuda_synchronize_stream(stream);
       cudaSetDevice(producer_gpu_index);
       auto producer_stream = cuda_create_stream(producer_gpu_index);
       producer_thread<Torus, params>(

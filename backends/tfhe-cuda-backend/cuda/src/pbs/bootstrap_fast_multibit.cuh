@@ -300,7 +300,6 @@ __host__ void host_fast_multi_bit_pbs(
 
   // We have to assert everything on the main stream is done to safely launch
   // the producer streams
-  cuda_synchronize_stream(stream);
   int num_gpus = pbs_buffer->enabled_gpus.size();
   for (int producer_id = 0; producer_id < num_producers; producer_id++) {
     uint32_t producer_gpu_index =
