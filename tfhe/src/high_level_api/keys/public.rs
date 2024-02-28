@@ -53,6 +53,7 @@ impl PublicKey {
 /// in the `PublicKey`.
 ///
 /// This is to allow the writing of generic functions.
+#[allow(dead_code)]
 pub trait RefKeyFromPublicKeyChain: Sized {
     type Key;
 
@@ -141,6 +142,7 @@ impl CompressedPublicKey {
     }
 }
 
+#[allow(dead_code)]
 pub trait RefKeyFromCompressedPublicKeyChain: Sized {
     type Key;
 

@@ -204,9 +204,7 @@ impl IntegerCompactPublicKey {
     where
         T: crate::integer::block_decomposition::DecomposableInto<u64>,
     {
-        let Some(key) = self.key.as_ref() else {
-            return None;
-        };
+        let key = self.key.as_ref()?;
         let ct = key.encrypt_slice_radix_compact(values, num_blocks);
         Some(ct)
     }

@@ -1,6 +1,7 @@
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 use super::super::super::{fft128, fft128_u128};
+#[allow(unused_imports)]
 use super::super::math::fft::{Fft128, Fft128View};
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;

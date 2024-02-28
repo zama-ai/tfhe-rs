@@ -1,13 +1,14 @@
 use crate::core_crypto::commons::utils::izip;
+#[allow(unused_imports)]
 pub use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
 use concrete_fft::fft128::f128;
 use dyn_stack::PodStack;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use pulp::x86::{f64x4, u64x4, V3};
+use pulp::{f64x4, u64x4, x86::V3};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "nightly-avx512")]
-use pulp::x86::{f64x8, u64x8, V4};
+use pulp::{f64x8, u64x8, x86::V4};
 
 #[inline(always)]
 pub fn zeroing_shl(x: u64, shift: u64) -> u64 {

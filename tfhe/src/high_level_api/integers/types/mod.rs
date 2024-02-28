@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 pub use base::GenericInteger;
 
 expand_pub_use_fhe_type!(

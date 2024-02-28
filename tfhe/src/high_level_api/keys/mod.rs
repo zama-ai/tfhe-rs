@@ -6,6 +6,7 @@ mod server;
 
 use crate::high_level_api::config::Config;
 pub use client::{ClientKey, RefKeyFromKeyChain};
+#[allow(unused_imports)]
 pub use public::{
     CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
     RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
