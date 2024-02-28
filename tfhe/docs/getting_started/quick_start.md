@@ -1,13 +1,13 @@
-# Quick Start
+# Quick start
 
 The basic steps for using the high-level API of TFHE-rs are:
 
-1. Importing the TFHE-rs prelude;
-2. Client-side: Configuring and creating keys;
-3. Client-side: Encrypting data;
-4. Server-side: Setting the server key;
-5. Server-side: Computing over encrypted data;
-6. Client-side: Decrypting data.
+1. [Importing the TFHE-rs prelude;](quick\_start.md#imports)
+2. Client-side: [Configuring and creating keys;](../fundamentals/configure-and-create-keys.md)
+3. Client-side: [Encrypting data;](../fundamentals/encrypt-data.md)
+4. Server-side: [Setting the server key;](../fundamentals/set-the-server-key.md)
+5. Server-side: [Computing over encrypted data;](../fundamentals/compute-and-decrypt.md)
+6. Client-side: [Decrypting data.](../fundamentals/compute-and-decrypt.md)
 
 Here is a full example (combining the client and server parts):
 
@@ -57,6 +57,3 @@ To make it easier, the `prelude` 'pattern' is used. All of the important `tfhe` 
 ```rust
 use tfhe::prelude::*; 
 ```
-
-Find the following steps in [Broken link](broken-reference "mention")
-
