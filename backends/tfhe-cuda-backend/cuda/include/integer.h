@@ -1135,7 +1135,7 @@ template <typename Torus> struct int_comparison_buffer {
           stream);
 
       tmp_packed_input = (Torus *)cuda_malloc_async(
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
+          (params.big_lwe_dimension + 1) * 2 * num_radix_blocks * sizeof(Torus),
           stream);
 
       // Block comparisons
