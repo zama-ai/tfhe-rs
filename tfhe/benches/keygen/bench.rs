@@ -33,7 +33,7 @@ fn criterion_bench(c: &mut Criterion) {
                 &glwe_secret_key,
                 parameters.pbs_base_log,
                 parameters.pbs_level,
-                parameters.glwe_noise_distribution(),
+                parameters.glwe_noise_distribution,
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );

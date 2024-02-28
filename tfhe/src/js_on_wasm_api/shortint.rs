@@ -46,6 +46,11 @@ impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::Encrypti
     }
 }
 
+#[wasm_bindgen]
+pub struct ShortintNoiseDistribution(
+    pub(crate) crate::core_crypto::commons::math::random::DynamicDistribution<u64>,
+);
+
 macro_rules! expose_predefined_parameters {
     (
         $(
@@ -297,13 +302,29 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn new_gaussian_from_std_dev(std_dev: f64) -> ShortintNoiseDistribution {
+        use crate::core_crypto::prelude::*;
+        ShortintNoiseDistribution(DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+            std_dev,
+        )))
+    }
+
+    #[wasm_bindgen]
+    pub fn try_new_t_uniform(bound_log2: u32) -> Result<ShortintNoiseDistribution, JsError> {
+        use crate::core_crypto::prelude::*;
+        DynamicDistribution::try_new_t_uniform(bound_log2)
+            .map(ShortintNoiseDistribution)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+    }
+
+    #[wasm_bindgen]
     #[allow(clippy::too_many_arguments)]
     pub fn new_parameters(
         lwe_dimension: usize,
         glwe_dimension: usize,
         polynomial_size: usize,
-        lwe_modular_std_dev: f64,
-        glwe_modular_std_dev: f64,
+        lwe_noise_distribution: &ShortintNoiseDistribution,
+        glwe_noise_distribution: &ShortintNoiseDistribution,
         pbs_base_log: usize,
         pbs_level: usize,
         ks_base_log: usize,
@@ -319,8 +340,8 @@ impl Shortint {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),
             polynomial_size: PolynomialSize(polynomial_size),
-            lwe_modular_std_dev: StandardDev(lwe_modular_std_dev),
-            glwe_modular_std_dev: StandardDev(glwe_modular_std_dev),
+            lwe_noise_distribution: lwe_noise_distribution.0,
+            glwe_noise_distribution: glwe_noise_distribution.0,
             pbs_base_log: DecompositionBaseLog(pbs_base_log),
             pbs_level: DecompositionLevelCount(pbs_level),
             ks_base_log: DecompositionBaseLog(ks_base_log),

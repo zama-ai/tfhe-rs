@@ -102,7 +102,7 @@ impl Distribution for UniformTernary {}
 impl<T: FloatingPoint> Distribution for Gaussian<T> {}
 impl<T: UnsignedInteger> Distribution for TUniform<T> {}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum DynamicDistribution<T: UnsignedInteger> {
     Gaussian(Gaussian<f64>),
     TUniform(TUniform<T>),
@@ -114,14 +114,30 @@ impl<T: UnsignedInteger> DynamicDistribution<T> {
     }
 
     pub fn new_gaussian(dispersion: impl DispersionParameter) -> Self {
-        Self::Gaussian(Gaussian::from_standard_dev(
-            StandardDev(dispersion.get_standard_dev()),
-            0.0,
-        ))
+        Self::Gaussian(Gaussian::from_dispersion_parameter(dispersion, 0.0))
     }
 
+    #[track_caller]
     pub const fn new_t_uniform(bound_log2: u32) -> Self {
         Self::TUniform(TUniform::new(bound_log2))
+    }
+
+    #[track_caller]
+    pub const fn try_new_t_uniform(bound_log2: u32) -> Result<Self, &'static str> {
+        match TUniform::try_new(bound_log2) {
+            Ok(ok) => Ok(Self::TUniform(ok)),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[track_caller]
+    pub const fn gaussian_std_dev(&self) -> StandardDev {
+        match self {
+            Self::Gaussian(gaussian) => StandardDev(gaussian.std),
+            Self::TUniform(_) => {
+                panic!("Tried to get gaussian variance from a non gaussian distribution")
+            }
+        }
     }
 
     #[track_caller]

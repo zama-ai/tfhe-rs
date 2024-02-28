@@ -19,10 +19,9 @@
 //! computation.
 
 pub use crate::core_crypto::commons::dispersion::StandardDev;
-use crate::core_crypto::commons::math::random::Gaussian;
 pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice, GlweDimension,
-    LweDimension, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
+    GlweDimension, LweDimension, PolynomialSize,
 };
 
 use serde::{Deserialize, Serialize};
@@ -45,8 +44,8 @@ pub struct BooleanParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
-    pub glwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<u32>,
+    pub glwe_noise_distribution: DynamicDistribution<u32>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
@@ -80,22 +79,18 @@ impl BooleanParameters {
             lwe_dimension,
             glwe_dimension,
             polynomial_size,
-            lwe_modular_std_dev,
-            glwe_modular_std_dev,
+            lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                lwe_modular_std_dev,
+            ),
+            glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(
+                glwe_modular_std_dev,
+            ),
             pbs_base_log,
             pbs_level,
             ks_base_log,
             ks_level,
             encryption_key_choice,
         }
-    }
-
-    pub const fn lwe_noise_distribution(&self) -> Gaussian<f64> {
-        Gaussian::from_standard_dev(self.lwe_modular_std_dev, 0.0)
-    }
-
-    pub const fn glwe_noise_distribution(&self) -> Gaussian<f64> {
-        Gaussian::from_standard_dev(self.glwe_modular_std_dev, 0.0)
     }
 }
 
@@ -133,8 +128,12 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(722),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000013071021089943935),
-    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000013071021089943935,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000004990272175010415,
+    )),
     pbs_base_log: DecompositionBaseLog(6),
     pbs_level: DecompositionLevelCount(3),
     ks_base_log: DecompositionBaseLog(3),
@@ -146,8 +145,12 @@ pub const DEFAULT_PARAMETERS_KS_PBS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(664),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.00003808282923459771),
-    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00003808282923459771,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000004990272175010415,
+    )),
     pbs_base_log: DecompositionBaseLog(6),
     pbs_level: DecompositionLevelCount(3),
     ks_base_log: DecompositionBaseLog(3),
@@ -162,8 +165,12 @@ pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165: BooleanParameters = BooleanPara
     lwe_dimension: LweDimension(767),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000005104350373791501),
-    glwe_modular_std_dev: StandardDev(0.0000000009313225746154785),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000005104350373791501,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000009313225746154785,
+    )),
     pbs_base_log: DecompositionBaseLog(10),
     pbs_level: DecompositionLevelCount(2),
     ks_base_log: DecompositionBaseLog(3),
@@ -175,8 +182,12 @@ pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS: BooleanParameters = Bool
     lwe_dimension: LweDimension(700),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.0000196095987892077),
-    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000196095987892077,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000004990272175010415,
+    )),
     pbs_base_log: DecompositionBaseLog(5),
     pbs_level: DecompositionLevelCount(4),
     ks_base_log: DecompositionBaseLog(2),
@@ -191,8 +202,12 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(630),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000030517578125),
-    glwe_modular_std_dev: StandardDev(0.00000002980232238769531),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000030517578125,
+    )),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000002980232238769531,
+    )),
     pbs_base_log: DecompositionBaseLog(7),
     pbs_level: DecompositionLevelCount(3),
     ks_base_log: DecompositionBaseLog(2),

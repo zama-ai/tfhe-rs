@@ -101,12 +101,13 @@ void test_server_key_trivial_encrypt(void) {
 void test_custom_keygen(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
+
   ShortintPBSParameters params = {
       .lwe_dimension = 10,
       .glwe_dimension = 1,
       .polynomial_size = 1024,
-      .lwe_modular_std_dev = 10e-100,
-      .glwe_modular_std_dev = 10e-100,
+      .lwe_noise_distribution = new_gaussian_from_std_dev(10e-100),
+      .glwe_noise_distribution = new_gaussian_from_std_dev(10e-100),
       .pbs_base_log = 2,
       .pbs_level = 3,
       .ks_base_log = 2,
@@ -120,6 +121,16 @@ void test_custom_keygen(void) {
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
 
   assert(gen_keys_ok == 0);
+
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
+
+  params.lwe_noise_distribution = new_t_uniform(24);
+  params.glwe_noise_distribution = new_t_uniform(16);
+
+  int t_uniform_gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
+
+  assert(t_uniform_gen_keys_ok == 0);
 
   shortint_destroy_client_key(cks);
   shortint_destroy_server_key(sks);

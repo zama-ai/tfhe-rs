@@ -4,6 +4,8 @@ use crate::core_crypto::commons::math::torus::FromTorus;
 use crate::core_crypto::commons::numeric::{CastInto, Numeric};
 use serde::{Deserialize, Serialize};
 
+// Clippy false positive, does not repro with smaller code
+#[allow(clippy::derive_partial_eq_without_eq)]
 /// A distribution type representing random sampling of floating point numbers, following a
 /// gaussian distribution.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -13,8 +15,6 @@ pub struct Gaussian<T: FloatingPoint> {
     /// The mean of the distribution.
     pub mean: T,
 }
-
-impl<T: FloatingPoint> std::cmp::Eq for Gaussian<T> {}
 
 impl Gaussian<f64> {
     pub const fn from_standard_dev(std: StandardDev, mean: f64) -> Self {

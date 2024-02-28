@@ -294,5 +294,9 @@ required-features = ["integer"]
 name = "pbs_count"
 required-features = ["integer", "pbs-stats"]
 
+[[example]]
+name = "dist_tuniform"
+required-features = ["integer", "internal-keycache"]
+
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

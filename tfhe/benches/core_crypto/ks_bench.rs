@@ -105,7 +105,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
     for (name, params) in benchmark_parameters::<Scalar>().iter() {
         let lwe_dimension = params.lwe_dimension.unwrap();
         let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
         let glwe_dimension = params.glwe_dimension.unwrap();
         let polynomial_size = params.polynomial_size.unwrap();
         let ks_decomp_base_log = params.ks_base_log.unwrap();
@@ -199,7 +199,7 @@ mod cuda {
         for (name, params) in benchmark_parameters::<Scalar>().iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
             let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
             let glwe_dimension = params.glwe_dimension.unwrap();
             let polynomial_size = params.polynomial_size.unwrap();
             let ks_decomp_base_log = params.ks_base_log.unwrap();

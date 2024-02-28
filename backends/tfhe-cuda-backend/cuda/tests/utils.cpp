@@ -141,7 +141,7 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
                                  uint64_t *lwe_sk_out_array, int lwe_dimension,
                                  int glwe_dimension, int polynomial_size,
                                  int pbs_level, int pbs_base_log, Seed *seed,
-                                 double variance, const unsigned repetitions) {
+                                 DynamicDistribution noise_distribution, const unsigned repetitions) {
   int bsk_size = (glwe_dimension + 1) * (glwe_dimension + 1) * pbs_level *
                  polynomial_size * (lwe_dimension + 1);
   int bsk_array_size = bsk_size * repetitions;
@@ -159,7 +159,7 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
         bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log, pbs_level,
         lwe_sk_in_array + (ptrdiff_t)(shift_in), lwe_dimension,
         lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
-        polynomial_size, sqrt(variance), seed->lo, seed->hi);
+        polynomial_size, noise_distribution, seed->lo, seed->hi);
     double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_synchronize_stream(stream);
@@ -178,7 +178,7 @@ void generate_lwe_multi_bit_pbs_keys(
     cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor, int pbs_level, int pbs_base_log,
-    Seed *seed, double variance, const unsigned repetitions) {
+    Seed *seed, DynamicDistribution noise_distribution, const unsigned repetitions) {
 
   int bsk_size = lwe_dimension * pbs_level * (glwe_dimension + 1) *
                  (glwe_dimension + 1) * polynomial_size *
@@ -196,7 +196,7 @@ void generate_lwe_multi_bit_pbs_keys(
         lwe_sk_in_array + (ptrdiff_t)(shift_in), lwe_dimension,
         lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
         polynomial_size, bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log,
-        pbs_level, grouping_factor, sqrt(variance), 0, 0);
+        pbs_level, grouping_factor, noise_distribution, 0, 0);
     uint64_t *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_convert_lwe_multi_bit_bootstrap_key_64(
@@ -216,7 +216,7 @@ void generate_lwe_keyswitch_keys(cuda_stream_t *stream, uint64_t **d_ksk_array,
                                  uint64_t *lwe_sk_out_array,
                                  int input_lwe_dimension,
                                  int output_lwe_dimension, int ksk_level,
-                                 int ksk_base_log, Seed *seed, double variance,
+                                 int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
                                  const unsigned repetitions) {
 
   int ksk_size = ksk_level * (output_lwe_dimension + 1) * input_lwe_dimension;
@@ -235,7 +235,7 @@ void generate_lwe_keyswitch_keys(cuda_stream_t *stream, uint64_t **d_ksk_array,
         ksk_array + (ptrdiff_t)(shift_ksk), ksk_base_log, ksk_level,
         lwe_sk_in_array + (ptrdiff_t)(shift_in), input_lwe_dimension,
         lwe_sk_out_array + (ptrdiff_t)(shift_out), output_lwe_dimension,
-        variance, seed->lo, seed->hi);
+        noise_distribution, seed->lo, seed->hi);
     uint64_t *d_ksk = *d_ksk_array + (ptrdiff_t)(shift_ksk);
     uint64_t *ksk = ksk_array + (ptrdiff_t)(shift_ksk);
     cuda_memcpy_async_to_gpu(d_ksk, ksk, ksk_size * sizeof(uint64_t), stream);

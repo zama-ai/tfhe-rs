@@ -41,9 +41,9 @@ jobs:
 
       - name: Run clippy checks
         run: |
-          make clippy_gpu
+          make pcc_gpu
 
-      - name: Run all tests
+      - name: Run core crypto, integer and internal CUDA backend tests
         run: |
           make test_gpu
 
@@ -54,6 +54,10 @@ jobs:
       - name: Test C API
         run: |
           make test_c_api_gpu
+
+      - name: Run High Level API Tests
+        run: |
+          make test_high_level_api_gpu
 
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         if: ${{ github.event_name == 'pull_request' }}

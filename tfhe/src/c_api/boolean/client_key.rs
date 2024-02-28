@@ -19,7 +19,8 @@ pub unsafe extern "C" fn boolean_gen_client_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result_client_key = std::ptr::null_mut();
 
-        let params = crate::boolean::parameters::BooleanParameters::from(boolean_parameters);
+        let params =
+            crate::boolean::parameters::BooleanParameters::try_from(boolean_parameters).unwrap();
         let client_key = boolean::client_key::ClientKey::new(&params);
 
         let heap_allocated_client_key = Box::new(BooleanClientKey(client_key));

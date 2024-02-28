@@ -179,7 +179,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
         );
 
         let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
@@ -289,7 +289,7 @@ fn multi_bit_pbs<
         );
 
         let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -381,7 +381,7 @@ fn multi_bit_deterministic_pbs<
         );
 
         let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -462,7 +462,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         let big_lwe_dimension = big_lwe_sk.lwe_dimension();
 
         let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         const NUM_CTS: usize = 8192;
         let lwe_vec: Vec<_> = (0..NUM_CTS)
@@ -662,7 +662,7 @@ mod cuda {
             let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
 
             let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -787,7 +787,7 @@ mod cuda {
             );
 
             let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -906,7 +906,7 @@ mod cuda {
             const NUM_CTS: usize = 8192;
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
             let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
             let mut lwe_list = LweCiphertextList::new(
                 Scalar::ZERO,
@@ -1048,7 +1048,7 @@ mod cuda {
 
             const NUM_CTS: usize = 8192;
             let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
             let mut lwe_list = LweCiphertextList::new(

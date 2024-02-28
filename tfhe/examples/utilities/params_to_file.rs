@@ -15,8 +15,8 @@ use tfhe::shortint::parameters::{
 pub trait ParamDetails {
     fn lwe_dimension(&self) -> LweDimension;
     fn glwe_dimension(&self) -> GlweDimension;
-    fn lwe_modular_std_dev(&self) -> StandardDev;
-    fn glwe_modular_std_dev(&self) -> StandardDev;
+    fn lwe_std_dev(&self) -> StandardDev;
+    fn glwe_std_dev(&self) -> StandardDev;
     fn polynomial_size(&self) -> PolynomialSize;
     fn log_ciphertext_modulus(&self) -> usize;
 }
@@ -30,11 +30,11 @@ impl ParamDetails for BooleanParameters {
         self.glwe_dimension
     }
 
-    fn lwe_modular_std_dev(&self) -> StandardDev {
-        self.lwe_modular_std_dev
+    fn lwe_std_dev(&self) -> StandardDev {
+        self.lwe_noise_distribution.gaussian_std_dev()
     }
-    fn glwe_modular_std_dev(&self) -> StandardDev {
-        self.glwe_modular_std_dev
+    fn glwe_std_dev(&self) -> StandardDev {
+        self.glwe_noise_distribution.gaussian_std_dev()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
@@ -55,11 +55,11 @@ impl ParamDetails for ShortintParameterSet {
         self.glwe_dimension()
     }
 
-    fn lwe_modular_std_dev(&self) -> StandardDev {
-        self.lwe_modular_std_dev()
+    fn lwe_std_dev(&self) -> StandardDev {
+        self.lwe_noise_distribution().gaussian_std_dev()
     }
-    fn glwe_modular_std_dev(&self) -> StandardDev {
-        self.glwe_modular_std_dev()
+    fn glwe_std_dev(&self) -> StandardDev {
+        self.glwe_noise_distribution().gaussian_std_dev()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
@@ -78,8 +78,7 @@ impl ParamDetails for ShortintParameterSet {
 pub fn format_lwe_parameters_to_lattice_estimator<T: ParamDetails + NamedParam>(
     param: &T,
 ) -> String {
-    let modular_std_dev =
-        param.log_ciphertext_modulus() as f64 + param.lwe_modular_std_dev().0.log2();
+    let modular_std_dev = param.log_ciphertext_modulus() as f64 + param.lwe_std_dev().0.log2();
 
     format!(
         "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
@@ -92,8 +91,7 @@ pub fn format_lwe_parameters_to_lattice_estimator<T: ParamDetails + NamedParam>(
 pub fn format_glwe_parameters_to_lattice_estimator<T: ParamDetails + NamedParam>(
     param: &T,
 ) -> String {
-    let modular_std_dev =
-        param.log_ciphertext_modulus() as f64 + param.glwe_modular_std_dev().0.log2();
+    let modular_std_dev = param.log_ciphertext_modulus() as f64 + param.glwe_std_dev().0.log2();
 
     format!(
         "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",

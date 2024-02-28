@@ -35,20 +35,20 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
                                  uint64_t *lwe_sk_out_array, int lwe_dimension,
                                  int glwe_dimension, int polynomial_size,
                                  int pbs_level, int pbs_base_log, Seed *seed,
-                                 double variance, const unsigned repetitions);
+                                 DynamicDistribution noise_distribution,
+                                 const unsigned repetitions);
 
 void generate_lwe_multi_bit_pbs_keys(
     cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int pbs_level, int pbs_base_log, int grouping_factor,
-    Seed *seed, double variance, const unsigned repetitions);
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions);
 
-void generate_lwe_keyswitch_keys(cuda_stream_t *stream, uint64_t **d_ksk_array,
-                                 uint64_t *lwe_sk_in_array,
-                                 uint64_t *lwe_sk_out_array,
-                                 int input_lwe_dimension,
-                                 int output_lwe_dimension, int ksk_level,
-                                 int ksk_base_log, Seed *seed, double variance,
-                                 const unsigned repetitions);
+void generate_lwe_keyswitch_keys(
+    cuda_stream_t *stream, uint64_t **d_ksk_array, uint64_t *lwe_sk_in_array,
+    uint64_t *lwe_sk_out_array, int input_lwe_dimension,
+    int output_lwe_dimension, int ksk_level, int ksk_base_log, Seed *seed,
+    DynamicDistribution noise_distribution, const unsigned repetitions);
 
 #endif

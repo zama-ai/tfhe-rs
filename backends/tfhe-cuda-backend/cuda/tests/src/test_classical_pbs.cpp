@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -10,8 +11,8 @@ typedef struct {
   int lwe_dimension;
   int glwe_dimension;
   int polynomial_size;
-  double lwe_modular_variance;
-  double glwe_modular_variance;
+  DynamicDistribution lwe_noise_distribution;
+  DynamicDistribution glwe_noise_distribution;
   int pbs_base_log;
   int pbs_level;
   int message_modulus;
@@ -27,8 +28,8 @@ protected:
   int lwe_dimension;
   int glwe_dimension;
   int polynomial_size;
-  double lwe_modular_variance;
-  double glwe_modular_variance;
+  DynamicDistribution lwe_noise_distribution;
+  DynamicDistribution glwe_noise_distribution;
   int pbs_base_log;
   int pbs_level;
   int message_modulus;
@@ -61,8 +62,10 @@ public:
     lwe_dimension = (int)GetParam().lwe_dimension;
     glwe_dimension = (int)GetParam().glwe_dimension;
     polynomial_size = (int)GetParam().polynomial_size;
-    lwe_modular_variance = (double)GetParam().lwe_modular_variance;
-    glwe_modular_variance = (double)GetParam().glwe_modular_variance;
+    lwe_noise_distribution =
+        (DynamicDistribution)GetParam().lwe_noise_distribution;
+    glwe_noise_distribution =
+        (DynamicDistribution)GetParam().glwe_noise_distribution;
     pbs_base_log = (int)GetParam().pbs_base_log;
     pbs_level = (int)GetParam().pbs_level;
     message_modulus = (int)GetParam().message_modulus;
@@ -79,8 +82,8 @@ public:
         &d_fourier_bsk_array, &plaintexts, &d_lut_pbs_identity,
         &d_lut_pbs_indexes, &d_lwe_ct_in_array, &d_lwe_input_indexes,
         &d_lwe_ct_out_array, &d_lwe_output_indexes, lwe_dimension,
-        glwe_dimension, polynomial_size, lwe_modular_variance,
-        glwe_modular_variance, pbs_base_log, pbs_level, message_modulus,
+        glwe_dimension, polynomial_size, lwe_noise_distribution,
+        glwe_noise_distribution, pbs_base_log, pbs_level, message_modulus,
         carry_modulus, &payload_modulus, &delta, number_of_inputs, repetitions,
         samples);
 
@@ -227,108 +230,146 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
         // message_modulus, carry_modulus, number_of_inputs, repetitions,
         // samples
         // BOOLEAN_DEFAULT_PARAMETERS
-        (ClassicalBootstrapTestParams){777, 3, 512, 1.3880686109937e-11,
-                                       1.1919984450689246e-23, 18, 1, 2, 2, 2,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            777, 3, 512, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
+            2, 2, 2, 40},
         // BOOLEAN_TFHE_LIB_PARAMETERS
-        (ClassicalBootstrapTestParams){830, 2, 1024, 1.994564705573226e-12,
-                                       8.645717832544903e-32, 23, 1, 2, 2, 2, 2,
-                                       40},
+        (ClassicalBootstrapTestParams){
+            830, 2, 1024,
+            new_gaussian_from_std_dev(sqrt(1.994564705573226e-12)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 2,
+            2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_0
-        (ClassicalBootstrapTestParams){678, 5, 256, 5.203010004723453e-10,
-                                       1.3996292326131784e-19, 15, 1, 2, 1, 2,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            678, 5, 256, new_gaussian_from_std_dev(sqrt(5.203010004723453e-10)),
+            new_gaussian_from_std_dev(sqrt(1.3996292326131784e-19)), 15, 1, 2,
+            1, 2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_1
-        (ClassicalBootstrapTestParams){684, 3, 512, 4.177054989616946e-10,
-                                       1.1919984450689246e-23, 18, 1, 2, 2, 2,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            684, 3, 512, new_gaussian_from_std_dev(sqrt(4.177054989616946e-10)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
+            2, 2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_2_CARRY_0
-        (ClassicalBootstrapTestParams){656, 2, 512, 1.1641198952558192e-09,
-                                       1.6434266310406663e-15, 8, 2, 4, 1, 2, 2,
-                                       40},
+        (ClassicalBootstrapTestParams){
+            656, 2, 512,
+            new_gaussian_from_std_dev(sqrt(1.1641198952558192e-09)),
+            new_gaussian_from_std_dev(sqrt(1.6434266310406663e-15)), 8, 2, 4, 1,
+            2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_2
         // SHORTINT_PARAM_MESSAGE_2_CARRY_1
         // SHORTINT_PARAM_MESSAGE_3_CARRY_0
-        (ClassicalBootstrapTestParams){742, 2, 1024, 4.998277131225527e-11,
-                                       8.645717832544903e-32, 23, 1, 2, 4, 2, 2,
-                                       40},
+        (ClassicalBootstrapTestParams){
+            742, 2, 1024,
+            new_gaussian_from_std_dev(sqrt(4.998277131225527e-11)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 4,
+            2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_3
         // SHORTINT_PARAM_MESSAGE_2_CARRY_2
         // SHORTINT_PARAM_MESSAGE_3_CARRY_1
         // SHORTINT_PARAM_MESSAGE_4_CARRY_0
-        (ClassicalBootstrapTestParams){745, 1, 2048, 4.478453795193731e-11,
-                                       8.645717832544903e-32, 23, 1, 2, 8, 2, 2,
-                                       40},
+        (ClassicalBootstrapTestParams){
+            745, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.478453795193731e-11)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 8,
+            2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_5_CARRY_0
         // SHORTINT_PARAM_MESSAGE_3_CARRY_2
-        (ClassicalBootstrapTestParams){807, 1, 4096, 4.629015039118823e-12,
-                                       4.70197740328915e-38, 22, 1, 32, 1, 2, 1,
-                                       40},
+        (ClassicalBootstrapTestParams){
+            807, 1, 4096,
+            new_gaussian_from_std_dev(sqrt(4.629015039118823e-12)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 32, 1,
+            2, 1, 40},
         // SHORTINT_PARAM_MESSAGE_6_CARRY_0
-        (ClassicalBootstrapTestParams){915, 1, 8192, 8.883173851180252e-14,
-                                       4.70197740328915e-38, 22, 1, 64, 1, 2, 1,
-                                       5},
+        (ClassicalBootstrapTestParams){
+            915, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
+            2, 1, 5},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
-        (ClassicalBootstrapTestParams){864, 1, 8192, 1.5843564961097632e-15,
-                                       4.70197740328915e-38, 15, 2, 8, 8, 2, 1,
-                                       5},
+        (ClassicalBootstrapTestParams){
+            864, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
+            2, 1, 5},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
-        (ClassicalBootstrapTestParams){930, 1, 16384, 5.129877458078009e-14,
-                                       4.70197740328915e-38, 15, 2, 128, 1, 2,
-                                       1, 5},
+        (ClassicalBootstrapTestParams){
+            930, 1, 16384,
+            new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
+            1, 2, 1, 5},
 
         // BOOLEAN_DEFAULT_PARAMETERS
-        (ClassicalBootstrapTestParams){777, 3, 512, 1.3880686109937e-11,
-                                       1.1919984450689246e-23, 18, 1, 2, 2, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            777, 3, 512, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
+            2, 100, 2, 40},
         // BOOLEAN_TFHE_LIB_PARAMETERS
-        (ClassicalBootstrapTestParams){830, 2, 1024, 1.994564705573226e-12,
-                                       8.645717832544903e-32, 23, 1, 2, 2, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            830, 2, 1024,
+            new_gaussian_from_std_dev(sqrt(1.994564705573226e-12)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 2,
+            100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_0
-        (ClassicalBootstrapTestParams){678, 5, 256, 5.203010004723453e-10,
-                                       1.3996292326131784e-19, 15, 1, 2, 1, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            678, 5, 256, new_gaussian_from_std_dev(sqrt(5.203010004723453e-10)),
+            new_gaussian_from_std_dev(sqrt(1.3996292326131784e-19)), 15, 1, 2,
+            1, 100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_1
-        (ClassicalBootstrapTestParams){684, 3, 512, 4.177054989616946e-10,
-                                       1.1919984450689246e-23, 18, 1, 2, 2, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            684, 3, 512, new_gaussian_from_std_dev(sqrt(4.177054989616946e-10)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
+            2, 100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_2_CARRY_0
-        (ClassicalBootstrapTestParams){656, 2, 512, 1.1641198952558192e-09,
-                                       1.6434266310406663e-15, 8, 2, 4, 1, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            656, 2, 512,
+            new_gaussian_from_std_dev(sqrt(1.1641198952558192e-09)),
+            new_gaussian_from_std_dev(sqrt(1.6434266310406663e-15)), 8, 2, 4, 1,
+            100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_2
         // SHORTINT_PARAM_MESSAGE_2_CARRY_1
         // SHORTINT_PARAM_MESSAGE_3_CARRY_0
-        (ClassicalBootstrapTestParams){742, 2, 1024, 4.998277131225527e-11,
-                                       8.645717832544903e-32, 23, 1, 2, 4, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            742, 2, 1024,
+            new_gaussian_from_std_dev(sqrt(4.998277131225527e-11)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 4,
+            100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_3
         // SHORTINT_PARAM_MESSAGE_2_CARRY_2
         // SHORTINT_PARAM_MESSAGE_3_CARRY_1
         // SHORTINT_PARAM_MESSAGE_4_CARRY_0
-        (ClassicalBootstrapTestParams){745, 1, 2048, 4.478453795193731e-11,
-                                       8.645717832544903e-32, 23, 1, 2, 8, 100,
-                                       2, 40},
+        (ClassicalBootstrapTestParams){
+            745, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.478453795193731e-11)),
+            new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 8,
+            100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_5_CARRY_0
         // SHORTINT_PARAM_MESSAGE_3_CARRY_2
-        (ClassicalBootstrapTestParams){807, 1, 4096, 4.629015039118823e-12,
-                                       4.70197740328915e-38, 22, 1, 32, 1, 100,
-                                       1, 40},
+        (ClassicalBootstrapTestParams){
+            807, 1, 4096,
+            new_gaussian_from_std_dev(sqrt(4.629015039118823e-12)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 32, 1,
+            100, 1, 40},
         // SHORTINT_PARAM_MESSAGE_6_CARRY_0
-        (ClassicalBootstrapTestParams){915, 1, 8192, 8.883173851180252e-14,
-                                       4.70197740328915e-38, 22, 1, 64, 1, 100,
-                                       1, 5},
+        (ClassicalBootstrapTestParams){
+            915, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
+            100, 1, 5},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
-        (ClassicalBootstrapTestParams){864, 1, 8192, 1.5843564961097632e-15,
-                                       4.70197740328915e-38, 15, 2, 8, 8, 100,
-                                       1, 5},
+        (ClassicalBootstrapTestParams){
+            864, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
+            100, 1, 5},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
-        (ClassicalBootstrapTestParams){930, 1, 16384, 5.129877458078009e-14,
-                                       4.70197740328915e-38, 15, 2, 128, 1, 100,
-                                       1, 5});
+        (ClassicalBootstrapTestParams){
+            930, 1, 16384,
+            new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
+            new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
+            1, 100, 1, 5});
 std::string
 printParamName(::testing::TestParamInfo<ClassicalBootstrapTestParams> p) {
   ClassicalBootstrapTestParams params = p.param;
