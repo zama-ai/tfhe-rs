@@ -24,6 +24,7 @@ macro_rules! expand_pub_use_fhe_type(
     }
 );
 
+#[allow(unused_imports)]
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};

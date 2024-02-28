@@ -671,7 +671,7 @@ pub(crate) fn update_with_fmadd(
                         let lhs = S::c64s_as_simd(ggsw_poly).0;
 
                         for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
-                            *out = simd.c64s_mul_adde(lhs, rhs, *out);
+                            *out = simd.c64s_mul_add_e(lhs, rhs, *out);
                         }
                     }
                 }
@@ -737,7 +737,7 @@ pub(crate) fn update_with_fmadd_factor(
                 } else {
                     for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
                         // NOTE: see above
-                        *out = simd.c64s_mul_adde(factor, simd.c64s_mul(lhs, rhs), *out);
+                        *out = simd.c64s_mul_add_e(factor, simd.c64s_mul(lhs, rhs), *out);
                     }
                 }
             }

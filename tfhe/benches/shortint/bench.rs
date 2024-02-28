@@ -393,7 +393,7 @@ fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
     let param = WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
-    let param_set: ShortintParameterSet = param.try_into().unwrap();
+    let param_set: ShortintParameterSet = param.into();
     let pbs_params = param_set.pbs_parameters().unwrap();
 
     let keys = KEY_CACHE_WOPBS.get_from_param((pbs_params, param));

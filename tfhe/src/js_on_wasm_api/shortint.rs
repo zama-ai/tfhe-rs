@@ -352,7 +352,7 @@ impl Shortint {
 
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
         crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-            .new_client_key(parameters.0.try_into().unwrap())
+            .new_client_key(parameters.0.into())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintClientKey)
     }
