@@ -67,8 +67,7 @@ void scratch_cuda_programmable_bootstrap_amortized_32(
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
-          "N's are powers of two"
-          " in the interval [256..16384].")
+          "N's are powers of two in the interval [256..16384].")
   }
 }
 

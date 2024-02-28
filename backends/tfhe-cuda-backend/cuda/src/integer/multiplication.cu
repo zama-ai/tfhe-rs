@@ -79,14 +79,20 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
                           grouping_factor, message_modulus, carry_modulus);
 
   switch (polynomial_size) {
+  case 256:
+  case 512:
+  case 1024:
   case 2048:
+  case 4096:
+  case 8192:
+  case 16384:
     scratch_cuda_integer_mult_radix_ciphertext_kb<uint64_t>(
         stream, (int_mul_memory<uint64_t> **)mem_ptr, num_radix_blocks, params,
         allocate_gpu_memory);
     break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
-          "Only N = 2048 is supported")
+          "Supported N's are powers of two in the interval [256..16384].")
   }
 }
 
@@ -128,6 +134,30 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
     uint32_t max_shared_memory) {
 
   switch (polynomial_size) {
+  case 256:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<256>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
+  case 512:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<512>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
+  case 1024:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<1024>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
   case 2048:
     host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<2048>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
@@ -136,9 +166,33 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
         static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
         num_blocks);
     break;
+  case 4096:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<4096>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
+  case 8192:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<8192>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
+  case 16384:
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<16384>>(
+        stream, static_cast<uint64_t *>(radix_lwe_out),
+        static_cast<uint64_t *>(radix_lwe_left),
+        static_cast<uint64_t *>(radix_lwe_right), bsk,
+        static_cast<uint64_t *>(ksk), (int_mul_memory<uint64_t> *)mem_ptr,
+        num_blocks);
+    break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
-          "Only N = 2048 is supported")
+          "Supported N's are powers of two in the interval [256..16384].")
   }
 }
 
@@ -225,8 +279,8 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
         num_radix_in_vec);
     break;
   default:
-    PANIC("Cuda error (integer sum ciphertexts): unsupported polynomial size. "
-          "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
   }
 
   free(terms_degree);
