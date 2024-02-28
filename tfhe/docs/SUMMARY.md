@@ -4,7 +4,7 @@
 
 ## Getting Started
 
-* [What is TFHE-rs?](getting_started/what-is-tfhe-rs)
+* [What is TFHE-rs?](getting_started/what-is-tfhe-rs.md)
 * [Installation](getting\_started/installation.md)
 * [Quick start](getting\_started/quick\_start.md)
 * [Types & Operations](getting\_started/operations.md)
