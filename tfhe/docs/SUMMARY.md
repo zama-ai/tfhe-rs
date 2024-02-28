@@ -4,7 +4,7 @@
 
 ## Getting Started
 
-* [What is TFHE-rs?](getting-started/what-is-tfhe-rs.md)
+* [What is TFHE-rs?](getting_started/what-is-tfhe-rs)
 * [Installation](getting\_started/installation.md)
 * [Quick start](getting\_started/quick\_start.md)
 * [Types & Operations](getting\_started/operations.md)
@@ -20,15 +20,15 @@
 * [Homomorphic regular expressions integer API](tutorials/regex.md)
 * [See all tutorials](tutorials/see-all-tutorials.md)
 
-## fundamentals
+## Fundamentals
 
 * [Configure and create keys](fundamentals/configure-and-create-keys.md)
 * [Set the server key](fundamentals/set-the-server-key.md)
 * [Encrypt data](fundamentals/encrypt-data.md)
 * [Compute and decrypt](fundamentals/compute-and-decrypt.md)
-* [Serialize/Deserialize](foundamentals/serialization.md)
-* [Compress ciphertexts/keys](foundamentals/compress.md)
-* [Initialize server-side values](foundamentals/trivial\_ciphertext.md)
+* [Serialize/Deserialize](fundamentals/serialization.md)
+* [Compress ciphertexts/keys](fundamentals/compress.md)
+* [Initialize server-side values](fundamentals/trivial\_ciphertext.md)
 
 ## Guides
 
