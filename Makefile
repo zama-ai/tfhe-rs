@@ -61,7 +61,7 @@ REGEX_STRING?=''
 REGEX_PATTERN?=''
 
 # tfhe-cuda-backend
-TFHECUDA_SRC="backends/tfhe-cuda-backend/cuda"
+TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # Exclude these files from coverage reports
@@ -168,7 +168,7 @@ check_fmt_gpu: install_rs_check_toolchain
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh -c
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
-clippy_gpu: install_rs_check_toolchain clippy_cuda_backend
+clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu \
 		--all-targets \
@@ -394,8 +394,16 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 			-p $(TFHE_SPEC) -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
+.PHONY: test_cuda_backend # Run the internal tests of the CUDA backend
+test_cuda_backend:
+	mkdir -p "$(TFHECUDA_BUILD)" && \
+		cd "$(TFHECUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
+		make -j && \
+		make test
+
 .PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
-test_gpu: test_core_crypto_gpu test_integer_gpu
+test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu: install_rs_build_toolchain install_rs_check_toolchain
@@ -632,6 +640,16 @@ check_compile_tests:
 		"$(MAKE)" build_c_api && \
 		./scripts/c_api_tests.sh --build-only; \
 	fi
+
+.PHONY: check_compile_tests_gpu # Build tests in debug without running them
+check_compile_tests_gpu: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache,gpu \
+		-p $(TFHE_SPEC)
+	mkdir -p "$(TFHECUDA_BUILD)" && \
+		cd "$(TFHECUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
+		make -j
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:
@@ -875,7 +893,7 @@ sha256_bool: install_rs_check_toolchain
 pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
-pcc_gpu: pcc clippy_gpu
+pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests

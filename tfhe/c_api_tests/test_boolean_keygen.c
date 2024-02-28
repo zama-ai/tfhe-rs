@@ -99,8 +99,8 @@ void test_custom_keygen(void) {
       .lwe_dimension = 10,
       .glwe_dimension = 1,
       .polynomial_size = 1024,
-      .lwe_modular_std_dev = 10e-100,
-      .glwe_modular_std_dev = 10e-100,
+      .lwe_noise_distribution = new_gaussian_from_std_dev(10e-100),
+      .glwe_noise_distribution = new_gaussian_from_std_dev(10e-100),
       .pbs_base_log = 3,
       .pbs_level = 1,
       .ks_base_log = 4,
@@ -110,6 +110,16 @@ void test_custom_keygen(void) {
   int gen_keys_ok = boolean_gen_keys_with_parameters(params, &cks, &sks);
 
   assert(gen_keys_ok == 0);
+
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
+
+  params.lwe_noise_distribution = new_t_uniform(12);
+  params.glwe_noise_distribution = new_t_uniform(8);
+
+  int t_uniform_gen_keys_ok = boolean_gen_keys_with_parameters(params, &cks, &sks);
+
+  assert(t_uniform_gen_keys_ok == 0);
 
   boolean_destroy_client_key(cks);
   boolean_destroy_server_key(sks);

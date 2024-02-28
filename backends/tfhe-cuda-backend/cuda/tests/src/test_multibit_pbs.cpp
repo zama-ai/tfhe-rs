@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -10,8 +11,8 @@ typedef struct {
   int lwe_dimension;
   int glwe_dimension;
   int polynomial_size;
-  double lwe_modular_variance;
-  double glwe_modular_variance;
+  DynamicDistribution lwe_noise_distribution;
+  DynamicDistribution glwe_noise_distribution;
   int pbs_base_log;
   int pbs_level;
   int message_modulus;
@@ -28,8 +29,8 @@ protected:
   int lwe_dimension;
   int glwe_dimension;
   int polynomial_size;
-  double lwe_modular_variance;
-  double glwe_modular_variance;
+  DynamicDistribution lwe_noise_distribution;
+  DynamicDistribution glwe_noise_distribution;
   int pbs_base_log;
   int pbs_level;
   int message_modulus;
@@ -65,8 +66,10 @@ public:
     glwe_dimension = (int)GetParam().glwe_dimension;
     polynomial_size = (int)GetParam().polynomial_size;
     grouping_factor = (int)GetParam().grouping_factor;
-    lwe_modular_variance = (double)GetParam().lwe_modular_variance;
-    glwe_modular_variance = (double)GetParam().glwe_modular_variance;
+    lwe_noise_distribution =
+        (DynamicDistribution)GetParam().lwe_noise_distribution;
+    glwe_noise_distribution =
+        (DynamicDistribution)GetParam().glwe_noise_distribution;
     pbs_base_log = (int)GetParam().pbs_base_log;
     pbs_level = (int)GetParam().pbs_level;
     message_modulus = (int)GetParam().message_modulus;
@@ -84,8 +87,8 @@ public:
         &plaintexts, &d_lut_pbs_identity, &d_lut_pbs_indexes,
         &d_lwe_ct_in_array, &d_lwe_input_indexes, &d_lwe_ct_out_array,
         &d_lwe_output_indexes, &pbs_buffer, lwe_dimension, glwe_dimension,
-        polynomial_size, grouping_factor, lwe_modular_variance,
-        glwe_modular_variance, pbs_base_log, pbs_level, message_modulus,
+        polynomial_size, grouping_factor, lwe_noise_distribution,
+        glwe_noise_distribution, pbs_base_log, pbs_level, message_modulus,
         carry_modulus, &payload_modulus, &delta, number_of_inputs, repetitions,
         samples);
 
@@ -166,26 +169,34 @@ TEST_P(MultiBitBootstrapTestPrimitives_u64, multi_bit_pbs) {
 ::testing::internal::ParamGenerator<MultiBitBootstrapTestParams>
     multipbs_params_u64 = ::testing::Values(
         // fast src
-        (MultiBitBootstrapTestParams){16, 1, 256, 1.3880686109937e-11,
-                                      1.1919984450689246e-23, 23, 1, 2, 2, 1, 2,
-                                      1, 10},
-        (MultiBitBootstrapTestParams){16, 1, 256, 1.3880686109937e-11,
-                                      1.1919984450689246e-23, 23, 1, 2, 2, 128,
-                                      2, 1, 10},
+        (MultiBitBootstrapTestParams){
+            16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
+            2, 1, 2, 1, 10},
+        (MultiBitBootstrapTestParams){
+            16, 1, 256, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 23, 1, 2,
+            2, 128, 2, 1, 10},
         // 4_bits_multi_bit_group_2
-        (MultiBitBootstrapTestParams){818, 1, 2048, 1.3880686109937e-11,
-                                      1.1919984450689246e-23, 22, 1, 2, 2, 1, 2,
-                                      1, 10},
-        (MultiBitBootstrapTestParams){818, 1, 2048, 1.3880686109937e-15,
-                                      1.1919984450689246e-24, 22, 1, 2, 2, 128,
-                                      2, 1, 10},
+        (MultiBitBootstrapTestParams){
+            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 22, 1, 2,
+            2, 1, 2, 1, 10},
+        (MultiBitBootstrapTestParams){
+            818, 1, 2048, new_gaussian_from_std_dev(sqrt(1.3880686109937e-15)),
+            new_gaussian_from_std_dev(sqrt(1.1919984450689246e-24)), 22, 1, 2,
+            2, 128, 2, 1, 10},
         // 4_bits_multi_bit_group_3
-        (MultiBitBootstrapTestParams){888, 1, 2048, 4.9571231961752025e-12,
-                                      9.9409770026944e-32, 21, 1, 2, 2, 1, 3, 1,
-                                      10},
-        (MultiBitBootstrapTestParams){888, 1, 2048, 4.9571231961752025e-12,
-                                      9.9409770026944e-32, 21, 1, 2, 2, 128, 3,
-                                      1, 10});
+        (MultiBitBootstrapTestParams){
+            888, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            1, 3, 1, 10},
+        (MultiBitBootstrapTestParams){
+            888, 1, 2048,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
+            128, 3, 1, 10});
 std::string
 printParamName(::testing::TestParamInfo<MultiBitBootstrapTestParams> p) {
   MultiBitBootstrapTestParams params = p.param;

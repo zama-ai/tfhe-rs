@@ -1,5 +1,124 @@
 use super::utils::*;
+use crate::core_crypto::commons::dispersion::StandardDev;
+use crate::core_crypto::commons::math::random::DynamicDistribution as RustDynamicDistribution;
+use crate::core_crypto::commons::numeric::UnsignedInteger;
 use std::os::raw::c_int;
+
+// f64 will be aligned as a u64, use the same alignement
+#[repr(u64)]
+#[derive(Clone, Copy)]
+pub enum DynamicDistributionTag {
+    Gaussian = 0,
+    TUniform = 1,
+}
+
+impl TryFrom<u64> for DynamicDistributionTag {
+    type Error = &'static str;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Gaussian),
+            1 => Ok(Self::TUniform),
+            _ => Err("Invalid value for DynamicDistributionTag"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Gaussian {
+    pub std: f64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TUniform {
+    pub bound_log2: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union DynamicDistributionPayload {
+    pub gaussian: Gaussian,
+    pub t_uniform: TUniform,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DynamicDistribution {
+    pub tag: u64,
+    pub distribution: DynamicDistributionPayload,
+}
+
+impl DynamicDistribution {
+    pub fn new_gaussian_from_std_dev(std: f64) -> Self {
+        Self {
+            tag: DynamicDistributionTag::Gaussian as u64,
+            distribution: DynamicDistributionPayload {
+                gaussian: Gaussian { std },
+            },
+        }
+    }
+
+    pub fn new_t_uniform(bound_log2: u32) -> Self {
+        Self {
+            tag: DynamicDistributionTag::TUniform as u64,
+            distribution: DynamicDistributionPayload {
+                t_uniform: TUniform { bound_log2 },
+            },
+        }
+    }
+}
+
+impl<T: UnsignedInteger> TryFrom<DynamicDistribution> for RustDynamicDistribution<T> {
+    type Error = &'static str;
+
+    fn try_from(value: DynamicDistribution) -> Result<Self, Self::Error> {
+        let tag: DynamicDistributionTag = value.tag.try_into()?;
+
+        match tag {
+            DynamicDistributionTag::Gaussian => {
+                Ok(Self::new_gaussian_from_std_dev(StandardDev(unsafe {
+                    value.distribution.gaussian.std
+                })))
+            }
+            DynamicDistributionTag::TUniform => Ok(Self::try_new_t_uniform(unsafe {
+                value.distribution.t_uniform.bound_log2
+            })?),
+        }
+    }
+}
+
+impl<T: UnsignedInteger> RustDynamicDistribution<T> {
+    pub const fn convert_to_c(&self) -> DynamicDistribution {
+        match self {
+            Self::Gaussian(gaussian) => DynamicDistribution {
+                tag: DynamicDistributionTag::Gaussian as u64,
+                distribution: DynamicDistributionPayload {
+                    gaussian: Gaussian { std: gaussian.std },
+                },
+            },
+            Self::TUniform(t_uniform) => DynamicDistribution {
+                tag: DynamicDistributionTag::TUniform as u64,
+                distribution: DynamicDistributionPayload {
+                    t_uniform: TUniform {
+                        bound_log2: t_uniform.bound_log2(),
+                    },
+                },
+            },
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn new_gaussian_from_std_dev(std_dev: f64) -> DynamicDistribution {
+    DynamicDistribution::new_gaussian_from_std_dev(std_dev)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn new_t_uniform(bound_log2: u32) -> DynamicDistribution {
+    DynamicDistribution::new_t_uniform(bound_log2)
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn core_crypto_lwe_secret_key(
@@ -34,7 +153,7 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
     pt: u64,
     lwe_sk_ptr: *const u64,
     lwe_sk_dim: usize,
-    lwe_encryption_std_dev: f64,
+    lwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -61,8 +180,8 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
         let output_ct = std::slice::from_raw_parts_mut(output_ct_ptr, lwe_sk_dim + 1);
         let mut ct = LweCiphertext::from_container(output_ct, CiphertextModulus::new_native());
 
-        let lwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
+        let lwe_noise_distribution: DynamicDistribution<u64> =
+            lwe_noise_distribution.try_into().unwrap();
 
         encrypt_lwe_ciphertext(
             &lwe_sk,
@@ -83,7 +202,7 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
     poly_size: usize,
     level_count: usize,
     base_log: usize,
-    glwe_encryption_std_dev: f64,
+    glwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -123,8 +242,8 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
             CiphertextModulus::new_native(),
         );
 
-        let glwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
+        let glwe_noise_distribution: DynamicDistribution<u64> =
+            glwe_noise_distribution.try_into().unwrap();
 
         encrypt_constant_ggsw_ciphertext(
             &glwe_sk,
@@ -234,7 +353,7 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_bootstrapping_key(
     output_glwe_sk_ptr: *const u64,
     output_glwe_sk_dim: usize,
     output_glwe_sk_poly_size: usize,
-    glwe_encryption_std_dev: f64,
+    glwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -294,8 +413,8 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_bootstrapping_key(
             CiphertextModulus::new_native(),
         );
 
-        let glwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
+        let glwe_noise_distribution: DynamicDistribution<u64> =
+            glwe_noise_distribution.try_into().unwrap();
 
         par_generate_lwe_bootstrap_key(
             &input_lwe_sk,
@@ -318,7 +437,7 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
     lwe_multi_bit_base_log: usize,
     lwe_multi_bit_level_count: usize,
     lwe_multi_bit_grouping_factor: usize,
-    glwe_encryption_std_dev: f64,
+    glwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -382,8 +501,8 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
             CiphertextModulus::new_native(),
         );
 
-        let glwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(glwe_encryption_std_dev), 0.0);
+        let glwe_noise_distribution: DynamicDistribution<u64> =
+            glwe_noise_distribution.try_into().unwrap();
 
         par_generate_lwe_multi_bit_bootstrap_key(
             &input_lwe_sk,
@@ -404,7 +523,7 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_keyswitch_key(
     input_lwe_sk_dim: usize,
     output_lwe_sk_ptr: *const u64,
     output_lwe_sk_dim: usize,
-    lwe_encryption_std_dev: f64,
+    lwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -455,8 +574,8 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_keyswitch_key(
             CiphertextModulus::new_native(),
         );
 
-        let lwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
+        let lwe_noise_distribution: DynamicDistribution<u64> =
+            lwe_noise_distribution.try_into().unwrap();
 
         generate_lwe_keyswitch_key(
             &input_lwe_sk,
@@ -478,7 +597,7 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_private_functional_keyswit
     output_glwe_sk_ptr: *const u64,
     poly_size: usize,
     glwe_dim: usize,
-    lwe_encryption_std_dev: f64,
+    lwe_noise_distribution: DynamicDistribution,
     seed_low_bytes: u64,
     seed_high_bytes: u64,
 ) -> c_int {
@@ -532,8 +651,8 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_private_functional_keyswit
             CiphertextModulus::new_native(),
         );
 
-        let lwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(lwe_encryption_std_dev), 0.0);
+        let lwe_noise_distribution: DynamicDistribution<u64> =
+            lwe_noise_distribution.try_into().unwrap();
 
         generate_circuit_bootstrap_lwe_pfpksk_list(
             &mut fp_ksk,

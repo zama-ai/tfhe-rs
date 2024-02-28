@@ -1,5 +1,5 @@
-find_package(CUDA REQUIRED)
-find_package(CUDAToolkit REQUIRED)
+project(test_tfhe_cuda_backend LANGUAGES CXX)
+enable_language(CUDA)
 
 include(FetchContent)
 FetchContent_Declare(googletest
@@ -37,7 +37,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CONCRETE_CUDA_SOURCE_DIR}/include)
 include_directories(${TFHE_RS_BINARY_DIR})
 include_directories(${TFHE_RS_BINARY_DIR}/deps)
-include_directories("${CUDA_INCLUDE_DIRS}" "${CMAKE_CURRENT_SOURCE_DIR}")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
 
 add_library(tfhe_rs_lib STATIC IMPORTED)
 add_dependencies(tfhe_rs_lib tfhe-rs)
@@ -57,12 +58,11 @@ add_executable(${BINARY} ${TEST_SOURCES} ../utils.cpp ../setup_and_teardown.cpp)
 add_test(NAME ${BINARY} COMMAND ${BINARY})
 
 set_target_properties(
-  test_tfhe_cuda_backend
+  ${BINARY}
   PROPERTIES CUDA_SEPARABLE_COMPILATION ON
              CUDA_RESOLVE_DEVICE_SYMBOLS ON
              CUDA_ARCHITECTURES native)
-target_link_libraries(test_tfhe_cuda_backend PUBLIC GTest::gtest_main tfhe_rs_lib tfhe_cuda_backend
-        cudart)
+target_link_libraries(${BINARY} PUBLIC GTest::gtest_main tfhe_rs_lib tfhe_cuda_backend cudart)
 
 include(GoogleTest)
-gtest_discover_tests(test_tfhe_cuda_backend)
+gtest_discover_tests(${BINARY})

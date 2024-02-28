@@ -19,7 +19,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let expected_variance = lwe_noise_distribution.gaussian_variance();
+    let expected_variance = Variance(lwe_noise_distribution.gaussian_std_dev().get_variance());
 
     let mut rsc = TestResources::new();
 
@@ -119,7 +119,7 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let glwe_variance = glwe_noise_distribution.gaussian_variance();
+    let glwe_variance = Variance(glwe_noise_distribution.gaussian_std_dev().get_variance());
 
     let expected_variance =
         lwe_compact_public_key_encryption_expected_variance(glwe_variance, lwe_dimension);
@@ -208,7 +208,7 @@ fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
 
     assert!(matches!(noise, DynamicDistribution::Gaussian(_)));
 
-    let expected_variance = noise.gaussian_variance();
+    let expected_variance = Variance(noise.gaussian_std_dev().get_variance());
 
     let num_ouptuts = 100_000;
 

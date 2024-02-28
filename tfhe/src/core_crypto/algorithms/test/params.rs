@@ -99,7 +99,7 @@ impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
 }
 
 // Parameters to test FFT implementation
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FftTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
@@ -128,7 +128,7 @@ pub struct FftWopPbsTestParams<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PackingKeySwitchTestParams<Scalar: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,

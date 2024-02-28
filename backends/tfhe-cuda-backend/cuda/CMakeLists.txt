@@ -71,6 +71,7 @@ set(CMAKE_CUDA_FLAGS
 set(INCLUDE_DIR include)
 
 add_subdirectory(src)
+enable_testing()
 add_subdirectory(tests)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 
@@ -87,5 +88,3 @@ if(CPPLINT)
   set_target_properties(all_lint PROPERTIES EXCLUDE_FROM_ALL TRUE)
   # set_target_properties(all_lint PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 endif()
-
-enable_testing()

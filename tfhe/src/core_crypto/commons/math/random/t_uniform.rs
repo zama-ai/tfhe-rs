@@ -23,18 +23,36 @@ impl<T: UnsignedInteger> TUniform<T> {
     /// between $-2^{bound\_log2}$ and $2^{bound\_log2}$ because of the 2's complement
     /// representation of integers.
     pub const fn new(bound_log2: u32) -> Self {
-        assert!(
-            (bound_log2 + 2) as usize <= T::BITS,
-            "bound_log2 + 2 is greater than the current type's bit width"
-        );
-
-        Self {
-            bound_log2,
-            _phantom: std::marker::PhantomData,
+        match Self::try_new(bound_log2) {
+            Ok(result) => result,
+            Err(e) => panic!("{}", e),
         }
     }
 
-    pub fn bound_log2(&self) -> u32 {
+    /// Construct a TUniform distribution see [`TUniform`] for behavior of randomly generated
+    /// values.
+    ///
+    /// # Note
+    ///
+    /// Returns an `Err` variant if `bound_log2` is greater than the Scalar type number of bits
+    /// minus two.
+    ///
+    /// The reason for this is that with a higher `bound_log2` it is impossible to distinguish
+    /// between $-2^{bound\_log2}$ and $2^{bound\_log2}$ because of the 2's complement
+    /// representation of integers.
+    pub const fn try_new(bound_log2: u32) -> Result<Self, &'static str> {
+        if (bound_log2 + 2) as usize > T::BITS {
+            return Err("Cannot create TUnfirorm: \
+            bound_log2 + 2 is greater than the current type's bit width");
+        }
+
+        Ok(Self {
+            bound_log2,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+
+    pub const fn bound_log2(&self) -> u32 {
         self.bound_log2
     }
 

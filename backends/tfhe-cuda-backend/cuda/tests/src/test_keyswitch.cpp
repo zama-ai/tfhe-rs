@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <setup_and_teardown.h>
@@ -10,7 +11,7 @@ const unsigned SAMPLES = 50;
 typedef struct {
   int input_lwe_dimension;
   int output_lwe_dimension;
-  double noise_variance;
+  DynamicDistribution noise_distribution;
   int ksk_base_log;
   int ksk_level;
   int message_modulus;
@@ -23,7 +24,7 @@ class KeyswitchTestPrimitives_u64
 protected:
   int input_lwe_dimension;
   int output_lwe_dimension;
-  double noise_variance;
+  DynamicDistribution noise_distribution;
   int ksk_base_log;
   int ksk_level;
   int message_modulus;
@@ -52,7 +53,7 @@ public:
     // TestParams
     input_lwe_dimension = (int)GetParam().input_lwe_dimension;
     output_lwe_dimension = (int)GetParam().output_lwe_dimension;
-    noise_variance = (double)GetParam().noise_variance;
+    noise_distribution = (DynamicDistribution)GetParam().noise_distribution;
     ksk_base_log = (int)GetParam().ksk_base_log;
     ksk_level = (int)GetParam().ksk_level;
     message_modulus = (int)GetParam().message_modulus;
@@ -66,7 +67,7 @@ public:
                     &d_ksk_array, &plaintexts, &d_lwe_ct_in_array,
                     &lwe_input_indexes, &d_lwe_ct_out_array,
                     &lwe_output_indexes, input_lwe_dimension,
-                    output_lwe_dimension, noise_variance, ksk_base_log,
+                    output_lwe_dimension, noise_distribution, ksk_base_log,
                     ksk_level, message_modulus, carry_modulus, &payload_modulus,
                     &delta, number_of_inputs, REPETITIONS, SAMPLES);
   }
@@ -127,19 +128,26 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
 // It executes each src for all pairs on phis X qs (Cartesian product)
 ::testing::internal::ParamGenerator<KeyswitchTestParams> ksk_params_u64 =
     ::testing::Values(
-        // n, k*N, noise_variance, ks_base_log, ks_level,
+        // n, k*N, noise_distribution, ks_base_log, ks_level,
         // message_modulus, carry_modulus, number_of_inputs
-        (KeyswitchTestParams){567, 1280, 2.9802322387695312e-18, 3, 3, 2, 1,
-                              10},
-        (KeyswitchTestParams){694, 1536, 2.9802322387695312e-18, 4, 3, 2, 1,
-                              10},
-        (KeyswitchTestParams){769, 2048, 2.9802322387695312e-18, 4, 3, 2, 1,
-                              10},
-        (KeyswitchTestParams){754, 2048, 2.9802322387695312e-18, 3, 5, 2, 1,
-                              10},
-        (KeyswitchTestParams){742, 2048, 4.9982771e-11, 3, 5, 4, 1, 10},
-        (KeyswitchTestParams){847, 4096, 2.9802322387695312e-18, 4, 4, 2, 1,
-                              10});
+        (KeyswitchTestParams){
+            567, 1280, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            3, 3, 2, 1, 10},
+        (KeyswitchTestParams){
+            694, 1536, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            4, 3, 2, 1, 10},
+        (KeyswitchTestParams){
+            769, 2048, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            4, 3, 2, 1, 10},
+        (KeyswitchTestParams){
+            754, 2048, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            3, 5, 2, 1, 10},
+        (KeyswitchTestParams){742, 2048,
+                              new_gaussian_from_std_dev(sqrt(4.9982771e-11)), 3,
+                              5, 4, 1, 10},
+        (KeyswitchTestParams){
+            847, 4096, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            4, 4, 2, 1, 10});
 
 std::string printParamName(::testing::TestParamInfo<KeyswitchTestParams> p) {
   KeyswitchTestParams params = p.param;

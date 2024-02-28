@@ -91,20 +91,11 @@ jobs:
 
       - name: Run clippy checks
         run: |
-          make clippy_gpu
+          make pcc_gpu
 
-      - name: Run all tests
+      - name: Run core crypto, integer and internal CUDA backend tests
         run: |
           make test_gpu
-
-      - name: Run internal CUDA tests
-        run: |
-          cd backends/tfhe-cuda-backend/cuda/
-          mkdir build
-          cd build
-          cmake -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON ../
-          make -j8
-          tests/src/test_tfhe_cuda_backend
 
       - name: Run user docs tests
         run: |

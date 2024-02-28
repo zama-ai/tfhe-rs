@@ -53,7 +53,8 @@ pub unsafe extern "C" fn boolean_gen_keys_with_parameters(
         *result_client_key = std::ptr::null_mut();
         *result_server_key = std::ptr::null_mut();
 
-        let params = crate::boolean::parameters::BooleanParameters::from(boolean_parameters);
+        let params =
+            crate::boolean::parameters::BooleanParameters::try_from(boolean_parameters).unwrap();
         let client_key = boolean::client_key::ClientKey::new(&params);
         let server_key = boolean::server_key::ServerKey::new(&client_key);
 
