@@ -11,6 +11,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
 };
 #[cfg(not(feature = "gpu"))]
 use tfhe::shortint::parameters::{
@@ -42,9 +43,10 @@ const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
 ];
 
 #[cfg(feature = "gpu")]
-const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 2] = [
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 3] = [
     PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
