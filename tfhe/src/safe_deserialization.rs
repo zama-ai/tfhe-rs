@@ -157,7 +157,7 @@ mod test_integer {
     use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
     use crate::high_level_api::{generate_keys, ConfigBuilder};
     use crate::integer::parameters::RadixCiphertextConformanceParams;
-    use crate::prelude::{FheDecrypt, FheTryEncrypt};
+    use crate::prelude::*;
     use crate::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
     use crate::shortint::parameters::{
         PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
