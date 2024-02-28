@@ -1,6 +1,6 @@
 # Debug
 
-Since tfhe-rs 0.5, [trivial ciphertexts](../foundamentals/trivial\_ciphertext.md) have another application. They can be used to allow debugging via a debugger or print statements as well as speeding-up execution time so that you won't have to spend minutes waiting for execution to progress.
+Since tfhe-rs 0.5, [trivial ciphertexts](broken-reference) have another application. They can be used to allow debugging via a debugger or print statements as well as speeding-up execution time so that you won't have to spend minutes waiting for execution to progress.
 
 This can greatly improve the pace at which one develops FHE applications.
 
