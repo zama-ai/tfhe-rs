@@ -120,9 +120,9 @@ __global__ void device_multi_bit_bootstrap_keybundle(
     int tid = threadIdx.x;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
-      double2 complex_acc =
-          make_double2(__ll2double_rn((int64_t)accumulator[tid]),
-                       __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]));
+      double2 complex_acc = make_double2(
+          __ll2double_rn((int64_t)accumulator[tid]),
+          __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]));
       complex_acc /= (double)std::numeric_limits<Torus>::max();
       keybundle_poly[tid] = complex_acc;
       tid += params::degree / params::opt;
@@ -418,7 +418,9 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
 
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
-  for (uint32_t lwe_offset = lwe_chunk_size * producer_id;
+  std::queue<double2 *> keybundle_buffer;
+
+  for (uint32_t lwe_offset = producer_id * lwe_chunk_size;
        lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += num_producers * lwe_chunk_size) {
 
@@ -450,21 +452,22 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
             keybundle_array);
     check_cuda_error(cudaGetLastError());
 
-    // We need to be sure the keybundle was computed before we can send it to
-    // the consumer
-    cuda_synchronize_stream(producer_stream);
-    //                printf("producer %d - %d) is ready\n", producer_id,
-    //                lwe_offset);
-    {
-      std::unique_lock<std::mutex> lock(mtx);
-      // Wait until the consumer removes something from the pool if needed
-      //      printf("producer %d - %d) will wait (%u elements)\n", producer_id,
-      //      lwe_offset, queue.size());
-      cv_producer.wait(lock, [&] { return queue.size() < max_pool_size; });
-      //                  printf("producer %d - %d) Will push\n", producer_id,
-      //                  lwe_offset);
-      queue.push({lwe_offset, keybundle_array});
-      cv_consumer.notify_one();
+    keybundle_buffer.push(keybundle_array);
+    if (keybundle_buffer.size() > max_pool_size || queue.empty() ||
+        lwe_offset + num_producers * lwe_chunk_size >=
+            (lwe_dimension / grouping_factor)) {
+      // Dump keybundle_buffer into queue if it is too big, queue is empty (so
+      // the consumer may be waiting) or this is the last iteration
+
+      // We need to be sure the keybundle was computed before we can send it to
+      // the consumer
+      cuda_synchronize_stream(producer_stream);
+      while (!keybundle_buffer.empty()) {
+        std::unique_lock<std::mutex> lock(mtx);
+        queue.push({lwe_offset, keybundle_buffer.front()});
+        cv_consumer.notify_one();
+        keybundle_buffer.pop();
+      }
     }
   }
 }
@@ -509,7 +512,7 @@ void consumer_thread(
 
     int producer_id = (lwe_offset / lwe_chunk_size) % num_producers;
     auto &producer_queue = keybundle_pool[producer_id];
-    double2 *keybundle_fft;
+    std::pair<uint32_t, double2 *> pair;
     {
       std::unique_lock<std::mutex> lock(mtx[producer_id]);
       // Wait until the producer inserts the right keybundle in the pool
@@ -519,12 +522,12 @@ void consumer_thread(
       cv_consumer.wait(lock, [&] { return !producer_queue.empty(); });
       //                  printf("consumer - %d) Consuming...(%d elements)\n",
       //                  lwe_offset, producer_queue.size());
-      auto pair = producer_queue.front();
-      assert(pair.first == lwe_offset);
-      keybundle_fft = pair.second;
+      pair = producer_queue.front();
       producer_queue.pop();
-      cv_producers[producer_id].notify_one();
+      //      cv_producers[producer_id].notify_one();
     }
+    assert(pair.first == lwe_offset);
+    double2 *keybundle_fft = pair.second;
     // Accumulate
     for (int j = 0; j < chunk_size; j++) {
       device_multi_bit_bootstrap_accumulate_step_one<Torus, params>

@@ -46,8 +46,8 @@ template <typename Torus> struct pbs_multibit_buffer {
                       uint32_t input_lwe_ciphertext_count,
                       bool allocate_gpu_memory) {
 
-          lwe_chunk_size = std::stoi(std::getenv("LWECHUNKSIZE"));
-          num_producers = std::stoi(std::getenv("NUMPRODUCERS"));
+    lwe_chunk_size = std::stoi(std::getenv("LWECHUNKSIZE"));
+    num_producers = std::stoi(std::getenv("NUMPRODUCERS"));
     //      printf("lwe_chunk_size: %d\n", lwe_chunk_size);
     //      printf("num_producers: %d\n", num_producers);
 
