@@ -49,7 +49,7 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
             // ring for our choice of i == n
             polynomial_wrapping_monic_monomial_mul_assign(
                 &mut out_mask_as_polynomial,
-                MonomialDegree(lwe_dimension.0 - (ct_idx + 1)),
+                MonomialDegree(ct_idx),
             );
 
             *out_body.data = *input_body.data;
@@ -101,7 +101,7 @@ pub fn par_expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
                     // X^N + 1 ring for our choice of i == n
                     polynomial_wrapping_monic_monomial_mul_assign(
                         &mut out_mask_as_polynomial,
-                        MonomialDegree(lwe_dimension.0 - (ct_idx + 1)),
+                        MonomialDegree(ct_idx),
                     );
 
                     *out_body.data = *input_body.data;
