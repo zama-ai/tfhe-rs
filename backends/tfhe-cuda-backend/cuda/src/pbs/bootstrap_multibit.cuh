@@ -403,7 +403,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
                      uint32_t base_log, uint32_t level_count,
                      uint32_t num_samples, std::condition_variable &cv_producer,
                      std::condition_variable &cv_consumer, std::mutex &mtx,
-                     std::queue<std::pair<uint32_t, double2 *>> &queue,
+                     std::queue<std::pair<uint32_t, double2 *>> &producer_queue,
                      int max_pool_size) {
 
   uint32_t lwe_chunk_size = pbs_buffer->lwe_chunk_size;
@@ -424,7 +424,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
        lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += num_producers * lwe_chunk_size) {
 
-    uint32_t chunk_size = std::min(
+    uint32_t iteration_chunk_size = std::min(
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
 
     auto keybundle_array = (double2 *)cuda_malloc_async(
@@ -432,8 +432,8 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
             (glwe_dimension + 1) * (polynomial_size / 2) * sizeof(double2),
         producer_stream);
 
-    // Compute a keybundle
-    dim3 grid_keybundle(num_samples * chunk_size,
+    // Compute a keybundle_array
+    dim3 grid_keybundle(num_samples * iteration_chunk_size,
                         (glwe_dimension + 1) * (glwe_dimension + 1),
                         level_count);
 
@@ -441,11 +441,11 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
         <<<grid_keybundle, thds, full_sm_keybundle, producer_stream->stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_array, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            base_log, level_count, lwe_offset, chunk_size,
+            base_log, level_count, lwe_offset, iteration_chunk_size,
             keybundle_size_per_input);
     check_cuda_error(cudaGetLastError());
 
-    dim3 grid_fft(num_samples * chunk_size * (glwe_dimension + 1) *
+    dim3 grid_fft(num_samples * iteration_chunk_size * (glwe_dimension + 1) *
                   (glwe_dimension + 1) * level_count);
     device_apply_nsmfft_inplace<params>
         <<<grid_fft, thds, full_sm_keybundle, producer_stream->stream>>>(
@@ -453,20 +453,24 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
     check_cuda_error(cudaGetLastError());
 
     keybundle_buffer.push(keybundle_array);
-    if (keybundle_buffer.size() > max_pool_size || queue.empty() ||
+    if (keybundle_buffer.size() > max_pool_size || producer_queue.empty() ||
         lwe_offset + num_producers * lwe_chunk_size >=
             (lwe_dimension / grouping_factor)) {
-      // Dump keybundle_buffer into queue if it is too big, queue is empty (so
-      // the consumer may be waiting) or this is the last iteration
+      // Dump keybundle_buffer into producer_queue if:
+      // 1) it is too big,
+      // 2) producer_queue is empty (so the consumer may be waiting),
+      // 3) or this is the last iteration
 
-      // We need to be sure the keybundle was computed before we can send it to
+      // We need to be sure the keybundle_array was computed before we can send it to
       // the consumer
       cuda_synchronize_stream(producer_stream);
       while (!keybundle_buffer.empty()) {
         std::unique_lock<std::mutex> lock(mtx);
-        // Wait until queue is almost empty
-        cv_producer.wait(lock, [&] { return queue.size() <= 1; });
-        queue.push({lwe_offset, keybundle_buffer.front()});
+        // Wait until producer_queue is almost empty
+//        printf("Producer %d will check if queue can receive more keybundles\n", producer_id);
+        cv_producer.wait(lock, [&] { return producer_queue.size() <= 1; });
+//        printf("Producer %d will push\n", producer_id);
+        producer_queue.push({lwe_offset, keybundle_buffer.front()});
         cv_consumer.notify_one();
         keybundle_buffer.pop();
       }
@@ -518,12 +522,11 @@ void consumer_thread(
     {
       std::unique_lock<std::mutex> lock(mtx[producer_id]);
       // Wait until the producer inserts the right keybundle in the pool
-      //                  printf("consumer - %d) Will wait (%d elements) for
-      //                  queue %p\n", lwe_offset,
-      //                         producer_queue.size(), &producer_queue);
+//                        printf("consumer - %d) Will wait (%d elements) for queue \n",
+//                               lwe_offset, producer_queue.size());
       cv_consumer.wait(lock, [&] { return !producer_queue.empty(); });
-      //                  printf("consumer - %d) Consuming...(%d elements)\n",
-      //                  lwe_offset, producer_queue.size());
+//                        printf("consumer - %d) Consuming...(%d elements)\n",
+//                        lwe_offset, producer_queue.size());
       pair = producer_queue.front();
       producer_queue.pop();
       cv_producers[producer_id].notify_one();
@@ -569,7 +572,7 @@ __host__ void host_multi_bit_pbs(
   int max_pool_size = pbs_buffer->max_pool_size;
 
   //
-  std::vector<std::queue<std::pair<uint32_t, double2 *>>> keybundle_pool(
+  std::vector<std::queue<std::pair<uint32_t, double2 *>>> producer_queues(
       num_producers);
   std::vector<std::condition_variable> cv_producers(num_producers);
   std::condition_variable cv_consumer;
@@ -590,15 +593,15 @@ __host__ void host_multi_bit_pbs(
                           pbs_buffer, glwe_dimension, lwe_dimension,
                           polynomial_size, grouping_factor, base_log,
                           level_count, num_samples, &cv_producers, &cv_consumer,
-                          &mtx, &keybundle_pool, max_pool_size]() {
+                          &mtx, &producer_queues, max_pool_size]() {
       auto producer_stream = cuda_create_stream(stream->gpu_index);
       cudaStreamWaitEvent(producer_stream->stream, main_stream_event, 0);
       producer_thread<Torus, params>(
-          producer_stream, producer_id, num_producers, lwe_array_in,
-          lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
-          lwe_dimension, polynomial_size, grouping_factor, base_log,
-          level_count, num_samples, cv_producers[producer_id], cv_consumer,
-          mtx[producer_id], keybundle_pool[producer_id], max_pool_size);
+              producer_stream, producer_id, num_producers, lwe_array_in,
+              lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+              lwe_dimension, polynomial_size, grouping_factor, base_log,
+              level_count, num_samples, cv_producers[producer_id], cv_consumer,
+              mtx[producer_id], producer_queues[producer_id], max_pool_size);
       cuda_synchronize_stream(producer_stream);
       cuda_destroy_stream(producer_stream);
     });
@@ -607,20 +610,21 @@ __host__ void host_multi_bit_pbs(
   }
   //    cudaEventDestroy(main_stream_event);
 
-  // std::thread consumer([&]() {
-  //   auto consumer_stream = cuda_create_stream(gpu_index);
+   std::thread consumer([&]() {
+     auto consumer_stream = cuda_create_stream(stream->gpu_index);
   consumer_thread<Torus, params>(
-      stream, lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-      lwe_array_in, lwe_input_indexes, pbs_buffer, glwe_dimension,
-      lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-      num_samples, cv_producers, cv_consumer, mtx, keybundle_pool);
-  //  cuda_synchronize_stream(consumer_stream);
-  //  cuda_destroy_stream(consumer_stream);
-  //});
+          consumer_stream, lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+          lwe_array_in, lwe_input_indexes, pbs_buffer, glwe_dimension,
+          lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+          num_samples, cv_producers, cv_consumer, mtx, producer_queues);
+    cuda_synchronize_stream(consumer_stream);
+    cuda_destroy_stream(consumer_stream);
+  });
 
-  for (auto &producer : producer_threads) {
-    producer.join();
-  }
-  //  consumer.join();
+for (auto &producer : producer_threads) {
+  producer.join();
+}
+    consumer.join();
+
 }
 #endif // MULTIBIT_PBS_H
