@@ -3,6 +3,7 @@ pub(crate) mod test_add;
 use super::tests_cases_unsigned::*;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::ciphertext::{Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
@@ -109,6 +110,158 @@ pub(crate) fn overflowing_mul_under_modulus(a: u64, b: u64, modulus: u64) -> (u6
     overflow |= result >= modulus;
     result %= modulus;
     (result, overflow)
+}
+
+pub(crate) fn unsigned_modulus(block_modulus: MessageModulus, num_blocks: u32) -> u64 {
+    (block_modulus.0 as u64)
+        .checked_pow(num_blocks)
+        .expect("Modulus exceed u64::MAX")
+}
+
+/// Given a radix ciphertext, checks that all the block's decrypted message and carry
+/// do not exceed the block's degree.
+#[track_caller]
+fn panic_if_any_block_values_exceeds_its_degree<C>(ct: &RadixCiphertext, cks: &C)
+where
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let cks = cks.as_ref();
+    for (i, block) in ct.blocks.iter().enumerate() {
+        let block_value = cks.key.decrypt_message_and_carry(block);
+        assert!(
+            block_value <= block.degree.get() as u64,
+            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
+            block.degree
+        );
+    }
+}
+
+#[track_caller]
+fn panic_if_any_block_info_exceeds_max_degree_or_noise(
+    ct: &RadixCiphertext,
+    max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+) {
+    for (i, block) in ct.blocks.iter().enumerate() {
+        assert!(
+            max_degree.validate(block.degree).is_ok(),
+            "Block at index {i} has a degree {:?} that exceeds max degree ({max_degree:?})",
+            block.degree
+        );
+        assert!(
+            max_noise_level.validate(block.noise_level).is_ok(),
+            "Block at index {i} has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
+            block.degree
+        );
+    }
+}
+
+/// In radix context, a block is considered clean if:
+/// - Its degree is <= message_modulus - 1
+/// - Its decrypted_value is <= its degree
+/// - Its noise level is nominal
+#[track_caller]
+fn panic_if_any_block_is_not_clean<C>(ct: &RadixCiphertext, cks: &C)
+where
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let cks = cks.as_ref();
+
+    let max_degree_acceptable = cks.key.parameters.message_modulus().0 - 1;
+
+    for (i, block) in ct.blocks.iter().enumerate() {
+        assert_eq!(
+            block.noise_level,
+            NoiseLevel::NOMINAL,
+            "Block at index {i} has a non nominal noise level: {:?}",
+            block.noise_level
+        );
+
+        assert!(
+            block.degree.get() <= max_degree_acceptable,
+            "Block at index {i} has a degree {:?} that exceeds the maximum ({}) for a clean block",
+            block.degree,
+            max_degree_acceptable
+        );
+
+        let block_value = cks.key.decrypt_message_and_carry(block);
+        assert!(
+            block_value <= block.degree.get() as u64,
+            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
+            block.degree
+        );
+    }
+}
+
+/// Little struct meant to reduce test boilerplate and increase readability
+struct ExpectedValues<T> {
+    values: Vec<T>,
+}
+
+type ExpectedNoiseLevels = ExpectedValues<NoiseLevel>;
+type ExpectedDegrees = ExpectedValues<Degree>;
+
+impl<T> ExpectedValues<T> {
+    fn new(init: T, len: usize) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            values: vec![init; len],
+        }
+    }
+
+    fn set_with(&mut self, iter: impl Iterator<Item = T>) {
+        let mut self_iter = self.values.iter_mut();
+        self_iter
+            .by_ref()
+            .zip(iter)
+            .for_each(|(old_value, new_value)| {
+                *old_value = new_value;
+            });
+        assert!(
+            self_iter.next().is_none(),
+            "Did not update all expected values"
+        );
+    }
+}
+
+impl ExpectedNoiseLevels {
+    #[track_caller]
+    fn panic_if_any_is_not_equal(&self, ct: &RadixCiphertext) {
+        assert_eq!(self.values.len(), ct.blocks.len());
+        for (i, (block, expected_noise)) in ct
+            .blocks
+            .iter()
+            .zip(self.values.iter().copied())
+            .enumerate()
+        {
+            assert_eq!(
+                block.noise_level, expected_noise,
+                "Block at index {i} has noise level {:?}, but {expected_noise:?} was expected",
+                block.noise_level
+            );
+        }
+    }
+}
+
+impl ExpectedDegrees {
+    #[track_caller]
+    fn panic_if_any_is_not_equal(&self, ct: &RadixCiphertext) {
+        assert_eq!(self.values.len(), ct.blocks.len());
+        for (i, (block, expected_degree)) in ct
+            .blocks
+            .iter()
+            .zip(self.values.iter().copied())
+            .enumerate()
+        {
+            assert_eq!(
+                block.degree, expected_degree,
+                "Block at index {i} has degree {:?}, but {expected_degree:?} was expected",
+                block.degree
+            );
+        }
+    }
 }
 
 macro_rules! create_parametrized_test {

@@ -1,11 +1,13 @@
 use super::{
-    overflowing_add_under_modulus, random_non_zero_value, CpuFunctionExecutor, NB_CTXT, NB_TESTS,
-    NB_TESTS_SMALLER,
+    overflowing_add_under_modulus, panic_if_any_block_info_exceeds_max_degree_or_noise,
+    panic_if_any_block_is_not_clean, panic_if_any_block_values_exceeds_its_degree,
+    random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
+    ExpectedNoiseLevels, NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
@@ -84,6 +86,30 @@ where
     default_overflowing_add_test(param, executor);
 }
 
+impl ExpectedNoiseLevels {
+    fn after_unchecked_add(&mut self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> &Self {
+        self.set_with(
+            lhs.blocks
+                .iter()
+                .zip(rhs.blocks.iter())
+                .map(|(a, b)| a.noise_level + b.noise_level),
+        );
+        self
+    }
+}
+
+impl ExpectedDegrees {
+    fn after_unchecked_add(&mut self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> &Self {
+        self.set_with(
+            lhs.blocks
+                .iter()
+                .zip(rhs.blocks.iter())
+                .map(|(a, b)| a.degree + b.degree),
+        );
+        self
+    }
+}
+
 //=============================================================================
 // Unchecked Tests
 //=============================================================================
@@ -99,10 +125,12 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks);
+
+    let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
+    let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -112,9 +140,18 @@ where
         let ctxt_1 = cks.encrypt(clear_1);
 
         let encrypted_result = executor.execute((&ctxt_0, &ctxt_1));
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
 
+        expected_noise_levels
+            .after_unchecked_add(&ctxt_0, &ctxt_1)
+            .panic_if_any_is_not_equal(&encrypted_result);
+        expected_degrees
+            .after_unchecked_add(&ctxt_0, &ctxt_1)
+            .panic_if_any_is_not_equal(&encrypted_result);
+        panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
+
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
+
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid add result, expected {clear_0} + {clear_1} \
@@ -134,10 +171,12 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks);
+
+    let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
+    let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -146,10 +185,19 @@ where
         let mut ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
 
-        executor.execute((&mut ctxt_0, &ctxt_1));
-        let decrypted_result: u64 = cks.decrypt(&ctxt_0);
+        // Compute expected values before the add_assign changes them
+        expected_noise_levels.after_unchecked_add(&ctxt_0, &ctxt_1);
+        expected_degrees.after_unchecked_add(&ctxt_0, &ctxt_1);
 
+        executor.execute((&mut ctxt_0, &ctxt_1));
+
+        expected_noise_levels.panic_if_any_is_not_equal(&ctxt_0);
+        expected_degrees.panic_if_any_is_not_equal(&ctxt_0);
+        panic_if_any_block_values_exceeds_its_degree(&ctxt_0, &cks);
+
+        let decrypted_result: u64 = cks.decrypt(&ctxt_0);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
+
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid add result, expected {clear_0} + {clear_1} \
@@ -176,8 +224,10 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
+
+    let max_noise_level = sks.key.max_noise_level;
+    let max_degree = sks.key.max_degree;
 
     executor.setup(&cks, sks);
 
@@ -192,15 +242,23 @@ where
 
         let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
 
-        clear = (clear_0 + clear_1) % modulus;
+        clear = clear_0.wrapping_add(clear_1) % modulus;
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear, dec_res);
 
         // Add multiple times to raise the degree
         for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
+
+            panic_if_any_block_info_exceeds_max_degree_or_noise(
+                &ct_res,
+                max_degree,
+                max_noise_level,
+            );
+            panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
+
             clear = clear.wrapping_add(clear_0) % modulus;
-
             let dec_res: u64 = cks.decrypt(&ct_res);
-
             assert_eq!(clear, dec_res);
         }
     }
@@ -223,8 +281,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
@@ -239,19 +296,21 @@ where
 
         let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
-        assert!(ct_res.block_carries_are_empty());
+
+        panic_if_any_block_is_not_clean(&ct_res, &cks);
         assert_eq!(ct_res, tmp_ct);
 
-        clear = (clear_0 + clear_1) % modulus;
+        clear = clear_0.wrapping_add(clear_1) % modulus;
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear, dec_res);
 
-        // Add multiple times to raise the degree
         for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&ct_res, &ctxt_0));
-            assert!(ct_res.block_carries_are_empty());
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
+
             clear = (clear + clear_0) % modulus;
 
             let dec_res: u64 = cks.decrypt(&ct_res);
-
             assert_eq!(clear, dec_res);
         }
     }
@@ -273,8 +332,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
 
@@ -287,7 +345,7 @@ where
 
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
-        assert!(ct_res.block_carries_are_empty());
+        panic_if_any_block_is_not_clean(&ct_res, &cks);
         assert_eq!(ct_res, tmp_ct, "Failed determinism check");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
 
@@ -311,7 +369,7 @@ where
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..NB_TESTS_SMALLER {
-            // Add non zero scalar to have non clean ciphertexts
+            // Add non-zero scalar to have non-clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
 
@@ -327,7 +385,7 @@ where
             assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
 
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
-            assert!(ct_res.block_carries_are_empty());
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
 
             let (expected_result, expected_overflowed) =
                 overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
