@@ -464,6 +464,8 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
       cuda_synchronize_stream(producer_stream);
       while (!keybundle_buffer.empty()) {
         std::unique_lock<std::mutex> lock(mtx);
+        // Wait until queue is almost empty
+        cv_producer.wait(lock, [&] { return queue.size() < 1; });
         queue.push({lwe_offset, keybundle_buffer.front()});
         cv_consumer.notify_one();
         keybundle_buffer.pop();
@@ -524,7 +526,7 @@ void consumer_thread(
       //                  lwe_offset, producer_queue.size());
       pair = producer_queue.front();
       producer_queue.pop();
-      //      cv_producers[producer_id].notify_one();
+      cv_producers[producer_id].notify_one();
     }
     assert(pair.first == lwe_offset);
     double2 *keybundle_fft = pair.second;
