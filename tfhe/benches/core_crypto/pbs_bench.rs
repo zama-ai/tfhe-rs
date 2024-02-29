@@ -455,7 +455,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         let lwe_noise_distribution =
             DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
 
-        const NUM_CTS: usize = 512;
+        const NUM_CTS: usize = 8192;
         let lwe_vec: Vec<_> = (0..NUM_CTS)
             .map(|_| {
                 allocate_and_encrypt_new_lwe_ciphertext(
@@ -509,7 +509,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
             params.pbs_level.unwrap(),
         );
 
-        for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
+        for chunk_size in [1, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192] {
             let id = format!("{bench_name}::{name}::{chunk_size}chunk");
             {
                 bench_group.bench_function(&id, |b| {
