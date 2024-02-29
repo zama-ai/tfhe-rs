@@ -533,6 +533,11 @@ test_high_level_api: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) \
 		-- high_level_api::
 
+test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,gpu -p $(TFHE_SPEC) \
+		-E "test(/high_level_api::.*gpu.*/)"
+
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \

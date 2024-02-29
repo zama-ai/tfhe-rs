@@ -112,6 +112,9 @@ jobs:
         run: |
           make test_c_api_gpu
 
+      - name: Run High Level API Tests
+        run: |
+          make test_high_level_api_gpu
 
       - name: Slack Notification
         if: ${{ always() }}

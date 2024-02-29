@@ -43,9 +43,11 @@ impl CompressedFheBool {
     ///
     /// See [CompressedFheBool] example.
     pub fn decompress(&self) -> FheBool {
-        FheBool::new(BooleanBlock::new_unchecked(
+        let mut ciphertext = FheBool::new(BooleanBlock::new_unchecked(
             self.ciphertext.clone().decompress(),
-        ))
+        ));
+        ciphertext.ciphertext.move_to_device_of_server_key_if_set();
+        ciphertext
     }
 }
 
