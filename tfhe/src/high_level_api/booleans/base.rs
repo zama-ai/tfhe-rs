@@ -325,15 +325,13 @@ impl FheEq<bool> for FheBool {
                 InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                // with_thread_local_cuda_stream(|stream| {
-                //                let inner =
-                //                    cuda_key
-                //                        .key
-                //                        .scalar_eq(&self.ciphertext.on_gpu(), u8::from(other),
-                // stream);                InnerBoolean::Cuda(inner)
-                todo!()
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner =
+                    cuda_key
+                        .key
+                        .scalar_eq(&self.ciphertext.on_gpu(), u8::from(other), stream);
+                InnerBoolean::Cuda(inner)
+            }),
         });
         Self::new(ciphertext)
     }
@@ -366,15 +364,13 @@ impl FheEq<bool> for FheBool {
                 InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                //            with_thread_local_cuda_stream(|stream| {
-                //                let inner =
-                //                    cuda_key
-                //                        .key
-                //                        .scalar_ne(&self.ciphertext.on_gpu(), u8::from(other),
-                // stream);                InnerBoolean::Cuda(inner)
-                todo!()
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner =
+                    cuda_key
+                        .key
+                        .scalar_ne(&self.ciphertext.on_gpu(), u8::from(other), stream);
+                InnerBoolean::Cuda(inner)
+            }),
         });
         Self::new(ciphertext)
     }
