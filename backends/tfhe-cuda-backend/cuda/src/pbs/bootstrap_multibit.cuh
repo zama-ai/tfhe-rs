@@ -41,6 +41,8 @@ __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
       x, 2 * params::degree); // 2 * params::log2_degree + 1);
 }
 
+// Computes `lwe_chunk_size` keybundles in the standard domain but packed as
+// complex polynomials
 template <typename Torus, class params>
 __global__ void device_multi_bit_bootstrap_keybundle(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *keybundle_array,
@@ -58,6 +60,7 @@ __global__ void device_multi_bit_bootstrap_keybundle(
   uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
   uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
   uint32_t input_idx = blockIdx.x / lwe_chunk_size;
+  uint32_t lwe_chunk_id = blockIdx.x % lwe_chunk_size;
 
   if (lwe_iteration < (lwe_dimension / grouping_factor)) {
     //
@@ -107,42 +110,47 @@ __global__ void device_multi_bit_bootstrap_keybundle(
     }
 
     synchronize_threads_in_block();
+    // lwe iteration
+    auto keybundle_out =
+        get_ith_mask_kth_block(keybundle, lwe_chunk_id, glwe_id, level_id,
+                               polynomial_size, glwe_dimension, level_count);
+    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
 
-    double2 *fft = (double2 *)sharedmem;
-
-    // Move accumulator to local memory
-    double2 temp[params::opt / 2];
+    // Move from local memory back to shared memory but as complex
     int tid = threadIdx.x;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
-      temp[i].x = __ll2double_rn((int64_t)accumulator[tid]);
-      temp[i].y =
-          __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]);
-      temp[i].x /= (double)std::numeric_limits<Torus>::max();
-      temp[i].y /= (double)std::numeric_limits<Torus>::max();
+      double2 complex_acc =
+          make_double2(__ll2double_rn((int64_t)accumulator[tid]),
+                       __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]));
+      complex_acc /= (double)std::numeric_limits<Torus>::max();
+      keybundle_poly[tid] = complex_acc;
       tid += params::degree / params::opt;
     }
-
-    synchronize_threads_in_block();
-    // Move from local memory back to shared memory but as complex
-    tid = threadIdx.x;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] = temp[i];
-      tid += params::degree / params::opt;
-    }
-    synchronize_threads_in_block();
-    NSMFFT_direct<HalfDegree<params>>(fft);
-
-    // lwe iteration
-    auto keybundle_out = get_ith_mask_kth_block(
-        keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
-        polynomial_size, glwe_dimension, level_count);
-    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
-
-    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft, keybundle_poly);
   }
+}
+
+template <class params>
+__global__ void device_apply_nsmfft_inplace(double2 *poly_array) {
+
+  extern __shared__ int8_t sharedmem[];
+  double2 *fft = (double2 *)sharedmem;
+
+  // Load a complex polynomial in the standard domain
+  double2 *poly = poly_array + blockIdx.x * (params::degree / 2);
+
+  copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(poly,
+                                                                          fft);
+
+  // Apply the FFT
+  synchronize_threads_in_block();
+  NSMFFT_direct<HalfDegree<params>>(fft);
+
+  synchronize_threads_in_block();
+
+  // Write to the right place
+  copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(fft,
+                                                                          poly);
 }
 
 template <typename Torus, class params>
@@ -417,7 +425,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
     uint32_t chunk_size = std::min(
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
 
-    auto keybundle_fft = (double2 *)cuda_malloc_async(
+    auto keybundle_array = (double2 *)cuda_malloc_async(
         num_samples * lwe_chunk_size * level_count * (glwe_dimension + 1) *
             (glwe_dimension + 1) * (polynomial_size / 2) * sizeof(double2),
         producer_stream);
@@ -429,10 +437,17 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
 
     device_multi_bit_bootstrap_keybundle<Torus, params>
         <<<grid_keybundle, thds, full_sm_keybundle, producer_stream->stream>>>(
-            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_array_in, lwe_input_indexes, keybundle_array, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
             base_log, level_count, lwe_offset, chunk_size,
             keybundle_size_per_input);
+    check_cuda_error(cudaGetLastError());
+
+    dim3 grid_fft(num_samples * chunk_size * (glwe_dimension + 1) *
+                  (glwe_dimension + 1) * level_count);
+    device_apply_nsmfft_inplace<params>
+        <<<grid_fft, thds, full_sm_keybundle, producer_stream->stream>>>(
+            keybundle_array);
     check_cuda_error(cudaGetLastError());
 
     // We need to be sure the keybundle was computed before we can send it to
@@ -448,7 +463,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
       cv_producer.wait(lock, [&] { return queue.size() < max_pool_size; });
       //                  printf("producer %d - %d) Will push\n", producer_id,
       //                  lwe_offset);
-      queue.push({lwe_offset, keybundle_fft});
+      queue.push({lwe_offset, keybundle_array});
       cv_consumer.notify_one();
     }
   }
@@ -559,9 +574,9 @@ __host__ void host_multi_bit_pbs(
 
   // We have to assert everything on the main stream is done to safely launch
   // the producer streams
-//  cuda_synchronize_stream(stream);
-cudaEvent_t main_stream_event;
-    cudaEventCreateWithFlags(&main_stream_event, cudaEventDisableTiming);
+  //  cuda_synchronize_stream(stream);
+  cudaEvent_t main_stream_event;
+  cudaEventCreateWithFlags(&main_stream_event, cudaEventDisableTiming);
   cudaEventRecord(main_stream_event, stream->stream);
   for (int producer_id = 0; producer_id < num_producers; producer_id++) {
 
@@ -572,7 +587,7 @@ cudaEvent_t main_stream_event;
                           level_count, num_samples, &cv_producers, &cv_consumer,
                           &mtx, &keybundle_pool, max_pool_size]() {
       auto producer_stream = cuda_create_stream(stream->gpu_index);
-        cudaStreamWaitEvent(producer_stream->stream, main_stream_event, 0);
+      cudaStreamWaitEvent(producer_stream->stream, main_stream_event, 0);
       producer_thread<Torus, params>(
           producer_stream, producer_id, num_producers, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -585,7 +600,7 @@ cudaEvent_t main_stream_event;
 
     producer_threads.emplace_back(std::move(producer));
   }
-//    cudaEventDestroy(main_stream_event);
+  //    cudaEventDestroy(main_stream_event);
 
   // std::thread consumer([&]() {
   //   auto consumer_stream = cuda_create_stream(gpu_index);

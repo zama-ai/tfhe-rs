@@ -37,19 +37,19 @@ template <typename Torus> struct pbs_multibit_buffer {
   double2 *global_accumulator_fft;
   Torus *global_accumulator;
 
-  uint32_t lwe_chunk_size;
-  int num_producers;
-  int max_pool_size = 2;
+  uint32_t lwe_chunk_size = 1;
+  int num_producers = 2;
+  int max_pool_size = 20;
 
   pbs_multibit_buffer(cuda_stream_t *stream, uint32_t glwe_dimension,
                       uint32_t polynomial_size, uint32_t level_count,
                       uint32_t input_lwe_ciphertext_count,
                       bool allocate_gpu_memory) {
 
-      lwe_chunk_size = std::stoi(std::getenv("LWECHUNKSIZE"));
-      num_producers = std::stoi(std::getenv("NUMPRODUCERS"));
-      printf("lwe_chunk_size: %d\n", lwe_chunk_size);
-      printf("num_producers: %d\n", num_producers);
+          lwe_chunk_size = std::stoi(std::getenv("LWECHUNKSIZE"));
+          num_producers = std::stoi(std::getenv("NUMPRODUCERS"));
+    //      printf("lwe_chunk_size: %d\n", lwe_chunk_size);
+    //      printf("num_producers: %d\n", num_producers);
 
     if (allocate_gpu_memory) {
       global_accumulator_fft = (double2 *)cuda_malloc_async(

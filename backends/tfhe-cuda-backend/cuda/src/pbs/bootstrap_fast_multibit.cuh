@@ -302,22 +302,21 @@ __host__ void host_fast_multi_bit_pbs(
   // the producer streams
   cuda_synchronize_stream(stream);
   for (int producer_id = 0; producer_id < num_producers; producer_id++) {
-    std::thread producer([stream, producer_id, num_producers,
-                          lwe_array_in, lwe_input_indexes, bootstrapping_key,
-                          pbs_buffer, glwe_dimension, lwe_dimension,
-                          polynomial_size, grouping_factor, base_log,
-                          level_count, num_samples, &cv_producers, &cv_consumer,
-                          &mtx, &keybundle_pool, max_pool_size]() {
-      auto producer_stream = cuda_create_stream(stream->gpu_index);
-      producer_thread<Torus, params>(
-          producer_stream, producer_id, num_producers, lwe_array_in,
-          lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
-          lwe_dimension, polynomial_size, grouping_factor, base_log,
-          level_count, num_samples, cv_producers[producer_id], cv_consumer,
-          mtx[producer_id], keybundle_pool[producer_id], max_pool_size);
-      cuda_synchronize_stream(producer_stream);
-      cuda_destroy_stream(producer_stream);
-    });
+    std::thread producer(
+        [stream, producer_id, num_producers, lwe_array_in, lwe_input_indexes,
+         bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
+         polynomial_size, grouping_factor, base_log, level_count, num_samples,
+         &cv_producers, &cv_consumer, &mtx, &keybundle_pool, max_pool_size]() {
+          auto producer_stream = cuda_create_stream(stream->gpu_index);
+          producer_thread<Torus, params>(
+              producer_stream, producer_id, num_producers, lwe_array_in,
+              lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+              lwe_dimension, polynomial_size, grouping_factor, base_log,
+              level_count, num_samples, cv_producers[producer_id], cv_consumer,
+              mtx[producer_id], keybundle_pool[producer_id], max_pool_size);
+          cuda_synchronize_stream(producer_stream);
+          cuda_destroy_stream(producer_stream);
+        });
 
     producer_threads.emplace_back(std::move(producer));
   }
