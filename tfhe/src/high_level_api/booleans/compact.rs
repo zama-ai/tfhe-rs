@@ -48,7 +48,9 @@ impl CompactFheBool {
         assert_eq!(ct.blocks.len(), 1);
         let mut block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
         block.0.degree = Degree::new(1);
-        FheBool::new(block)
+        let mut ciphertext = FheBool::new(block);
+        ciphertext.ciphertext.move_to_device_of_server_key_if_set();
+        ciphertext
     }
 }
 
@@ -131,7 +133,9 @@ impl CompactFheBoolList {
                 assert_eq!(ct.blocks.len(), 1);
                 let mut block = BooleanBlock::new_unchecked(ct.blocks.into_iter().next().unwrap());
                 block.0.degree = Degree::new(1);
-                FheBool::new(block)
+                let mut ciphertext = FheBool::new(block);
+                ciphertext.ciphertext.move_to_device_of_server_key_if_set();
+                ciphertext
             })
             .collect::<Vec<_>>()
     }
