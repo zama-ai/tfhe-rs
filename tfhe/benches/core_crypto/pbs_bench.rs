@@ -70,23 +70,32 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
 
 fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
 ) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
-    if Scalar::BITS == 64 {
+    let parameters = if cfg!(feature = "gpu") {
+        vec![
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        ]
+    } else {
         vec![
             PARAM_MESSAGE_1_CARRY_1_KS_PBS,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             PARAM_MESSAGE_4_CARRY_4_KS_PBS,
         ]
-        .iter()
-        .map(|params| {
-            (
-                params.name(),
-                <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
-                    .to_owned()
-                    .into(),
-            )
-        })
-        .collect()
+    };
+    if Scalar::BITS == 64 {
+        parameters
+            .iter()
+            .map(|params| {
+                (
+                    params.name(),
+                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
+            .collect()
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
             .iter()
@@ -550,7 +559,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::multi_bit_benchmark_parameters;
+    use super::{multi_bit_benchmark_parameters, throughput_benchmark_parameters};
     use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
     use criterion::{black_box, criterion_group, Criterion};
     use serde::Serialize;
@@ -850,6 +859,287 @@ mod cuda {
         }
     }
 
+    fn cuda_pbs_throughput<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
+    >(
+        c: &mut Criterion,
+    ) {
+        let bench_name = "core_crypto::cuda::pbs_throughput";
+        let mut bench_group = c.benchmark_group(bench_name);
+
+        // Create the PRNG
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (name, params) in throughput_benchmark_parameters::<Scalar>().iter() {
+            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension.unwrap(),
+                &mut secret_generator,
+            );
+
+            let glwe_secret_key = GlweSecretKey::new_empty_key(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+            );
+            let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
+            let big_lwe_dimension = big_lwe_sk.lwe_dimension();
+            let bsk = LweBootstrapKey::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                params.pbs_base_log.unwrap(),
+                params.pbs_level.unwrap(),
+                params.lwe_dimension.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            const NUM_CTS: usize = 8192;
+            let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
+            let lwe_noise_distribution =
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+
+            let mut lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                params.lwe_dimension.unwrap().to_lwe_size(),
+                LweCiphertextCount(NUM_CTS),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            encrypt_lwe_ciphertext_list(
+                &input_lwe_secret_key,
+                &mut lwe_list,
+                &plaintext_list,
+                lwe_noise_distribution,
+                &mut encryption_generator,
+            );
+            let underlying_container: Vec<Scalar> = lwe_list.into_container();
+
+            let input_lwe_list = LweCiphertextList::from_container(
+                underlying_container,
+                params.lwe_dimension.unwrap().to_lwe_size(),
+                params.ciphertext_modulus.unwrap(),
+            );
+
+            let output_lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                big_lwe_dimension.to_lwe_size(),
+                LweCiphertextCount(NUM_CTS),
+                params.ciphertext_modulus.unwrap(),
+            );
+            let lwe_ciphertext_in_gpu =
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&input_lwe_list, &stream);
+
+            let accumulator = GlweCiphertext::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            let accumulator_gpu =
+                CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+
+            let mut out_pbs_ct_gpu =
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&output_lwe_list, &stream);
+            let mut h_indexes: [Scalar; NUM_CTS] = [Scalar::ZERO; NUM_CTS];
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            unsafe {
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+            }
+            stream.synchronize();
+            for (i, index) in h_indexes.iter_mut().enumerate() {
+                *index = Scalar::cast_from(i);
+            }
+            stream.synchronize();
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            unsafe {
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+            }
+            stream.synchronize();
+
+            let id = format!("{bench_name}::{name}::{NUM_CTS}chunk");
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    cuda_programmable_bootstrap_lwe_ciphertext(
+                        &lwe_ciphertext_in_gpu,
+                        &mut out_pbs_ct_gpu,
+                        &accumulator_gpu,
+                        &d_lut_indexes,
+                        &d_output_indexes,
+                        &d_input_indexes,
+                        LweCiphertextCount(NUM_CTS),
+                        &bsk_gpu,
+                        &stream,
+                    );
+                    black_box(&mut out_pbs_ct_gpu);
+                })
+            });
+
+            let bit_size = params.message_modulus.unwrap().ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "pbs",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
+    }
+
+    fn cuda_multi_bit_pbs_throughput<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
+    >(
+        c: &mut Criterion,
+    ) {
+        let bench_name = "core_crypto::cuda::multi_bit_pbs_throughput";
+        let mut bench_group = c.benchmark_group(bench_name);
+
+        // Create the PRNG
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (name, params, grouping_factor) in multi_bit_benchmark_parameters::<Scalar>().iter() {
+            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension.unwrap(),
+                &mut secret_generator,
+            );
+
+            let glwe_secret_key = GlweSecretKey::new_empty_key(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+            );
+            let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
+            let big_lwe_dimension = big_lwe_sk.lwe_dimension();
+            let multi_bit_bsk = LweMultiBitBootstrapKey::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                params.pbs_base_log.unwrap(),
+                params.pbs_level.unwrap(),
+                params.lwe_dimension.unwrap(),
+                *grouping_factor,
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            let multi_bit_bsk_gpu = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
+                &multi_bit_bsk,
+                &stream,
+            );
+
+            const NUM_CTS: usize = 8192;
+            let lwe_noise_distribution =
+                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_modular_std_dev.unwrap());
+
+            let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
+            let mut lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                params.lwe_dimension.unwrap().to_lwe_size(),
+                LweCiphertextCount(NUM_CTS),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            encrypt_lwe_ciphertext_list(
+                &input_lwe_secret_key,
+                &mut lwe_list,
+                &plaintext_list,
+                lwe_noise_distribution,
+                &mut encryption_generator,
+            );
+            let underlying_container: Vec<Scalar> = lwe_list.into_container();
+
+            let input_lwe_list = LweCiphertextList::from_container(
+                underlying_container,
+                params.lwe_dimension.unwrap().to_lwe_size(),
+                params.ciphertext_modulus.unwrap(),
+            );
+
+            let output_lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                big_lwe_dimension.to_lwe_size(),
+                LweCiphertextCount(NUM_CTS),
+                params.ciphertext_modulus.unwrap(),
+            );
+            let lwe_ciphertext_in_gpu =
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&input_lwe_list, &stream);
+
+            let accumulator = GlweCiphertext::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+            let accumulator_gpu =
+                CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+
+            let mut out_pbs_ct_gpu =
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&output_lwe_list, &stream);
+            let mut h_indexes: [Scalar; NUM_CTS] = [Scalar::ZERO; NUM_CTS];
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            unsafe {
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+            }
+            stream.synchronize();
+            for (i, index) in h_indexes.iter_mut().enumerate() {
+                *index = Scalar::cast_from(i);
+            }
+            stream.synchronize();
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            unsafe {
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+            }
+            stream.synchronize();
+
+            let id = format!("{bench_name}::{name}::{NUM_CTS}chunk");
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &lwe_ciphertext_in_gpu,
+                        &mut out_pbs_ct_gpu,
+                        &accumulator_gpu,
+                        &d_lut_indexes,
+                        &d_output_indexes,
+                        &d_input_indexes,
+                        &multi_bit_bsk_gpu,
+                        &stream,
+                    );
+                    black_box(&mut out_pbs_ct_gpu);
+                })
+            });
+
+            let bit_size = params.message_modulus.unwrap().ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "pbs",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
+    }
+
     criterion_group!(
         name = cuda_pbs_group;
         config = Criterion::default().sample_size(2000);
@@ -861,10 +1151,25 @@ mod cuda {
         config = Criterion::default().sample_size(2000);
         targets = cuda_multi_bit_pbs::<u64>
     );
+
+    criterion_group!(
+        name = cuda_pbs_throughput_group;
+        config = Criterion::default().sample_size(20);
+        targets = cuda_pbs_throughput::<u64>
+    );
+
+    criterion_group!(
+        name = cuda_multi_bit_pbs_throughput_group;
+        config = Criterion::default().sample_size(20);
+        targets = cuda_multi_bit_pbs_throughput::<u64>
+    );
 }
 
 #[cfg(feature = "gpu")]
-use cuda::{cuda_multi_bit_pbs_group, cuda_pbs_group};
+use cuda::{
+    cuda_multi_bit_pbs_group, cuda_multi_bit_pbs_throughput_group, cuda_pbs_group,
+    cuda_pbs_throughput_group,
+};
 
 criterion_group!(
     name = pbs_group;
@@ -883,11 +1188,16 @@ criterion_group!(
 
 criterion_group!(
     name = pbs_throughput_group;
-    config = Criterion::default().sample_size(100);
+    config = Criterion::default().sample_size(50);
     targets = pbs_throughput::<u64>, pbs_throughput::<u32>
 );
 
 #[cfg(not(feature = "gpu"))]
 criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
-criterion_main!(cuda_pbs_group, cuda_multi_bit_pbs_group);
+criterion_main!(
+    cuda_pbs_group,
+    cuda_multi_bit_pbs_group,
+    cuda_pbs_throughput_group,
+    cuda_multi_bit_pbs_throughput_group
+);
