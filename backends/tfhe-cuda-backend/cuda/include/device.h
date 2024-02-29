@@ -34,12 +34,8 @@ struct cuda_stream_t {
 
   cuda_stream_t(uint32_t gpu_index) {
     this->gpu_index = gpu_index;
-    if (gpu_index == 0) {
-      check_cuda_error(cudaStreamCreate(&stream));
-    } else {
       check_cuda_error(
           cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-    }
   }
 
   void release() {
