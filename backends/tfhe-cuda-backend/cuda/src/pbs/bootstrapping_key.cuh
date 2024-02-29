@@ -100,11 +100,10 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
 
   cuda_memcpy_async_to_gpu(d_bsk, h_bsk, buffer_size, stream);
 
-  double2 *buffer;
+  double2 *buffer = (double2 *)cuda_malloc_async(0, stream);
   switch (polynomial_size) {
   case 256:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<256>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -123,7 +122,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 512:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<512>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -142,7 +140,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 1024:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -161,7 +158,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 2048:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -180,7 +176,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 4096:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -199,7 +194,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 8192:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -218,7 +212,6 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     break;
   case 16384:
     if (shared_memory_size <= cuda_get_max_shared_memory(stream->gpu_index)) {
-      buffer = (double2 *)cuda_malloc_async(0, stream);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT<FFTDegree<AmortizedDegree<16384>, ForwardFFT>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -236,7 +229,8 @@ void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
     }
     break;
   default:
-    break;
+    PANIC("Cuda error (convert KSK): unsupported polynomial size. Supported "
+          "N's are powers of two in the interval [256..16384].")
   }
 
   cuda_drop_async(d_bsk, stream);
