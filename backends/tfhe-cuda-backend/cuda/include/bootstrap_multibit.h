@@ -39,7 +39,7 @@ template <typename Torus> struct pbs_multibit_buffer {
 
   uint32_t lwe_chunk_size = 1;
   int num_producers = 2;
-  int max_pool_size = 20;
+  int max_pool_size = 4;
 
   pbs_multibit_buffer(cuda_stream_t *stream, uint32_t glwe_dimension,
                       uint32_t polynomial_size, uint32_t level_count,

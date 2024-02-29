@@ -465,7 +465,7 @@ void producer_thread(cuda_stream_t *producer_stream, int producer_id,
       while (!keybundle_buffer.empty()) {
         std::unique_lock<std::mutex> lock(mtx);
         // Wait until queue is almost empty
-        cv_producer.wait(lock, [&] { return queue.size() < 1; });
+        cv_producer.wait(lock, [&] { return queue.size() <= 1; });
         queue.push({lwe_offset, keybundle_buffer.front()});
         cv_consumer.notify_one();
         keybundle_buffer.pop();
