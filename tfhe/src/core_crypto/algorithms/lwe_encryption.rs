@@ -2022,11 +2022,17 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     );
 
                 // Fill the body chunk afterwards manually as it most likely will be smaller than
-                // the full convolution result. b convolved r + Delta * m + e2
+                // the full convolution result. rev(b convolved r) + Delta * m + e2
                 // taking noise from Chi_2 for the body part of the encryption
+                // The reverse is to make the first element product match the single ciphertext case
                 output_body_chunk
                     .iter_mut()
-                    .zip(pk_body_convolved.iter().zip(input_plaintext_chunk.iter()))
+                    .zip(
+                        pk_body_convolved
+                            .iter()
+                            .rev()
+                            .zip(input_plaintext_chunk.iter()),
+                    )
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(
@@ -2247,11 +2253,17 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     );
 
                 // Fill the body chunk afterwards manually as it most likely will be smaller than
-                // the full convolution result. b convolved r + Delta * m + e2
+                // the full convolution result. rev(b convolved r) + Delta * m + e2
                 // taking noise from Chi_2 for the body part of the encryption
+                // The reverse is to make the first element product match the single ciphertext case
                 output_body_chunk
                     .iter_mut()
-                    .zip(pk_body_convolved.iter().zip(input_plaintext_chunk.iter()))
+                    .zip(
+                        pk_body_convolved
+                            .iter()
+                            .rev()
+                            .zip(input_plaintext_chunk.iter()),
+                    )
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(
