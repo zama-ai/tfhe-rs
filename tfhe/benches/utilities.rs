@@ -227,7 +227,8 @@ pub fn write_to_json<
 }
 
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [32];
-const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
+const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
+const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
 
 /// User configuration in which benchmarks must be run.
 #[derive(Default)]
@@ -258,16 +259,14 @@ impl EnvConfig {
     /// Get precisions values to benchmark.
     #[allow(dead_code)]
     pub fn bit_sizes(&self) -> Vec<usize> {
-        if self.is_multi_bit {
-            if self.is_fast_bench {
-                FAST_BENCH_BIT_SIZES.to_vec()
-            } else if cfg!(feature = "gpu") {
+        if self.is_fast_bench {
+            FAST_BENCH_BIT_SIZES.to_vec()
+        } else if self.is_multi_bit {
+            if cfg!(feature = "gpu") {
                 BENCH_BIT_SIZES.to_vec()
             } else {
-                vec![8, 16, 32, 40, 64]
+                MULTI_BIT_CPU_SIZES.to_vec()
             }
-        } else if self.is_fast_bench {
-            FAST_BENCH_BIT_SIZES.to_vec()
         } else {
             BENCH_BIT_SIZES.to_vec()
         }
