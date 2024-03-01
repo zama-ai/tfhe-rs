@@ -9,7 +9,7 @@ use crate::shortint::ServerKey;
 use concrete_csprng::seeders::Seed;
 
 impl ServerKey {
-    fn create_random_from_seed(&self, seed: Seed) -> Ciphertext {
+    pub(crate) fn create_random_from_seed(&self, seed: Seed) -> Ciphertext {
         let mut ct = self.create_trivial(0);
 
         let mut generator = RandomGenerator::<ActivatedRandomGenerator>::new(seed);
@@ -108,13 +108,97 @@ impl ServerKey {
 
 #[cfg(test)]
 pub(crate) mod test {
+    use crate::core_crypto::commons::generators::DeterministicSeeder;
+    use crate::core_crypto::prelude::{ActivatedRandomGenerator, GlweSecretKey, LweSecretKey};
+    use crate::shortint::engine::ShortintEngine;
+    use crate::shortint::{ClientKey, ServerKey};
     use concrete_csprng::seeders::Seed;
+    use itertools::Itertools;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
 
     fn square(a: f64) -> f64 {
         a * a
+    }
+
+    #[test]
+    // This test is seeded which prevents flakiness
+    // The noise added by the KS and the MS before the PRF LUT evaluation can make this test fail
+    // if the seeded input is close to a boundary between 2 encoded values
+    // Using another KS key can, with a non-neglibgible probability,
+    // change the output of the PRF after decoding
+    fn oprf_compare_plain_ci_run_filter() {
+        let parameters = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+
+        let glwe_sk = (0..parameters.glwe_dimension.0 * parameters.polynomial_size.0)
+            .map(|i| if i % 2 == 0 { 0 } else { 1 })
+            .collect_vec();
+
+        let lwe_sk = (0..parameters.lwe_dimension.0)
+            .map(|i| if i % 2 == 0 { 0 } else { 1 })
+            .collect_vec();
+
+        let ck = ClientKey {
+            glwe_secret_key: GlweSecretKey::from_container(glwe_sk, parameters.polynomial_size),
+            lwe_secret_key: LweSecretKey::from_container(lwe_sk),
+            parameters: parameters.into(),
+        };
+
+        let mut deterministic_seeder =
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(0));
+
+        let mut engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
+
+        let sk = engine.new_server_key(&ck);
+
+        oprf_compare_plain_from_seed(Seed(0), &ck, &sk);
+    }
+
+    fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ServerKey) {
+        let params = ck.parameters;
+
+        let random_bits_count = 2;
+
+        let input_p = 2 * params.polynomial_size().0 as u64;
+
+        let log_input_p = input_p.ilog2();
+
+        let p_prime = 1 << random_bits_count;
+
+        let output_p = (2 * params.carry_modulus().0 * params.message_modulus().0) as u64;
+
+        let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
+
+        let img = sk.generate_oblivious_pseudo_random(seed, random_bits_count);
+
+        let plain_prf_input = ck
+            .decrypt_no_decode(&sk.create_random_from_seed(seed))
+            .wrapping_add(1 << (64 - log_input_p - 1))
+            >> (64 - log_input_p);
+
+        let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
+
+        let negacyclic_part = |x| {
+            assert!(x < input_p);
+            if x < input_p / 2 {
+                half_negacyclic_part(x)
+            } else {
+                2 * output_p - half_negacyclic_part(x - (input_p / 2))
+            }
+        };
+
+        let prf = |x| {
+            let a = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
+            assert!(a % 2 == 0);
+            a / 2
+        };
+
+        let expected_output = prf(plain_prf_input);
+        let output = ck.decrypt_message_and_carry(&img);
+
+        assert!(output < p_prime);
+        assert_eq!(output, expected_output);
     }
 
     #[test]
