@@ -38,6 +38,7 @@ jobs:
   integer-benchmarks:
     name: Execute integer benchmarks for all operations flavor
     runs-on: ${{ github.event.inputs.runner_name }}
+    timeout-minutes: 1440  # 24 hours
     if: ${{ !cancelled() }}
     continue-on-error: true
     strategy:
@@ -147,7 +148,7 @@ jobs:
   slack-notification:
     name: Slack Notification
     runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ failure() }}
+    if: {{ !success() && !skipped() }}
     needs: integer-benchmarks
     steps:
       - name: Notify
