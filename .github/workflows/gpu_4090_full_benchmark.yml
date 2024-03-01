@@ -178,7 +178,7 @@ jobs:
           ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
-        if: ${{ always() }}
+        if: {{ !success() && !skipped() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
