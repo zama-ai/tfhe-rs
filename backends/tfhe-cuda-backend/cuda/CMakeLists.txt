@@ -72,7 +72,7 @@ set(INCLUDE_DIR include)
 
 add_subdirectory(src)
 enable_testing()
-add_subdirectory(tests)
+add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 
 # This is required for rust cargo build
