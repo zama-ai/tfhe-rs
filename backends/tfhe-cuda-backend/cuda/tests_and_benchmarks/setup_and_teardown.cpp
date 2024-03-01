@@ -125,7 +125,7 @@ void bootstrap_classical_teardown(
   cuda_drop_async(d_lwe_input_indexes, stream);
   cuda_drop_async(d_lwe_output_indexes, stream);
   stream->synchronize();
-  cuda_destroy_stream(stream);
+  stream->release();
 }
 
 void bootstrap_multibit_setup(
@@ -260,7 +260,7 @@ void bootstrap_multibit_teardown(
   cuda_drop_async(d_lwe_input_indexes, stream);
   cuda_drop_async(d_lwe_output_indexes, stream);
   stream->synchronize();
-  cuda_destroy_stream(stream);
+  stream->release();
 }
 
 void keyswitch_setup(cuda_stream_t *stream, Seed *seed,
@@ -365,7 +365,7 @@ void keyswitch_teardown(cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
   cuda_drop_async(d_lwe_input_indexes, stream);
   cuda_drop_async(d_lwe_output_indexes, stream);
   stream->synchronize();
-  cuda_destroy_stream(stream);
+  stream->release();
 }
 
 
@@ -438,5 +438,5 @@ void fft_teardown(cuda_stream_t *stream, double *poly1, double *poly2,
   cuda_drop_async(d_cpoly1, stream);
   cuda_drop_async(d_cpoly2, stream);
   stream->synchronize();
-  cuda_destroy_stream(stream);
+  stream->release();
 }
