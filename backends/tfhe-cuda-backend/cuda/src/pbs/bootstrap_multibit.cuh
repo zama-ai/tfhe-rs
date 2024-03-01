@@ -1,6 +1,7 @@
 #ifndef CUDA_MULTIBIT_PBS_CUH
 #define CUDA_MULTIBIT_PBS_CUH
 
+#include "bootstrap.cuh"
 #include "bootstrap.h"
 #include "bootstrap_fast_low_latency.cuh"
 #include "bootstrap_multibit.h"

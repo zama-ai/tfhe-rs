@@ -226,11 +226,6 @@ void bootstrap_multibit_setup(
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
                            number_of_inputs * sizeof(uint64_t), stream);
 
-  scratch_cuda_multi_bit_pbs_64(
-      stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-      pbs_level, grouping_factor, number_of_inputs,
-      cuda_get_max_shared_memory(stream->gpu_index), true, lwe_chunk_size);
-
   stream->synchronize();
 
   free(h_lwe_indexes);
@@ -251,7 +246,6 @@ void bootstrap_multibit_teardown(
   free(lwe_sk_out_array);
   free(plaintexts);
 
-  cleanup_cuda_multi_bit_pbs(stream, pbs_buffer);
   cuda_drop_async(d_bsk_array, stream);
   cuda_drop_async(d_lut_pbs_identity, stream);
   cuda_drop_async(d_lut_pbs_indexes, stream);

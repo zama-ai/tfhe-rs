@@ -89,6 +89,11 @@ public:
         carry_modulus, &payload_modulus, &delta, number_of_inputs, repetitions,
         samples);
 
+    scratch_cuda_multi_bit_pbs_64(
+        stream, &pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        pbs_level, grouping_factor, number_of_inputs,
+        cuda_get_max_shared_memory(stream->gpu_index), true);
+
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
                            number_of_inputs * sizeof(uint64_t));
@@ -96,6 +101,7 @@ public:
 
   void TearDown() {
     free(lwe_ct_out_array);
+    cleanup_cuda_multi_bit_pbs(stream, &pbs_buffer);
     bootstrap_multibit_teardown(stream, lwe_sk_in_array, lwe_sk_out_array,
                                 d_bsk_array, plaintexts, d_lut_pbs_identity,
                                 d_lut_pbs_indexes, d_lwe_ct_in_array,
@@ -144,7 +150,7 @@ TEST_P(MultiBitBootstrapTestPrimitives_u64, multi_bit_pbs) {
         core_crypto_lwe_decrypt(&decrypted, result, lwe_sk_out,
                                 glwe_dimension * polynomial_size);
 
-        EXPECT_NE(decrypted, plaintext)
+        ASSERT_NE(decrypted, plaintext)
             << "Repetition: " << r << ", sample: " << s << ", input: " << j;
 
         // The bit before the message
@@ -153,7 +159,7 @@ TEST_P(MultiBitBootstrapTestPrimitives_u64, multi_bit_pbs) {
         // Compute the rounding bit
         uint64_t rounding = (decrypted & rounding_bit) << 1;
         uint64_t decoded = (decrypted + rounding) / delta;
-        EXPECT_EQ(decoded, plaintext / delta)
+        ASSERT_EQ(decoded, plaintext / delta)
             << "Repetition: " << r << ", sample: " << s << ", input: " << j;
       }
     }

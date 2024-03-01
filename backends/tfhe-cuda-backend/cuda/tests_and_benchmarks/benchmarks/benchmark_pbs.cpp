@@ -157,6 +157,35 @@ public:
   }
 };
 
+BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TBCMultiBit)
+(benchmark::State &st) {
+  if (!has_support_to_cuda_bootstrap_tbc_multi_bit<uint64_t>(
+          polynomial_size,
+          cuda_get_max_shared_memory(stream->gpu_index))) {
+    st.SkipWithError("Configuration not supported for TBC operation");
+    return;
+  }
+
+  scratch_cuda_tbc_multi_bit_pbs_64(
+      stream, &pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+      pbs_level, grouping_factor, input_lwe_ciphertext_count,
+      cuda_get_max_shared_memory(stream->gpu_index), true, chunk_size);
+
+  for (auto _ : st) {
+    // Execute PBS
+    cuda_tbc_multi_bit_pbs_lwe_ciphertext_vector_64(
+        stream, (void *)d_lwe_ct_out_array, (void *)d_lwe_output_indexes,
+        (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
+        (void *)d_lwe_ct_in_array, (void *)d_lwe_input_indexes, (void *)d_bsk,
+        pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, pbs_base_log, pbs_level, input_lwe_ciphertext_count, 1,
+        0, cuda_get_max_shared_memory(stream->gpu_index), chunk_size);
+    cuda_synchronize_stream(stream);
+  }
+
+  cleanup_cuda_multi_bit_pbs(stream, &pbs_buffer);
+}
+
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, FastMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_bootstrap_fast_multi_bit(
@@ -209,11 +238,38 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, SplitMultiBit)
   cleanup_cuda_multi_bit_pbs(stream, &pbs_buffer);
 }
 
+BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TBCLowLatencyPBS)
+(benchmark::State &st) {
+  if (!has_support_to_cuda_bootstrap_tbc_low_latency<uint64_t>(polynomial_size,
+                                                               cuda_get_max_shared_memory(stream->gpu_index))) {
+    st.SkipWithError("Configuration not supported for tbc operation");
+    return;
+  }
+
+  scratch_cuda_tbc_bootstrap_low_latency<uint64_t, int64_t>(
+      stream, &pbs_buffer, glwe_dimension, polynomial_size, pbs_level,
+      input_lwe_ciphertext_count, cuda_get_max_shared_memory(stream->gpu_index),
+      true);
+
+  for (auto _ : st) {
+    // Execute PBS
+    cuda_bootstrap_tbc_low_latency_lwe_ciphertext_vector<uint64_t>(
+        stream, (void *)d_lwe_ct_out_array, (void *)d_lwe_output_indexes,
+        (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
+        (void *)d_lwe_ct_in_array, (void *)d_lwe_input_indexes,
+        (void *)d_fourier_bsk, pbs_buffer, lwe_dimension, glwe_dimension,
+        polynomial_size, pbs_base_log, pbs_level, input_lwe_ciphertext_count, 1,
+        0, cuda_get_max_shared_memory(stream->gpu_index));
+    cuda_synchronize_stream(stream);
+  }
+
+  cleanup_cuda_bootstrap_low_latency(stream, &pbs_buffer);
+}
+
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, FastLowLatencyPBS)
 (benchmark::State &st) {
   if (!has_support_to_cuda_bootstrap_fast_low_latency<uint64_t>(
-          glwe_dimension, polynomial_size, pbs_level,
-          input_lwe_ciphertext_count,
+          glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
           cuda_get_max_shared_memory(stream->gpu_index))) {
     st.SkipWithError("Configuration not supported for fast operation");
     return;
@@ -335,6 +391,12 @@ BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
     }
 }
 
+BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, TBCMultiBit)
+    ->Apply(MultiBitPBSBenchmarkGenerateParams)
+    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
+                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
+                "grouping_factor", "chunk_size"});
+
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, FastMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
@@ -346,6 +408,16 @@ BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, SplitMultiBit)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
                 "grouping_factor", "chunk_size"});
+
+BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, TBCLowLatencyPBS)
+    ->Apply(BootstrapBenchmarkGenerateParams)
+    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
+                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
+
+BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, FastLowLatencyPBS)
+    ->Apply(BootstrapBenchmarkGenerateParams)
+    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
+                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
 
 BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, SplitLowLatencyPBS)
     ->Apply(BootstrapBenchmarkGenerateParams)

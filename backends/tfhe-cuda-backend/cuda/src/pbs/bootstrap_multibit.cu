@@ -2,6 +2,15 @@
 #include "bootstrap_fast_multibit.cuh"
 #include "bootstrap_multibit.cuh"
 #include "bootstrap_multibit.h"
+#include "bootstrap_tbc_multibit.cuh"
+
+template <typename Torus>
+bool has_support_to_cuda_bootstrap_tbc_multi_bit(
+                                                 uint32_t polynomial_size,
+                                                 uint32_t max_shared_memory) {
+  return supports_thread_block_clusters_on_multibit_pbs<Torus>(polynomial_size,
+                                                                 max_shared_memory);
+}
 
 bool has_support_to_cuda_bootstrap_fast_multi_bit(uint32_t glwe_dimension,
                                                   uint32_t polynomial_size,
@@ -232,9 +241,20 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
 
-  if (supports_cooperative_groups_on_multibit_pbs<uint64_t>(
-          glwe_dimension, polynomial_size, level_count, num_samples,
-          max_shared_memory))
+  // TBC is the fastest version
+  // Fast is the second faster, but only support a few configurations
+  // Split is the fallback
+
+  if (supports_thread_block_clusters_on_multibit_pbs<uint64_t>(polynomial_size, max_shared_memory))
+    cuda_tbc_multi_bit_pbs_lwe_ciphertext_vector_64(
+        stream, lwe_array_out, lwe_output_indexes, lut_vector,
+        lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
+        max_shared_memory, lwe_chunk_size);
+  else if (supports_cooperative_groups_on_multibit_pbs<uint64_t>(
+               glwe_dimension, polynomial_size, level_count, num_samples,
+               max_shared_memory))
     cuda_fast_multi_bit_pbs_lwe_ciphertext_vector_64(
         stream, lwe_array_out, lwe_output_indexes, lut_vector,
         lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
@@ -371,9 +391,18 @@ void scratch_cuda_multi_bit_pbs_64(
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t lwe_chunk_size) {
 
-  if (supports_cooperative_groups_on_multibit_pbs<uint64_t>(
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, max_shared_memory))
+  // TBC is the fastest version
+  // Fast is the second faster, but only support a few configurations
+  // Split is the fallback
+
+  if (supports_thread_block_clusters_on_multibit_pbs<uint64_t>(polynomial_size, max_shared_memory))
+    scratch_cuda_tbc_multi_bit_pbs_64(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, grouping_factor, input_lwe_ciphertext_count,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+  else if (supports_cooperative_groups_on_multibit_pbs<uint64_t>(
+               glwe_dimension, polynomial_size, level_count,
+               input_lwe_ciphertext_count, max_shared_memory))
     scratch_cuda_fast_multi_bit_pbs_64(
         stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
         level_count, grouping_factor, input_lwe_ciphertext_count,
@@ -389,6 +418,168 @@ void cleanup_cuda_multi_bit_pbs(cuda_stream_t *stream, int8_t **pbs_buffer) {
 
   // Free memory
   cuda_drop_async(*pbs_buffer, stream);
+}
+
+void scratch_cuda_tbc_multi_bit_pbs_64(
+    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
+    uint32_t max_shared_memory, bool allocate_gpu_memory,
+    uint32_t lwe_chunk_size) {
+
+  switch (polynomial_size) {
+  case 256:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<256>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 512:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<512>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 1024:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<1024>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 2048:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<2048>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 4096:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<4096>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 8192:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<8192>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  case 16384:
+    scratch_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<16384>>(
+        stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        level_count, input_lwe_ciphertext_count, grouping_factor,
+        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].");
+  }
+}
+
+void cuda_tbc_multi_bit_pbs_lwe_ciphertext_vector_64(
+    cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
+    void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
+    void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
+    uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
+
+  if (base_log > 64)
+    PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
+          "the ciphertext representation (64)");
+
+  switch (polynomial_size) {
+  case 256:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<256>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 512:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<512>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 1024:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<1024>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 2048:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<2048>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 4096:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<4096>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 8192:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<8192>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  case 16384:
+    host_tbc_multi_bit_pbs<uint64_t, int64_t, AmortizedDegree<16384>>(
+        stream, static_cast<uint64_t *>(lwe_array_out),
+        static_cast<uint64_t *>(lwe_output_indexes),
+        static_cast<uint64_t *>(lut_vector),
+        static_cast<uint64_t *>(lut_vector_indexes),
+        static_cast<uint64_t *>(lwe_array_in),
+        static_cast<uint64_t *>(lwe_input_indexes),
+        static_cast<uint64_t *>(bootstrapping_key), pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
+  }
 }
 
 // Pick the best possible chunk size for each GPU
@@ -517,3 +708,9 @@ __host__ uint64_t get_max_buffer_size_multibit_bootstrap(
 
   return max_buffer_size;
 }
+
+
+template
+bool has_support_to_cuda_bootstrap_tbc_multi_bit<uint64_t>(
+                                                 uint32_t polynomial_size,
+                                                 uint32_t max_shared_memory);

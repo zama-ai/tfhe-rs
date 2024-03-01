@@ -6,6 +6,9 @@
 #include <device.h>
 #include <keyswitch.h>
 #include <utils.h>
+#if (__CUDA_ARCH > 900)
+#include "bootstrap_tbc_multibit.cuh"
+#endif
 
 void bootstrap_classical_setup(
     cuda_stream_t *stream, Seed *seed, uint64_t **lwe_sk_in_array,
