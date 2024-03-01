@@ -1,5 +1,5 @@
 # Run integer benchmarks with multi-bit cryptographic parameters on an AWS instance and return parsed results to Slab CI bot.
-name: Integer Multi-bit benchmarks
+name: Integer GPU Multi-bit benchmarks
 
 on:
   workflow_dispatch:
@@ -32,6 +32,8 @@ jobs:
     name: Execute integer multi-bit benchmarks in EC2
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
+    # 12 hours, default is 6 hours, hopefully this is more than enough
+    timeout-minutes: 720
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
