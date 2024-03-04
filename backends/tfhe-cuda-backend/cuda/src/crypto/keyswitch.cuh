@@ -106,23 +106,23 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
   cudaSetDevice(stream->gpu_index);
   constexpr int ideal_threads = 128;
 
-  int lwe_dim = lwe_dimension_out + 1;
+  int lwe_size = lwe_dimension_out + 1;
   int lwe_lower, lwe_upper, cutoff;
-  if (lwe_dim % ideal_threads == 0) {
-    lwe_lower = lwe_dim / ideal_threads;
-    lwe_upper = lwe_dim / ideal_threads;
+  if (lwe_size % ideal_threads == 0) {
+    lwe_lower = lwe_size / ideal_threads;
+    lwe_upper = lwe_size / ideal_threads;
     cutoff = 0;
   } else {
-    int y =
-        ceil((double)lwe_dim / (double)ideal_threads) * ideal_threads - lwe_dim;
+    int y = ceil((double)lwe_size / (double)ideal_threads) * ideal_threads -
+            lwe_size;
     cutoff = ideal_threads - y;
-    lwe_lower = lwe_dim / ideal_threads;
-    lwe_upper = (int)ceil((double)lwe_dim / (double)ideal_threads);
+    lwe_lower = lwe_size / ideal_threads;
+    lwe_upper = (int)ceil((double)lwe_size / (double)ideal_threads);
   }
 
-  int lwe_size_after = (lwe_dimension_out + 1) * num_samples;
+  int lwe_size_after = lwe_size * num_samples;
 
-  int shared_mem = sizeof(Torus) * (lwe_dimension_out + 1);
+  int shared_mem = sizeof(Torus) * lwe_size;
 
   cuda_memset_async(lwe_array_out, 0, sizeof(Torus) * lwe_size_after, stream);
   check_cuda_error(cudaGetLastError());
@@ -130,11 +130,7 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
   dim3 grid(num_samples, 1, 1);
   dim3 threads(ideal_threads, 1, 1);
 
-  //    cudaFuncSetAttribute(keyswitch<Torus>,
-  //                         cudaFuncAttributeMaxDynamicSharedMemorySize,
-  //                         shared_mem);
-
-  keyswitch<<<grid, threads, shared_mem, stream->stream>>>(
+  keyswitch<Torus><<<grid, threads, shared_mem, stream->stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count, lwe_lower,
       lwe_upper, cutoff);
