@@ -43,8 +43,7 @@ void bootstrap_multibit_teardown(
     uint64_t *lwe_sk_out_array, uint64_t *d_bsk_array, uint64_t *plaintexts,
     uint64_t *d_lut_pbs_identity, uint64_t *d_lut_pbs_indexes,
     uint64_t *d_lwe_ct_in_array, uint64_t *d_lwe_input_indexes,
-    uint64_t *d_lwe_ct_out_array, uint64_t *d_lwe_output_indexes,
-    int8_t **pbs_buffer);
+    uint64_t *d_lwe_ct_out_array, uint64_t *d_lwe_output_indexes);
 void keyswitch_setup(
     cuda_stream_t *stream, Seed *seed, uint64_t **lwe_sk_in_array,
     uint64_t **lwe_sk_out_array, uint64_t **d_ksk_array, uint64_t **plaintexts,

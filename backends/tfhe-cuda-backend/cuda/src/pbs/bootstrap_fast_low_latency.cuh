@@ -436,18 +436,60 @@ __host__ bool verify_cuda_bootstrap_fast_low_latency_grid_size(
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_bootstrap_fast_low_latency<Torus, params, PARTIALSM>,
-        thds, 0);
+        thds, partial_sm);
   } else {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_bootstrap_fast_low_latency<Torus, params, FULLSM>, thds,
-        0);
+        full_sm);
   }
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
+}
+
+// Verify if the grid size for the low latency kernel satisfies the cooperative
+// group constraints
+template <typename Torus>
+__host__ bool supports_cooperative_groups_on_lowlat_pbs(
+    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
+  switch (polynomial_size) {
+  case 256:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
+  case 512:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
+  case 1024:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
+  case 2048:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
+  case 4096:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
+  case 8192:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
+                                      max_shared_memory);
+  case 16384:
+    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
+                                       max_shared_memory);
+  default:
+    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
+  }
 }
 
 #endif // LOWLAT_FAST_PBS_H

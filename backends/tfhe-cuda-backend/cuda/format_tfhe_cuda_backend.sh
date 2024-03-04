@@ -6,14 +6,14 @@ while getopts ":c" option; do
   case $option in
     c)
       # code to execute when flag1 is provided
-      find ./{include,src,tests/include,tests/src} -iregex '^.*\.\(cpp\|cu\|h\|cuh\)$' -print | xargs clang-format-15 -i -style='file' --dry-run --Werror
+      find ./{include,src,tests_and_benchmarks/tests,tests_and_benchmarks/benchmarks} -iregex '^.*\.\(cpp\|cu\|h\|cuh\)$' -print | xargs clang-format-15 -i -style='file' --dry-run --Werror
       cmake-format -i CMakeLists.txt -c .cmake-format-config.py
-      find ./{include,src,tests/include,tests/src} -type f -name "CMakeLists.txt" | xargs -I % sh -c 'cmake-format -i % -c .cmake-format-config.py'
+      find ./{include,src,tests_and_benchmarks/tests,tests_and_benchmarks/benchmarks} -type f -name "CMakeLists.txt" | xargs -I % sh -c 'cmake-format -i % -c .cmake-format-config.py'
       git diff --exit-code
       exit
       ;;
   esac
 done
-find ./{include,src,tests/include,tests/src} -iregex '^.*\.\(cpp\|cu\|h\|cuh\)$' -print | xargs clang-format-15 -i -style='file'
+find ./{include,src,tests_and_benchmarks/tests,tests_and_benchmarks/benchmarks} -iregex '^.*\.\(cpp\|cu\|h\|cuh\)$' -print | xargs clang-format-15 -i -style='file'
 cmake-format -i CMakeLists.txt -c .cmake-format-config.py
-find ./{include,src,tests/include,tests/src} -type f -name "CMakeLists.txt" | xargs -I % sh -c 'cmake-format -i % -c .cmake-format-config.py'
+find ./{include,src,tests_and_benchmarks/tests,tests_and_benchmarks/benchmarks} -type f -name "CMakeLists.txt" | xargs -I % sh -c 'cmake-format -i % -c .cmake-format-config.py'

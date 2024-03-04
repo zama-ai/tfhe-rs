@@ -10,8 +10,8 @@ void bootstrap_classical_setup(
     uint64_t **d_lwe_input_indexes, uint64_t **d_lwe_ct_out_array,
     uint64_t **d_lwe_output_indexes, int lwe_dimension, int glwe_dimension,
     int polynomial_size, DynamicDistribution lwe_noise_distribution,
-    DynamicDistribution glwe_noise_distribution, int pbs_base_log, int pbs_level,
-    int message_modulus, int carry_modulus, int *payload_modulus,
+    DynamicDistribution glwe_noise_distribution, int pbs_base_log,
+    int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
     uint64_t *delta, int number_of_inputs, int repetitions, int samples) {
 
   *payload_modulus = message_modulus * carry_modulus;
@@ -135,9 +135,10 @@ void bootstrap_multibit_setup(
     uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
     uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
     int8_t **pbs_buffer, int lwe_dimension, int glwe_dimension,
-    int polynomial_size, int grouping_factor, DynamicDistribution lwe_noise_distribution,
-    DynamicDistribution glwe_noise_distribution, int pbs_base_log, int pbs_level,
-    int message_modulus, int carry_modulus, int *payload_modulus,
+    int polynomial_size, int grouping_factor,
+    DynamicDistribution lwe_noise_distribution,
+    DynamicDistribution glwe_noise_distribution, int pbs_base_log,
+    int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
     uint64_t *delta, int number_of_inputs, int repetitions, int samples,
     int lwe_chunk_size) {
   cudaSetDevice(stream->gpu_index);
@@ -243,15 +244,13 @@ void bootstrap_multibit_teardown(
     uint64_t *lwe_sk_out_array, uint64_t *d_bsk_array, uint64_t *plaintexts,
     uint64_t *d_lut_pbs_identity, uint64_t *d_lut_pbs_indexes,
     uint64_t *d_lwe_ct_in_array, uint64_t *d_lwe_input_indexes,
-    uint64_t *d_lwe_ct_out_array, uint64_t *d_lwe_output_indexes,
-    int8_t **pbs_buffer) {
+    uint64_t *d_lwe_ct_out_array, uint64_t *d_lwe_output_indexes) {
   cuda_synchronize_stream(stream);
 
   free(lwe_sk_in_array);
   free(lwe_sk_out_array);
   free(plaintexts);
 
-  cleanup_cuda_multi_bit_pbs(stream, pbs_buffer);
   cuda_drop_async(d_bsk_array, stream);
   cuda_drop_async(d_lut_pbs_identity, stream);
   cuda_drop_async(d_lut_pbs_indexes, stream);
@@ -263,17 +262,15 @@ void bootstrap_multibit_teardown(
   stream->release();
 }
 
-void keyswitch_setup(cuda_stream_t *stream, Seed *seed,
-                     uint64_t **lwe_sk_in_array, uint64_t **lwe_sk_out_array,
-                     uint64_t **d_ksk_array, uint64_t **plaintexts,
-                     uint64_t **d_lwe_ct_in_array,
-                     uint64_t **d_lwe_input_indexes,
-                     uint64_t **d_lwe_ct_out_array,
-                     uint64_t **d_lwe_output_indexes, int input_lwe_dimension,
-                     int output_lwe_dimension, DynamicDistribution lwe_noise_distribution,
-                     int ksk_base_log, int ksk_level, int message_modulus,
-                     int carry_modulus, int *payload_modulus, uint64_t *delta,
-                     int number_of_inputs, int repetitions, int samples) {
+void keyswitch_setup(
+    cuda_stream_t *stream, Seed *seed, uint64_t **lwe_sk_in_array,
+    uint64_t **lwe_sk_out_array, uint64_t **d_ksk_array, uint64_t **plaintexts,
+    uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
+    uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
+    int input_lwe_dimension, int output_lwe_dimension,
+    DynamicDistribution lwe_noise_distribution, int ksk_base_log, int ksk_level,
+    int message_modulus, int carry_modulus, int *payload_modulus,
+    uint64_t *delta, int number_of_inputs, int repetitions, int samples) {
 
   *payload_modulus = message_modulus * carry_modulus;
   // Value of the shift we multiply our messages by
@@ -367,7 +364,6 @@ void keyswitch_teardown(cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
   stream->synchronize();
   stream->release();
 }
-
 
 void fft_setup(cuda_stream_t *stream, double **_poly1, double **_poly2,
                double2 **_h_cpoly1, double2 **_h_cpoly2, double2 **_d_cpoly1,
