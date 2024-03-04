@@ -154,11 +154,11 @@ __host__ __device__ uint64_t get_buffer_size_fast_multibit_bootstrap(
 
 template <typename Torus, typename STorus, typename params>
 __host__ void scratch_fast_multi_bit_pbs(
-    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t grouping_factor,
-    uint32_t max_shared_memory, bool allocate_gpu_memory,
-    uint32_t lwe_chunk_size = 0) {
+    cuda_stream_t *stream, pbs_buffer<uint64_t, MULTI_BIT> **buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t grouping_factor, uint32_t max_shared_memory,
+    bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0) {
 
   cudaSetDevice(stream->gpu_index);
 
@@ -183,30 +183,25 @@ __host__ void scratch_fast_multi_bit_pbs(
       cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
-  if (allocate_gpu_memory) {
-    if (!lwe_chunk_size)
-      lwe_chunk_size =
-          get_average_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension,
-                                     input_lwe_ciphertext_count);
-
-    uint64_t buffer_size = get_buffer_size_fast_multibit_bootstrap<Torus>(
-        lwe_dimension, glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, grouping_factor, lwe_chunk_size,
-        max_shared_memory);
-    *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream);
-    check_cuda_error(cudaGetLastError());
-  }
+  if (!lwe_chunk_size)
+    lwe_chunk_size = get_average_lwe_chunk_size(
+        lwe_dimension, level_count, glwe_dimension, input_lwe_ciphertext_count);
+  *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
+      stream, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::FAST,
+      allocate_gpu_memory);
 }
 
 template <typename Torus, typename STorus, class params>
 __host__ void host_fast_multi_bit_pbs(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, uint64_t *bootstrapping_key, int8_t *pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0) {
+    Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
+    uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(stream->gpu_index);
 
   if (!lwe_chunk_size)
@@ -214,15 +209,9 @@ __host__ void host_fast_multi_bit_pbs(
                                                 glwe_dimension, num_samples);
 
   //
-  double2 *keybundle_fft = (double2 *)pbs_buffer;
-  double2 *buffer_fft = (double2 *)keybundle_fft +
-                        num_samples * lwe_chunk_size * level_count *
-                            (glwe_dimension + 1) * (glwe_dimension + 1) *
-                            (polynomial_size / 2);
-  Torus *global_accumulator =
-      (Torus *)buffer_fft +
-      (ptrdiff_t)(sizeof(double2) * num_samples * (glwe_dimension + 1) *
-                  level_count * (polynomial_size / 2) / sizeof(Torus));
+  double2 *keybundle_fft = pbs_buffer->keybundle_fft;
+  Torus *global_accumulator = pbs_buffer->global_accumulator;
+  double2 *buffer_fft = pbs_buffer->global_accumulator_fft;
 
   //
   uint64_t full_sm_keybundle =

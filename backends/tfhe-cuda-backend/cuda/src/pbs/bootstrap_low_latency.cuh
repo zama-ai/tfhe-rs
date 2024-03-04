@@ -222,27 +222,6 @@ __global__ void device_bootstrap_low_latency_step_two(
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_low_latency_step_one(
-    uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size +      // accumulator_rotated
-         sizeof(double2) * polynomial_size / 2; // accumulator fft
-}
-template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_low_latency_step_two(
-    uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size +      // accumulator
-         sizeof(double2) * polynomial_size / 2; // accumulator fft
-}
-
-template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_bootstrap_low_latency(uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator fft
-}
-
-template <typename Torus>
 __host__ __device__ uint64_t get_buffer_size_bootstrap_low_latency(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
@@ -285,8 +264,8 @@ __host__ __device__ uint64_t get_buffer_size_bootstrap_low_latency(
 
 template <typename Torus, typename STorus, typename params>
 __host__ void scratch_bootstrap_low_latency(
-    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
@@ -338,13 +317,9 @@ __host__ void scratch_bootstrap_low_latency(
     check_cuda_error(cudaGetLastError());
   }
 
-  if (allocate_gpu_memory) {
-    uint64_t buffer_size = get_buffer_size_bootstrap_low_latency<Torus>(
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, max_shared_memory);
-    *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream);
-    check_cuda_error(cudaGetLastError());
-  }
+  *buffer = new pbs_buffer<Torus, LOW_LAT>(
+      stream, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
@@ -432,11 +407,11 @@ template <typename Torus, class params>
 __host__ void host_bootstrap_low_latency(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, double2 *bootstrapping_key, int8_t *pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t num_luts,
-    uint32_t max_shared_memory) {
+    Torus *lwe_input_indexes, double2 *bootstrapping_key,
+    pbs_buffer<Torus, LOW_LAT> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_luts, uint32_t max_shared_memory) {
   cudaSetDevice(stream->gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
@@ -456,16 +431,9 @@ __host__ void host_bootstrap_low_latency(
   uint64_t full_dm_step_one = full_sm_step_one;
   uint64_t full_dm_step_two = full_sm_step_two;
 
-  double2 *global_accumulator_fft = (double2 *)pbs_buffer;
-  Torus *global_accumulator =
-      (Torus *)global_accumulator_fft +
-      (ptrdiff_t)(sizeof(double2) * (glwe_dimension + 1) * level_count *
-                  input_lwe_ciphertext_count * (polynomial_size / 2) /
-                  sizeof(Torus));
-  int8_t *d_mem = (int8_t *)global_accumulator +
-                  (ptrdiff_t)(sizeof(Torus) * (glwe_dimension + 1) *
-                              input_lwe_ciphertext_count * polynomial_size /
-                              sizeof(int8_t));
+  Torus *global_accumulator = pbs_buffer->global_accumulator;
+  double2 *global_accumulator_fft = pbs_buffer->global_accumulator_fft;
+  int8_t *d_mem = pbs_buffer->d_mem;
 
   for (int i = 0; i < lwe_dimension; i++) {
     execute_low_latency_step_one<Torus, params>(

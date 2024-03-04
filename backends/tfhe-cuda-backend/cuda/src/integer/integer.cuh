@@ -120,7 +120,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
   execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes, lut->lut,
                      lut->lut_indexes, lut->tmp_lwe_after_ks, lut->lwe_indexes,
-                     bsk, lut->pbs_buffer, glwe_dimension, small_lwe_dimension,
+                     bsk, lut->buffer, glwe_dimension, small_lwe_dimension,
                      polynomial_size, pbs_base_log, pbs_level, grouping_factor,
                      num_radix_blocks, 1, 0,
                      cuda_get_max_shared_memory(stream->gpu_index), pbs_type);

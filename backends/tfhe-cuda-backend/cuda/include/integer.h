@@ -274,7 +274,7 @@ template <typename Torus> struct int_radix_lut {
   uint32_t num_blocks;
   bool mem_reuse = false;
 
-  int8_t *pbs_buffer;
+  int8_t *buffer;
 
   Torus *lut_indexes;
   Torus *lwe_indexes;
@@ -299,7 +299,7 @@ template <typename Torus> struct int_radix_lut {
 
     ///////////////
     execute_scratch_pbs<Torus>(
-        stream, &pbs_buffer, params.glwe_dimension, params.small_lwe_dimension,
+        stream, &buffer, params.glwe_dimension, params.small_lwe_dimension,
         params.polynomial_size, params.pbs_level, params.grouping_factor,
         num_radix_blocks, cuda_get_max_shared_memory(stream->gpu_index),
         params.pbs_type, allocate_gpu_memory);
@@ -338,7 +338,7 @@ template <typename Torus> struct int_radix_lut {
   // constructor to reuse memory
   int_radix_lut(cuda_stream_t *stream, int_radix_params params,
                 uint32_t num_luts, uint32_t num_radix_blocks,
-                int_radix_lut<Torus> *base_lut_object) {
+                int_radix_lut *base_lut_object) {
     this->params = params;
     this->num_blocks = num_radix_blocks;
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -348,7 +348,7 @@ template <typename Torus> struct int_radix_lut {
     // base lut object should have bigger or equal memory than current one
     assert(num_radix_blocks <= base_lut_object->num_blocks);
     // pbs
-    pbs_buffer = base_lut_object->pbs_buffer;
+    buffer = base_lut_object->buffer;
     // Keyswitch
     tmp_lwe_before_ks = base_lut_object->tmp_lwe_before_ks;
     tmp_lwe_after_ks = base_lut_object->tmp_lwe_after_ks;
@@ -392,7 +392,41 @@ template <typename Torus> struct int_radix_lut {
     cuda_drop_async(lwe_indexes, stream);
     cuda_drop_async(lut, stream);
     if (!mem_reuse) {
-      cuda_drop_async(pbs_buffer, stream);
+      switch (params.pbs_type) {
+      case MULTI_BIT:
+        switch (sizeof(Torus)) {
+        case sizeof(uint32_t):
+          cleanup_cuda_multi_bit_pbs_32(stream, &buffer);
+          break;
+        case sizeof(uint64_t):
+          cleanup_cuda_multi_bit_pbs_64(stream, &buffer);
+          break;
+        default:
+          PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit "
+                "integer "
+                "moduli are supported.")
+        }
+        break;
+      case LOW_LAT:
+        switch (sizeof(Torus)) {
+        case sizeof(uint32_t):
+          cleanup_cuda_bootstrap_low_latency_32(stream, &buffer);
+          break;
+        case sizeof(uint64_t):
+          cleanup_cuda_bootstrap_low_latency_64(stream, &buffer);
+          break;
+        default:
+          PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit "
+                "integer "
+                "moduli are supported.")
+        }
+        break;
+      case AMORTIZED:
+        cleanup_cuda_bootstrap_amortized(stream, &buffer);
+        break;
+      default:
+        PANIC("Cuda error (PBS): unknown PBS type. ")
+      }
       cuda_drop_async(tmp_lwe_before_ks, stream);
       cuda_drop_async(tmp_lwe_after_ks, stream);
     }

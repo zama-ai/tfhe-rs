@@ -77,6 +77,7 @@ target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)
+
 install(TARGETS tfhe_cuda_backend DESTINATION lib)
 
 # Define a function to add a lint target.

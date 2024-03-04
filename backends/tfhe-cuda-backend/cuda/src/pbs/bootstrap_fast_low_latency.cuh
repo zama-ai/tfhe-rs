@@ -245,51 +245,10 @@ __global__ void device_bootstrap_fast_low_latency(
   }
 }
 
-template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_fast_low_latency(uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size +      // accumulator_rotated
-         sizeof(Torus) * polynomial_size +      // accumulator
-         sizeof(double2) * polynomial_size / 2; // accumulator fft
-}
-
-template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_bootstrap_fast_low_latency(
-    uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
-}
-
-template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_bootstrap_fast_low_latency(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
-
-  uint64_t full_sm = get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(
-      polynomial_size);
-  uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
-          polynomial_size);
-  uint64_t partial_dm = full_sm - partial_sm;
-  uint64_t full_dm = full_sm;
-  uint64_t device_mem = 0;
-  if (max_shared_memory < partial_sm) {
-    device_mem = full_dm * input_lwe_ciphertext_count * level_count *
-                 (glwe_dimension + 1);
-  } else if (max_shared_memory < full_sm) {
-    device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
-                 (glwe_dimension + 1);
-  }
-  uint64_t buffer_size = device_mem + (glwe_dimension + 1) * level_count *
-                                          input_lwe_ciphertext_count *
-                                          polynomial_size / 2 * sizeof(double2);
-  return buffer_size + buffer_size % sizeof(double2);
-}
-
 template <typename Torus, typename STorus, typename params>
 __host__ void scratch_bootstrap_fast_low_latency(
-    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
@@ -316,13 +275,10 @@ __host__ void scratch_bootstrap_fast_low_latency(
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
-  if (allocate_gpu_memory) {
-    uint64_t buffer_size = get_buffer_size_bootstrap_fast_low_latency<Torus>(
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, max_shared_memory);
-    *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream);
-    check_cuda_error(cudaGetLastError());
-  }
+
+  *buffer = new pbs_buffer<Torus, LOW_LAT>(
+      stream, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, PBS_VARIANT::FAST, allocate_gpu_memory);
 }
 
 /*
@@ -333,11 +289,11 @@ template <typename Torus, class params>
 __host__ void host_bootstrap_fast_low_latency(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, double2 *bootstrapping_key, int8_t *pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t num_luts,
-    uint32_t max_shared_memory) {
+    Torus *lwe_input_indexes, double2 *bootstrapping_key,
+    pbs_buffer<Torus, LOW_LAT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_luts, uint32_t max_shared_memory) {
   cudaSetDevice(stream->gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
@@ -353,15 +309,8 @@ __host__ void host_bootstrap_fast_low_latency(
 
   uint64_t partial_dm = full_dm - partial_sm;
 
-  int8_t *d_mem = pbs_buffer;
-  double2 *buffer_fft =
-      (double2 *)d_mem +
-      (ptrdiff_t)(get_buffer_size_bootstrap_fast_low_latency<Torus>(
-                      glwe_dimension, polynomial_size, level_count,
-                      input_lwe_ciphertext_count, max_shared_memory) /
-                      sizeof(double2) -
-                  (glwe_dimension + 1) * level_count *
-                      input_lwe_ciphertext_count * polynomial_size / 2);
+  int8_t *d_mem = buffer->d_mem;
+  double2 *buffer_fft = buffer->global_accumulator_fft;
 
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);

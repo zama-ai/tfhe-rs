@@ -215,7 +215,7 @@ extern "C" {
 
     /// This cleanup function frees the data for the low latency PBS on GPU
     /// contained in pbs_buffer for 32 or 64-bit inputs.
-    pub fn cleanup_cuda_bootstrap_low_latency(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
+    pub fn cleanup_cuda_bootstrap_low_latency_64(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
 
     /// This scratch function allocates the necessary amount of data on the GPU for
     /// the multi-bit PBS on 64-bit inputs into `pbs_buffer`.
@@ -297,7 +297,7 @@ extern "C" {
 
     /// This cleanup function frees the data for the multi-bit PBS on GPU
     /// contained in pbs_buffer for 64-bit inputs.
-    pub fn cleanup_cuda_multi_bit_pbs(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
+    pub fn cleanup_cuda_multi_bit_pbs_64(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
 
     /// Perform keyswitch on a batch of 64 bits input LWE ciphertexts.
     ///
