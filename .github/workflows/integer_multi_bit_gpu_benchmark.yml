@@ -31,7 +31,7 @@ jobs:
   cuda-integer-benchmarks:
     name: Execute integer multi-bit benchmarks in EC2
     runs-on: ${{ github.event.inputs.runner_name }}
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440 # 24 hours
     if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
@@ -146,7 +146,7 @@ jobs:
           ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
-        if: {{ !success() && !skipped() }}
+        if: ${{ !success() && !cancelled() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:

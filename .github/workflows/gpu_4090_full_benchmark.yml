@@ -18,7 +18,7 @@ on:
     types: [labeled]
   schedule:
     # Weekly benchmarks will be triggered each Friday at 9p.m.
-    - cron: '0 21 * * 5'
+    - cron: "0 21 * * 5"
 
 jobs:
   cuda-integer-benchmarks:
@@ -28,13 +28,13 @@ jobs:
       group: ${{ github.workflow }}_${{ github.ref }}_cuda_integer_bench
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440 # 24 hours
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
-        command: [ integer, integer_multi_bit]
-        op_flavor: [ default, unchecked ]
+        command: [integer, integer_multi_bit]
+        op_flavor: [default, unchecked]
 
     steps:
       - name: Checkout tfhe-rs
@@ -113,7 +113,7 @@ jobs:
       group: ${{ github.workflow }}_${{ github.ref }}_cuda_core_crypto_bench
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440 # 24 hours
 
     steps:
       - name: Checkout tfhe-rs
@@ -178,7 +178,7 @@ jobs:
           ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
-        if: {{ !success() && !skipped() }}
+        if: ${{ !success() && !cancelled() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
@@ -187,7 +187,7 @@ jobs:
 
   remove_github_label:
     name: Remove 4090 bench label
-    if: ${{ github.event_name == 'pull_request' }} 
+    if: ${{ github.event_name == 'pull_request' }}
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
     runs-on: ["self-hosted", "4090-desktop"]
     steps:
