@@ -13,7 +13,7 @@ uint64_t get_buffer_size_bootstrap_amortized_64(
 
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
- * the amortized PBS on 32 bits inputs, into `pbs_buffer`. It also
+ * the amortized PBS on 32 bits inputs, into `buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
@@ -67,7 +67,7 @@ void scratch_cuda_bootstrap_amortized_32(
 
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
- * the amortized PBS on 64 bits inputs, into `pbs_buffer`. It also
+ * the amortized PBS on 64 bits inputs, into `buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
@@ -355,7 +355,7 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
 
 /*
  * This cleanup function frees the data for the amortized PBS on GPU in
- * pbs_buffer for 32 or 64 bits inputs.
+ * buffer for 32 or 64 bits inputs.
  */
 void cleanup_cuda_bootstrap_amortized(cuda_stream_t *stream,
                                       int8_t **pbs_buffer) {

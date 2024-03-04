@@ -402,18 +402,18 @@ __host__ void host_integer_mult_radix_kb(
         polynomial_size * glwe_dimension, lwe_dimension,
         mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, total_copied);
 
-    execute_pbs<Torus>(
-        stream, message_blocks_vector, lwe_indexes, luts_message->lut,
-        luts_message->lut_indexes, small_lwe_vector, lwe_indexes, bsk,
-        luts_message->pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, mem_ptr->params.pbs_base_log,
-        mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
-        message_count, 1, 0, max_shared_memory, mem_ptr->params.pbs_type);
+    execute_pbs<Torus>(stream, message_blocks_vector, lwe_indexes,
+                       luts_message->lut, luts_message->lut_indexes,
+                       small_lwe_vector, lwe_indexes, bsk, luts_message->buffer,
+                       glwe_dimension, lwe_dimension, polynomial_size,
+                       mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
+                       mem_ptr->params.grouping_factor, message_count, 1, 0,
+                       max_shared_memory, mem_ptr->params.pbs_type);
 
     execute_pbs<Torus>(stream, carry_blocks_vector, lwe_indexes,
                        luts_carry->lut, luts_carry->lut_indexes,
                        &small_lwe_vector[message_count * (lwe_dimension + 1)],
-                       lwe_indexes, bsk, luts_carry->pbs_buffer, glwe_dimension,
+                       lwe_indexes, bsk, luts_carry->buffer, glwe_dimension,
                        lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, carry_count, 1, 0,

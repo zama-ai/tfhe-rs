@@ -88,10 +88,21 @@ void cleanup_cuda_full_propagation(cuda_stream_t *stream,
   cuda_drop_async(mem_ptr->lut_buffer, stream);
   cuda_drop_async(mem_ptr->lut_indexes, stream);
 
-  cuda_drop_async(mem_ptr->pbs_buffer, stream);
-
   cuda_drop_async(mem_ptr->tmp_small_lwe_vector, stream);
   cuda_drop_async(mem_ptr->tmp_big_lwe_vector, stream);
+
+  switch (mem_ptr->pbs_type) {
+  case LOW_LAT: {
+    auto x = (pbs_buffer<uint64_t, LOW_LAT> *)(mem_ptr->pbs_buffer);
+    x->release(stream);
+  } break;
+  case MULTI_BIT: {
+    auto x = (pbs_buffer<uint64_t, MULTI_BIT> *)(mem_ptr->pbs_buffer);
+    x->release(stream);
+  } break;
+  default:
+    PANIC("Cuda error (PBS): unsupported implementation variant.")
+  }
 }
 
 void scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(

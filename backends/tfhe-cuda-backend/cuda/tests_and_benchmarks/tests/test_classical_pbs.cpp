@@ -219,7 +219,7 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
       }
     }
   }
-  cleanup_cuda_bootstrap_low_latency(stream, &pbs_buffer);
+  cleanup_cuda_bootstrap_low_latency_64(stream, &pbs_buffer);
 }
 
 // Defines for which parameters set the PBS will be tested.

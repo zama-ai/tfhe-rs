@@ -114,7 +114,7 @@ impl CudaStream {
             lwe_idx.0 as u32,
             self.device().get_max_shared_memory() as u32,
         );
-        cleanup_cuda_bootstrap_low_latency(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
+        cleanup_cuda_bootstrap_low_latency_64(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
     }
 
     /// Discarding bootstrap on a vector of LWE ciphertexts
@@ -178,7 +178,7 @@ impl CudaStream {
             self.device().get_max_shared_memory() as u32,
             0u32,
         );
-        cleanup_cuda_multi_bit_pbs(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
+        cleanup_cuda_multi_bit_pbs_64(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
     }
 
     /// Discarding keyswitch on a vector of LWE ciphertexts
