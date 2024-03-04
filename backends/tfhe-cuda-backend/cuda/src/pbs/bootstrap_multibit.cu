@@ -469,13 +469,14 @@ __host__ uint64_t get_max_buffer_size_multibit_bootstrap(
   for (uint32_t input_lwe_ciphertext_count = 1;
        input_lwe_ciphertext_count <= max_input_lwe_ciphertext_count;
        input_lwe_ciphertext_count *= 2) {
-    max_buffer_size = std::max(
-        max_buffer_size,
-        get_buffer_size_multibit_bootstrap<uint64_t>(
-            glwe_dimension, polynomial_size, level_count,
-            input_lwe_ciphertext_count,
-            get_lwe_chunk_size(lwe_dimension, level_count, glwe_dimension,
-                               input_lwe_ciphertext_count)));
+    max_buffer_size =
+        std::max(max_buffer_size,
+                 get_buffer_size_multibit_bootstrap<uint64_t>(
+                     glwe_dimension, polynomial_size, level_count,
+                     input_lwe_ciphertext_count,
+                     get_average_lwe_chunk_size(lwe_dimension, level_count,
+                                                glwe_dimension,
+                                                input_lwe_ciphertext_count)));
   }
 
   return max_buffer_size;
