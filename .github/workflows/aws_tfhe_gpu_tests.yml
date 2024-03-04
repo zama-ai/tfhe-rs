@@ -78,10 +78,12 @@ jobs:
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
-          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "HOME=/home/ubuntu";
+          } >> "${GITHUB_ENV}"
 
       - name: Run fmt checks
         run: |

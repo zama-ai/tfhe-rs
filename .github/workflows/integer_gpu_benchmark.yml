@@ -72,19 +72,22 @@ jobs:
       - name: Export CUDA variables
         if: ${{ !cancelled() }}
         run: |
-          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+          {
+            echo "CUDA_PATH=$CUDA_PATH";
+            echo "$CUDA_PATH/bin";
+            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
+            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+          } >> "${GITHUB_ENV}"
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
-          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+          } >> "${GITHUB_ENV}"
 
       - name: Run benchmarks with AVX512
         run: |
