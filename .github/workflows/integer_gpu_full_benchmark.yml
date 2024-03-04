@@ -69,9 +69,11 @@ jobs:
 
       - name: Get benchmark details
         run: |
-          echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
-          echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})" >> "${GITHUB_ENV}"
-          echo "COMMIT_HASH=$(git describe --tags --dirty)" >> "${GITHUB_ENV}"
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
 
       - name: Set up home
         # "Install rust" step require root user to have a HOME directory which is not set.
@@ -86,19 +88,22 @@ jobs:
       - name: Export CUDA variables
         if: ${{ !cancelled() }}
         run: |
-          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+          {
+            echo "CUDA_PATH=$CUDA_PATH";
+            echo "$CUDA_PATH/bin";
+            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
+            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+          } >> "${GITHUB_ENV}"
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
-          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+          } >> "${GITHUB_ENV}"
 
       - name: Checkout Slab repo
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
