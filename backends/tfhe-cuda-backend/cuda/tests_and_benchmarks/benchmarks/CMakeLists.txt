@@ -1,5 +1,19 @@
-find_package(CUDA REQUIRED)
-find_package(CUDAToolkit REQUIRED)
+project(benchmark_tfhe_cuda_backend LANGUAGES CXX)
+
+# See if the minimum CUDA version is available. If not, only enable documentation building.
+set(MINIMUM_SUPPORTED_CUDA_VERSION 10.0)
+include(CheckLanguage)
+# See if CUDA is available
+check_language(CUDA)
+# If so, enable CUDA to check the version.
+if(CMAKE_CUDA_COMPILER)
+  enable_language(CUDA)
+  find_package(CUDAToolkit)
+endif()
+# If CUDA is not available, or the minimum version is too low do not build
+if(NOT CMAKE_CUDA_COMPILER)
+  message(FATAL_ERROR "Cuda compiler not found.")
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -45,7 +59,7 @@ include_directories(${CONCRETE_CUDA_SOURCE_DIR}/include)
 include_directories(${CONCRETE_CUDA_SOURCE_DIR}/src)
 include_directories(${TFHE_RS_BINARY_DIR})
 include_directories(${TFHE_RS_BINARY_DIR}/deps)
-include_directories("${CUDA_INCLUDE_DIRS}" "${CMAKE_CURRENT_SOURCE_DIR}")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
 find_package(OpenMP REQUIRED)
 # Add the OpenMP flag to the compiler flags
@@ -66,7 +80,8 @@ file(
 
 add_executable(${BINARY} ${BENCH_SOURCES} ../utils.cpp ../setup_and_teardown.cpp)
 
-set_target_properties(benchmark_tfhe_cuda_backend PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set_target_properties(benchmark_tfhe_cuda_backend PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS
+                                                                                           ON)
 target_link_libraries(
   benchmark_tfhe_cuda_backend
   PUBLIC benchmark::benchmark tfhe_rs_lib tfhe_cuda_backend OpenMP::OpenMP_CXX

@@ -141,7 +141,8 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
                                  uint64_t *lwe_sk_out_array, int lwe_dimension,
                                  int glwe_dimension, int polynomial_size,
                                  int pbs_level, int pbs_base_log, Seed *seed,
-                                 DynamicDistribution noise_distribution, const unsigned repetitions) {
+                                 DynamicDistribution noise_distribution,
+                                 const unsigned repetitions) {
   int bsk_size = (glwe_dimension + 1) * (glwe_dimension + 1) * pbs_level *
                  polynomial_size * (lwe_dimension + 1);
   int bsk_array_size = bsk_size * repetitions;
@@ -178,7 +179,8 @@ void generate_lwe_multi_bit_pbs_keys(
     cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor, int pbs_level, int pbs_base_log,
-    Seed *seed, DynamicDistribution noise_distribution, const unsigned repetitions) {
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions) {
 
   int bsk_size = lwe_dimension * pbs_level * (glwe_dimension + 1) *
                  (glwe_dimension + 1) * polynomial_size *
@@ -211,13 +213,11 @@ void generate_lwe_multi_bit_pbs_keys(
 }
 
 // Generate repetitions keyswitch keys
-void generate_lwe_keyswitch_keys(cuda_stream_t *stream, uint64_t **d_ksk_array,
-                                 uint64_t *lwe_sk_in_array,
-                                 uint64_t *lwe_sk_out_array,
-                                 int input_lwe_dimension,
-                                 int output_lwe_dimension, int ksk_level,
-                                 int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
-                                 const unsigned repetitions) {
+void generate_lwe_keyswitch_keys(
+    cuda_stream_t *stream, uint64_t **d_ksk_array, uint64_t *lwe_sk_in_array,
+    uint64_t *lwe_sk_out_array, int input_lwe_dimension,
+    int output_lwe_dimension, int ksk_level, int ksk_base_log, Seed *seed,
+    DynamicDistribution noise_distribution, const unsigned repetitions) {
 
   int ksk_size = ksk_level * (output_lwe_dimension + 1) * input_lwe_dimension;
   int ksk_array_size = ksk_size * repetitions;

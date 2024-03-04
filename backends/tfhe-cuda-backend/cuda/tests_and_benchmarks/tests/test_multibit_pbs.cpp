@@ -99,11 +99,12 @@ public:
 
   void TearDown() {
     free(lwe_ct_out_array);
-    bootstrap_multibit_teardown(stream, lwe_sk_in_array, lwe_sk_out_array,
-                                d_bsk_array, plaintexts, d_lut_pbs_identity,
-                                d_lut_pbs_indexes, d_lwe_ct_in_array,
-                                d_lwe_input_indexes, d_lwe_ct_out_array,
-                                d_lwe_output_indexes, &pbs_buffer);
+
+    cleanup_cuda_multi_bit_pbs(stream, &pbs_buffer);
+    bootstrap_multibit_teardown(
+        stream, lwe_sk_in_array, lwe_sk_out_array, d_bsk_array, plaintexts,
+        d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
+        d_lwe_input_indexes, d_lwe_ct_out_array, d_lwe_output_indexes);
   }
 };
 
@@ -161,7 +162,6 @@ TEST_P(MultiBitBootstrapTestPrimitives_u64, multi_bit_pbs) {
       }
     }
   }
-  // cleanup_cuda_multi_bit_pbs(stream, &pbs_buffer);
 }
 
 // Defines for which parameters set the PBS will be tested.

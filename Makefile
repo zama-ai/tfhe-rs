@@ -641,14 +641,14 @@ check_compile_tests:
 		./scripts/c_api_tests.sh --build-only; \
 	fi
 
-.PHONY: check_compile_tests_gpu # Build tests in debug without running them
-check_compile_tests_gpu: install_rs_build_toolchain
+.PHONY: check_compile_tests_benches_gpu # Build tests in debug without running them
+check_compile_tests_benches_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache,gpu \
 		-p $(TFHE_SPEC)
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
-		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
+		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
 		make -j
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
@@ -893,7 +893,7 @@ sha256_bool: install_rs_check_toolchain
 pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
-pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_gpu
+pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests
