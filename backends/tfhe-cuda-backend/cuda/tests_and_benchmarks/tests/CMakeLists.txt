@@ -61,8 +61,7 @@ set_target_properties(
   PROPERTIES CUDA_SEPARABLE_COMPILATION ON
              CUDA_RESOLVE_DEVICE_SYMBOLS ON
              CUDA_ARCHITECTURES native)
-target_link_libraries(test_tfhe_cuda_backend PUBLIC GTest::gtest_main tfhe_rs_lib tfhe_cuda_backend
-        cudart)
+target_link_libraries(test_tfhe_cuda_backend PUBLIC GTest::gtest_main tfhe_rs_lib tfhe_cuda_backend cudart)
 
 include(GoogleTest)
 gtest_discover_tests(test_tfhe_cuda_backend)

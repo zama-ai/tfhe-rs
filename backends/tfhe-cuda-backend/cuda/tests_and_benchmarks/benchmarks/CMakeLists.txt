@@ -66,7 +66,8 @@ file(
 
 add_executable(${BINARY} ${BENCH_SOURCES} ../utils.cpp ../setup_and_teardown.cpp)
 
-set_target_properties(benchmark_tfhe_cuda_backend PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set_target_properties(benchmark_tfhe_cuda_backend PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS
+                                                                                           ON)
 target_link_libraries(
   benchmark_tfhe_cuda_backend
   PUBLIC benchmark::benchmark tfhe_rs_lib tfhe_cuda_backend OpenMP::OpenMP_CXX

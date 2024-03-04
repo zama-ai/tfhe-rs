@@ -368,7 +368,6 @@ void keyswitch_teardown(cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
   stream->release();
 }
 
-
 void fft_setup(cuda_stream_t *stream, double **_poly1, double **_poly2,
                double2 **_h_cpoly1, double2 **_h_cpoly2, double2 **_d_cpoly1,
                double2 **_d_cpoly2, size_t polynomial_size, int samples) {
