@@ -22,6 +22,7 @@ pub mod lwe_private_functional_packing_keyswitch_key;
 pub mod lwe_private_functional_packing_keyswitch_key_list;
 pub mod lwe_public_key;
 pub mod lwe_secret_key;
+pub mod modulus_switched_lwe_ciphertext;
 pub mod plaintext;
 pub mod plaintext_list;
 pub mod polynomial;
