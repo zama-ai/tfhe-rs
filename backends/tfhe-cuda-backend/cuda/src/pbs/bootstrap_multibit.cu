@@ -423,7 +423,12 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t lwe_dimension,
       return 9;
   } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
     // Tesla H100
-    return 45;
+    if (num_samples < 1024)
+      return 128;
+    else if (num_samples < 4096)
+      return 64;
+    else
+      return 32;
   }
 
   // Generic case
@@ -451,11 +456,11 @@ __host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
     return (ct_count > 10000) ? 30 : 45;
   } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
     // Tesla H100
-    return (ct_count > 10000) ? 30 : 45;
+    return 64;
   }
 
   // Generic case
-  return (ct_count > 10000) ? 2 : 10;
+  return (ct_count > 10000) ? 2 : 1;
 }
 
 // Returns the maximum buffer size required to execute batches up to
