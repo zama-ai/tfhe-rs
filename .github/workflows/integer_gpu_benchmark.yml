@@ -74,10 +74,10 @@ jobs:
         run: |
           {
             echo "CUDA_PATH=$CUDA_PATH";
-            echo "$CUDA_PATH/bin";
             echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
             echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
           } >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
