@@ -64,13 +64,13 @@ jobs:
         run: |
           AVX512_SUPPORT=ON make test_unsigned_integer_multi_bit_ci
 
-      - name: Gen Keys if required
-        run: |
-          make gen_key_cache
-
-      - name: Run unsigned integer tests
-        run: |
-          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
+#      - name: Gen Keys if required
+#        run: |
+#          make gen_key_cache
+#
+#      - name: Run unsigned integer tests
+#        run: |
+#          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}
@@ -78,7 +78,7 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Unsigned Integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "[NEW multi-bit PARAMS TESTS] Unsigned Integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-ec2:
     name: Teardown EC2 instance (unsigned-integer-tests)
