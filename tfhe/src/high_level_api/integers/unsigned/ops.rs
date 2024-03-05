@@ -779,7 +779,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                     with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .sub(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .sub(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }
@@ -1914,7 +1914,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner_result = cuda_key.key.neg(&self.ciphertext.on_gpu(), stream);
+                let inner_result = cuda_key.key.neg(&*self.ciphertext.on_gpu(), stream);
                 FheUint::new(inner_result)
             }),
         })

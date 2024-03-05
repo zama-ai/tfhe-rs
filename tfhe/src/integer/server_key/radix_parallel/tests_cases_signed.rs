@@ -422,3 +422,286 @@ where
         }
     }
 }
+
+pub(crate) fn signed_smart_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut SignedRadixCiphertext, &'a mut SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen_range(-modulus..modulus);
+        let clear_1 = rng.gen_range(-modulus..modulus);
+
+        let mut ctxt_0 = cks.encrypt_signed(clear_0);
+        let mut ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+        clear = signed_add_under_modulus(clear_0, clear_1, modulus);
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        assert_eq!(clear, dec_res);
+
+        // add multiple times to raise the degree
+        for _ in 0..NB_TESTS_SMALLER {
+            ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
+            clear = signed_add_under_modulus(clear, clear_0, modulus);
+
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn signed_unchecked_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    // check some overflow behaviour
+    let overflowing_values = [
+        (-modulus, 1, modulus - 1),
+        (modulus - 1, -1, -modulus),
+        (-modulus, 2, modulus - 2),
+        (modulus - 2, -2, -modulus),
+    ];
+    for (clear_0, clear_1, expected_clear) in overflowing_values {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+        let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        let clear_res = signed_sub_under_modulus(clear_0, clear_1, modulus);
+        assert_eq!(clear_res, dec_res);
+        assert_eq!(clear_res, expected_clear);
+    }
+
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<
+        { crate::integer::server_key::radix_parallel::tests_signed::NB_TESTS_UNCHECKED },
+    >(&mut rng, modulus)
+    {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        let clear_res = signed_sub_under_modulus(clear_0, clear_1, modulus);
+        assert_eq!(clear_res, dec_res);
+    }
+}
+
+pub(crate) fn signed_default_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct);
+
+        clear = signed_sub_under_modulus(clear_0, clear_1, modulus);
+
+        // sub multiple times to raise the degree
+        for _ in 0..NB_TESTS_SMALLER {
+            ct_res = executor.execute((&ct_res, &ctxt_0));
+            assert!(ct_res.block_carries_are_empty());
+            clear = signed_sub_under_modulus(clear, clear_0, modulus);
+
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn signed_unchecked_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let ctxt_zero = sks.create_trivial_radix(0i64, NB_CTXT);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    // -modulus is a special case, its negation cannot be
+    // represented. rust by default returns -modulus
+    // (which is what two complement result in)
+    {
+        let clear = -modulus;
+        let ctxt = cks.encrypt_signed(clear);
+
+        let ct_res = executor.execute(&ctxt);
+
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        let clear_result = signed_neg_under_modulus(clear, modulus);
+
+        assert_eq!(clear_result, dec);
+        assert_eq!(clear_result, -modulus);
+    }
+
+    for (clear_0, _) in create_iterator_of_signed_random_pairs::<
+        { crate::integer::server_key::radix_parallel::tests_signed::NB_TESTS_UNCHECKED },
+    >(&mut rng, modulus)
+    {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let ct_res = executor.execute(&ctxt_0);
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        let clear_res = signed_neg_under_modulus(clear_0, modulus);
+        assert_eq!(clear_res, dec_res);
+    }
+
+    // negation of trivial 0
+    {
+        let ct_res = executor.execute(&ctxt_zero);
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        assert_eq!(0, dec_res);
+    }
+}
+
+pub(crate) fn signed_smart_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear = rng.gen::<i64>() % modulus;
+
+        let mut ctxt = cks.encrypt_signed(clear);
+
+        let mut ct_res = executor.execute(&mut ctxt);
+        let mut clear_res = signed_neg_under_modulus(clear, modulus);
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        assert_eq!(clear_res, dec);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            ct_res = executor.execute(&mut ct_res);
+            clear_res = signed_neg_under_modulus(clear_res, modulus);
+
+            let dec: i64 = cks.decrypt_signed(&ct_res);
+            println!("clear_res: {clear_res}, dec : {dec}");
+            assert_eq!(clear_res, dec);
+        }
+    }
+}
+
+pub(crate) fn signed_default_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    // -modulus is a special case, its negation cannot be
+    // represented. rust by default returns -modulus
+    // (which is what two complement result in)
+    {
+        let clear = -modulus;
+        let ctxt = cks.encrypt_signed(clear);
+
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        let clear_result = signed_neg_under_modulus(clear, modulus);
+
+        assert_eq!(clear_result, dec);
+    }
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear = rng.gen::<i64>() % modulus;
+
+        let ctxt = cks.encrypt_signed(clear);
+
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        let clear_result = signed_neg_under_modulus(clear, modulus);
+
+        assert_eq!(clear_result, dec);
+    }
+}
