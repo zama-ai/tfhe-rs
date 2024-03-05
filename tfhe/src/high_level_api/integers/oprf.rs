@@ -11,8 +11,6 @@ impl<Id: FheUintId> FheUint<Id> {
     /// It can be useful to make server random generation deterministic
     ///
     /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::integer::oprf::SignedRandomizationSpec;
     /// use tfhe::prelude::FheDecrypt;
     /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
     ///
@@ -54,10 +52,10 @@ impl<Id: FheIntId> FheInt<Id> {
     /// It can be useful to make server random generation deterministic
     ///
     /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::integer::oprf::SignedRandomizationSpec;
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
+    /// use tfhe::{
+    ///     generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed, SignedRandomizationSpec,
+    /// };
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);

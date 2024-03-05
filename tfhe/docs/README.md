@@ -1,36 +1,64 @@
-# What is TFHE-rs?
+---
+description: >-
+  TFHE-rs is a pure Rust implementation of TFHE for Boolean and integer
+  arithmetics over encrypted data. It includes a Rust and C API, as well as a
+  client-side WASM API.
+layout:
+  title:
+    visible: true
+  description:
+    visible: true
+  tableOfContents:
+    visible: true
+  outline:
+    visible: true
+  pagination:
+    visible: false
+---
 
-📁 [Github](https://github.com/zama-ai/tfhe-rs) | 💛 [Community support](https://zama.ai/community) | 🟨 [Zama Bounty Program](https://github.com/zama-ai/bounty-program)
+# Welcome to TFHE-rs
 
-![](\_static/tfhe-rs-doc-home.png)
+## Get started
 
-TFHE-rs is a pure Rust implementation of TFHE for Boolean and integer arithmetics over encrypted data. It includes a Rust and C API, as well as a client-side WASM API.
+Learn the basics of TFHE-rs, set it up, and make it run with ease.
 
-TFHE-rs is meant for developers and researchers who want full control over what they can do with TFHE, while not worrying about the low level implementation.
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>What is TFHE-rs?</strong></td><td><a href="getting_started/">getting_started</a></td><td><a href=".gitbook/assets/yellow1.png">yellow1.png</a></td></tr><tr><td><strong>Installation</strong></td><td><a href="getting_started/installation.md">installation.md</a></td><td><a href=".gitbook/assets/yellow2.png">yellow2.png</a></td></tr><tr><td><strong>Quick start</strong></td><td><a href="getting_started/quick_start.md">quick_start.md</a></td><td><a href=".gitbook/assets/yellow3.png">yellow3.png</a></td></tr></tbody></table>
 
-The goal is to have a stable, simple, high-performance, and production-ready library for all the advanced features of TFHE.
+## Build with TFHE-rs
 
-## Key cryptographic concepts
+Start building with TFHE-rs by exploring its core features, discovering essential guides, and learning more with user-friendly tutorials.
 
-The TFHE-rs library implements Zama’s variant of Fully Homomorphic Encryption over the Torus (TFHE). TFHE is based on Learning With Errors (LWE), a well-studied cryptographic primitive believed to be secure even against quantum computers.
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Fundamentals</strong></td><td>Explore the core features and basics of TFHE-rs.<br><br></td><td><ul><li><a href="fundamentals/configure-and-generate-keys.md">Configure and generate keys</a></li><li><a href="fundamentals/set-the-server-key.md">Set the server key</a></li><li><a href="fundamentals/encrypt-data.md">Encrypt data</a></li><li><a href="fundamentals/compute.md">Compute on encrypted data</a></li><li><a href="fundamentals/decrypt-data.md">Decrypt data</a></li></ul></td><td><a href=".gitbook/assets/orange1.png">orange1.png</a></td></tr><tr><td><strong>Guides</strong></td><td>Discover essential guides to work with TFHE-rs.<br><br></td><td><ul><li><a href="guides/run_on_gpu.md">Run on GPU</a></li><li><a href="guides/rust_configuration.md">Configure Rust</a></li><li><a href="guides/overflow_operations.md">Detect overflow</a></li><li><a href="guides/c_api.md">Use the C API</a></li></ul></td><td><a href=".gitbook/assets/orange2.png">orange2.png</a></td></tr><tr><td><strong>Tutorials</strong></td><td>Learn more about TFHE-rs with our tutorials.<br><br></td><td><ul><li><a href="tutorials/see-all-tutorials.md#start-here">Start here</a></li><li><a href="tutorials/see-all-tutorials.md#go-further">Go further</a></li><li><a href="tutorials/see-all-tutorials.md">See all tutorials</a></li></ul></td><td><a href=".gitbook/assets/orange3.png">orange3.png</a></td></tr></tbody></table>
 
-In cryptography, a raw value is called a message (also sometimes called a cleartext), while an encoded message is called a plaintext and an encrypted plaintext is called a ciphertext.
+## Explore more
 
-The idea of homomorphic encryption is that you can compute on ciphertexts while not knowing messages encrypted within them. A scheme is said to be _fully homomorphic_, meaning any program can be evaluated with it, if at least two of the following operations are supported ($$x$$ is a plaintext and $$E[x]$$ is the corresponding ciphertext):
+Access to additional resources and join the Zama community.
 
-* homomorphic univariate function evaluation: $$f(E[x]) = E[f(x)]$$
-* homomorphic addition: $$E[x] + E[y] = E[x + y]$$
-* homomorphic multiplication: $$E[x] * E[y] = E[x * y]$$
+### References & Explanations
 
-Zama's variant of TFHE is fully homomorphic and deals with fixed-precision numbers as messages. It implements all needed homomorphic operations, such as addition and function evaluation via **Programmable Bootstrapping**. You can read more about Zama's TFHE variant in the [preliminary whitepaper](https://whitepaper.zama.ai/).
+Take a deep dive into TFHE-rs, exploring APIs from the highest to the lowest level of abstraction and accessing additional resources for in-depth explanations.
 
-Using FHE in a Rust program with TFHE-rs consists in:
+* [Rust API reference](https://docs.rs/tfhe/latest/tfhe/): High-level API that abstracts cryptographic complexities and simplifies the development and more
+* [Fine-grained APIs](references/fine-grained-apis/): Mid-level APIs that enable evaluation of Boolean, short integer, and integer circuits
+* [Core crypto API](references/core-crypto-api/): Low-level API with the primitive functions and types of the TFHE scheme
+* [TFHE deep dive](explanations/tfhe-deep-dive.md): Resources that explain the Fully Homomorphic Encryption scheme - TFHE
 
-* generating a client key and a server key using secure parameters:
-  * a client key encrypts/decrypts data and must be kept secret
-  * a server key is used to perform operations on encrypted data and could be public (also called an evaluation key)
-* encrypting plaintexts using the client key to produce ciphertexts
-* operating homomorphically on ciphertexts with the server key
-* decrypting the resulting ciphertexts into plaintexts using the client key
+### Support channels
 
-If you would like to know more about the problems that FHE solves, we suggest you review our [6 minute introduction to homomorphic encryption](https://6min.zama.ai/).
+Ask technical questions and discuss with the community. Our team of experts usually answers within 24 hours during working days.
+
+* [Community forum](https://community.zama.ai/)
+* [Discord channel](https://discord.com/invite/fhe-org)
+
+### Developers
+
+Collaborate with us to advance the FHE spaces and drive innovation together.
+
+* [Contribute to TFHE-rs](dev/contributing.md)
+* [Check the latest release note](https://github.com/zama-ai/tfhe-rs/releases)
+* [Request a feature](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=feature\_request\&projects=\&template=feature\_request.md\&title=)
+* [Report a bug](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage\_required\&projects=\&template=bug\_report.md\&title=)
+
+***
+
+We value your feedback! [Take a 5-question developer survey](https://www.zama.ai/developer-survey) to improve the TFHE-rs library and the documentation and help other developers use FHE.
