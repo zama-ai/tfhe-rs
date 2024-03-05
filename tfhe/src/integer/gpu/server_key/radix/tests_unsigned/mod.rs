@@ -1,6 +1,9 @@
+pub(crate) mod test_add;
+pub(crate) mod test_neg;
+pub(crate) mod test_sub;
+
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::server_key::radix::tests::GpuFunctionExecutor;
 use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
@@ -31,13 +34,46 @@ macro_rules! create_gpu_parametrized_test{
         });
     };
 }
+pub(crate) use create_gpu_parametrized_test;
+
+pub(crate) struct GpuContext {
+    pub(crate) _device: CudaDevice,
+    pub(crate) stream: CudaStream,
+    pub(crate) sks: CudaServerKey,
+}
+pub(crate) struct GpuFunctionExecutor<F> {
+    pub(crate) context: Option<GpuContext>,
+    pub(crate) func: F,
+}
+
+impl<F> GpuFunctionExecutor<F> {
+    pub(crate) fn new(func: F) -> Self {
+        Self {
+            context: None,
+            func,
+        }
+    }
+}
+
+impl<F> GpuFunctionExecutor<F> {
+    pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        let sks = CudaServerKey::new(cks.as_ref(), &stream);
+        stream.synchronize();
+        let context = GpuContext {
+            _device: device,
+            stream,
+            sks,
+        };
+        self.context = Some(context);
+    }
+}
 
 // Unchecked operations
 create_gpu_parametrized_test!(integer_unchecked_mul);
-create_gpu_parametrized_test!(integer_unchecked_add);
-create_gpu_parametrized_test!(integer_unchecked_add_assign);
-create_gpu_parametrized_test!(integer_unchecked_sub);
-create_gpu_parametrized_test!(integer_unchecked_neg);
 create_gpu_parametrized_test!(integer_unchecked_scalar_add);
 create_gpu_parametrized_test!(integer_unchecked_scalar_sub);
 create_gpu_parametrized_test!(integer_unchecked_small_scalar_mul);
@@ -72,9 +108,6 @@ create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 
 // Default operations
 create_gpu_parametrized_test!(integer_mul);
-create_gpu_parametrized_test!(integer_add);
-create_gpu_parametrized_test!(integer_sub);
-create_gpu_parametrized_test!(integer_neg);
 create_gpu_parametrized_test!(integer_scalar_add);
 create_gpu_parametrized_test!(integer_scalar_sub);
 create_gpu_parametrized_test!(integer_small_scalar_mul);
@@ -287,22 +320,6 @@ where
     unchecked_mul_test(param, executor);
 }
 
-fn integer_unchecked_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_add);
-    unchecked_add_test(param, executor);
-}
-
-fn integer_unchecked_add_assign<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_add_assign);
-    unchecked_add_assign_test(param, executor);
-}
-
 fn integer_unchecked_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters> + Copy,
@@ -319,28 +336,12 @@ where
     unchecked_small_scalar_mul_test(param, executor);
 }
 
-fn integer_unchecked_sub<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_sub);
-    unchecked_sub_test(param, executor);
-}
-
 fn integer_unchecked_scalar_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_sub);
     unchecked_scalar_sub_test(param, executor);
-}
-
-fn integer_unchecked_neg<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_neg);
-    unchecked_neg_test(param, executor);
 }
 
 fn integer_unchecked_bitnot<P>(param: P)
@@ -1513,14 +1514,6 @@ where
     default_mul_test(param, executor);
 }
 
-fn integer_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::add);
-    default_add_test(param, executor);
-}
-
 fn integer_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters> + Copy,
@@ -1537,28 +1530,12 @@ where
     default_small_scalar_mul_test(param, executor);
 }
 
-fn integer_sub<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
-    default_sub_test(param, executor);
-}
-
 fn integer_scalar_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_sub);
     default_scalar_sub_test(param, executor);
-}
-
-fn integer_neg<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::neg);
-    default_neg_test(param, executor);
 }
 
 fn integer_bitnot<P>(param: P)

@@ -1304,9 +1304,97 @@ mod cuda {
     }
   );
 
+    /// Base function to bench a server key function that is a unary operation, input ciphertext
+    /// will contain only zero carries
+    fn bench_cuda_server_key_unary_signed_function_clean_inputs<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        unary_op: F,
+    ) where
+        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStream),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_one_value = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear = tfhe::integer::I256::from((clearlow, clearhigh));
+                    let ct = cks.encrypt_signed_radix(clear, num_block);
+
+                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &stream)
+                };
+
+                b.iter_batched(
+                    encrypt_one_value,
+                    |mut ct| {
+                        unary_op(&gpu_sks, &mut ct, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_clean_input_signed_unary_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                bench_cuda_server_key_unary_signed_function_clean_inputs(
+                    c,
+                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, input, stream| {
+                        server_key.$server_key_method(input, stream);
+                    }
+                )
+            }
+        }
+    }
+  );
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_add,
         display_name: add
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_sub,
+        display_name: sub
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: unchecked_neg,
+        display_name: neg
     );
 
     //===========================================
@@ -1318,9 +1406,24 @@ mod cuda {
         display_name: add
     );
 
-    criterion_group!(unchecked_cuda_ops, cuda_unchecked_add,);
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: sub,
+        display_name: sub
+    );
 
-    criterion_group!(default_cuda_ops, cuda_add,);
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: neg,
+        display_name: neg
+    );
+
+    criterion_group!(
+        unchecked_cuda_ops,
+        cuda_unchecked_add,
+        cuda_unchecked_sub,
+        cuda_unchecked_neg
+    );
+
+    criterion_group!(default_cuda_ops, cuda_add, cuda_sub, cuda_neg);
 }
 
 #[cfg(feature = "gpu")]

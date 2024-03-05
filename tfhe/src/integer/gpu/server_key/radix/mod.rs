@@ -29,8 +29,6 @@ mod sub;
 
 mod scalar_rotate;
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;
