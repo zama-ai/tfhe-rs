@@ -1,0 +1,27 @@
+# Lint and check CI
+name: CI Lint and Checks
+
+on:
+  pull_request:
+
+env:
+  ACTIONLINT_VERSION: 1.6.27
+
+jobs:
+  lint-check:
+    name: Lint and checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      - name: Get actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) ${{ env.ACTIONLINT_VERSION }}
+          echo "f2ee6d561ce00fa93aab62a7791c1a0396ec7e8876b2a8f2057475816c550782  actionlint" > checksum
+          sha256sum -c checksum
+          ln -s "$(pwd)/actionlint" /usr/local/bin/
+
+      - name: Lint workflows
+        run: |
+          make lint_workflow
