@@ -11,15 +11,6 @@
 * [Benchmarks](getting\_started/benchmarks.md)
 * [Security and cryptography](getting\_started/security\_and\_cryptography.md)
 
-## Tutorials
-
-* [Homomorphic parity bit](tutorials/parity\_bit.md)
-* [Homomorphic case changing on Ascii string](tutorials/ascii\_fhe\_string.md)
-* [SHA256 with Boolean API](tutorials/sha256\_bool.md)
-* [Dark market with integer API](tutorials/dark\_market.md)
-* [Homomorphic regular expressions integer API](tutorials/regex.md)
-* [See all tutorials](tutorials/see-all-tutorials.md)
-
 ## Fundamentals
 
 * [Configure and create keys](fundamentals/configure-and-create-keys.md)
@@ -28,7 +19,7 @@
 * [Compute and decrypt](fundamentals/compute-and-decrypt.md)
 * [Serialize/Deserialize](fundamentals/serialization.md)
 * [Compress ciphertexts/keys](fundamentals/compress.md)
-* [Initialize server-side values](fundamentals/trivial\_ciphertext.md)
+* [Simulator mode](fundamentals/trivial\_ciphertext.md)
 
 ## Guides
 
@@ -45,6 +36,15 @@
 * [Debug](guides/debug.md)
 * [Count PBS](guides/count-pbs.md)
 * [PRF Generate homomorphic randomness](guides/prf-generate-homomorphic-randomness.md)
+
+## Tutorials
+
+* [See all tutorials](tutorials/see-all-tutorials.md)
+* [Homomorphic parity bit](tutorials/parity\_bit.md)
+* [Homomorphic case changing on Ascii string](tutorials/ascii\_fhe\_string.md)
+* [SHA256 with Boolean API](tutorials/sha256\_bool.md)
+* [Dark market with integer API](tutorials/dark\_market.md)
+* [Homomorphic regular expressions integer API](tutorials/regex.md)
 
 ## References
 
