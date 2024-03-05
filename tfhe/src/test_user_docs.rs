@@ -5,6 +5,35 @@ mod test_cpu_doc {
     // README
     doctest!("../../README.md", readme);
 
+    // FUNDAMENTALS
+    doctest!("../docs/fundamentals/compress.md", fundamentals_compress);
+    doctest!("../docs/fundamentals/compute.md", fundamentals_compute);
+    doctest!(
+        "../docs/fundamentals/configure-and-generate-keys.md",
+        fundamentals_configure_and_generate_keys
+    );
+    doctest!("../docs/fundamentals/debug.md", fundamentals_debug);
+    doctest!(
+        "../docs/fundamentals/decrypt-data.md",
+        fundamentals_decrypt_data
+    );
+    doctest!(
+        "../docs/fundamentals/encrypt-data.md",
+        fundamentals_encrypt_data
+    );
+    doctest!(
+        "../docs/fundamentals/encrypted-prf.md",
+        fundamentals_encrypted_prf
+    );
+    doctest!(
+        "../docs/fundamentals/serialization.md",
+        fundamentals_serialization
+    );
+    doctest!(
+        "../docs/fundamentals/set-the-server-key.md",
+        fundamentals_set_the_server_key
+    );
+
     // GETTING STARTED
     doctest!(
         "../docs/getting_started/operations.md",
@@ -15,101 +44,103 @@ mod test_cpu_doc {
         getting_started_quick_start
     );
 
-    // HOW TO
-    doctest!("../docs/how_to/compress.md", how_to_compress);
+    // GUIDES
     doctest!(
-        "../docs/how_to/parallelized_pbs.md",
-        how_to_parallelized_pbs
-    );
-    doctest!("../docs/how_to/public_key.md", how_to_public_key);
-    doctest!("../docs/how_to/serialization.md", how_to_serialize);
-    doctest!("../docs/how_to/trait_bounds.md", how_to_trait_bounds);
-    doctest!(
-        "../docs/how_to/trivial_ciphertext.md",
-        how_to_trivial_ciphertext
+        "../docs/guides/overflow_operations.md",
+        guides_overflow_operations
     );
     doctest!(
-        "../docs/how_to/overflow_operations.md",
-        how_to_detect_overflow
+        "../docs/guides/parallelized_pbs.md",
+        guides_parallelized_pbs
     );
-    doctest!("../docs/how_to/rayon_crate.md", how_to_rayon_crate);
-    doctest!("../docs/how_to/debug.md", how_to_debug);
-
-    //FINE GRAINED API
+    doctest!("../docs/guides/pbs-stats.md", guides_pbs_stats);
+    doctest!("../docs/guides/public_key.md", guides_public_key);
+    doctest!("../docs/guides/rayon_crate.md", guides_rayon_crate);
+    doctest!("../docs/guides/trait_bounds.md", guides_trait_bounds);
     doctest!(
-        "../docs/fine_grained_api/quick_start.md",
-        fine_grained_api_quick_start
+        "../docs/guides/trivial_ciphertext.md",
+        guides_trivial_ciphertext
     );
 
-    // fine_grained_api/Boolean
+    // REFERENCES
+
+    // FINE GRAINED API
     doctest!(
-        "../docs/fine_grained_api/Boolean/operations.md",
-        booleans_operations
-    );
-    doctest!(
-        "../docs/fine_grained_api/Boolean/parameters.md",
-        booleans_parameters
-    );
-    doctest!(
-        "../docs/fine_grained_api/Boolean/serialization.md",
-        booleans_serialization
-    );
-    doctest!(
-        "../docs/fine_grained_api/Boolean/readme.md",
-        booleans_tutorial
+        "../docs/references/fine-grained-apis/quick_start.md",
+        references_fine_grained_apis_quick_start
     );
 
-    // fine_grained_api/shortint
+    // fine-grained-apis/boolean
     doctest!(
-        "../docs/fine_grained_api/shortint/operations.md",
-        shortint_operations
+        "../docs/references/fine-grained-apis/boolean/operations.md",
+        references_fine_grained_apis_boolean_operations
+    );
+    doctest!(
+        "../docs/references/fine-grained-apis/boolean/parameters.md",
+        references_fine_grained_apis_boolean_parameters
+    );
+    doctest!(
+        "../docs/references/fine-grained-apis/boolean/serialization.md",
+        references_fine_grained_apis_boolean_serialization
+    );
+    doctest!(
+        "../docs/references/fine-grained-apis/boolean/README.md",
+        references_fine_grained_apis_boolean_readme
     );
 
+    // fine-grained-apis/shortint
     doctest!(
-        "../docs/fine_grained_api/shortint/parameters.md",
-        shortint_parameters
+        "../docs/references/fine-grained-apis/shortint/operations.md",
+        references_fine_grained_apis_shortint_operations
     );
     doctest!(
-        "../docs/fine_grained_api/shortint/serialization.md",
-        shortint_serialization
+        "../docs/references/fine-grained-apis/shortint/parameters.md",
+        references_fine_grained_apis_shortint_parameters
     );
     doctest!(
-        "../docs/fine_grained_api/shortint/readme.md",
-        shortint_tutorial
-    );
-
-    // fine_grained_api/integer
-    doctest!(
-        "../docs/fine_grained_api/integer/operations.md",
-        integer_operations
+        "../docs/references/fine-grained-apis/shortint/serialization.md",
+        references_fine_grained_apis_shortint_serialization
     );
     doctest!(
-        "../docs/fine_grained_api/integer/serialization.md",
-        integer_serialization_tuto
-    );
-    doctest!(
-        "../docs/fine_grained_api/integer/readme.md",
-        integer_first_circuit
+        "../docs/references/fine-grained-apis/shortint/README.md",
+        references_fine_grained_apis_shortint_readme
     );
 
-    // core_crypto
+    // fine-grained-apis/integer
     doctest!(
-        "../docs/core_crypto/presentation.md",
-        core_crypto_presentation
+        "../docs/references/fine-grained-apis/integer/operations.md",
+        references_fine_grained_apis_integer_operations
     );
-    doctest!("../docs/core_crypto/tutorial.md", core_crypto_tutorial);
+    doctest!(
+        "../docs/references/fine-grained-apis/integer/serialization.md",
+        references_fine_grained_apis_integer_serialization_tuto
+    );
+    doctest!(
+        "../docs/references/fine-grained-apis/integer/README.md",
+        references_fine_grained_apis_integer_readme
+    );
+
+    // references/core-crypto-api
+    doctest!(
+        "../docs/references/core-crypto-api/presentation.md",
+        references_core_crypto_api_presentation
+    );
+    doctest!(
+        "../docs/references/core-crypto-api/tutorial.md",
+        references_core_crypto_api_tutorial
+    );
 
     // Tutorials
     doctest!(
         "../docs/tutorials/ascii_fhe_string.md",
-        ascii_fhe_string_tutorial
+        tutorials_ascii_fhe_string
     );
-    doctest!("../docs/tutorials/parity_bit.md", parity_bit_tutorial);
+    doctest!("../docs/tutorials/parity_bit.md", tutorials_parity_bit);
 }
 
 #[cfg(feature = "gpu")]
 mod test_gpu_doc {
     use doc_comment::doctest;
 
-    doctest!("../docs/how_to/run_on_gpu.md", how_to_run_on_gpu);
+    doctest!("../docs/guides/run_on_gpu.md", guides_run_on_gpu);
 }

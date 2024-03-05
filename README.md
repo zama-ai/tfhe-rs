@@ -1,6 +1,10 @@
 <p align="center">
 <!-- product name logo -->
-  <img width=600 src="https://user-images.githubusercontent.com/5758427/231206749-8f146b97-3c5a-4201-8388-3ffa88580415.png">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/5283e0ba-da1e-43af-9f2a-c5221367a12b">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/b94a8c96-7595-400b-9311-70765c706955">
+  <img width=600 alt="Zama TFHE-rs">
+</picture>
 </p>
 
 <hr/>
@@ -173,12 +177,12 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 <br></br>
 
 ### Tutorials
-- [Homomorphic Parity Bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
-- [Homomorphic Case Changing on Ascii String](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
+- [[Video tutorial] Implement signed integers using TFHE-rs ](https://www.zama.ai/post/video-tutorial-implement-signed-integers-ssing-tfhe-rs)
+- [Homomorphic parity bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
+- [Homomorphic case changing on Ascii string](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
 - [Boolean SHA256 with TFHE-rs](https://www.zama.ai/post/boolean-sha256-tfhe-rs)
-- [Dark Market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
-- [Regular Expression Engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
-
+- [Dark market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
+- [Regular expression engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
 
 *Explore more useful resources in [TFHE-rs tutorials](https://docs.zama.ai/tfhe-rs/tutorials) and [Awesome Zama repo](https://github.com/zama-ai/awesome-zama)*
 <br></br>
@@ -240,7 +244,11 @@ This software is distributed under the **BSD-3-Clause-Clear** license. If you ha
 ## Support
 
 <a target="_blank" href="https://community.zama.ai">
-  <img src="https://github.com/zama-ai/tfhe-rs/assets/157474013/8da6cf5b-51a0-4c86-9e75-fd0e4a4c64a4">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/08656d0a-3f44-4126-b8b6-8c601dff5380">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/1c9c9308-50ac-4aab-a4b9-469bb8c536a4">
+  <img alt="Support">
+</picture>
 </a>
 
 🌟 If you find this project helpful or interesting, please consider giving it a star on GitHub! Your support helps to grow the community and motivates further development. 

@@ -120,7 +120,12 @@ Finally, the client gets the decrypted results by computing:
 ``` 
 ## Improving performance.
 TFHE-rs includes the possibility to leverage the high number of threads given by a GPU.
-To do so, the configuration should be updated with ```Rust let config = ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();```
+To do so, the configuration should be updated with
+
+```Rust
+let config = ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
+```
+
 The complete example becomes:
 
 ```rust 
