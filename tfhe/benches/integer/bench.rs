@@ -62,7 +62,14 @@ impl Default for ParamsAndNumBlocksIter {
             // FIXME One set of parameter is tested since we want to benchmark only quickest
             // operations.
             let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64.into(),
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80.into(),
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128.into(),
+                PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P50.into(),
+                PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P62.into(),
+                PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P75.into(),
+                PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P125.into(),
+                // PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
@@ -100,7 +107,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -168,7 +175,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -224,7 +231,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
 
     let mut rng = rand::thread_rng();
 
@@ -289,7 +296,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
 
     let mut rng = rand::thread_rng();
 
@@ -342,7 +349,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -412,7 +419,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -497,7 +504,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -549,7 +556,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(20));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -1203,7 +1210,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(20));
         let mut rng = rand::thread_rng();
 
         let gpu_index = 0;
@@ -1264,7 +1271,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(20));
         let mut rng = rand::thread_rng();
 
         let gpu_index = 0;
@@ -1333,7 +1340,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(20));
         let mut rng = rand::thread_rng();
 
         let gpu_index = 0;
@@ -1394,7 +1401,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group("integer::cuda::if_then_else");
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(20));
         let mut rng = rand::thread_rng();
 
         let gpu_index = 0;
@@ -1993,6 +2000,7 @@ use cuda::{
     cuda_cast_ops, default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops,
     unchecked_scalar_cuda_ops,
 };
+use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80, PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P125, PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P50, PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P62, PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P75};
 
 criterion_group!(
     smart_ops,
