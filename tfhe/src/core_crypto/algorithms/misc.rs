@@ -55,6 +55,7 @@ where
 }
 
 /// Compute the smallest signed difference between two torus elements
+#[track_caller]
 pub fn torus_modular_diff<T: UnsignedInteger>(
     first: T,
     other: T,
@@ -84,6 +85,16 @@ pub fn torus_modular_diff<T: UnsignedInteger>(
         }
     } else {
         let custom_modulus = T::cast_from(modulus.get_custom_modulus());
+
+        assert!(
+            first < custom_modulus,
+            "Inputs must be smaller than the provided modulus"
+        );
+        assert!(
+            other < custom_modulus,
+            "Inputs must be smaller than the provided modulus"
+        );
+
         let d0 = first.wrapping_sub_custom_mod(other, custom_modulus);
         let d1 = other.wrapping_sub_custom_mod(first, custom_modulus);
         if d0 < d1 {
