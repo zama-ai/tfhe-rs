@@ -144,6 +144,11 @@ check_linelint_installed:
 	@printf "\n" | linelint - > /dev/null 2>&1 || \
 	( echo "Unable to locate linelint. Try installing it: https://github.com/fernandrone/linelint/releases" && exit 1 )
 
+.PHONY: check_actionlint_installed # Check if actionlint workflow linter is installed
+check_actionlint_installed:
+	@actionlint --version > /dev/null 2>&1 || \
+	( echo "Unable to locate actionlint. Try installing it: https://github.com/rhysd/actionlint/releases" && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -176,6 +181,10 @@ fix_newline: check_linelint_installed
 .PHONY: check_newline # Check for newline at end of file to be UNIX compliant
 check_newline: check_linelint_installed
 	linelint .
+
+.PHONY: lint_workflow # Run static linter on GitHub workflows
+lint_workflow: check_actionlint_installed
+	actionlint
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
