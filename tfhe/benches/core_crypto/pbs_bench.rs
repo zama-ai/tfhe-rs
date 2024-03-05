@@ -14,7 +14,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::ClassicPBSParameters;
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 12] = [
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     // PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     // PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     // PARAM_MESSAGE_2_CARRY_0_KS_PBS,
@@ -34,18 +34,24 @@ const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 12] = [
     // PARAM_MESSAGE_2_CARRY_2_PBS_KS,
     // PARAM_MESSAGE_3_CARRY_3_PBS_KS,
     // PARAM_MESSAGE_4_CARRY_4_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p64,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p64,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p80,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p80,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p80,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p128,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p128,
+    //
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64,
+    // PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p64,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p64,
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p80,
+    // PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p80,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p80,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p80,
+    // PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p128,
+    // PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p128,
+    // PARAM_MESSAGE_3_CARRY_3_KS_PBS_2p128,
+    // PARAM_MESSAGE_4_CARRY_4_KS_PBS_2p128,
+    //
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P50,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P62,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P75,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P125,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -146,8 +152,8 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
     }
 }
 
-fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
-    let bench_name = "core_crypto::pbs_mem_optimized";
+fn mem_optimized_ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
+    let bench_name = "core_crypto::ks_pbs_mem_optimized";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -237,7 +243,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             .unaligned_bytes_required(),
         );
 
-        let id = format!("{bench_name}_{name}_PBS_KS");
+        let id = format!("{bench_name}_{name}_KS_PBS");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
@@ -249,6 +255,236 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
 
                     programmable_bootstrap_lwe_ciphertext_mem_optimized(
                         &out_ks_ct,
+                        &mut out_pbs_ct,
+                        &accumulator.as_view(),
+                        &fourier_bsk,
+                        fft,
+                        buffers.stack(),
+                    );
+                    black_box(&mut out_pbs_ct);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs_ks",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn mem_optimized_pbs_ks<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
+    let bench_name = "core_crypto::pbs_ks_mem_optimized";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for (name, params) in benchmark_parameters::<Scalar>().iter() {
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &output_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &input_lwe_secret_key,
+            // &output_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            // output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let id = format!("{bench_name}_{name}_PBS_KS");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator.as_view(),
+                        &fourier_bsk,
+                        fft,
+                        buffers.stack(),
+                    );
+
+                    keyswitch_lwe_ciphertext(
+                        &ksk_big_to_small,
+                        &out_pbs_ct,
+                        &mut out_ks_ct,
+                    );
+                    black_box(&mut out_ks_ct);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs_ks",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
+    let bench_name = "core_crypto::pbs_mem_optimized";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for (name, params) in benchmark_parameters::<Scalar>().iter() {
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &input_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &lwe_ciphertext_in,
                         &mut out_pbs_ct,
                         &accumulator.as_view(),
                         &fourier_bsk,
@@ -886,7 +1122,8 @@ use cuda::{cuda_multi_bit_pbs_group, cuda_pbs_group};
 criterion_group!(
     name = pbs_group;
     config = Criterion::default().sample_size(15).measurement_time(std::time::Duration::from_secs(60));
-    targets = mem_optimized_pbs::<u64>
+    // targets = mem_optimized_pbs::<u64>, mem_optimized_pbs_ks::<u64>
+    targets = mem_optimized_pbs_ks::<u64>
 );
 
 criterion_group!(

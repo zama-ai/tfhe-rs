@@ -1228,6 +1228,70 @@ pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS_2p64: ClassicPBSParameters = ClassicPBS
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
+pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P50: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(6),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
+pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P62: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(6),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
+pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P75: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(4096),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(6),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
+pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS_2P125: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(4096),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(22),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(6),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
 // p-fail = 2^-64.407, algorithmic cost ~ 100, 2-norm = 5
 pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_2p64: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(789),
