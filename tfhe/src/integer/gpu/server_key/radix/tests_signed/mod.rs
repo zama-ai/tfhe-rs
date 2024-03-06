@@ -1,6 +1,7 @@
 pub(crate) mod test_add;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+pub(crate) mod test_scalar_add;
 pub(crate) mod test_sub;
 
 use crate::core_crypto::gpu::CudaStream;
@@ -100,13 +101,13 @@ where
 }
 
 /// For unchecked/default binary functions with one scalar input
-impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>
+impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>
     for GpuFunctionExecutor<F>
 where
     F: Fn(
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
-        u64,
+        i64,
         &CudaStream,
     ) -> CudaSignedRadixCiphertext,
 {
@@ -114,7 +115,7 @@ where
         self.setup_from_keys(cks, &sks);
     }
 
-    fn execute(&mut self, input: (&'a SignedRadixCiphertext, u64)) -> SignedRadixCiphertext {
+    fn execute(&mut self, input: (&'a SignedRadixCiphertext, i64)) -> SignedRadixCiphertext {
         let context = self
             .context
             .as_ref()
@@ -122,6 +123,36 @@ where
 
         let d_ctxt_1 =
             CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+
+        gpu_result.to_signed_radix_ciphertext(&context.stream)
+    }
+}
+
+/// For unchecked/default binary functions with one scalar input
+impl<F> FunctionExecutor<(SignedRadixCiphertext, i64), SignedRadixCiphertext>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        i64,
+        &CudaStream,
+    ) -> CudaSignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (SignedRadixCiphertext, i64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&input.0, &context.stream);
 
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
 
