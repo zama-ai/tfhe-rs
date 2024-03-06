@@ -1,4 +1,5 @@
 pub(crate) mod test_add;
+pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_sub;
 

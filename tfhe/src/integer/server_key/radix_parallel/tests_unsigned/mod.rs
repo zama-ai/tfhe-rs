@@ -1,4 +1,5 @@
 pub(crate) mod test_add;
+pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_sub;
 
@@ -474,7 +475,6 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(integer_unchecked_mul_corner_cases);
 create_parametrized_test!(integer_unchecked_scalar_mul_corner_cases);
 create_parametrized_test!(
     integer_default_scalar_mul_u128_fix_non_reg_test {
@@ -573,12 +573,6 @@ create_parametrized_test!(integer_unchecked_scalar_rotate_left);
 create_parametrized_test!(integer_default_scalar_rotate_right);
 create_parametrized_test!(integer_default_scalar_rotate_left);
 create_parametrized_test!(integer_default_scalar_div_rem);
-create_parametrized_test!(integer_unchecked_block_mul);
-create_parametrized_test!(integer_smart_block_mul);
-create_parametrized_test!(integer_default_block_mul);
-create_parametrized_test!(integer_smart_mul);
-create_parametrized_test!(integer_default_mul);
-create_parametrized_test!(integer_default_unsigned_overflowing_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_default_overflowing_scalar_sub);
@@ -603,8 +597,6 @@ create_parametrized_test!(integer_default_checked_ilog2 {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
-
-create_parametrized_test!(integer_unchecked_mul);
 
 create_parametrized_test!(
     integer_full_propagate {
@@ -744,30 +736,6 @@ where
 // Unchecked Tests
 //=============================================================================
 
-fn integer_unchecked_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul_parallelized);
-    unchecked_mul_test(param, executor);
-}
-
-fn integer_unchecked_block_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_block_mul_parallelized);
-    unchecked_block_mul_test(param, executor);
-}
-
-fn integer_unchecked_mul_corner_cases<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul_parallelized);
-    unchecked_mul_corner_cases_test(param, executor);
-}
-
 fn integer_unchecked_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -855,14 +823,6 @@ where
 //=============================================================================
 // Smart Tests
 //=============================================================================
-
-fn integer_smart_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_mul_parallelized);
-    smart_mul_test(param, executor);
-}
 
 fn integer_smart_bitand<P>(param: P)
 where
@@ -1041,33 +1001,9 @@ where
     smart_scalar_mul_u128_fix_non_reg_test(param, executor);
 }
 
-fn integer_smart_block_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_block_mul_parallelized);
-    smart_block_mul_test(param, executor);
-}
-
 //=============================================================================
 // Default Tests
 //=============================================================================
-
-fn integer_default_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
-    default_mul_test(param, executor);
-}
-
-fn integer_default_unsigned_overflowing_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_mul_parallelized);
-    default_overflowing_mul_test(param, executor);
-}
 
 fn integer_default_bitand<P>(param: P)
 where
@@ -1305,14 +1241,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_div_rem_parallelized);
     default_scalar_div_rem_test(param, executor);
-}
-
-fn integer_default_block_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::block_mul_parallelized);
-    default_default_block_mul_test(param, executor);
 }
 
 #[test]

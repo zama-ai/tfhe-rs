@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 impl CudaServerKey {
@@ -48,12 +48,12 @@ impl CudaServerKey {
     /// let res: u64 = cks.decrypt_radix(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_mul(
+    pub fn unchecked_mul<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_mul_assign(&mut result, ct_right, stream);
         result
@@ -63,10 +63,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_mul_assign_async(
+    pub unsafe fn unchecked_mul_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
@@ -114,10 +114,10 @@ impl CudaServerKey {
         ct_left.as_mut().info = ct_left.as_ref().info.after_mul();
     }
 
-    pub fn unchecked_mul_assign(
+    pub fn unchecked_mul_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -171,12 +171,12 @@ impl CudaServerKey {
     /// let res: u64 = cks.decrypt_radix(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn mul(
+    pub fn mul<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.mul_assign(&mut result, ct_right, stream);
         result
@@ -186,10 +186,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn mul_assign_async(
+    pub unsafe fn mul_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -221,10 +221,10 @@ impl CudaServerKey {
         // Carries are cleaned internally in the mul algorithm
     }
 
-    pub fn mul_assign(
+    pub fn mul_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {

@@ -822,7 +822,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                      with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .mul(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .mul(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }

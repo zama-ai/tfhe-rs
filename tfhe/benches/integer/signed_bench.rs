@@ -1397,6 +1397,11 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_mul,
+        display_name: mul
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -1416,14 +1421,20 @@ mod cuda {
         display_name: neg
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: mul,
+        display_name: mul
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
         cuda_unchecked_sub,
-        cuda_unchecked_neg
+        cuda_unchecked_neg,
+        cuda_unchecked_mul
     );
 
-    criterion_group!(default_cuda_ops, cuda_add, cuda_sub, cuda_neg);
+    criterion_group!(default_cuda_ops, cuda_add, cuda_sub, cuda_neg, cuda_mul);
 }
 
 #[cfg(feature = "gpu")]
