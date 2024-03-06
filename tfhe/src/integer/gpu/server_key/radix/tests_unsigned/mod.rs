@@ -1,4 +1,5 @@
 pub(crate) mod test_add;
+pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_sub;
 
@@ -73,7 +74,6 @@ impl<F> GpuFunctionExecutor<F> {
 }
 
 // Unchecked operations
-create_gpu_parametrized_test!(integer_unchecked_mul);
 create_gpu_parametrized_test!(integer_unchecked_scalar_add);
 create_gpu_parametrized_test!(integer_unchecked_scalar_sub);
 create_gpu_parametrized_test!(integer_unchecked_small_scalar_mul);
@@ -107,7 +107,6 @@ create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_left);
 create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 
 // Default operations
-create_gpu_parametrized_test!(integer_mul);
 create_gpu_parametrized_test!(integer_scalar_add);
 create_gpu_parametrized_test!(integer_scalar_sub);
 create_gpu_parametrized_test!(integer_small_scalar_mul);
@@ -310,14 +309,6 @@ where
 
         *input = d_ctxt_1.to_radix_ciphertext(&context.stream)
     }
-}
-
-fn integer_unchecked_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_mul);
-    unchecked_mul_test(param, executor);
 }
 
 fn integer_unchecked_scalar_add<P>(param: P)
@@ -1504,14 +1495,6 @@ where
         // Check the correctness
         assert_eq!(dec_res, if clear_condition == 1 { clear1 } else { clear2 });
     }
-}
-
-fn integer_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::mul);
-    default_mul_test(param, executor);
 }
 
 fn integer_scalar_add<P>(param: P)

@@ -705,3 +705,86 @@ where
         assert_eq!(clear_result, dec);
     }
 }
+
+pub(crate) fn signed_unchecked_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<
+        { crate::integer::server_key::radix_parallel::tests_signed::NB_TESTS_UNCHECKED },
+    >(&mut rng, modulus)
+    {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let dec_res: i64 = cks.decrypt_signed(&ct_res);
+        let clear_res = signed_mul_under_modulus(clear_0, clear_1, modulus);
+        assert_eq!(clear_res, dec_res);
+    }
+}
+
+pub(crate) fn signed_default_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct);
+
+        clear = signed_mul_under_modulus(clear_0, clear_1, modulus);
+
+        // mul multiple times to raise the degree
+        for _ in 0..NB_TESTS_SMALLER {
+            ct_res = executor.execute((&ct_res, &ctxt_0));
+            assert!(ct_res.block_carries_are_empty());
+            clear = signed_mul_under_modulus(clear, clear_0, modulus);
+
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
