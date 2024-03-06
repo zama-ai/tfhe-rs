@@ -1,4 +1,5 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
@@ -89,33 +90,19 @@ impl CudaRadixCiphertextInfo {
     }
 
     pub(crate) fn after_neg(&self) -> Self {
-        let mut z;
-        let mut z_b: u8 = 0;
-
-        let mut new_degrees: Vec<Degree> = vec![];
-        new_degrees.resize(self.blocks.len(), Degree::new(0));
-        for (i, block) in self.blocks.iter().enumerate() {
-            let mut degree = block.degree.get();
-            let msg_mod = block.message_modulus.0;
-            if z_b != 0 {
-                // scalar_add degree
-                degree += z_b as usize;
-            }
-            // neg_assign_with_correcting_term degree
-            z = ((degree + msg_mod - 1) / msg_mod) as u64;
-            z *= msg_mod as u64;
-
-            new_degrees[i] = Degree::new(z as usize - z_b as usize);
-            z_b = (z / msg_mod as u64) as u8;
-        }
+        let new_degrees_iter = NegatedDegreeIter::new(
+            self.blocks
+                .iter()
+                .map(|block| (block.degree, block.message_modulus)),
+        );
 
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .zip(new_degrees.iter())
+                .zip(new_degrees_iter)
                 .map(|(left, d)| CudaBlockInfo {
-                    degree: *d,
+                    degree: d,
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,

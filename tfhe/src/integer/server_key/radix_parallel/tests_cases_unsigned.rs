@@ -56,82 +56,17 @@ pub(crate) trait FunctionExecutor<TestInput, TestOutput> {
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::{
     default_add_test, unchecked_add_assign_test, unchecked_add_test,
 };
-
+#[cfg(feature = "gpu")]
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::{
+    default_neg_test, unchecked_neg_test,
+};
+#[cfg(feature = "gpu")]
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
+    default_sub_test, unchecked_sub_test,
+};
 //=============================================================================
 // Unchecked Tests
 //=============================================================================
-
-pub(crate) fn unchecked_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = cks.encrypt(clear_0);
-        let ctxt_1 = cks.encrypt(clear_1);
-
-        let encrypted_result = executor.execute((&ctxt_0, &ctxt_1));
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-
-        let expected_result = clear_0.wrapping_sub(clear_1) % modulus;
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid sub result, expected {clear_0} - {clear_1} \
-            to be {expected_result}, but got {decrypted_result}."
-        );
-    }
-}
-
-pub(crate) fn unchecked_neg_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    let trivial0 = sks.create_trivial_radix(0u64, NB_CTXT);
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let ctxt = cks.encrypt(clear);
-
-        let encrypted_result = executor.execute(&ctxt);
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-
-        let expected_result = clear.wrapping_neg() % modulus;
-        assert_eq!(decrypted_result, expected_result);
-    }
-
-    // negation of trivial 0
-    {
-        let ct_res = executor.execute(&trivial0);
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(0, dec_res);
-    }
-}
 
 pub(crate) fn unchecked_mul_test<P, T>(param: P, mut executor: T)
 where
@@ -886,47 +821,6 @@ where
 // Smart Tests
 //=============================================================================
 
-pub(crate) fn smart_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
-        RadixCiphertext,
-    >,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        let ctxt_1 = cks.encrypt(clear1);
-        let mut ctxt_2 = cks.encrypt(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        // Subtract multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
-            res = executor.execute((&mut res, &mut ctxt_2));
-            clear = clear.wrapping_sub(clear2) % modulus;
-        }
-        let dec: u64 = cks.decrypt(&res);
-
-        // Check the correctness
-        assert_eq!(clear, dec);
-    }
-}
-
 pub(crate) fn smart_mul_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -1021,42 +915,6 @@ where
 
         let dec: u64 = cks.decrypt(&res);
         assert_eq!(clear, dec);
-    }
-}
-
-pub(crate) fn smart_neg_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let mut ctxt = cks.encrypt(clear);
-
-        let mut ct_res = executor.execute(&mut ctxt);
-        let mut clear_res = clear.wrapping_neg() % modulus;
-        let dec: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear_res, dec);
-
-        for _ in 0..NB_TESTS_SMALLER {
-            ct_res = executor.execute(&mut ct_res);
-            clear_res = clear_res.wrapping_neg() % modulus;
-
-            let dec: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear_res, dec);
-        }
     }
 }
 
@@ -1576,135 +1434,6 @@ where
 // Default Tests
 //=============================================================================
 
-pub(crate) fn default_overflowing_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a RadixCiphertext, &'a RadixCiphertext),
-        (RadixCiphertext, BooleanBlock),
-    >,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = cks.encrypt(clear_0);
-        let ctxt_1 = cks.encrypt(clear_1);
-
-        let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
-        let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
-        assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
-
-        let (expected_result, expected_overflowed) =
-            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
-
-        let decrypted_result: u64 = cks.decrypt(&ct_res);
-        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
-             expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_suv for ({clear_0} - {clear_1}) % {modulus} \
-             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
-        assert_eq!(result_overflowed.0.degree.get(), 1);
-        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
-
-        for _ in 0..NB_TESTS_SMALLER {
-            // Add non zero scalar to have non clean ciphertexts
-            let clear_2 = random_non_zero_value(&mut rng, modulus);
-            let clear_3 = random_non_zero_value(&mut rng, modulus);
-
-            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
-            let ctxt_1 = sks.unchecked_scalar_add(&ctxt_1, clear_3);
-
-            let clear_lhs = clear_0.wrapping_add(clear_2) % modulus;
-            let clear_rhs = clear_1.wrapping_add(clear_3) % modulus;
-
-            let d0: u64 = cks.decrypt(&ctxt_0);
-            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
-            let d1: u64 = cks.decrypt(&ctxt_1);
-            assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
-
-            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
-            assert!(ct_res.block_carries_are_empty());
-
-            let (expected_result, expected_overflowed) =
-                overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
-
-            let decrypted_result: u64 = cks.decrypt(&ct_res);
-            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
-            assert_eq!(
-                decrypted_result, expected_result,
-                "Invalid result for sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
-                expected {expected_result}, got {decrypted_result}"
-            );
-            assert_eq!(
-                decrypted_overflowed,
-                expected_overflowed,
-                "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
-                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-            );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
-        }
-    }
-
-    // Test with trivial inputs, as it was bugged at some point
-    for _ in 0..4 {
-        // Reduce maximum value of random number such that at least the last block is a trivial 0
-        // (This is how the reproducing case was found)
-        let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
-        let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
-
-        let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
-        let b: RadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
-
-        assert_eq!(a.blocks[NB_CTXT - 1].degree.get(), 0);
-        assert_eq!(b.blocks[NB_CTXT - 1].degree.get(), 0);
-
-        let (encrypted_result, encrypted_overflow) = executor.execute((&a, &b));
-
-        let (expected_result, expected_overflowed) =
-            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
-
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
-                expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
-                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
-    }
-}
-
 pub(crate) fn integer_default_unsigned_overflowing_sum_ciphertexts_test<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1803,48 +1532,6 @@ where
             assert_eq!(decrypted_overflow, expected_overflow,
                        "Invalid result for overflow flag of sum of ciphertext, expected {decrypted_overflow} got {expected_overflow}");
         }
-    }
-}
-
-pub(crate) fn default_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        let ctxt_1 = cks.encrypt(clear1);
-        let ctxt_2 = cks.encrypt(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        // Subtract multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
-            let tmp = executor.execute((&res, &ctxt_2));
-            res = executor.execute((&res, &ctxt_2));
-            assert!(res.block_carries_are_empty());
-            assert_eq!(res, tmp);
-            clear = (clear.wrapping_sub(clear2)) % modulus;
-        }
-        let dec: u64 = cks.decrypt(&res);
-
-        assert_eq!(clear, dec);
     }
 }
 
@@ -1959,7 +1646,7 @@ where
         assert_eq!(
                decrypted_overflowed,
                expected_overflowed,
-               "Invalid overflow flag result for overflowing_mul for ({clear_0} * {clear_1}) % {modulus} 
+               "Invalid overflow flag result for overflowing_mul for ({clear_0} * {clear_1}) % {modulus}
                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
         assert_eq!(result_overflowed.0.degree.get(), 1);
@@ -1997,7 +1684,7 @@ where
             assert_eq!(
                    decrypted_overflowed,
                    expected_overflowed,
-                   "Invalid overflow flag result for overflowing_mul, for ({clear_lhs} -{clear_rhs}) % {modulus} 
+                   "Invalid overflow flag result for overflowing_mul, for ({clear_lhs} -{clear_rhs}) % {modulus}
                     expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
                 );
             assert_eq!(result_overflowed.0.degree.get(), 1);
@@ -2037,40 +1724,6 @@ where
         );
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
-    }
-}
-
-pub(crate) fn default_neg_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let ctxt = cks.encrypt(clear);
-
-        let ct_res = executor.execute(&ctxt);
-        let tmp = executor.execute(&ctxt);
-        assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
-
-        let dec: u64 = cks.decrypt(&ct_res);
-        let clear_result = clear.wrapping_neg() % modulus;
-        assert_eq!(clear_result, dec);
     }
 }
 

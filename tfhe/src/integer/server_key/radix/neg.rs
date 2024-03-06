@@ -2,6 +2,52 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
+#[cfg(any(test, feature = "gpu"))]
+use crate::shortint::MessageModulus;
+
+/// Iterator that returns the new degree of blocks
+/// after negation was done.
+///
+/// It takes as input an iterator that returns the degree of the blocks
+/// before negation as well as their message modulus.
+#[cfg(any(test, feature = "gpu"))]
+pub(crate) struct NegatedDegreeIter<I> {
+    iter: I,
+    z_b: usize,
+}
+
+#[cfg(any(test, feature = "gpu"))]
+impl<I> NegatedDegreeIter<I>
+where
+    I: Iterator<Item = (Degree, MessageModulus)>,
+{
+    pub(crate) fn new(iter: I) -> Self {
+        Self { iter, z_b: 0 }
+    }
+}
+
+#[cfg(any(test, feature = "gpu"))]
+impl<I> Iterator for NegatedDegreeIter<I>
+where
+    I: Iterator<Item = (Degree, MessageModulus)>,
+{
+    type Item = Degree;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (mut current_degree, msg_mod) = self.iter.next()?;
+        current_degree += Degree::new(self.z_b);
+
+        // Ensure z is always >= 1 (which would not be the case if degree == 0)
+        // some algorithms (e.g. overflowing_sub) require this even for trivial zeros
+        let mut z = current_degree.get().div_ceil(msg_mod.0).max(1) as u64;
+        z *= msg_mod.0 as u64;
+
+        let new_degree = Degree::new(z as usize - self.z_b);
+        self.z_b = z as usize / msg_mod.0;
+
+        Some(new_degree)
+    }
+}
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.

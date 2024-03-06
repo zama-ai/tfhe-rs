@@ -2,7 +2,7 @@ mod add;
 mod bitwise_op;
 mod comparison;
 mod mul;
-mod neg;
+pub(crate) mod neg;
 mod scalar_add;
 pub(super) mod scalar_mul;
 pub(super) mod scalar_sub;

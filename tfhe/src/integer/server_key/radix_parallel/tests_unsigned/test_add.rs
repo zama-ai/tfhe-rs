@@ -127,6 +127,9 @@ where
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
+    let max_noise_level = sks.key.max_noise_level;
+    let max_degree = sks.key.max_degree;
+
     executor.setup(&cks, sks);
 
     let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
@@ -148,6 +151,11 @@ where
             .after_unchecked_add(&ctxt_0, &ctxt_1)
             .panic_if_any_is_not_equal(&encrypted_result);
         panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
+        panic_if_any_block_info_exceeds_max_degree_or_noise(
+            &encrypted_result,
+            max_degree,
+            max_noise_level,
+        );
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
@@ -173,6 +181,9 @@ where
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
+    let max_noise_level = sks.key.max_noise_level;
+    let max_degree = sks.key.max_degree;
+
     executor.setup(&cks, sks);
 
     let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
@@ -194,6 +205,7 @@ where
         expected_noise_levels.panic_if_any_is_not_equal(&ctxt_0);
         expected_degrees.panic_if_any_is_not_equal(&ctxt_0);
         panic_if_any_block_values_exceeds_its_degree(&ctxt_0, &cks);
+        panic_if_any_block_info_exceeds_max_degree_or_noise(&ctxt_0, max_degree, max_noise_level);
 
         let decrypted_result: u64 = cks.decrypt(&ctxt_0);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
