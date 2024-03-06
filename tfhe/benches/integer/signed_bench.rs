@@ -1382,6 +1382,100 @@ mod cuda {
     }
   );
 
+    fn bench_cuda_server_key_binary_scalar_signed_function_clean_inputs<F, G>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        binary_op: F,
+        rng_func: G,
+    ) where
+        F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, ScalarType, &CudaStream),
+        G: Fn(&mut ThreadRng, usize) -> ScalarType,
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            if bit_size > ScalarType::BITS as usize {
+                break;
+            }
+            let param_name = param.name();
+
+            let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_one_value = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                    let d_ct_0 =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
+
+                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                    (d_ct_0, clear_1)
+                };
+
+                b.iter_batched(
+                    encrypt_one_value,
+                    |(mut ct_0, clear_1)| {
+                        binary_op(&gpu_sks, &mut ct_0, clear_1, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_clean_input_scalar_signed_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
+        ::paste::paste!{
+            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
+                    c,
+                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, lhs, rhs, stream| {
+                        server_key.$server_key_method(lhs, rhs, stream);
+                    },
+                    $($rng_fn)*
+                )
+            }
+      }
+    }
+  );
+
+    // Functions used to apply different way of selecting a scalar based on the context.
+    fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+        let clearlow = rng.gen::<u128>();
+        let clearhigh = rng.gen::<u128>();
+        tfhe::integer::I256::from((clearlow, clearhigh))
+    }
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_add,
         display_name: add
@@ -1400,6 +1494,12 @@ mod cuda {
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_mul,
         display_name: mul
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_add,
+        display_name: add,
+        rng_func: default_signed_scalar
     );
 
     //===========================================
@@ -1426,28 +1526,42 @@ mod cuda {
         display_name: mul
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_add,
+        display_name: add,
+        rng_func: default_signed_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
         cuda_unchecked_sub,
         cuda_unchecked_neg,
-        cuda_unchecked_mul
+        cuda_unchecked_mul,
     );
 
+    criterion_group!(unchecked_scalar_cuda_ops, cuda_unchecked_scalar_add,);
+
     criterion_group!(default_cuda_ops, cuda_add, cuda_sub, cuda_neg, cuda_mul);
+
+    criterion_group!(default_scalar_cuda_ops, cuda_scalar_add);
 }
 
 #[cfg(feature = "gpu")]
-use cuda::{default_cuda_ops, unchecked_cuda_ops};
+use cuda::{
+    default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops, unchecked_scalar_cuda_ops,
+};
 
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
             default_cuda_ops();
+            default_scalar_cuda_ops();
         }
         "unchecked" => {
             unchecked_cuda_ops();
+            unchecked_scalar_cuda_ops();
         }
         _ => panic!("unknown benchmark operations flavor"),
     };

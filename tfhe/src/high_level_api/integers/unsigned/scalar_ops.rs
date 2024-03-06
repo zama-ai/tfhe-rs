@@ -465,7 +465,7 @@ generic_integer_impl_scalar_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                     let inner_result = with_thread_local_cuda_stream(|stream| {
                         cuda_key.key.scalar_add(
-                            &lhs.ciphertext.on_gpu(), rhs, stream
+                            &*lhs.ciphertext.on_gpu(), rhs, stream
                         )
                     });
                     RadixCiphertext::Cuda(inner_result)

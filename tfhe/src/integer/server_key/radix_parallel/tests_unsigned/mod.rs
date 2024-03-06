@@ -1,6 +1,7 @@
 pub(crate) mod test_add;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+pub(crate) mod test_scalar_add;
 pub(crate) mod test_sub;
 
 use super::tests_cases_unsigned::*;
@@ -599,9 +600,6 @@ create_parametrized_test!(integer_default_scalar_div_rem);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_default_overflowing_scalar_sub);
-create_parametrized_test!(integer_smart_scalar_add);
-create_parametrized_test!(integer_default_scalar_add);
-create_parametrized_test!(integer_default_overflowing_scalar_add);
 create_parametrized_test!(integer_smart_if_then_else);
 create_parametrized_test!(integer_default_if_then_else);
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
@@ -984,14 +982,6 @@ where
 // Smart Scalar Tests
 //=============================================================================
 
-fn integer_smart_scalar_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_add_parallelized);
-    smart_scalar_add_test(param, executor);
-}
-
 fn integer_smart_scalar_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1143,23 +1133,6 @@ where
 //=============================================================================
 // Default Scalar Tests
 //=============================================================================
-
-fn integer_default_scalar_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
-    default_scalar_add_test(param, executor);
-}
-
-fn integer_default_overflowing_scalar_add<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor =
-        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_add_parallelized);
-    default_overflowing_scalar_add_test(param, executor);
-}
 
 fn integer_default_scalar_sub<P>(param: P)
 where
