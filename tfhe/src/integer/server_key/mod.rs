@@ -5,7 +5,7 @@
 pub mod comparator;
 mod crt;
 mod crt_parallel;
-mod radix;
+pub(crate) mod radix;
 pub(crate) mod radix_parallel;
 
 use crate::integer::client_key::ClientKey;

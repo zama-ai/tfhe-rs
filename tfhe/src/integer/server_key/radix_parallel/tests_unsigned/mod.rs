@@ -144,7 +144,30 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
     max_degree: MaxDegree,
     max_noise_level: MaxNoiseLevel,
 ) {
-    for (i, block) in ct.blocks.iter().enumerate() {
+    if ct.blocks.is_empty() {
+        return;
+    }
+
+    // The max degree is made such that a block is able to receive the carry from
+    // its predecessor when using the sequential propagation algorithm.
+    //
+    // However, as the first block does not have a predecessor, its max degree is actually
+    // bigger
+    let first_block = &ct.blocks[0];
+    let first_block_max_degree =
+        MaxDegree::from_msg_carry_modulus(first_block.message_modulus, first_block.carry_modulus);
+    assert!(
+        first_block_max_degree.validate(first_block.degree).is_ok(),
+        "Block at index 0 has a degree {:?} that exceeds max degree ({first_block_max_degree:?})",
+        first_block.degree
+    );
+    assert!(
+        max_noise_level.validate(first_block.noise_level).is_ok(),
+        "Block at index 0 has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
+        first_block.degree
+    );
+
+    for (i, block) in ct.blocks.iter().enumerate().skip(1) {
         assert!(
             max_degree.validate(block.degree).is_ok(),
             "Block at index {i} has a degree {:?} that exceeds max degree ({max_degree:?})",
