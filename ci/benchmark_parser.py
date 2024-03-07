@@ -4,6 +4,7 @@ benchmark_parser
 
 Parse criterion benchmark or keys size results.
 """
+
 import argparse
 import csv
 import pathlib
@@ -11,45 +12,97 @@ import json
 import sys
 
 
-ONE_HOUR_IN_NANOSECONDS = 3600E9
+ONE_HOUR_IN_NANOSECONDS = 3600e9
 
 parser = argparse.ArgumentParser()
-parser.add_argument('results',
-                    help='Location of criterion benchmark results directory.'
-                         'If the --key-size option is used, then the value would have to point to'
-                         'a CSV file.')
-parser.add_argument('output_file', help='File storing parsed results')
-parser.add_argument('-d', '--database', dest='database',
-                    help='Name of the database used to store results')
-parser.add_argument('-w', '--hardware', dest='hardware',
-                    help='Hardware reference used to perform benchmark')
-parser.add_argument('-V', '--project-version', dest='project_version',
-                    help='Commit hash reference')
-parser.add_argument('-b', '--branch', dest='branch',
-                    help='Git branch name on which benchmark was performed')
-parser.add_argument('--commit-date', dest='commit_date',
-                    help='Timestamp of commit hash used in project_version')
-parser.add_argument('--bench-date', dest='bench_date',
-                    help='Timestamp when benchmark was run')
-parser.add_argument('--name-suffix', dest='name_suffix', default='',
-                    help='Suffix to append to each of the result test names')
-parser.add_argument('--append-results', dest='append_results', action='store_true',
-                    help='Append parsed results to an existing file')
-parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
-                    help='Check for results in subdirectories')
-parser.add_argument('--key-sizes', dest='key_sizes', action='store_true',
-                    help='Parse only the results regarding keys size measurements')
-parser.add_argument('--key-gen', dest='key_gen', action='store_true',
-                    help='Parse only the results regarding keys generation time measurements')
-parser.add_argument('--throughput', dest='throughput', action='store_true',
-                    help='Compute and append number of operations per second and'
-                         'operations per dollar')
-parser.add_argument('--backend', dest='backend', default='cpu',
-                    help='Backend on which benchmarks have run')
+parser.add_argument(
+    "results",
+    help="Location of criterion benchmark results directory."
+    "If the --key-size option is used, then the value would have to point to"
+    "a CSV file.",
+)
+parser.add_argument("output_file", help="File storing parsed results")
+parser.add_argument(
+    "-d",
+    "--database",
+    dest="database",
+    help="Name of the database used to store results",
+)
+parser.add_argument(
+    "-w",
+    "--hardware",
+    dest="hardware",
+    help="Hardware reference used to perform benchmark",
+)
+parser.add_argument(
+    "-V", "--project-version", dest="project_version", help="Commit hash reference"
+)
+parser.add_argument(
+    "-b",
+    "--branch",
+    dest="branch",
+    help="Git branch name on which benchmark was performed",
+)
+parser.add_argument(
+    "--commit-date",
+    dest="commit_date",
+    help="Timestamp of commit hash used in project_version",
+)
+parser.add_argument(
+    "--bench-date", dest="bench_date", help="Timestamp when benchmark was run"
+)
+parser.add_argument(
+    "--name-suffix",
+    dest="name_suffix",
+    default="",
+    help="Suffix to append to each of the result test names",
+)
+parser.add_argument(
+    "--append-results",
+    dest="append_results",
+    action="store_true",
+    help="Append parsed results to an existing file",
+)
+parser.add_argument(
+    "--walk-subdirs",
+    dest="walk_subdirs",
+    action="store_true",
+    help="Check for results in subdirectories",
+)
+parser.add_argument(
+    "--key-sizes",
+    dest="key_sizes",
+    action="store_true",
+    help="Parse only the results regarding keys size measurements",
+)
+parser.add_argument(
+    "--key-gen",
+    dest="key_gen",
+    action="store_true",
+    help="Parse only the results regarding keys generation time measurements",
+)
+parser.add_argument(
+    "--throughput",
+    dest="throughput",
+    action="store_true",
+    help="Compute and append number of operations per second and"
+    "operations per dollar",
+)
+parser.add_argument(
+    "--backend",
+    dest="backend",
+    default="cpu",
+    help="Backend on which benchmarks have run",
+)
 
 
-def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throughput=False,
-                    hardware_hourly_cost=None):
+def recursive_parse(
+    directory,
+    walk_subdirs=False,
+    name_suffix="",
+    compute_throughput=False,
+    hardware_hourly_cost=None,
+):
     """
     Parse all the benchmark results in a directory. It will attempt to parse all the files having a
     .json extension at the top-level of this directory.
@@ -84,7 +137,9 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
 
             full_name, test_name = parse_benchmark_file(subdir)
             if test_name is None:
-                parsing_failures.append((full_name, "'function_id' field is null in report"))
+                parsing_failures.append(
+                    (full_name, "'function_id' field is null in report")
+                )
                 continue
 
             try:
@@ -94,7 +149,9 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                 continue
 
             for stat_name, value in parse_estimate_file(subdir).items():
-                test_name_parts = list(filter(None, [test_name, stat_name, name_suffix]))
+                test_name_parts = list(
+                    filter(None, [test_name, stat_name, name_suffix])
+                )
 
                 result_values.append(
                     _create_point(
@@ -104,7 +161,7 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                         "latency",
                         operator,
                         params,
-                        display_name=display_name
+                        display_name=display_name,
                     )
                 )
 
@@ -112,12 +169,18 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                 # This is a special case where PBS are blasted as vector LWE ciphertext with
                 # variable length to saturate the machine. To get the actual throughput we need to
                 # multiply by the length of the vector.
-                if "pbs_throughput" in lowercase_test_name and lowercase_test_name.endswith("chunk"):
+                if (
+                    "pbs_throughput" in lowercase_test_name
+                    and lowercase_test_name.endswith("chunk")
+                ):
                     try:
-                        multiplier = int(lowercase_test_name.strip("chunk").split("::")[-1])
+                        multiplier = int(
+                            lowercase_test_name.strip("chunk").split("::")[-1]
+                        )
                     except ValueError:
-                        parsing_failures.append((full_name,
-                                                 "failed to extract throughput multiplier"))
+                        parsing_failures.append(
+                            (full_name, "failed to extract throughput multiplier")
+                        )
                         continue
                 else:
                     multiplier = 1
@@ -133,7 +196,7 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                             "throughput",
                             operator,
                             params,
-                            display_name="_".join([display_name, test_suffix])
+                            display_name="_".join([display_name, test_suffix]),
                         )
                     )
                     test_name_parts.pop()
@@ -143,20 +206,23 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                         test_name_parts.append(test_suffix)
                         result_values.append(
                             _create_point(
-                                multiplier * compute_ops_per_dollar(value, hardware_hourly_cost),
+                                multiplier
+                                * compute_ops_per_dollar(value, hardware_hourly_cost),
                                 "_".join(test_name_parts),
                                 bench_class,
                                 "throughput",
                                 operator,
                                 params,
-                                display_name="_".join([display_name, test_suffix])
+                                display_name="_".join([display_name, test_suffix]),
                             )
                         )
 
     return result_values, parsing_failures
 
 
-def _create_point(value, test_name, bench_class, bench_type, operator, params, display_name=None):
+def _create_point(
+    value, test_name, bench_class, bench_type, operator, params, display_name=None
+):
     return {
         "value": value,
         "test": test_name,
@@ -164,7 +230,8 @@ def _create_point(value, test_name, bench_class, bench_type, operator, params, d
         "class": bench_class,
         "type": bench_type,
         "operator": operator,
-        "params": params}
+        "params": params,
+    }
 
 
 def parse_benchmark_file(directory):
@@ -207,21 +274,24 @@ def _parse_key_results(result_file, bench_type):
 
     with result_file.open() as csv_file:
         reader = csv.reader(csv_file)
-        for (test_name, value) in reader:
+        for test_name, value in reader:
             try:
                 params, display_name, operator = get_parameters(test_name)
             except Exception as err:
                 parsing_failures.append((test_name, f"failed to get parameters: {err}"))
                 continue
 
-            result_values.append({
-                "value": int(value),
-                "test": test_name,
-                "name": display_name,
-                "class": "keygen",
-                "type": bench_type,
-                "operator": operator,
-                "params": params})
+            result_values.append(
+                {
+                    "value": int(value),
+                    "test": test_name,
+                    "name": display_name,
+                    "class": "keygen",
+                    "type": bench_type,
+                    "operator": operator,
+                    "params": params,
+                }
+            )
 
     return result_values, parsing_failures
 
@@ -289,7 +359,7 @@ def compute_ops_per_second(data_point):
 
     :return: number of operations per second
     """
-    return 1E9 / data_point
+    return 1e9 / data_point
 
 
 def _parse_file_to_json(directory, filename):
@@ -338,9 +408,16 @@ def check_mandatory_args(input_args):
 
     missing_args = []
     for arg_name in vars(input_args):
-        if arg_name in ["results_dir", "output_file", "name_suffix",
-                        "append_results", "walk_subdirs", "key_sizes",
-                        "key_gen", "throughput"]:
+        if arg_name in [
+            "results_dir",
+            "output_file",
+            "name_suffix",
+            "append_results",
+            "walk_subdirs",
+            "key_sizes",
+            "key_gen",
+            "throughput",
+        ]:
             continue
         if not getattr(input_args, arg_name):
             missing_args.append(arg_name)
@@ -355,7 +432,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     check_mandatory_args(args)
 
-    #failures = []
+    # failures = []
     raw_results = pathlib.Path(args.results)
     if args.key_sizes or args.key_gen:
         if args.key_sizes:
@@ -371,7 +448,8 @@ if __name__ == "__main__":
         if args.throughput:
             print("Throughput computation enabled")
             ec2_costs = json.loads(
-                pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8"))
+                pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8")
+            )
             try:
                 hardware_cost = abs(ec2_costs[args.hardware])
                 print(f"Hardware hourly cost: {hardware_cost} $/h")
@@ -379,8 +457,13 @@ if __name__ == "__main__":
                 print(f"Cannot find hardware hourly cost for '{args.hardware}'")
                 sys.exit(1)
 
-        results, failures = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix,
-                                            args.throughput, hardware_cost)
+        results, failures = recursive_parse(
+            raw_results,
+            args.walk_subdirs,
+            args.name_suffix,
+            args.throughput,
+            hardware_cost,
+        )
 
     print("Parsing results done")
 
