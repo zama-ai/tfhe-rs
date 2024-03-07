@@ -110,7 +110,7 @@ check_run_name = "Signed integer multi bit CPU AWS Benchmarks"
 
 [command.integer_multi_bit_gpu_bench]
 workflow = "integer_multi_bit_gpu_benchmark.yml"
-profile = "gpu-bench"
+profile = "gpu-test"
 check_run_name = "Integer multi bit GPU AWS Benchmarks"
 
 [command.shortint_full_bench]
