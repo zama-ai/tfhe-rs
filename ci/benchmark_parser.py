@@ -108,12 +108,13 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                     )
                 )
 
+                lowercase_test_name = test_name.lower()
                 # This is a special case where PBS are blasted as vector LWE ciphertext with
                 # variable length to saturate the machine. To get the actual throughput we need to
                 # multiply by the length of the vector.
-                if "PBS_throughput" in test_name and "chunk" in test_name:
+                if "pbs_throughput" in lowercase_test_name and lowercase_test_name.endswith("chunk"):
                     try:
-                        multiplier = int(test_name.split("chunk")[0].split("_")[-1])
+                        multiplier = int(lowercase_test_name.strip("chunk").split("::")[-1])
                     except ValueError:
                         parsing_failures.append((full_name,
                                                  "failed to extract throughput multiplier"))
