@@ -326,7 +326,7 @@ impl ServerKey {
         ct: &mut RadixCiphertext,
     ) -> BooleanBlock {
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {
-            let carry = self.propagate_single_carry_parallelized_low_latency(ct);
+            let carry = self.propagate_single_carry_parallelized_low_latency(&mut ct.blocks);
             BooleanBlock::new_unchecked(carry)
         } else {
             let len = ct.blocks.len();
@@ -505,11 +505,12 @@ impl ServerKey {
         assert!(degree_after_add_does_not_go_beyond_first_carry);
 
         self.unchecked_add_assign_parallelized(lhs, rhs);
-        self.propagate_single_carry_parallelized_low_latency(lhs)
+        self.propagate_single_carry_parallelized_low_latency(lhs.blocks_mut())
     }
 
-    /// This function takes an input ciphertext for which at most one bit of carry
-    /// is consumed in each block, and does the carry propagation in place.
+    /// This function takes an input slice of shortint ciphertext (aka blocks)
+    /// for which at most one bit of carry is consumed in each block, and
+    /// it does the carry propagation in place.
     ///
     /// It returns the output carry of the last block
     ///
@@ -517,18 +518,15 @@ impl ServerKey {
     /// - first unchecked_add
     /// - at this point at most on bit of carry is taken
     /// - use this function to propagate them in parallel
-    pub(crate) fn propagate_single_carry_parallelized_low_latency<T>(
+    pub(crate) fn propagate_single_carry_parallelized_low_latency(
         &self,
-        ct: &mut T,
-    ) -> Ciphertext
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let generates_or_propagates = self.generate_init_carry_array(ct);
+        blocks: &mut [Ciphertext],
+    ) -> Ciphertext {
+        let generates_or_propagates = self.generate_init_carry_array(blocks);
         let (input_carries, output_carry) =
             self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
 
-        ct.blocks_mut()
+        blocks
             .par_iter_mut()
             .zip(input_carries.par_iter())
             .for_each(|(block, input_carry)| {
@@ -643,7 +641,7 @@ impl ServerKey {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
         self.unchecked_add_assign_parallelized(lhs, rhs);
-        let generates_or_propagates = self.generate_init_carry_array(lhs);
+        let generates_or_propagates = self.generate_init_carry_array(lhs.blocks());
         let carry_out =
             self.compute_carry_propagation_parallelized_work_efficient(generates_or_propagates);
 
@@ -725,10 +723,7 @@ impl ServerKey {
         carry_out
     }
 
-    pub(super) fn generate_init_carry_array<T>(&self, sum_ct: &T) -> Vec<Ciphertext>
-    where
-        T: IntegerRadixCiphertext,
-    {
+    pub(super) fn generate_init_carry_array(&self, sum_blocks: &[Ciphertext]) -> Vec<Ciphertext> {
         let modulus = self.key.message_modulus.0 as u64;
 
         // This is used for the first pair of blocks
@@ -751,9 +746,8 @@ impl ServerKey {
             }
         });
 
-        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks().len());
-        sum_ct
-            .blocks()
+        let mut generates_or_propagates = Vec::with_capacity(sum_blocks.len());
+        sum_blocks
             .par_iter()
             .enumerate()
             .map(|(i, block)| {
@@ -776,40 +770,37 @@ impl ServerKey {
     /// Returns a result that has non propagated carries
     pub(crate) fn unchecked_partial_sum_ciphertexts_vec_parallelized<T>(
         &self,
-        mut ciphertexts: Vec<T>,
+        terms: Vec<T>,
     ) -> Option<T>
     where
         T: IntegerRadixCiphertext,
     {
-        if ciphertexts.is_empty() {
+        if terms.is_empty() {
             return None;
         }
 
-        if ciphertexts.len() == 1 {
-            return Some(ciphertexts.pop().unwrap());
+        if terms.len() == 1 {
+            return Some(terms.into_iter().next().unwrap());
         }
 
-        let num_blocks = ciphertexts[0].blocks().len();
+        let num_blocks = terms[0].blocks().len();
         assert!(
-            ciphertexts[1..]
-                .iter()
-                .all(|ct| ct.blocks().len() == num_blocks),
+            terms[1..].iter().all(|ct| ct.blocks().len() == num_blocks),
             "Not all ciphertexts have the same number of blocks"
         );
 
-        if ciphertexts.len() == 2 {
-            return Some(self.add_parallelized(&ciphertexts[0], &ciphertexts[1]));
+        if terms.len() == 2 {
+            return Some(self.add_parallelized(&terms[0], &terms[1]));
         }
 
         assert!(
-            ciphertexts
+            terms
                 .iter()
                 .all(IntegerRadixCiphertext::block_carries_are_empty),
             "All ciphertexts must have empty carries"
         );
 
         // Pre-conditions and easy path are met, start the real work
-        // let mut ciphertexts = ciphertexts.to_vec();
         let message_modulus = self.key.message_modulus.0;
         let carry_modulus = self.key.carry_modulus.0;
         let total_modulus = message_modulus * carry_modulus;
@@ -817,80 +808,98 @@ impl ServerKey {
 
         let num_elements_to_fill_carry = (total_modulus - 1) / message_max;
 
-        let mut tmp_out = Vec::new();
-
-        while ciphertexts.len() > num_elements_to_fill_carry {
-            let mut chunks_iter = ciphertexts.par_chunks_exact_mut(num_elements_to_fill_carry);
-            let remainder_len = chunks_iter.remainder().len();
-
-            chunks_iter
-                .map(|chunk| {
-                    let addition_range = self.unchecked_sum_ciphertext_chunk(chunk);
-                    let s = &mut chunk[0];
-
-                    let mut carry_ct = s.clone();
-                    rayon::join(
-                        || {
-                            s.blocks_mut()[addition_range.clone()]
-                                .par_iter_mut()
-                                .for_each(|block| {
-                                    self.key.message_extract_assign(block);
-                                });
-                        },
-                        || {
-                            let start = *addition_range.start();
-                            let end = if *addition_range.end() == num_blocks - 1 {
-                                // This carry would be thrown away, so don't compute it
-                                *addition_range.end() - 1
-                            } else {
-                                *addition_range.end()
-                            };
-                            carry_ct.blocks_mut()[start..=end]
-                                .par_iter_mut()
-                                .for_each(|block| {
-                                    self.key.carry_extract_assign(block);
-                                });
-                            for block in &mut carry_ct.blocks_mut()[..start] {
-                                self.key.create_trivial_assign(block, 0);
-                            }
-                            for block in &mut carry_ct.blocks_mut()[end + 1..] {
-                                self.key.create_trivial_assign(block, 0);
-                            }
-                            carry_ct.blocks_mut().rotate_right(1);
-                        },
-                    );
-
-                    (s.clone(), carry_ct)
-                })
-                .collect_into_vec(&mut tmp_out);
-
-            // tmp_out elements are tuple of 2 elements (message, carry)
-            let num_ct_created = tmp_out.len() * 2;
-            // Ciphertexts not treated in this iteration are at the end of ciphertexts vec.
-            // the rotation will make them 'wrap around' and be placed at range index
-            // (num_ct_created..remainder_len + num_ct_created)
-            // We will then fill the indices in range (0..num_ct_created)
-            ciphertexts.rotate_right(remainder_len + num_ct_created);
-
-            // Drain elements out of tmp_out to replace them
-            // at the beginning of the ciphertexts left to add
-            for (i, (m, c)) in tmp_out.drain(..).enumerate() {
-                ciphertexts[i * 2] = m;
-                ciphertexts[(i * 2) + 1] = c;
+        // Re-organize radix terms into columns of blocks
+        let mut columns = vec![vec![]; num_blocks];
+        for term in terms {
+            for (i, block) in term.into_blocks().into_iter().enumerate() {
+                if block.degree.get() != 0 {
+                    columns[i].push(block);
+                }
             }
-            ciphertexts.truncate(num_ct_created + remainder_len);
         }
 
-        // Now we will add the last chunk of terms
-        // just as was done above, however we do it
-        // we want to use an addition that leaves
-        // the resulting ciphertext with empty carries
-        let (result, rest) = ciphertexts.split_first_mut().unwrap();
-        for term in rest.iter() {
-            self.unchecked_add_assign(result, term);
+        if columns.iter().all(Vec::is_empty) {
+            return Some(self.create_trivial_radix(0, num_blocks));
         }
 
-        Some(result.clone())
+        let num_columns = columns.len();
+        // Buffer in which we will store resulting columns after an iteration
+        let mut columns_buffer = Vec::with_capacity(num_columns);
+        let mut colum_output_buffer =
+            vec![Vec::<(Ciphertext, Option<Ciphertext>)>::new(); num_blocks];
+
+        let at_least_one_column_has_enough_elements = |columns: &[Vec<Ciphertext>]| {
+            columns.iter().any(|c| c.len() > num_elements_to_fill_carry)
+        };
+
+        while at_least_one_column_has_enough_elements(&columns) {
+            columns
+                .par_drain(..)
+                .zip(colum_output_buffer.par_iter_mut())
+                .enumerate()
+                .map(|(column_index, (mut column, out_buf))| {
+                    if column.len() < num_elements_to_fill_carry {
+                        return column;
+                    }
+                    column
+                        .par_chunks_exact(num_elements_to_fill_carry)
+                        .map(|chunk| {
+                            let mut result = chunk[0].clone();
+                            for c in &chunk[1..] {
+                                self.key.unchecked_add_assign(&mut result, c);
+                            }
+
+                            if column_index < num_columns - 1 {
+                                rayon::join(
+                                    || self.key.message_extract(&result),
+                                    || Some(self.key.carry_extract(&result)),
+                                )
+                            } else {
+                                (self.key.message_extract(&result), None)
+                            }
+                        })
+                        .collect_into_vec(out_buf);
+
+                    let num_elem_in_rest = column.len() % num_elements_to_fill_carry;
+                    column.rotate_right(num_elem_in_rest);
+                    column.truncate(num_elem_in_rest);
+                    column
+                })
+                .collect_into_vec(&mut columns_buffer);
+
+            std::mem::swap(&mut columns, &mut columns_buffer);
+
+            // Move resulting message and carry blocks where they belong
+            for (i, column_output) in colum_output_buffer.iter_mut().enumerate() {
+                for (msg, maybe_carry) in column_output.drain(..) {
+                    columns[i].push(msg);
+
+                    if let (Some(carry), true) = (maybe_carry, (i + 1) < columns.len()) {
+                        columns[i + 1].push(carry);
+                    }
+                }
+            }
+        }
+
+        // Reconstruct a radix from the columns
+        let blocks = columns
+            .into_iter()
+            .map(|mut column| {
+                if column.is_empty() {
+                    self.key.create_trivial(0)
+                } else {
+                    let (first_block, other_blocks) =
+                        column.as_mut_slice().split_first_mut().unwrap();
+                    for other in other_blocks {
+                        self.key.unchecked_add_assign(first_block, other);
+                    }
+                    column.swap_remove(0)
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(blocks.len(), num_blocks);
+
+        Some(T::from_blocks(blocks))
     }
 
     /// Computes the sum of the ciphertexts in parallel.
@@ -903,32 +912,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let non_propagated_result =
-            self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts)?;
-        let num_blocks = non_propagated_result.blocks().len();
+        let mut result = self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts)?;
 
-        let (message_blocks, carry_blocks) = rayon::join(
-            || {
-                non_propagated_result
-                    .blocks()
-                    .par_iter()
-                    .map(|block| self.key.message_extract(block))
-                    .collect::<Vec<_>>()
-            },
-            || {
-                let mut carry_blocks = Vec::with_capacity(num_blocks);
-                non_propagated_result.blocks()[..num_blocks - 1] // last carry is not interesting
-                    .par_iter()
-                    .map(|block| self.key.carry_extract(block))
-                    .collect_into_vec(&mut carry_blocks);
-                carry_blocks.insert(0, self.key.create_trivial(0));
-                carry_blocks
-            },
-        );
-
-        let mut result = T::from(message_blocks);
-        let carry = T::from(carry_blocks);
-        self.add_assign_parallelized(&mut result, &carry);
+        self.full_propagate_parallelized(&mut result);
         assert!(result.block_carries_are_empty());
 
         Some(result)
