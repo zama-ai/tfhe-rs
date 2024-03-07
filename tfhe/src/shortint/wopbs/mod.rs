@@ -891,11 +891,8 @@ impl WopbsKey {
     ) -> Ciphertext {
         let extracted_bits = self.extract_bits(delta_log, ct_in, nb_bit_to_extract);
 
-        let ciphertext_list = self.circuit_bootstrap_with_bits(
-            &extracted_bits.as_view(),
-            &lut.lut(),
-            LweCiphertextCount(1),
-        );
+        let ciphertext_list =
+            self.circuit_bootstrap_with_bits(&extracted_bits, &lut.lut(), LweCiphertextCount(1));
 
         // Here the output list contains a single ciphertext, we can consume the container to
         // convert it to a single ciphertext
