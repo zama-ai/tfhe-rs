@@ -1,45 +1,28 @@
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
+use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
-    ModulusSwitchOffset, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::core_crypto::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
-/// This function switches modulus for a single coefficient of a ciphertext,
-/// only in the context of a PBS
-///
-/// - offset: the number of msb discarded
-/// - lut_count_log: the right padding
-///
-/// # Note
-///
-/// If you are switching to a modulus of $2N$ then this function may return the value $2N$ while a
-/// "true" modulus switch would return $0$ in that case. It turns out that this is not affecting
-/// other parts of the code relying on the modulus switch (as a rotation by $2N$ is effectively the
-/// same as rotation by $0$ for polynomials of size $N$ in the ring $X^N+1$) but it could be
-/// problematic for code requiring an output in the expected $[0; 2N[$ range. Also this saves a few
-/// instructions which can add up when this is being called hundreds or thousands of times per PBS.
-pub fn fast_pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
+pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
     input: Scalar,
-    poly_size: PolynomialSize,
-    offset: ModulusSwitchOffset,
-    lut_count_log: LutCountLog,
+    polynomial_size: PolynomialSize,
 ) -> usize {
-    // First, do the left shift (we discard the offset msb)
-    let mut output = input << offset.0;
-    // Start doing the right shift
-    output >>= Scalar::BITS - poly_size.log2().0 - 2 + lut_count_log.0;
-    // Do the rounding
-    output += Scalar::ONE;
-    // Finish the right shift
-    output >>= 1;
-    // Apply the lsb padding
-    output <<= lut_count_log.0;
-    <Scalar as CastInto<usize>>::cast_into(output)
+    modulus_switch(input, CiphertextModulusLog(polynomial_size.log2().0 + 1)).cast_into()
+}
+
+pub fn modulus_switch<Scalar: UnsignedTorus>(
+    input: Scalar,
+    log_modulus: CiphertextModulusLog,
+) -> Scalar {
+    // Flooring output_to_floor is equivalent to rounding the input
+    let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
+
+    output_to_floor >> (Scalar::BITS - log_modulus.0)
 }
 
 pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
