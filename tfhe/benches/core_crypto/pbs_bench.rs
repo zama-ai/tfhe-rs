@@ -146,6 +146,9 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
 fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
     let bench_name = "core_crypto::pbs_mem_optimized";
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -256,6 +259,9 @@ fn multi_bit_pbs<
 ) {
     let bench_name = "core_crypto::multi_bit_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -348,6 +354,9 @@ fn multi_bit_deterministic_pbs<
 ) {
     let bench_name = "core_crypto::multi_bit_deterministic_pbs";
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -438,6 +447,9 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
 ) {
     let bench_name = "core_crypto::pbs_throughput";
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -623,6 +635,9 @@ mod cuda {
     fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
         let bench_name = "core_crypto::cuda::pbs";
         let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -744,6 +759,9 @@ mod cuda {
     ) {
         let bench_name = "core_crypto::cuda::multi_bit_pbs";
         let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -866,6 +884,9 @@ mod cuda {
     ) {
         let bench_name = "core_crypto::cuda::pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1005,6 +1026,9 @@ mod cuda {
     ) {
         let bench_name = "core_crypto::cuda::multi_bit_pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1140,28 +1164,15 @@ mod cuda {
         }
     }
 
-    criterion_group!(
-        name = cuda_pbs_group;
-        config = Criterion::default().sample_size(2000);
-        targets = cuda_pbs::<u64>
-    );
+    criterion_group!(cuda_pbs_group, cuda_pbs::<u64>);
+
+    criterion_group!(cuda_multi_bit_pbs_group, cuda_multi_bit_pbs::<u64>);
+
+    criterion_group!(cuda_pbs_throughput_group, cuda_pbs_throughput::<u64>);
 
     criterion_group!(
-        name = cuda_multi_bit_pbs_group;
-        config = Criterion::default().sample_size(2000);
-        targets = cuda_multi_bit_pbs::<u64>
-    );
-
-    criterion_group!(
-        name = cuda_pbs_throughput_group;
-        config = Criterion::default().sample_size(20);
-        targets = cuda_pbs_throughput::<u64>
-    );
-
-    criterion_group!(
-        name = cuda_multi_bit_pbs_throughput_group;
-        config = Criterion::default().sample_size(20);
-        targets = cuda_multi_bit_pbs_throughput::<u64>
+        cuda_multi_bit_pbs_throughput_group,
+        cuda_multi_bit_pbs_throughput::<u64>
     );
 }
 
@@ -1172,24 +1183,23 @@ use cuda::{
 };
 
 criterion_group!(
-    name = pbs_group;
-    config = Criterion::default().sample_size(2000);
-    targets = mem_optimized_pbs::<u64>, mem_optimized_pbs::<u32>
+    pbs_group,
+    mem_optimized_pbs::<u64>,
+    mem_optimized_pbs::<u32>
 );
 
 criterion_group!(
-    name = multi_bit_pbs_group;
-    config = Criterion::default().sample_size(2000);
-    targets =   multi_bit_pbs::<u64>,
-                multi_bit_pbs::<u32>,
-                multi_bit_deterministic_pbs::<u64>,
-                multi_bit_deterministic_pbs::<u32>,
+    multi_bit_pbs_group,
+    multi_bit_pbs::<u64>,
+    multi_bit_pbs::<u32>,
+    multi_bit_deterministic_pbs::<u64>,
+    multi_bit_deterministic_pbs::<u32>,
 );
 
 criterion_group!(
-    name = pbs_throughput_group;
-    config = Criterion::default().sample_size(50);
-    targets = pbs_throughput::<u64>, pbs_throughput::<u32>
+    pbs_throughput_group,
+    pbs_throughput::<u64>,
+    pbs_throughput::<u32>
 );
 
 #[cfg(not(feature = "gpu"))]
