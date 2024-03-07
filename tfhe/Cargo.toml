@@ -169,7 +169,7 @@ required-features = ["boolean", "shortint", "internal-keycache"]
 name = "dev-bench"
 path = "benches/core_crypto/dev_bench.rs"
 harness = false
-required-features = ["experimental", "internal-keycache"]
+required-features = ["internal-keycache"]
 
 [[bench]]
 name = "pbs128-bench"
