@@ -63,7 +63,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
 
     let (
         mut input_lwe_dimension,
-        lwe_modular_std_dev,
+        lwe_std_dev,
         decomp_base_log,
         decomp_level_count,
         glwe_dimension,
@@ -71,6 +71,11 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
         grouping_factor,
         thread_count,
     ) = get_bench_params::<Scalar>();
+
+    let lwe_noise_distribution = Gaussian {
+        std: lwe_std_dev.0,
+        mean: 0.0,
+    };
 
     let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -110,7 +115,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
     let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
-        lwe_modular_std_dev,
+        lwe_noise_distribution,
         ciphertext_modulus,
         &mut encryption_generator,
     );
@@ -154,7 +159,7 @@ fn pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
 
     let (
         input_lwe_dimension,
-        lwe_modular_std_dev,
+        lwe_std_dev,
         decomp_base_log,
         decomp_level_count,
         glwe_dimension,
@@ -162,6 +167,11 @@ fn pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
         _,
         _,
     ) = get_bench_params::<Scalar>();
+
+    let lwe_noise_distribution = Gaussian {
+        std: lwe_std_dev.0,
+        mean: 0.0,
+    };
 
     let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -197,7 +207,7 @@ fn pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
     let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
-        lwe_modular_std_dev,
+        lwe_noise_distribution,
         ciphertext_modulus,
         &mut encryption_generator,
     );
@@ -239,7 +249,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
 
     let (
         input_lwe_dimension,
-        lwe_modular_std_dev,
+        lwe_std_dev,
         decomp_base_log,
         decomp_level_count,
         glwe_dimension,
@@ -247,6 +257,13 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         _,
         _,
     ) = get_bench_params::<Scalar>();
+
+    let lwe_noise_distribution = Gaussian {
+        std: lwe_std_dev.0,
+        mean: 0.0,
+    };
+
+    let ciphertext_modulus = CiphertextModulus::new_native();
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -280,7 +297,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
     let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
-        lwe_modular_std_dev,
+        lwe_noise_distribution,
         ciphertext_modulus,
         &mut encryption_generator,
     );
