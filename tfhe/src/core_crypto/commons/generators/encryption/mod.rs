@@ -131,7 +131,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the slice with random uniform values, using the mask generator.
-    pub(crate) fn fill_slice_with_random_uniform_mask<Scalar>(&mut self, output: &mut [Scalar])
+    pub fn fill_slice_with_random_uniform_mask<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<Uniform>,
     {
@@ -139,7 +139,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the slice with random uniform values, using the mask generator
-    pub(crate) fn fill_slice_with_random_uniform_mask_custom_mod<Scalar>(
+    pub fn fill_slice_with_random_uniform_mask_custom_mod<Scalar>(
         &mut self,
         output: &mut [Scalar],
         ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -150,7 +150,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             .fill_slice_with_random_uniform_mask_custom_mod(output, ciphertext_modulus);
     }
 
-    pub(crate) fn random_noise_from_distribution<D, Scalar>(&mut self, distribution: D) -> Scalar
+    pub fn random_noise_from_distribution<D, Scalar>(&mut self, distribution: D) -> Scalar
     where
         D: Distribution,
         Scalar: RandomGenerable<D>,
@@ -158,7 +158,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.noise.random_noise_from_distribution(distribution)
     }
 
-    pub(crate) fn random_noise_from_distribution_custom_mod<D, Scalar>(
+    pub fn random_noise_from_distribution_custom_mod<D, Scalar>(
         &mut self,
         distribution: D,
         custom_modulus: CiphertextModulus<Scalar>,
@@ -176,7 +176,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the input slice with random noise, using the random generator.
-    pub(crate) fn fill_slice_with_random_noise_from_distribution<D, Scalar>(
+    pub fn fill_slice_with_random_noise_from_distribution<D, Scalar>(
         &mut self,
         output: &mut [Scalar],
         distribution: D,
@@ -189,7 +189,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Fills the input slice with random noise, using the random generator.
-    pub(crate) fn fill_slice_with_random_noise_from_distribution_custom_mod<D, Scalar>(
+    pub fn fill_slice_with_random_noise_from_distribution_custom_mod<D, Scalar>(
         &mut self,
         output: &mut [Scalar],
         distribution: D,
@@ -207,7 +207,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign<
+    pub fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_assign<
         D,
         Scalar,
     >(
@@ -226,7 +226,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign<
+    pub fn unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign<
         D,
         Scalar,
     >(
