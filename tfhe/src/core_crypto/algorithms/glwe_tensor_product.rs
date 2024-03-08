@@ -2,6 +2,12 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
+//use crate::core_crypto::commons::math::random::Serialize;
+use crate::core_crypto::fft_impl::fft64::math::fft::{FftView};
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+    FourierLweBootstrapKey,
+};
+use concrete_fft::c64;
 
 /// Compute the tensor product of the left-hand side [`GLWE ciphertext`](`GlweCiphertext`) with the
 /// right-hand side [`GLWE ciphertext`](`GlweCiphertext`)
@@ -475,3 +481,136 @@ pub fn tensor_mult_with_relin<InputCont, KeyCont, OutputCont, Scalar>(
     );
     glwe_relinearisation(&tensor_output, &relinearisation_key, output_glwe_ciphertext);
 }
+
+pub fn pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs<InputCont, KeyCont1, KeyCont2, OutputCont, Scalar, AccCont>(
+    lwe_pksk: &LwePackingKeyswitchKey<KeyCont1>,
+    input_lwe_ciphertext_list1: &LweCiphertextList<InputCont>,
+    input_lwe_ciphertext_list2: &LweCiphertextList<InputCont>,
+    //packed_glwe1: &mut GlweCiphertext<OutputCont>,
+    //packed_glwe2: &mut GlweCiphertext<OutputCont>,
+    scale: Scalar,
+    relinearisation_key: &GlweRelinearisationKey<KeyCont1>,
+    output_relin: &mut GlweCiphertext<OutputCont>,
+    //extracted_sample: &mut LweCiphertext<OutputCont>,
+    accumulator:&GlweCiphertext<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont2>,
+    fft: FftView<'_>,
+    buffers: &mut ComputationBuffers,
+    output_pbs_ct: &mut LweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedTorus + CastInto<usize>,
+    KeyCont1: Container<Element = Scalar>,
+    KeyCont2: Container<Element = c64>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    OutputCont: Clone,
+    AccCont: Container<Element = Scalar>,
+{
+    let mut packed_glwe1 = output_relin.clone();
+    keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
+        &lwe_pksk,
+        &input_lwe_ciphertext_list1,
+        &mut packed_glwe1 ,
+    );
+
+    let mut packed_glwe2 = output_relin.clone();
+    keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
+        &lwe_pksk,
+        &input_lwe_ciphertext_list2,
+        &mut packed_glwe2,
+    );
+
+    //let mut output_relin =
+    //GlweCiphertext::new(0u64, packed_glwe1.glwe_dimension().to_glwe_size(), packed_glwe1.polynomial_size(), ciphertext_modulus);
+
+    tensor_mult_with_relin(&packed_glwe1, &packed_glwe2, scale,relinearisation_key,output_relin);
+    //let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+    
+    let mut extracted_sample = output_pbs_ct.clone();
+            
+    // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
+    extract_lwe_sample_from_glwe_ciphertext(&output_relin, &mut extracted_sample, MonomialDegree(42));
+
+    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+        &extracted_sample,
+        output_pbs_ct,
+        &accumulator.as_view(),
+        &fourier_bsk,
+        fft,
+        buffers.stack(),
+    )
+}
+
+
+pub fn square_trick<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
+    lwe_lhs: &LweCiphertext<InputCont>,
+    lwe_rhs: &LweCiphertext<InputCont>,
+    accumulator1: &GlweCiphertext<AccCont>,
+    accumulator2: &GlweCiphertext<AccCont>,
+    fourier_bsk1: &FourierLweBootstrapKey<KeyCont>,
+    fourier_bsk2: &FourierLweBootstrapKey<KeyCont>,  
+    sq_sum: &mut LweCiphertext<OutputCont>,
+    sq_subtraction: &mut LweCiphertext<OutputCont>,
+    ksk: &LweKeyswitchKeyOwned<Scalar>,
+    ks_result_mult: &mut LweCiphertext<OutputCont>,
+    extracted_sample: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
+    fft: FftView<'_>,
+    buffers: &mut ComputationBuffers,
+    output_pbs_ct: &mut LweCiphertext<OutputCont>,
+) where
+Scalar: UnsignedTorus + CastInto<usize>,
+//KeyCont1: Container<Element = Scalar> + UnsignedInteger,
+KeyCont: Container<Element = c64>,
+InputCont: Container<Element = Scalar> + ContainerMut,
+OutputCont: ContainerMut<Element = Scalar>,
+OutputCont: Clone,
+AccCont: Container<Element = Scalar>,
+{
+    let mul_cleartext = Scalar::ONE;
+    let mut sum = extracted_sample.clone();
+    lwe_ciphertext_add(&mut sum, &lwe_lhs, &lwe_rhs);
+
+    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+        &sum,
+        sq_sum,
+        &accumulator1.as_view(),
+        &fourier_bsk1,
+        fft,
+        buffers.stack(),
+    );
+    lwe_ciphertext_cleartext_mul_assign(sq_sum, Cleartext(mul_cleartext));
+
+    let mut subtraction = extracted_sample.clone();
+    lwe_ciphertext_sub(&mut subtraction, &lwe_lhs, &lwe_rhs);
+    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+        &subtraction,
+        sq_subtraction,
+        &accumulator2.as_view(),
+        &fourier_bsk2,
+        fft,
+        buffers.stack(),
+    );
+    lwe_ciphertext_cleartext_mul_assign(sq_subtraction, Cleartext(mul_cleartext));
+
+    let mut result_mult = extracted_sample.to_owned();
+    lwe_ciphertext_add(&mut result_mult, &sq_sum, &sq_subtraction);
+    let mut result =result_mult.clone();
+    keyswitch_lwe_ciphertext(&ksk, &mut result, ks_result_mult);
+        
+    // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(0))
+    //extract_lwe_sample_from_glwe_ciphertext(&ks_result_mult, &mut extracted_sample, MonomialDegree(0));
+
+    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+        &ks_result_mult,
+        output_pbs_ct,
+        &accumulator.as_view(),
+        &fourier_bsk,
+        fft,
+        buffers.stack(),
+    )
+}
+
+
+
