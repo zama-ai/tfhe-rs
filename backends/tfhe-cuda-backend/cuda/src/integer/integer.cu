@@ -92,8 +92,8 @@ void cleanup_cuda_full_propagation(cuda_stream_t *stream,
   cuda_drop_async(mem_ptr->tmp_big_lwe_vector, stream);
 
   switch (mem_ptr->pbs_type) {
-  case LOW_LAT: {
-    auto x = (pbs_buffer<uint64_t, LOW_LAT> *)(mem_ptr->pbs_buffer);
+  case CLASSICAL: {
+    auto x = (pbs_buffer<uint64_t, CLASSICAL> *)(mem_ptr->pbs_buffer);
     x->release(stream);
   } break;
   case MULTI_BIT: {
@@ -105,7 +105,7 @@ void cleanup_cuda_full_propagation(cuda_stream_t *stream,
   }
 }
 
-void scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
+void scratch_cuda_propagate_single_carry_kb_64_inplace(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -118,22 +118,23 @@ void scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus);
 
-  scratch_cuda_propagate_single_carry_low_latency_kb_inplace(
+  scratch_cuda_propagate_single_carry_kb_inplace(
       stream, (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       allocate_gpu_memory);
 }
 
-void cuda_propagate_single_carry_low_latency_kb_64_inplace(
-    cuda_stream_t *stream, void *lwe_array, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t num_blocks) {
-  host_propagate_single_carry_low_latency<uint64_t>(
+void cuda_propagate_single_carry_kb_64_inplace(cuda_stream_t *stream,
+                                               void *lwe_array, int8_t *mem_ptr,
+                                               void *bsk, void *ksk,
+                                               uint32_t num_blocks) {
+  host_propagate_single_carry<uint64_t>(
       stream, static_cast<uint64_t *>(lwe_array),
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsk,
       static_cast<uint64_t *>(ksk), num_blocks);
 }
 
-void cleanup_cuda_propagate_single_carry_low_latency(cuda_stream_t *stream,
-                                                     int8_t **mem_ptr_void) {
+void cleanup_cuda_propagate_single_carry(cuda_stream_t *stream,
+                                         int8_t **mem_ptr_void) {
   int_sc_prop_memory<uint64_t> *mem_ptr =
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(stream);

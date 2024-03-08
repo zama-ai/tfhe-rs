@@ -1,7 +1,7 @@
 #ifndef CUDA_LINALG_H_
 #define CUDA_LINALG_H_
 
-#include "bootstrap.h"
+#include "programmable_bootstrap.h"
 #include <cstdint>
 #include <device.h>
 

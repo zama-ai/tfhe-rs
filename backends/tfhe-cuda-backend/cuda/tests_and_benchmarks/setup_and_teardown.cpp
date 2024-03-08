@@ -2,7 +2,7 @@
 #include <random>
 #include <setup_and_teardown.h>
 
-void bootstrap_classical_setup(
+void programmable_bootstrap_classical_setup(
     cuda_stream_t *stream, Seed *seed, uint64_t **lwe_sk_in_array,
     uint64_t **lwe_sk_out_array, double **d_fourier_bsk_array,
     uint64_t **plaintexts, uint64_t **d_lut_pbs_identity,
@@ -25,7 +25,7 @@ void bootstrap_classical_setup(
   generate_lwe_secret_keys(lwe_sk_out_array, glwe_dimension * polynomial_size,
                            seed, repetitions);
   shuffle_seed(seed);
-  generate_lwe_bootstrap_keys(stream, d_fourier_bsk_array, *lwe_sk_in_array,
+  generate_lwe_programmable_bootstrap_keys(stream, d_fourier_bsk_array, *lwe_sk_in_array,
                               *lwe_sk_out_array, lwe_dimension, glwe_dimension,
                               polynomial_size, pbs_level, pbs_base_log, seed,
                               glwe_noise_distribution, repetitions);
@@ -104,7 +104,7 @@ void bootstrap_classical_setup(
   free(h_lwe_indexes);
 }
 
-void bootstrap_classical_teardown(
+void programmable_bootstrap_classical_teardown(
     cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, double *d_fourier_bsk_array,
     uint64_t *plaintexts, uint64_t *d_lut_pbs_identity,
@@ -128,7 +128,7 @@ void bootstrap_classical_teardown(
   stream->release();
 }
 
-void bootstrap_multibit_setup(
+void programmable_bootstrap_multibit_setup(
     cuda_stream_t *stream, Seed *seed, uint64_t **lwe_sk_in_array,
     uint64_t **lwe_sk_out_array, uint64_t **d_bsk_array, uint64_t **plaintexts,
     uint64_t **d_lut_pbs_identity, uint64_t **d_lut_pbs_indexes,
@@ -154,7 +154,7 @@ void bootstrap_multibit_setup(
   generate_lwe_secret_keys(lwe_sk_out_array, glwe_dimension * polynomial_size,
                            seed, repetitions);
   shuffle_seed(seed);
-  generate_lwe_multi_bit_pbs_keys(
+  generate_lwe_multi_bit_programmable_bootstrap_keys(
       stream, d_bsk_array, *lwe_sk_in_array, *lwe_sk_out_array, lwe_dimension,
       glwe_dimension, polynomial_size, grouping_factor, pbs_level, pbs_base_log,
       seed, glwe_noise_distribution, repetitions);
@@ -227,7 +227,7 @@ void bootstrap_multibit_setup(
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
                            number_of_inputs * sizeof(uint64_t), stream);
 
-  scratch_cuda_multi_bit_pbs_64(
+  scratch_cuda_multi_bit_programmable_bootstrap_64(
       stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
       pbs_level, grouping_factor, number_of_inputs,
       cuda_get_max_shared_memory(stream->gpu_index), true, lwe_chunk_size);
@@ -239,7 +239,7 @@ void bootstrap_multibit_setup(
   free(lwe_ct_in_array);
 }
 
-void bootstrap_multibit_teardown(
+void programmable_bootstrap_multibit_teardown(
     cuda_stream_t *stream, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, uint64_t *d_bsk_array, uint64_t *plaintexts,
     uint64_t *d_lut_pbs_identity, uint64_t *d_lut_pbs_indexes,

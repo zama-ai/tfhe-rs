@@ -20,10 +20,11 @@ typedef struct {
   int number_of_inputs;
   int repetitions;
   int samples;
-} ClassicalBootstrapTestParams;
+} ClassicalProgrammableBootstrapTestParams;
 
-class ClassicalBootstrapTestPrimitives_u64
-    : public ::testing::TestWithParam<ClassicalBootstrapTestParams> {
+class ClassicalProgrammableBootstrapTestPrimitives_u64
+    : public ::testing::TestWithParam<
+          ClassicalProgrammableBootstrapTestParams> {
 protected:
   int lwe_dimension;
   int glwe_dimension;
@@ -77,7 +78,7 @@ public:
     Seed seed;
     init_seed(&seed);
 
-    bootstrap_classical_setup(
+    programmable_bootstrap_classical_setup(
         stream, &seed, &lwe_sk_in_array, &lwe_sk_out_array,
         &d_fourier_bsk_array, &plaintexts, &d_lut_pbs_identity,
         &d_lut_pbs_indexes, &d_lwe_ct_in_array, &d_lwe_input_indexes,
@@ -94,16 +95,16 @@ public:
 
   void TearDown() {
     free(lwe_ct_out_array);
-    bootstrap_classical_teardown(
+    programmable_bootstrap_classical_teardown(
         stream, lwe_sk_in_array, lwe_sk_out_array, d_fourier_bsk_array,
         plaintexts, d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_lwe_ct_out_array, d_lwe_output_indexes);
   }
 };
 
-TEST_P(ClassicalBootstrapTestPrimitives_u64, amortized_bootstrap) {
+TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
   int8_t *pbs_buffer;
-  scratch_cuda_bootstrap_amortized_64(
+  scratch_cuda_programmable_bootstrap_amortized_64(
       stream, &pbs_buffer, glwe_dimension, polynomial_size, number_of_inputs,
       cuda_get_max_shared_memory(gpu_index), true);
 
@@ -120,7 +121,7 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, amortized_bootstrap) {
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
+      cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
           stream, (void *)d_lwe_ct_out_array, (void *)d_lwe_output_indexes,
           (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
           (void *)d_lwe_ct_in, (void *)d_lwe_input_indexes,
@@ -158,12 +159,12 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, amortized_bootstrap) {
       }
     }
   }
-  cleanup_cuda_bootstrap_amortized(stream, &pbs_buffer);
+  cleanup_cuda_programmable_bootstrap_amortized(stream, &pbs_buffer);
 }
 
-TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
+TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   int8_t *pbs_buffer;
-  scratch_cuda_bootstrap_low_latency_64(
+  scratch_cuda_programmable_bootstrap_64(
       stream, &pbs_buffer, glwe_dimension, polynomial_size, pbs_level,
       number_of_inputs, cuda_get_max_shared_memory(gpu_index), true);
 
@@ -182,7 +183,7 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
           (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
                       (lwe_dimension + 1));
       // Execute PBS
-      cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
+      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
           stream, (void *)d_lwe_ct_out_array, (void *)d_lwe_output_indexes,
           (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
           (void *)d_lwe_ct_in, (void *)d_lwe_input_indexes,
@@ -219,39 +220,39 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
       }
     }
   }
-  cleanup_cuda_bootstrap_low_latency_64(stream, &pbs_buffer);
+  cleanup_cuda_programmable_bootstrap(stream, &pbs_buffer);
 }
 
 // Defines for which parameters set the PBS will be tested.
 // It executes each src for all pairs on phis X qs (Cartesian product)
-::testing::internal::ParamGenerator<ClassicalBootstrapTestParams>
+::testing::internal::ParamGenerator<ClassicalProgrammableBootstrapTestParams>
     pbs_params_u64 = ::testing::Values(
         // n, k, N, lwe_variance, glwe_variance, pbs_base_log, pbs_level,
         // message_modulus, carry_modulus, number_of_inputs, repetitions,
         // samples
         // BOOLEAN_DEFAULT_PARAMETERS
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             777, 3, 512, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
             new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
             2, 2, 2, 40},
         // BOOLEAN_TFHE_LIB_PARAMETERS
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             830, 2, 1024,
             new_gaussian_from_std_dev(sqrt(1.994564705573226e-12)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 2,
             2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             678, 5, 256, new_gaussian_from_std_dev(sqrt(5.203010004723453e-10)),
             new_gaussian_from_std_dev(sqrt(1.3996292326131784e-19)), 15, 1, 2,
             1, 2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_1
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             684, 3, 512, new_gaussian_from_std_dev(sqrt(4.177054989616946e-10)),
             new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
             2, 2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_2_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             656, 2, 512,
             new_gaussian_from_std_dev(sqrt(1.1641198952558192e-09)),
             new_gaussian_from_std_dev(sqrt(1.6434266310406663e-15)), 8, 2, 4, 1,
@@ -259,7 +260,7 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
         // SHORTINT_PARAM_MESSAGE_1_CARRY_2
         // SHORTINT_PARAM_MESSAGE_2_CARRY_1
         // SHORTINT_PARAM_MESSAGE_3_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             742, 2, 1024,
             new_gaussian_from_std_dev(sqrt(4.998277131225527e-11)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 4,
@@ -268,61 +269,61 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
         // SHORTINT_PARAM_MESSAGE_2_CARRY_2
         // SHORTINT_PARAM_MESSAGE_3_CARRY_1
         // SHORTINT_PARAM_MESSAGE_4_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             745, 1, 2048,
             new_gaussian_from_std_dev(sqrt(4.478453795193731e-11)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 8,
             2, 2, 40},
         // SHORTINT_PARAM_MESSAGE_5_CARRY_0
         // SHORTINT_PARAM_MESSAGE_3_CARRY_2
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             807, 1, 4096,
             new_gaussian_from_std_dev(sqrt(4.629015039118823e-12)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 32, 1,
             2, 1, 40},
         // SHORTINT_PARAM_MESSAGE_6_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             915, 1, 8192,
             new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
             2, 1, 5},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             864, 1, 8192,
             new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
             2, 1, 5},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             930, 1, 16384,
             new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
             1, 2, 1, 5},
 
         // BOOLEAN_DEFAULT_PARAMETERS
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             777, 3, 512, new_gaussian_from_std_dev(sqrt(1.3880686109937e-11)),
             new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
             2, 100, 2, 40},
         // BOOLEAN_TFHE_LIB_PARAMETERS
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             830, 2, 1024,
             new_gaussian_from_std_dev(sqrt(1.994564705573226e-12)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 2,
             100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             678, 5, 256, new_gaussian_from_std_dev(sqrt(5.203010004723453e-10)),
             new_gaussian_from_std_dev(sqrt(1.3996292326131784e-19)), 15, 1, 2,
             1, 100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_1_CARRY_1
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             684, 3, 512, new_gaussian_from_std_dev(sqrt(4.177054989616946e-10)),
             new_gaussian_from_std_dev(sqrt(1.1919984450689246e-23)), 18, 1, 2,
             2, 100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_2_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             656, 2, 512,
             new_gaussian_from_std_dev(sqrt(1.1641198952558192e-09)),
             new_gaussian_from_std_dev(sqrt(1.6434266310406663e-15)), 8, 2, 4, 1,
@@ -330,7 +331,7 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
         // SHORTINT_PARAM_MESSAGE_1_CARRY_2
         // SHORTINT_PARAM_MESSAGE_2_CARRY_1
         // SHORTINT_PARAM_MESSAGE_3_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             742, 2, 1024,
             new_gaussian_from_std_dev(sqrt(4.998277131225527e-11)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 4,
@@ -339,40 +340,40 @@ TEST_P(ClassicalBootstrapTestPrimitives_u64, low_latency_bootstrap) {
         // SHORTINT_PARAM_MESSAGE_2_CARRY_2
         // SHORTINT_PARAM_MESSAGE_3_CARRY_1
         // SHORTINT_PARAM_MESSAGE_4_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             745, 1, 2048,
             new_gaussian_from_std_dev(sqrt(4.478453795193731e-11)),
             new_gaussian_from_std_dev(sqrt(8.645717832544903e-32)), 23, 1, 2, 8,
             100, 2, 40},
         // SHORTINT_PARAM_MESSAGE_5_CARRY_0
         // SHORTINT_PARAM_MESSAGE_3_CARRY_2
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             807, 1, 4096,
             new_gaussian_from_std_dev(sqrt(4.629015039118823e-12)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 32, 1,
             100, 1, 40},
         // SHORTINT_PARAM_MESSAGE_6_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             915, 1, 8192,
             new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
             100, 1, 5},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             864, 1, 8192,
             new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
             100, 1, 5},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
-        (ClassicalBootstrapTestParams){
+        (ClassicalProgrammableBootstrapTestParams){
             930, 1, 16384,
             new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
             1, 100, 1, 5});
-std::string
-printParamName(::testing::TestParamInfo<ClassicalBootstrapTestParams> p) {
-  ClassicalBootstrapTestParams params = p.param;
+std::string printParamName(
+    ::testing::TestParamInfo<ClassicalProgrammableBootstrapTestParams> p) {
+  ClassicalProgrammableBootstrapTestParams params = p.param;
 
   return "n_" + std::to_string(params.lwe_dimension) + "_k_" +
          std::to_string(params.glwe_dimension) + "_N_" +
@@ -382,6 +383,6 @@ printParamName(::testing::TestParamInfo<ClassicalBootstrapTestParams> p) {
          std::to_string(params.number_of_inputs);
 }
 
-INSTANTIATE_TEST_CASE_P(ClassicalBootstrapInstantiation,
-                        ClassicalBootstrapTestPrimitives_u64, pbs_params_u64,
-                        printParamName);
+INSTANTIATE_TEST_CASE_P(ClassicalProgrammableBootstrapInstantiation,
+                        ClassicalProgrammableBootstrapTestPrimitives_u64,
+                        pbs_params_u64, printParamName);

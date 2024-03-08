@@ -75,7 +75,7 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
         accumulator.ciphertext_modulus(),
     );
 
-    stream.bootstrap_multi_bit_async(
+    stream.programmable_bootstrap_multi_bit_async(
         &mut output.0.d_vec,
         output_indexes,
         &accumulator.0.d_vec,

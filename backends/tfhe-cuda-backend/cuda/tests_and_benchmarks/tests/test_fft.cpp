@@ -1,9 +1,9 @@
 #include "utils.h"
 #include "gtest/gtest.h"
-#include <bootstrap.h>
 #include <cstdint>
 #include <device.h>
 #include <functional>
+#include <programmable_bootstrap.h>
 #include <random>
 #include <setup_and_teardown.h>
 #include <stdio.h>

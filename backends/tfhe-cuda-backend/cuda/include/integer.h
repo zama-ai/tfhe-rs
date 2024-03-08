@@ -1,9 +1,9 @@
 #ifndef CUDA_INTEGER_H
 #define CUDA_INTEGER_H
 
-#include "bootstrap.h"
-#include "bootstrap_multibit.h"
-#include "pbs/bootstrap.cuh"
+#include "pbs/programmable_bootstrap.cuh"
+#include "programmable_bootstrap.h"
+#include "programmable_bootstrap_multibit.h"
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -183,7 +183,7 @@ void cuda_integer_radix_scalar_rotate_kb_64_inplace(cuda_stream_t *stream,
 void cleanup_cuda_integer_radix_scalar_rotate(cuda_stream_t *stream,
                                               int8_t **mem_ptr_void);
 
-void scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
+void scratch_cuda_propagate_single_carry_kb_64_inplace(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -191,12 +191,13 @@ void scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
-void cuda_propagate_single_carry_low_latency_kb_64_inplace(
-    cuda_stream_t *stream, void *lwe_array, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t num_blocks);
+void cuda_propagate_single_carry_kb_64_inplace(cuda_stream_t *stream,
+                                               void *lwe_array, int8_t *mem_ptr,
+                                               void *bsk, void *ksk,
+                                               uint32_t num_blocks);
 
-void cleanup_cuda_propagate_single_carry_low_latency(cuda_stream_t *stream,
-                                                     int8_t **mem_ptr_void);
+void cleanup_cuda_propagate_single_carry(cuda_stream_t *stream,
+                                         int8_t **mem_ptr_void);
 }
 
 /*
@@ -394,35 +395,10 @@ template <typename Torus> struct int_radix_lut {
     if (!mem_reuse) {
       switch (params.pbs_type) {
       case MULTI_BIT:
-        switch (sizeof(Torus)) {
-        case sizeof(uint32_t):
-          cleanup_cuda_multi_bit_pbs_32(stream, &buffer);
-          break;
-        case sizeof(uint64_t):
-          cleanup_cuda_multi_bit_pbs_64(stream, &buffer);
-          break;
-        default:
-          PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit "
-                "integer "
-                "moduli are supported.")
-        }
+        cleanup_cuda_multi_bit_programmable_bootstrap(stream, &buffer);
         break;
-      case LOW_LAT:
-        switch (sizeof(Torus)) {
-        case sizeof(uint32_t):
-          cleanup_cuda_bootstrap_low_latency_32(stream, &buffer);
-          break;
-        case sizeof(uint64_t):
-          cleanup_cuda_bootstrap_low_latency_64(stream, &buffer);
-          break;
-        default:
-          PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit "
-                "integer "
-                "moduli are supported.")
-        }
-        break;
-      case AMORTIZED:
-        cleanup_cuda_bootstrap_amortized(stream, &buffer);
+      case CLASSICAL:
+        cleanup_cuda_programmable_bootstrap(stream, &buffer);
         break;
       default:
         PANIC("Cuda error (PBS): unknown PBS type. ")

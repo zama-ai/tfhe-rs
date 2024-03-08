@@ -1318,7 +1318,7 @@ impl CudaStream {
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
         let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
-        scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
+        scratch_cuda_propagate_single_carry_kb_64_inplace(
             self.as_c_ptr(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -1336,7 +1336,7 @@ impl CudaStream {
             PBSType::ClassicalLowLat as u32,
             true,
         );
-        cuda_propagate_single_carry_low_latency_kb_64_inplace(
+        cuda_propagate_single_carry_kb_64_inplace(
             self.as_c_ptr(),
             radix_lwe_input.as_mut_c_ptr(),
             mem_ptr,
@@ -1344,10 +1344,7 @@ impl CudaStream {
             keyswitch_key.as_c_ptr(),
             num_blocks,
         );
-        cleanup_cuda_propagate_single_carry_low_latency(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
+        cleanup_cuda_propagate_single_carry(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1374,7 +1371,7 @@ impl CudaStream {
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
         let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
-        scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
+        scratch_cuda_propagate_single_carry_kb_64_inplace(
             self.as_c_ptr(),
             std::ptr::addr_of_mut!(mem_ptr),
             glwe_dimension.0 as u32,
@@ -1392,7 +1389,7 @@ impl CudaStream {
             PBSType::MultiBit as u32,
             true,
         );
-        cuda_propagate_single_carry_low_latency_kb_64_inplace(
+        cuda_propagate_single_carry_kb_64_inplace(
             self.as_c_ptr(),
             radix_lwe_input.as_mut_c_ptr(),
             mem_ptr,
@@ -1400,10 +1397,7 @@ impl CudaStream {
             keyswitch_key.as_c_ptr(),
             num_blocks,
         );
-        cleanup_cuda_propagate_single_carry_low_latency(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
+        cleanup_cuda_propagate_single_carry(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
     }
 
     #[allow(clippy::too_many_arguments)]

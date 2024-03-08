@@ -1,5 +1,5 @@
-#ifndef CUDA_FAST_LOWLAT_PBS_CUH
-#define CUDA_FAST_LOWLAT_PBS_CUH
+#ifndef CUDA_CG_PBS_CUH
+#define CUDA_CG_PBS_CUH
 
 #ifdef __CDT_PARSER__
 #undef __CUDA_RUNTIME_H__
@@ -8,7 +8,6 @@
 
 #include "cooperative_groups.h"
 
-#include "bootstrap.h"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -16,9 +15,10 @@
 #include "fft/twiddles.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.h"
 #include "types/complex/operations.cuh"
 
-// Cooperative groups are used in the low latency PBS
+// Cooperative groups are used for this implementation
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
 
@@ -114,8 +114,7 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
 }
 
 /*
- * Kernel launched by the low latency version of the
- * bootstrapping, that uses cooperative groups
+ * Kernel that computes the classical PBS using cooperative groups
  *
  * - lwe_array_out: vector of output lwe s, with length
  * (glwe_dimension * polynomial_size+1)*num_samples
@@ -128,7 +127,7 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
  * Each y-block computes one element of the lwe_array_out.
  */
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_bootstrap_fast_low_latency(
+__global__ void device_programmable_bootstrap_cg(
     Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     double2 *bootstrapping_key, double2 *join_buffer, uint32_t lwe_dimension,
@@ -246,51 +245,50 @@ __global__ void device_bootstrap_fast_low_latency(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void scratch_bootstrap_fast_low_latency(
-    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **buffer,
+__host__ void scratch_programmable_bootstrap_cg(
+    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
 
-  uint64_t full_sm = get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(
-      polynomial_size);
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           polynomial_size);
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_fast_low_latency<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_bootstrap_fast_low_latency<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_fast_low_latency<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
     cudaFuncSetCacheConfig(
-        device_bootstrap_fast_low_latency<Torus, params, FULLSM>,
+        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
 
-  *buffer = new pbs_buffer<Torus, LOW_LAT>(
+  *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, PBS_VARIANT::FAST, allocate_gpu_memory);
+      input_lwe_ciphertext_count, PBS_VARIANT::CG, allocate_gpu_memory);
 }
 
 /*
- * Host wrapper to the low latency version
- * of bootstrapping
+ * Host wrapper
  */
 template <typename Torus, class params>
-__host__ void host_bootstrap_fast_low_latency(
+__host__ void host_programmable_bootstrap_cg(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
-    pbs_buffer<Torus, LOW_LAT> *buffer, uint32_t glwe_dimension,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_luts, uint32_t max_shared_memory) {
@@ -298,11 +296,11 @@ __host__ void host_bootstrap_fast_low_latency(
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
-  uint64_t full_sm = get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(
-      polynomial_size);
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
 
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           polynomial_size);
 
   uint64_t full_dm = full_sm;
@@ -333,28 +331,27 @@ __host__ void host_bootstrap_fast_low_latency(
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_bootstrap_fast_low_latency<Torus, params, NOSM>, grid,
+        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, grid,
         thds, (void **)kernel_args, 0, stream->stream));
   } else if (max_shared_memory < full_sm) {
     kernel_args[13] = &partial_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_bootstrap_fast_low_latency<Torus, params, PARTIALSM>,
+        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
         grid, thds, (void **)kernel_args, partial_sm, stream->stream));
   } else {
     int no_dm = 0;
     kernel_args[13] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_bootstrap_fast_low_latency<Torus, params, FULLSM>, grid,
+        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, grid,
         thds, (void **)kernel_args, full_sm, stream->stream));
   }
 
   check_cuda_error(cudaGetLastError());
 }
 
-// Verify if the grid size for the low latency kernel satisfies the cooperative
-// group constraints
+// Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
-__host__ bool verify_cuda_bootstrap_fast_low_latency_grid_size(
+__host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
     int glwe_dimension, int level_count, int num_samples,
     uint32_t max_shared_memory) {
 
@@ -364,10 +361,10 @@ __host__ bool verify_cuda_bootstrap_fast_low_latency_grid_size(
 
   // Calculate the dimension of the kernel
   uint64_t full_sm =
-      get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(params::degree);
+      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(params::degree);
 
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           params::degree);
 
   int thds = params::degree / params::opt;
@@ -379,17 +376,16 @@ __host__ bool verify_cuda_bootstrap_fast_low_latency_grid_size(
   if (max_shared_memory < partial_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_bootstrap_fast_low_latency<Torus, params, NOSM>, thds,
-        0);
+        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, thds, 0);
   } else if (max_shared_memory < full_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_bootstrap_fast_low_latency<Torus, params, PARTIALSM>,
+        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
         thds, partial_sm);
   } else {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_bootstrap_fast_low_latency<Torus, params, FULLSM>, thds,
+        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, thds,
         full_sm);
   }
 
@@ -399,46 +395,45 @@ __host__ bool verify_cuda_bootstrap_fast_low_latency_grid_size(
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
-// Verify if the grid size for the low latency kernel satisfies the cooperative
-// group constraints
+// Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus>
-__host__ bool supports_cooperative_groups_on_lowlat_pbs(
+__host__ bool supports_cooperative_groups_on_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
   switch (polynomial_size) {
   case 256:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
                                      max_shared_memory);
   case 512:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
                                      max_shared_memory);
   case 1024:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 2048:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 4096:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 8192:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 16384:
-    return verify_cuda_bootstrap_fast_low_latency_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_grid_size<
         Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
                                        max_shared_memory);
   default:
-    PANIC("Cuda error (low latency PBS): unsupported polynomial size. "
+    PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"
           " in the interval [256..16384].")
   }
 }
 
-#endif // LOWLAT_FAST_PBS_H
+#endif // CG_PBS_H

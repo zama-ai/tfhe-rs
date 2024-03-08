@@ -5,21 +5,8 @@
 #include "device.h"
 #include "integer.cuh"
 #include "integer.h"
-#include "pbs/bootstrap_low_latency.cuh"
-#include "pbs/bootstrap_multibit.cuh"
-#include "types/complex/operations.cuh"
-#include "utils/helper.cuh"
-#include "utils/kernel_dimensions.cuh"
-
-#ifndef CUDA_INTEGER_SHIFT_OPS_CUH
-#define CUDA_INTEGER_SHIFT_OPS_CUH
-
-#include "crypto/keyswitch.cuh"
-#include "device.h"
-#include "integer.cuh"
-#include "integer.h"
-#include "pbs/bootstrap_low_latency.cuh"
-#include "pbs/bootstrap_multibit.cuh"
+#include "pbs/programmable_bootstrap_classic.cuh"
+#include "pbs/programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
@@ -110,7 +97,5 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
         lut_bivariate);
   }
 }
-
-#endif // CUDA_SCALAR_OPS_CUH
 
 #endif // CUDA_INTEGER_SCALAR_ROTATE_OPS_CUH

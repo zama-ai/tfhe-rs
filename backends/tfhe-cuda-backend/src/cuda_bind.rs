@@ -64,7 +64,7 @@ extern "C" {
     /// Copy a bootstrap key `src` represented with 64 bits in the standard domain from the CPU to
     /// the GPU `gpu_index` using the stream `v_stream`, and convert it to the Fourier domain on the
     /// GPU. The resulting bootstrap key `dest` on the GPU is an array of f64 values.
-    pub fn cuda_convert_lwe_bootstrap_key_64(
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_64(
         dest: *mut c_void,
         src: *const c_void,
         v_stream: *const c_void,
@@ -77,7 +77,7 @@ extern "C" {
     /// Copy a multi-bit bootstrap key `src` represented with 64 bits in the standard domain from
     /// the CPU to the GPU `gpu_index` using the stream `v_stream`. The resulting bootstrap key
     /// `dest` on the GPU is an array of uint64_t values.
-    pub fn cuda_convert_lwe_multi_bit_bootstrap_key_64(
+    pub fn cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
         dest: *mut c_void,
         src: *const c_void,
         v_stream: *const c_void,
@@ -113,7 +113,7 @@ extern "C" {
     /// This scratch function allocates the necessary amount of data on the GPU for
     /// the low latency PBS on 64-bit inputs, into `pbs_buffer`. It also configures SM
     /// options on the GPU in case FULLSM or PARTIALSM mode are going to be used.
-    pub fn scratch_cuda_bootstrap_low_latency_64(
+    pub fn scratch_cuda_programmable_bootstrap_64(
         v_stream: *const c_void,
         pbs_buffer: *mut *mut i8,
         glwe_dimension: u32,
@@ -192,7 +192,7 @@ extern "C" {
     /// levels
     ///   - the constant memory (64K) is used for storing the roots of identity
     /// values for the FFT
-    pub fn cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
+    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         v_stream: *const c_void,
         lwe_array_out: *mut c_void,
         lwe_output_indexes: *const c_void,
@@ -215,11 +215,11 @@ extern "C" {
 
     /// This cleanup function frees the data for the low latency PBS on GPU
     /// contained in pbs_buffer for 32 or 64-bit inputs.
-    pub fn cleanup_cuda_bootstrap_low_latency_64(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
+    pub fn cleanup_cuda_programmable_bootstrap(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
 
     /// This scratch function allocates the necessary amount of data on the GPU for
     /// the multi-bit PBS on 64-bit inputs into `pbs_buffer`.
-    pub fn scratch_cuda_multi_bit_pbs_64(
+    pub fn scratch_cuda_multi_bit_programmable_bootstrap_64(
         v_stream: *const c_void,
         pbs_buffer: *mut *mut i8,
         lwe_dimension: u32,
@@ -272,7 +272,7 @@ extern "C" {
     /// for a given LWE input in the LUT array `lut_vector`.
     ///  - `max_shared_memory` maximum amount of shared memory to be used inside
     /// device functions
-    pub fn cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
+    pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         v_stream: *const c_void,
         lwe_array_out: *mut c_void,
         lwe_output_indexes: *const c_void,
@@ -297,7 +297,10 @@ extern "C" {
 
     /// This cleanup function frees the data for the multi-bit PBS on GPU
     /// contained in pbs_buffer for 64-bit inputs.
-    pub fn cleanup_cuda_multi_bit_pbs_64(v_stream: *const c_void, pbs_buffer: *mut *mut i8);
+    pub fn cleanup_cuda_multi_bit_programmable_bootstrap(
+        v_stream: *const c_void,
+        pbs_buffer: *mut *mut i8,
+    );
 
     /// Perform keyswitch on a batch of 64 bits input LWE ciphertexts.
     ///
@@ -753,7 +756,7 @@ extern "C" {
 
     pub fn cleanup_cuda_integer_radix_scalar_rotate(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
-    pub fn scratch_cuda_propagate_single_carry_low_latency_kb_64_inplace(
+    pub fn scratch_cuda_propagate_single_carry_kb_64_inplace(
         v_stream: *const c_void,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
@@ -772,7 +775,7 @@ extern "C" {
         allocate_gpu_memory: bool,
     );
 
-    pub fn cuda_propagate_single_carry_low_latency_kb_64_inplace(
+    pub fn cuda_propagate_single_carry_kb_64_inplace(
         v_stream: *const c_void,
         radix_lwe: *mut c_void,
         mem_ptr: *mut i8,
@@ -781,9 +784,6 @@ extern "C" {
         num_blocks: u32,
     );
 
-    pub fn cleanup_cuda_propagate_single_carry_low_latency(
-        v_stream: *const c_void,
-        mem_ptr: *mut *mut i8,
-    );
+    pub fn cleanup_cuda_propagate_single_carry(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
 }
