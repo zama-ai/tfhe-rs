@@ -26,6 +26,7 @@ env:
   PARSE_INTEGER_BENCH_CSV_FILE: tfhe_rs_integer_benches_${{ github.sha }}.csv
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
 
 jobs:
   run-integer-benchmarks:
