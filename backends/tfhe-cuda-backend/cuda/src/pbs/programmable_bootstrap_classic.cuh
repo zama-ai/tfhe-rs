@@ -400,8 +400,7 @@ __host__ void execute_step_two(
   check_cuda_error(cudaGetLastError());
 }
 /*
- * Host wrapper to the low latency version
- * of bootstrapping
+ * Host wrapper to the programmable bootstrap
  */
 template <typename Torus, class params>
 __host__ void host_programmable_bootstrap(

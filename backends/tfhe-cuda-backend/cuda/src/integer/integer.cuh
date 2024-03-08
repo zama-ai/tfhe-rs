@@ -114,15 +114,15 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
   // Compute Keyswitch-PBS
   cuda_keyswitch_lwe_ciphertext_vector(
-      stream, lut->tmp_lwe_after_ks, lut->lwe_indexes, lwe_array_in,
-      lut->lwe_indexes, ksk, big_lwe_dimension, small_lwe_dimension,
+      stream, lut->tmp_lwe_after_ks, lut->lwe_indexes_out, lwe_array_in,
+      lut->lwe_indexes_in, ksk, big_lwe_dimension, small_lwe_dimension,
       ks_base_log, ks_level, num_radix_blocks);
 
-  execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes, lut->lut,
-                     lut->lut_indexes, lut->tmp_lwe_after_ks, lut->lwe_indexes,
-                     bsk, lut->buffer, glwe_dimension, small_lwe_dimension,
-                     polynomial_size, pbs_base_log, pbs_level, grouping_factor,
-                     num_radix_blocks, 1, 0,
+  execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes_out, lut->lut,
+                     lut->lut_indexes, lut->tmp_lwe_after_ks,
+                     lut->lwe_indexes_in, bsk, lut->buffer, glwe_dimension,
+                     small_lwe_dimension, polynomial_size, pbs_base_log,
+                     pbs_level, grouping_factor, num_radix_blocks, 1, 0,
                      cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
 }
 
@@ -140,7 +140,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
 
   // Left message is shifted
   pack_bivariate_blocks(stream, lut->tmp_lwe_before_ks, lwe_array_1,
-                        lwe_array_2, lut->lwe_indexes, big_lwe_dimension,
+                        lwe_array_2, lut->lwe_indexes_in, big_lwe_dimension,
                         message_modulus, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 

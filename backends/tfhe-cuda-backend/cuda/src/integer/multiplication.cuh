@@ -21,6 +21,86 @@
 #include <string>
 #include <vector>
 
+template <typename Torus>
+__global__ void smart_copy(Torus *dst, Torus *src, int32_t *id_out,
+                           int32_t *id_in, size_t lwe_size) {
+  size_t tid = threadIdx.x;
+  size_t b_id = blockIdx.x;
+  size_t stride = blockDim.x;
+
+  auto input_id = id_in[b_id];
+  auto output_id = id_out[b_id];
+
+  auto cur_src = (input_id >= 0) ? &src[input_id * lwe_size] : nullptr;
+  auto cur_dst = &dst[output_id * lwe_size];
+
+  for (int i = tid; i < lwe_size; i += stride) {
+    cur_dst[i] = (input_id >= 0) ? cur_src[i] : 0;
+  }
+}
+
+/*
+ * when adding chunk_size times terms together, there might be some blocks
+ * where addition have not happened or degree is zero, in that case we don't
+ * need to apply lookup table, so we find the indexes of the blocks where
+ * addition happened and store them inside h_lwe_idx_in, from same block
+ * might be extracted message and carry(if it is not the last block), so
+ * one block id might have two output id and we store them in h_lwe_idx_out
+ * blocks that do not require applying lookup table might be copied on both
+ * message and carry side or be replaced with zero ciphertexts, indexes of such
+ * blocks are stored inside h_smart_copy_in as input ids and h_smart_copy_out
+ * as output ids, -1 value as an input id means that zero ciphertext will be
+ * copied on output index.
+ */
+void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
+                                 size_t *h_lwe_idx_out,
+                                 int32_t *h_smart_copy_in,
+                                 int32_t *h_smart_copy_out, size_t ch_amount,
+                                 uint32_t num_radix, uint32_t num_blocks,
+                                 size_t chunk_size, size_t message_max,
+                                 size_t &total_count, size_t &message_count,
+                                 size_t &carry_count, size_t &sm_copy_count) {
+  for (size_t c_id = 0; c_id < ch_amount; c_id++) {
+    auto cur_chunk = &terms_degree[c_id * chunk_size * num_blocks];
+    for (size_t r_id = 0; r_id < num_blocks; r_id++) {
+      size_t new_degree = 0;
+      for (size_t chunk_id = 0; chunk_id < chunk_size; chunk_id++) {
+        new_degree += cur_chunk[chunk_id * num_blocks + r_id];
+      }
+
+      if (new_degree > message_max) {
+        h_lwe_idx_in[message_count] = c_id * num_blocks + r_id;
+        h_lwe_idx_out[message_count] = c_id * num_blocks + r_id;
+        message_count++;
+      } else {
+        h_smart_copy_in[sm_copy_count] = c_id * num_blocks + r_id;
+        h_smart_copy_out[sm_copy_count] = c_id * num_blocks + r_id;
+        sm_copy_count++;
+      }
+    }
+  }
+  for (size_t i = 0; i < sm_copy_count; i++) {
+    h_smart_copy_in[i] = -1;
+    h_smart_copy_out[i] = h_smart_copy_out[i] + ch_amount * num_blocks + 1;
+  }
+
+  for (size_t i = 0; i < message_count; i++) {
+    if (h_lwe_idx_in[i] % num_blocks != num_blocks - 1) {
+      h_lwe_idx_in[message_count + carry_count] = h_lwe_idx_in[i];
+      h_lwe_idx_out[message_count + carry_count] =
+          ch_amount * num_blocks + h_lwe_idx_in[i] + 1;
+      carry_count++;
+    } else {
+      h_smart_copy_in[sm_copy_count] = -1;
+      h_smart_copy_out[sm_copy_count] =
+          h_lwe_idx_in[i] - (num_blocks - 1) + ch_amount * num_blocks;
+      sm_copy_count++;
+    }
+  }
+
+  total_count = message_count + carry_count;
+}
+
 template <typename Torus, class params>
 __global__ void
 all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
@@ -74,100 +154,37 @@ all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
 }
 
 template <typename Torus>
-void compress_device_array_with_map(cuda_stream_t *stream, Torus *src,
-                                    Torus *dst, int *S, int *F, int num_blocks,
-                                    uint32_t map_size, uint32_t unit_size,
-                                    int &total_copied, bool is_message) {
-  cudaSetDevice(stream->gpu_index);
-  for (int i = 0; i < map_size; i++) {
-    int s_index = i * num_blocks + S[i];
-    int number_of_unit = F[i] - S[i] + is_message;
-    auto cur_dst = &dst[total_copied * unit_size];
-    auto cur_src = &src[s_index * unit_size];
-    size_t copy_size = unit_size * number_of_unit * sizeof(Torus);
-    cuda_memcpy_async_gpu_to_gpu(cur_dst, cur_src, copy_size, stream);
-    total_copied += number_of_unit;
-  }
-}
-
-template <typename Torus>
-void extract_message_carry_to_full_radix(cuda_stream_t *stream, Torus *src,
-                                         Torus *dst, int *S, int *F,
-                                         uint32_t map_size, uint32_t unit_size,
-                                         int &total_copied,
-                                         int &total_radix_copied,
-                                         int num_blocks, bool is_message) {
-  cudaSetDevice(stream->gpu_index);
-  size_t radix_size = unit_size * num_blocks;
-  for (int i = 0; i < map_size; i++) {
-    auto cur_dst_radix = &dst[total_radix_copied * radix_size];
-
-    int s_index = S[i];
-    int number_of_unit = F[i] - s_index + is_message;
-
-    if (!is_message) {
-      int zero_block_count = num_blocks - number_of_unit;
-      cuda_memset_async(cur_dst_radix, 0,
-                        zero_block_count * unit_size * sizeof(Torus), stream);
-      s_index = zero_block_count;
-    }
-
-    auto cur_dst = &cur_dst_radix[s_index * unit_size];
-    auto cur_src = &src[total_copied * unit_size];
-
-    size_t copy_size = unit_size * number_of_unit * sizeof(Torus);
-    cuda_memcpy_async_gpu_to_gpu(cur_dst, cur_src, copy_size, stream);
-    total_copied += number_of_unit;
-    ++total_radix_copied;
-  }
-}
-
-template <typename Torus, class params>
 __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
-                                uint32_t chunk_size, uint32_t num_blocks) {
+                                uint32_t chunk_size, uint32_t block_size,
+                                uint32_t num_blocks) {
 
   extern __shared__ Torus result[];
+  size_t stride = blockDim.x;
   size_t chunk_id = blockIdx.x;
-  size_t chunk_elem_size = chunk_size * num_blocks * (params::degree + 1);
-  size_t radix_elem_size = num_blocks * (params::degree + 1);
+  size_t chunk_elem_size = chunk_size * num_blocks * block_size;
+  size_t radix_elem_size = num_blocks * block_size;
   auto src_chunk = &input_blocks[chunk_id * chunk_elem_size];
   auto dst_radix = &result_blocks[chunk_id * radix_elem_size];
-  size_t block_stride = blockIdx.y * (params::degree + 1);
+  size_t block_stride = blockIdx.y * block_size;
   auto dst_block = &dst_radix[block_stride];
 
   // init shared mem with first radix of chunk
   size_t tid = threadIdx.x;
-  for (int i = 0; i < params::opt; i++) {
-    result[tid] = src_chunk[block_stride + tid];
-    tid += params::degree / params::opt;
-  }
-
-  if (threadIdx.x == 0) {
-    result[params::degree] = src_chunk[block_stride + params::degree];
+  for (int i = tid; i < block_size; i += stride) {
+    result[i] = src_chunk[block_stride + i];
   }
 
   // accumulate rest  of the radixes
   for (int r_id = 1; r_id < chunk_size; r_id++) {
     auto cur_src_radix = &src_chunk[r_id * radix_elem_size];
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      result[tid] += cur_src_radix[block_stride + tid];
-      tid += params::degree / params::opt;
-    }
-    if (threadIdx.x == 0) {
-      result[params::degree] += cur_src_radix[block_stride + params::degree];
+    for (int i = tid; i < block_size; i += stride) {
+      result[i] += cur_src_radix[block_stride + i];
     }
   }
 
   // put result from shared mem to global mem
-  tid = threadIdx.x;
-  for (int i = 0; i < params::opt; i++) {
-    dst_block[tid] = result[tid];
-    tid += params::degree / params::opt;
-  }
-
-  if (threadIdx.x == 0) {
-    dst_block[params::degree] = result[params::degree];
+  for (int i = tid; i < block_size; i += stride) {
+    dst_block[i] = result[i];
   }
 }
 
@@ -218,6 +235,141 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
         (process_msb) ? cur_msb_ct[params::degree] : 0;
   }
 }
+template <typename Torus>
+__host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
+    cuda_stream_t *stream, int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
+    uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
+    int_radix_params params, bool allocate_gpu_memory) {
+
+  cudaSetDevice(stream->gpu_index);
+  size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
+  check_cuda_error(cudaFuncSetAttribute(
+      tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+      sm_size));
+  cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
+  check_cuda_error(cudaGetLastError());
+  *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
+      stream, params, num_blocks_in_radix, max_num_radix_in_vec,
+      allocate_gpu_memory);
+}
+
+template <typename Torus, class params>
+__host__ void host_integer_sum_ciphertexts_vec_kb(
+    cuda_stream_t *stream, Torus *radix_lwe_out, Torus *terms,
+    int *terms_degree, void *bsk, uint64_t *ksk,
+    int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec) {
+
+  auto new_blocks = mem_ptr->new_blocks;
+  auto old_blocks = mem_ptr->old_blocks;
+  auto small_lwe_vector = mem_ptr->small_lwe_vector;
+
+  auto luts_message_carry = mem_ptr->luts_message_carry;
+
+  auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
+  auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
+
+  auto d_smart_copy_in = mem_ptr->d_smart_copy_in;
+  auto d_smart_copy_out = mem_ptr->d_smart_copy_out;
+
+  auto message_modulus = mem_ptr->params.message_modulus;
+  auto carry_modulus = mem_ptr->params.carry_modulus;
+  auto num_blocks = num_blocks_in_radix;
+  auto big_lwe_size = mem_ptr->params.big_lwe_dimension + 1;
+  auto glwe_dimension = mem_ptr->params.glwe_dimension;
+  auto polynomial_size = mem_ptr->params.polynomial_size;
+  auto lwe_dimension = mem_ptr->params.small_lwe_dimension;
+  auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
+
+  if (old_blocks != terms) {
+    cuda_memcpy_async_gpu_to_gpu(old_blocks, terms,
+                                 num_blocks_in_radix * num_radix_in_vec *
+                                     big_lwe_size * sizeof(Torus),
+                                 stream);
+  }
+
+  size_t r = num_radix_in_vec;
+  size_t total_modulus = message_modulus * carry_modulus;
+  size_t message_max = message_modulus - 1;
+  size_t chunk_size = (total_modulus - 1) / message_max;
+
+  size_t h_lwe_idx_in[r * num_blocks];
+  size_t h_lwe_idx_out[r * num_blocks];
+  int32_t h_smart_copy_in[r * num_blocks];
+  int32_t h_smart_copy_out[r * num_blocks];
+
+  auto max_shared_memory = cuda_get_max_shared_memory(stream->gpu_index);
+
+  while (r > 2) {
+    size_t cur_total_blocks = r * num_blocks;
+    size_t ch_amount = r / chunk_size;
+    if (!ch_amount)
+      ch_amount++;
+    dim3 add_grid(ch_amount, num_blocks, 1);
+    size_t sm_size = big_lwe_size * sizeof(Torus);
+
+    tree_add_chunks<Torus><<<add_grid, 512, sm_size, stream->stream>>>(
+        new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
+
+    size_t total_count = 0;
+    size_t message_count = 0;
+    size_t carry_count = 0;
+    size_t sm_copy_count = 0;
+
+    generate_ids_update_degrees(
+        terms_degree, h_lwe_idx_in, h_lwe_idx_out, h_smart_copy_in,
+        h_smart_copy_out, ch_amount, r, num_blocks, chunk_size, message_max,
+        total_count, message_count, carry_count, sm_copy_count);
+
+    size_t copy_size = total_count * sizeof(Torus);
+    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_idx_in, copy_size, stream);
+    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_idx_out, copy_size, stream);
+    copy_size = sm_copy_count * sizeof(int32_t);
+    cuda_memcpy_async_to_gpu(d_smart_copy_in, h_smart_copy_in, copy_size,
+                             stream);
+    cuda_memcpy_async_to_gpu(d_smart_copy_out, h_smart_copy_out, copy_size,
+                             stream);
+
+    smart_copy<<<sm_copy_count, 256, 0, stream->stream>>>(
+        new_blocks, new_blocks, d_smart_copy_out, d_smart_copy_in,
+        big_lwe_size);
+
+    if (carry_count > 0)
+      cuda_set_value_async<Torus>(
+          &(stream->stream), luts_message_carry->get_lut_indexes(message_count),
+          1, carry_count);
+
+    cuda_keyswitch_lwe_ciphertext_vector(
+        stream, small_lwe_vector, lwe_indexes_in, new_blocks, lwe_indexes_in,
+        ksk, polynomial_size * glwe_dimension, lwe_dimension,
+        mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, message_count);
+
+    execute_pbs<Torus>(
+        stream, new_blocks, lwe_indexes_out, luts_message_carry->lut,
+        luts_message_carry->lut_indexes, small_lwe_vector, lwe_indexes_in, bsk,
+        luts_message_carry->buffer, glwe_dimension, lwe_dimension,
+        polynomial_size, mem_ptr->params.pbs_base_log,
+        mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor, total_count,
+        2, 0, max_shared_memory, mem_ptr->params.pbs_type);
+
+    int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
+    int new_blocks_created = 2 * ch_amount * num_blocks;
+    copy_size = rem_blocks * big_lwe_size * sizeof(Torus);
+
+    auto cur_dst = &new_blocks[new_blocks_created * big_lwe_size];
+    auto cur_src = &old_blocks[(cur_total_blocks - rem_blocks) * big_lwe_size];
+    cuda_memcpy_async_gpu_to_gpu(cur_dst, cur_src, copy_size, stream);
+    std::swap(new_blocks, old_blocks);
+    r = (new_blocks_created + rem_blocks) / num_blocks;
+  }
+
+  host_addition(stream, radix_lwe_out, old_blocks,
+                &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
+                num_blocks);
+
+  host_propagate_single_carry<Torus>(stream, radix_lwe_out, mem_ptr->scp_mem,
+                                     bsk, ksk, num_blocks);
+}
 
 template <typename Torus, typename STorus, class params>
 __host__ void host_integer_mult_radix_kb(
@@ -233,7 +385,6 @@ __host__ void host_integer_mult_radix_kb(
   auto carry_modulus = mem_ptr->params.carry_modulus;
 
   int big_lwe_dimension = glwe_dimension * polynomial_size;
-  int big_lwe_size = big_lwe_dimension + 1;
 
   // 'vector_result_lsb' contains blocks from all possible right shifts of
   // radix_lwe_left, only nonzero blocks are kept
@@ -281,17 +432,6 @@ __host__ void host_integer_mult_radix_kb(
   // 2 * (glwe_dimension + 1) * polynomial_size
   auto luts_array = mem_ptr->luts_array;
 
-  // accumulator to extract message
-  // with length (glwe_dimension + 1) * polynomial_size
-  auto luts_message = mem_ptr->luts_message;
-
-  // accumulator to extract carry
-  // with length (glwe_dimension + 1) * polynomial_size
-  auto luts_carry = mem_ptr->luts_carry;
-
-  // to be used as default indexing
-  auto lwe_indexes = luts_array->lwe_indexes;
-
   auto vector_result_lsb = &vector_result_sb[0];
   auto vector_result_msb =
       &vector_result_sb[lsb_vector_block_count *
@@ -323,21 +463,7 @@ __host__ void host_integer_mult_radix_kb(
                            lsb_vector_block_count, msb_vector_block_count,
                            num_blocks);
 
-  auto new_blocks = block_mul_res;
-  auto old_blocks = vector_result_sb;
-
-  // amount of current radixes after block_mul
-  size_t r = 2 * num_blocks;
-
-  size_t total_modulus = message_modulus * carry_modulus;
-  size_t message_max = message_modulus - 1;
-  size_t chunk_size = (total_modulus - 1) / message_max;
-  size_t ch_amount = r / chunk_size;
-
-  int terms_degree[r * num_blocks];
-  int f_b[ch_amount];
-  int l_b[ch_amount];
-
+  int terms_degree[2 * num_blocks * num_blocks];
   for (int i = 0; i < num_blocks * num_blocks; i++) {
     size_t r_id = i / num_blocks;
     size_t b_id = i % num_blocks;
@@ -350,117 +476,9 @@ __host__ void host_integer_mult_radix_kb(
     terms_degree_msb[i] = (b_id > r_id) ? 2 : 0;
   }
 
-  auto max_shared_memory = cuda_get_max_shared_memory(stream->gpu_index);
-  while (r > chunk_size) {
-    int cur_total_blocks = r * num_blocks;
-    ch_amount = r / chunk_size;
-    dim3 add_grid(ch_amount, num_blocks, 1);
-    size_t sm_size = big_lwe_size * sizeof(Torus);
-    cuda_memset_async(new_blocks, 0,
-                      ch_amount * num_blocks * big_lwe_size * sizeof(Torus),
-                      stream);
-
-    tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
-        new_blocks, old_blocks, chunk_size, num_blocks);
-
-    for (int c_id = 0; c_id < ch_amount; c_id++) {
-      auto cur_chunk = &terms_degree[c_id * chunk_size * num_blocks];
-      int mx = 0;
-      int mn = num_blocks;
-      for (int r_id = 1; r_id < chunk_size; r_id++) {
-        auto cur_radix = &cur_chunk[r_id * num_blocks];
-        for (int i = 0; i < num_blocks; i++) {
-          if (cur_radix[i]) {
-            mn = min(mn, i);
-            mx = max(mx, i);
-          }
-        }
-      }
-      f_b[c_id] = mn;
-      l_b[c_id] = mx;
-    }
-
-    int total_copied = 0;
-    int message_count = 0;
-    int carry_count = 0;
-    compress_device_array_with_map<Torus>(stream, new_blocks, old_blocks, f_b,
-                                          l_b, num_blocks, ch_amount,
-                                          big_lwe_size, total_copied, true);
-
-    message_count = total_copied;
-    compress_device_array_with_map<Torus>(stream, new_blocks, old_blocks, f_b,
-                                          l_b, num_blocks, ch_amount,
-                                          big_lwe_size, total_copied, false);
-    carry_count = total_copied - message_count;
-
-    auto message_blocks_vector = old_blocks;
-    auto carry_blocks_vector =
-        &old_blocks[message_count * (glwe_dimension * polynomial_size + 1)];
-
-    cuda_keyswitch_lwe_ciphertext_vector(
-        stream, small_lwe_vector, lwe_indexes, old_blocks, lwe_indexes, ksk,
-        polynomial_size * glwe_dimension, lwe_dimension,
-        mem_ptr->params.ks_base_log, mem_ptr->params.ks_level, total_copied);
-
-    execute_pbs<Torus>(stream, message_blocks_vector, lwe_indexes,
-                       luts_message->lut, luts_message->lut_indexes,
-                       small_lwe_vector, lwe_indexes, bsk, luts_message->buffer,
-                       glwe_dimension, lwe_dimension, polynomial_size,
-                       mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
-                       mem_ptr->params.grouping_factor, message_count, 1, 0,
-                       max_shared_memory, mem_ptr->params.pbs_type);
-
-    execute_pbs<Torus>(stream, carry_blocks_vector, lwe_indexes,
-                       luts_carry->lut, luts_carry->lut_indexes,
-                       &small_lwe_vector[message_count * (lwe_dimension + 1)],
-                       lwe_indexes, bsk, luts_carry->buffer, glwe_dimension,
-                       lwe_dimension, polynomial_size,
-                       mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
-                       mem_ptr->params.grouping_factor, carry_count, 1, 0,
-                       max_shared_memory, mem_ptr->params.pbs_type);
-
-    int rem_blocks = r % chunk_size * num_blocks;
-    int new_blocks_created = 2 * ch_amount * num_blocks;
-    int copy_size = rem_blocks * big_lwe_size * sizeof(Torus);
-
-    auto cur_dst = &new_blocks[new_blocks_created * big_lwe_size];
-    auto cur_src = &old_blocks[(cur_total_blocks - rem_blocks) * big_lwe_size];
-    cuda_memcpy_async_gpu_to_gpu(cur_dst, cur_src, copy_size, stream);
-
-    total_copied = 0;
-    int total_radix_copied = 0;
-    extract_message_carry_to_full_radix<Torus>(
-        stream, old_blocks, new_blocks, f_b, l_b, ch_amount, big_lwe_size,
-        total_copied, total_radix_copied, num_blocks, true);
-    extract_message_carry_to_full_radix<Torus>(
-        stream, old_blocks, new_blocks, f_b, l_b, ch_amount, big_lwe_size,
-        total_copied, total_radix_copied, num_blocks, false);
-
-    std::swap(new_blocks, old_blocks);
-    r = (new_blocks_created + rem_blocks) / num_blocks;
-  }
-
-  dim3 add_grid(1, num_blocks, 1);
-  size_t sm_size = big_lwe_size * sizeof(Torus);
-  cuda_memset_async(radix_lwe_out, 0, num_blocks * big_lwe_size * sizeof(Torus),
-                    stream);
-  tree_add_chunks<Torus, params><<<add_grid, 256, sm_size, stream->stream>>>(
-      radix_lwe_out, old_blocks, r, num_blocks);
-
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      stream, vector_result_sb, radix_lwe_out, bsk, ksk, num_blocks,
-      luts_message);
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      stream, &block_mul_res[big_lwe_size], radix_lwe_out, bsk, ksk, num_blocks,
-      luts_carry);
-
-  cuda_memset_async(block_mul_res, 0, big_lwe_size * sizeof(Torus), stream);
-
-  host_addition(stream, radix_lwe_out, vector_result_sb, block_mul_res,
-                big_lwe_dimension, num_blocks);
-
-  host_propagate_single_carry<Torus>(stream, radix_lwe_out, mem_ptr->scp_mem,
-                                     bsk, ksk, num_blocks);
+  host_integer_sum_ciphertexts_vec_kb<Torus, params>(
+      stream, radix_lwe_out, vector_result_sb, terms_degree, bsk, ksk,
+      mem_ptr->sum_ciphertexts_mem, num_blocks, 2 * num_blocks);
 }
 
 template <typename Torus>
@@ -469,130 +487,15 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
+  size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
+  check_cuda_error(cudaFuncSetAttribute(
+      tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+      sm_size));
+  cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
+  check_cuda_error(cudaGetLastError());
+
   *mem_ptr = new int_mul_memory<Torus>(stream, params, num_radix_blocks,
                                        allocate_gpu_memory);
-}
-
-// Function to apply lookup table,
-// It has two mode
-//  lsb_msb_mode == true - extracts lsb and msb
-//  lsb_msb_mode == false - extracts message and carry
-template <typename Torus, typename STorus, class params>
-void apply_lookup_table(Torus *input_ciphertexts, Torus *output_ciphertexts,
-                        int_mul_memory<Torus> *mem_ptr, uint32_t glwe_dimension,
-                        uint32_t lwe_dimension, uint32_t polynomial_size,
-                        uint32_t pbs_base_log, uint32_t pbs_level,
-                        uint32_t ks_base_log, uint32_t ks_level,
-                        uint32_t grouping_factor,
-                        uint32_t lsb_message_blocks_count,
-                        uint32_t msb_carry_blocks_count,
-                        uint32_t max_shared_memory, bool lsb_msb_mode) {
-
-  int total_blocks_count = lsb_message_blocks_count + msb_carry_blocks_count;
-  int gpu_n = mem_ptr->p2p_gpu_count;
-  if (total_blocks_count < gpu_n)
-    gpu_n = total_blocks_count;
-  int gpu_blocks_count = total_blocks_count / gpu_n;
-  int big_lwe_size = glwe_dimension * polynomial_size + 1;
-  //  int small_lwe_size = lwe_dimension + 1;
-
-#pragma omp parallel for num_threads(gpu_n)
-  for (int i = 0; i < gpu_n; i++) {
-    cudaSetDevice(i);
-    auto this_stream = mem_ptr->streams[i];
-    // Index where input and output blocks start for current gpu
-    int big_lwe_start_index = i * gpu_blocks_count * big_lwe_size;
-
-    // Last gpu might have extra blocks to process if total blocks number is not
-    // divisible by gpu_n
-    if (i == gpu_n - 1) {
-      gpu_blocks_count += total_blocks_count % gpu_n;
-    }
-
-    int can_access_peer;
-    cudaDeviceCanAccessPeer(&can_access_peer, i, 0);
-    if (i == 0) {
-      check_cuda_error(
-          cudaMemcpyAsync(mem_ptr->pbs_output_multi_gpu[i],
-                          &input_ciphertexts[big_lwe_start_index],
-                          gpu_blocks_count * big_lwe_size * sizeof(Torus),
-                          cudaMemcpyDeviceToDevice, *this_stream));
-    } else if (can_access_peer) {
-      check_cuda_error(cudaMemcpyPeerAsync(
-          mem_ptr->pbs_output_multi_gpu[i], i,
-          &input_ciphertexts[big_lwe_start_index], 0,
-          gpu_blocks_count * big_lwe_size * sizeof(Torus), *this_stream));
-    } else {
-      // Uses host memory as middle ground
-      cuda_memcpy_async_to_cpu(mem_ptr->device_to_device_buffer[i],
-                               &input_ciphertexts[big_lwe_start_index],
-                               gpu_blocks_count * big_lwe_size * sizeof(Torus),
-                               this_stream, i);
-      cuda_memcpy_async_to_gpu(
-          mem_ptr->pbs_output_multi_gpu[i], mem_ptr->device_to_device_buffer[i],
-          gpu_blocks_count * big_lwe_size * sizeof(Torus), this_stream, i);
-    }
-
-    // when lsb and msb have to be extracted
-    //  for first lsb_count blocks we need lsb_acc
-    //  for last msb_count blocks we need msb_acc
-    // when message and carry have tobe extracted
-    //  for first message_count blocks we need message_acc
-    //  for last carry_count blocks we need carry_acc
-    Torus *cur_lut_indexes;
-    if (lsb_msb_mode) {
-      cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
-                            ? mem_ptr->lut_indexes_lsb_multi_gpu[i]
-                            : mem_ptr->lut_indexes_msb_multi_gpu[i];
-
-    } else {
-      cur_lut_indexes = (big_lwe_start_index < lsb_message_blocks_count)
-                            ? mem_ptr->lut_indexes_message_multi_gpu[i]
-                            : mem_ptr->lut_indexes_carry_multi_gpu[i];
-    }
-
-    // execute keyswitch on a current gpu with corresponding input and output
-    // blocks pbs_output_multi_gpu[i] is an input for keyswitch and
-    // pbs_input_multi_gpu[i] is an output for keyswitch
-    cuda_keyswitch_lwe_ciphertext_vector(
-        this_stream, i, mem_ptr->pbs_input_multi_gpu[i],
-        mem_ptr->pbs_output_multi_gpu[i], mem_ptr->ksk_multi_gpu[i],
-        polynomial_size * glwe_dimension, lwe_dimension, ks_base_log, ks_level,
-        gpu_blocks_count);
-
-    // execute pbs on a current gpu with corresponding input and output
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-        this_stream, i, mem_ptr->pbs_output_multi_gpu[i],
-        mem_ptr->lut_multi_gpu[i], cur_lut_indexes,
-        mem_ptr->pbs_input_multi_gpu[i], mem_ptr->bsk_multi_gpu[i],
-        mem_ptr->pbs_buffer_multi_gpu[i], lwe_dimension, glwe_dimension,
-        polynomial_size, grouping_factor, pbs_base_log, pbs_level,
-        grouping_factor, gpu_blocks_count, 2, 0, max_shared_memory);
-
-    // lookup table is applied and now data from current gpu have to be copied
-    // back to gpu_0 in 'output_ciphertexts' buffer
-    if (i == 0) {
-      check_cuda_error(
-          cudaMemcpyAsync(&output_ciphertexts[big_lwe_start_index],
-                          mem_ptr->pbs_output_multi_gpu[i],
-                          gpu_blocks_count * big_lwe_size * sizeof(Torus),
-                          cudaMemcpyDeviceToDevice, *this_stream));
-    } else if (can_access_peer) {
-      check_cuda_error(cudaMemcpyPeerAsync(
-          &output_ciphertexts[big_lwe_start_index], 0,
-          mem_ptr->pbs_output_multi_gpu[i], i,
-          gpu_blocks_count * big_lwe_size * sizeof(Torus), *this_stream));
-    } else {
-      // Uses host memory as middle ground
-      cuda_memcpy_async_to_cpu(
-          mem_ptr->device_to_device_buffer[i], mem_ptr->pbs_output_multi_gpu[i],
-          gpu_blocks_count * big_lwe_size * sizeof(Torus), this_stream, i);
-      cuda_memcpy_async_to_gpu(&output_ciphertexts[big_lwe_start_index],
-                               mem_ptr->device_to_device_buffer[i],
-                               gpu_blocks_count * big_lwe_size * sizeof(Torus),
-                               this_stream, i);
-    }
-  }
 }
 
 template <typename T>
@@ -601,7 +504,6 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
                                                          T scalar,
                                                          uint32_t lwe_dimension,
                                                          uint32_t num_blocks) {
-
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int lwe_size = lwe_dimension + 1;
   if (index < num_blocks * lwe_size) {
@@ -631,4 +533,5 @@ __host__ void host_integer_small_scalar_mult_radix(
       input_lwe_ciphertext_count);
   check_cuda_error(cudaGetLastError());
 }
+
 #endif

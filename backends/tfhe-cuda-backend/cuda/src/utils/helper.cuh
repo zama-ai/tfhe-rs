@@ -2,10 +2,23 @@
 #define HELPER_CUH
 
 #include <stdio.h>
+#include <type_traits>
+
+template <typename T> inline __device__ const char *get_format();
+
+template <> inline __device__ const char *get_format<int>() { return "%d, "; }
+
+template <> inline __device__ const char *get_format<unsigned int>() {
+  return "%u, ";
+}
+
+template <> inline __device__ const char *get_format<uint64_t>() {
+  return "%lu, ";
+}
 
 template <typename T> __global__ void print_debug_kernel(T *src, int N) {
   for (int i = 0; i < N; i++) {
-    printf("%lu, ", src[i]);
+    printf(get_format<T>(), src[i]);
   }
 }
 
