@@ -6,6 +6,7 @@ env:
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
   SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
