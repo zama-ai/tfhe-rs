@@ -1145,7 +1145,7 @@ fn mult_circuit_clot21<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> +
             &input_lwe_secret_key,
             &mut input_lwe_list1,
             &input_plaintext_list,
-            params.lwe_modular_std_dev.unwrap(), //TODO
+            params.lwe_modular_std_dev.unwrap(),
             &mut encryption_generator,
         );
 
@@ -1153,7 +1153,7 @@ fn mult_circuit_clot21<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> +
             &input_lwe_secret_key,
             &mut input_lwe_list2,
             &input_plaintext_list,
-            params.lwe_modular_std_dev.unwrap(), //TODO
+            params.lwe_modular_std_dev.unwrap(),
             &mut encryption_generator,
         );
         
@@ -1188,10 +1188,13 @@ fn mult_circuit_clot21<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> +
             params.polynomial_size.unwrap(), 
             tfhe::core_crypto::prelude::CiphertextModulus::new_native());
 
-        //let mut extracted_sample = LweCiphertext::new(Scalar::ZERO,
-        //    params.lwe_dimension.unwrap().to_lwe_size(),
-        //    tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        //);
+
+        let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+        print!("{}",equivalent_lwe_sk.lwe_dimension().0);
+        let mut extracted_sample = LweCiphertext::new(Scalar::ZERO,
+            equivalent_lwe_sk.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
 
         let accumulator = GlweCiphertext::new(
             Scalar::ZERO,
@@ -1205,8 +1208,8 @@ fn mult_circuit_clot21<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> +
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(), 
-            params.pbs_base_log.unwrap(), //TODO
-            params.pbs_level.unwrap(), //TODO
+            params.pbs_base_log.unwrap(), 
+            params.pbs_level.unwrap(), 
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -1242,6 +1245,7 @@ fn mult_circuit_clot21<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> +
                         scale,
                         &relinearisation_key,
                         &mut output_relin,
+                        &mut extracted_sample,
                         &accumulator,
                         &fourier_bsk,
                         fft,
@@ -1473,8 +1477,8 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(), 
-            params.pbs_base_log.unwrap(), //TODO
-            params.pbs_level.unwrap(), //TODO
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
         );
 
         let mut buffers = ComputationBuffers::new();

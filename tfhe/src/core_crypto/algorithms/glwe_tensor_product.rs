@@ -491,7 +491,7 @@ pub fn pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs<InputCont, KeyCont1, K
     scale: Scalar,
     relinearisation_key: &GlweRelinearisationKey<KeyCont1>,
     output_relin: &mut GlweCiphertext<OutputCont>,
-    //extracted_sample: &mut LweCiphertext<OutputCont>,
+    extracted_sample: &mut LweCiphertext<OutputCont>,
     accumulator:&GlweCiphertext<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont2>,
     fft: FftView<'_>,
@@ -525,11 +525,10 @@ pub fn pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs<InputCont, KeyCont1, K
 
     tensor_mult_with_relin(&packed_glwe1, &packed_glwe2, scale,relinearisation_key,output_relin);
     //let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
-    
-    let mut extracted_sample = output_pbs_ct.clone();
             
     // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
-    extract_lwe_sample_from_glwe_ciphertext(&output_relin, &mut extracted_sample, MonomialDegree(42));
+    print!("dimension {}",extracted_sample.lwe_size().0);
+    extract_lwe_sample_from_glwe_ciphertext(&output_relin, extracted_sample, MonomialDegree(42));
 
     programmable_bootstrap_lwe_ciphertext_mem_optimized(
         &extracted_sample,
