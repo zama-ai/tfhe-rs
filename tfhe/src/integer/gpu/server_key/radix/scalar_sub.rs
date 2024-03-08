@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::TwosComplementNegation;
 
@@ -43,14 +43,10 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn unchecked_scalar_sub<T>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: T,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_scalar_sub_assign(&mut result, scalar, stream);
@@ -61,26 +57,28 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_sub_assign_async<T>(
+    pub unsafe fn unchecked_scalar_sub_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        scalar: T,
+        ct: &mut T,
+        scalar: Scalar,
         stream: &CudaStream,
     ) where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         let negated_scalar = scalar.twos_complement_negation();
         self.unchecked_scalar_add_assign_async(ct, negated_scalar, stream);
         ct.as_mut().info = ct.as_ref().info.after_scalar_sub(scalar);
     }
 
-    pub fn unchecked_scalar_sub_assign<T>(
+    pub fn unchecked_scalar_sub_assign<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        scalar: T,
+        ct: &mut T,
+        scalar: Scalar,
         stream: &CudaStream,
     ) where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.unchecked_scalar_sub_assign_async(ct, scalar, stream);
@@ -125,14 +123,10 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn scalar_sub<T>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: T,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_sub_assign(&mut result, scalar, stream);
@@ -143,13 +137,14 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_sub_assign_async<T>(
+    pub unsafe fn scalar_sub_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        scalar: T,
+        ct: &mut T,
+        scalar: Scalar,
         stream: &CudaStream,
     ) where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, stream);
@@ -159,13 +154,10 @@ impl CudaServerKey {
         self.full_propagate_assign_async(ct, stream);
     }
 
-    pub fn scalar_sub_assign<T>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        scalar: T,
-        stream: &CudaStream,
-    ) where
-        T: DecomposableInto<u8> + UnsignedNumeric + TwosComplementNegation,
+    pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStream)
+    where
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.scalar_sub_assign_async(ct, scalar, stream);

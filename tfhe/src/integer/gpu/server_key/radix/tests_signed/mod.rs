@@ -2,6 +2,7 @@ pub(crate) mod test_add;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
+pub(crate) mod test_scalar_sub;
 pub(crate) mod test_sub;
 
 use crate::core_crypto::gpu::CudaStream;

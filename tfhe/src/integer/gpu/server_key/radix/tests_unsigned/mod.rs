@@ -2,6 +2,7 @@ pub(crate) mod test_add;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
+pub(crate) mod test_scalar_sub;
 pub(crate) mod test_sub;
 
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
@@ -75,7 +76,6 @@ impl<F> GpuFunctionExecutor<F> {
 }
 
 // Unchecked operations
-create_gpu_parametrized_test!(integer_unchecked_scalar_sub);
 create_gpu_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_gpu_parametrized_test!(integer_unchecked_bitnot);
 create_gpu_parametrized_test!(integer_unchecked_bitand);
@@ -107,7 +107,6 @@ create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_left);
 create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 
 // Default operations
-create_gpu_parametrized_test!(integer_scalar_sub);
 create_gpu_parametrized_test!(integer_small_scalar_mul);
 create_gpu_parametrized_test!(integer_scalar_right_shift);
 create_gpu_parametrized_test!(integer_scalar_left_shift);
@@ -316,14 +315,6 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_small_scalar_mul);
     unchecked_small_scalar_mul_test(param, executor);
-}
-
-fn integer_unchecked_scalar_sub<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_sub);
-    unchecked_scalar_sub_test(param, executor);
 }
 
 fn integer_unchecked_bitnot<P>(param: P)
@@ -1494,14 +1485,6 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::small_scalar_mul);
     default_small_scalar_mul_test(param, executor);
-}
-
-fn integer_scalar_sub<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_sub);
-    default_scalar_sub_test(param, executor);
 }
 
 fn integer_bitnot<P>(param: P)
