@@ -8,8 +8,8 @@
 #include "integer/cmux.cuh"
 #include "integer/negation.cuh"
 #include "integer/scalar_addition.cuh"
-#include "pbs/bootstrap_low_latency.cuh"
-#include "pbs/bootstrap_multibit.cuh"
+#include "pbs/programmable_bootstrap_classic.cuh"
+#include "pbs/programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
 #include "utils/kernel_dimensions.cuh"
 
@@ -79,7 +79,6 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
       lwe_array_out, lwe_array_in,
       num_radix_blocks * (big_lwe_dimension + 1) * sizeof(Torus), stream);
 
-  int lut_num_blocks = 0;
   uint32_t remaining_blocks = num_radix_blocks;
   while (remaining_blocks > 1) {
     // Split in max_value chunks

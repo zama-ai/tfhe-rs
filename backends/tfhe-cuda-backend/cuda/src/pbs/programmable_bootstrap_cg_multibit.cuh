@@ -1,8 +1,6 @@
 #ifndef CUDA_FAST_MULTIBIT_PBS_CUH
 #define CUDA_FAST_MULTIBIT_PBS_CUH
 
-#include "bootstrap.h"
-#include "bootstrap_multibit.cuh"
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/ggsw.cuh"
@@ -13,11 +11,13 @@
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.h"
+#include "programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
 #include <vector>
 
 template <typename Torus, class params>
-__global__ void device_multi_bit_bootstrap_fast_accumulate(
+__global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
     Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     double2 *keybundle_array, double2 *join_buffer, Torus *global_accumulator,
@@ -128,12 +128,13 @@ __global__ void device_multi_bit_bootstrap_fast_accumulate(
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_fast_multibit_bootstrap(uint32_t polynomial_size) {
+get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
+    uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_fast_multibit_bootstrap(
+__host__ __device__ uint64_t get_buffer_size_cg_multibit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t grouping_factor, uint32_t lwe_chunk_size,
@@ -153,7 +154,7 @@ __host__ __device__ uint64_t get_buffer_size_fast_multibit_bootstrap(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void scratch_fast_multi_bit_pbs(
+__host__ void scratch_cg_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<uint64_t, MULTI_BIT> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -163,23 +164,25 @@ __host__ void scratch_fast_multi_bit_pbs(
   cudaSetDevice(stream->gpu_index);
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_bootstrap_keybundle<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate =
-      get_buffer_size_full_sm_fast_multibit_bootstrap<Torus>(polynomial_size);
+      get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
 
   check_cuda_error(cudaFuncSetAttribute(
-      device_multi_bit_bootstrap_keybundle<Torus, params>,
+      device_multi_bit_programmable_bootstrap_keybundle<Torus, params>,
       cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
-  cudaFuncSetCacheConfig(device_multi_bit_bootstrap_keybundle<Torus, params>,
-                         cudaFuncCachePreferShared);
+  cudaFuncSetCacheConfig(
+      device_multi_bit_programmable_bootstrap_keybundle<Torus, params>,
+      cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
   check_cuda_error(cudaFuncSetAttribute(
-      device_multi_bit_bootstrap_fast_accumulate<Torus, params>,
+      device_multi_bit_programmable_bootstrap_cg_accumulate<Torus, params>,
       cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_accumulate));
   cudaFuncSetCacheConfig(
-      device_multi_bit_bootstrap_fast_accumulate<Torus, params>,
+      device_multi_bit_programmable_bootstrap_cg_accumulate<Torus, params>,
       cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
@@ -188,12 +191,12 @@ __host__ void scratch_fast_multi_bit_pbs(
         lwe_dimension, level_count, glwe_dimension, input_lwe_ciphertext_count);
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::FAST,
+      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
       allocate_gpu_memory);
 }
 
 template <typename Torus, typename STorus, class params>
-__host__ void host_fast_multi_bit_pbs(
+__host__ void host_cg_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
@@ -215,10 +218,11 @@ __host__ void host_fast_multi_bit_pbs(
 
   //
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_bootstrap_keybundle<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate =
-      get_buffer_size_full_sm_fast_multibit_bootstrap<Torus>(polynomial_size);
+      get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
@@ -257,7 +261,7 @@ __host__ void host_fast_multi_bit_pbs(
     dim3 grid_keybundle(num_samples * chunk_size,
                         (glwe_dimension + 1) * (glwe_dimension + 1),
                         level_count);
-    device_multi_bit_bootstrap_keybundle<Torus, params>
+    device_multi_bit_programmable_bootstrap_keybundle<Torus, params>
         <<<grid_keybundle, thds, full_sm_keybundle, stream->stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
@@ -269,19 +273,18 @@ __host__ void host_fast_multi_bit_pbs(
     kernel_args[16] = &chunk_size;
 
     check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_multi_bit_bootstrap_fast_accumulate<Torus, params>,
+        (void *)device_multi_bit_programmable_bootstrap_cg_accumulate<Torus,
+                                                                      params>,
         grid_accumulate, thds, (void **)kernel_args, full_sm_accumulate,
         stream->stream));
   }
 }
 
-// Verify if the grid size for the low latency kernel satisfies the cooperative
-// group constraints
+// Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
-__host__ bool
-verify_cuda_bootstrap_fast_multi_bit_grid_size(int glwe_dimension,
-                                               int level_count, int num_samples,
-                                               uint32_t max_shared_memory) {
+__host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
+    int glwe_dimension, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -289,7 +292,8 @@ verify_cuda_bootstrap_fast_multi_bit_grid_size(int glwe_dimension,
 
   // Calculate the dimension of the kernel
   uint64_t full_sm =
-      get_buffer_size_full_sm_fast_multibit_bootstrap<Torus>(params::degree);
+      get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
+          params::degree);
 
   int thds = params::degree / params::opt;
 
@@ -299,8 +303,9 @@ verify_cuda_bootstrap_fast_multi_bit_grid_size(int glwe_dimension,
 
   cudaOccupancyMaxActiveBlocksPerMultiprocessor(
       &max_active_blocks_per_sm,
-      (void *)device_multi_bit_bootstrap_fast_accumulate<Torus, params>, thds,
-      full_sm);
+      (void *)
+          device_multi_bit_programmable_bootstrap_cg_accumulate<Torus, params>,
+      thds, full_sm);
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
@@ -311,36 +316,36 @@ verify_cuda_bootstrap_fast_multi_bit_grid_size(int glwe_dimension,
 // Verify if the grid size for the multi-bit kernel satisfies the cooperative
 // group constraints
 template <typename Torus>
-__host__ bool supports_cooperative_groups_on_multibit_pbs(
+__host__ bool supports_cooperative_groups_on_multibit_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
   switch (polynomial_size) {
   case 256:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<Torus,
-                                                          AmortizedDegree<256>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
+        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
   case 512:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<Torus,
-                                                          AmortizedDegree<512>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
+        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
+                                     max_shared_memory);
   case 1024:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 2048:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 4096:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 8192:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
   case 16384:
-    return verify_cuda_bootstrap_fast_multi_bit_grid_size<
+    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
                                        max_shared_memory);
   default:

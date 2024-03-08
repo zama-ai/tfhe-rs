@@ -1,8 +1,8 @@
-#include "../../include/bootstrap.h"
 #include "../../include/device.h"
+#include "../../include/programmable_bootstrap.h"
 #include "../include/device.h"
-#include "bootstrap_low_latency.cuh"
-#include "bootstrap_multibit.cuh"
+#include "programmable_bootstrap_classic.cuh"
+#include "programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
 void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
@@ -21,16 +21,8 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
     switch (pbs_type) {
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
-    case LOW_LAT:
-      cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    case AMORTIZED:
-      cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
+    case CLASSICAL:
+      cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
           stream, lwe_array_out, lwe_output_indexes, lut_vector,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
@@ -45,23 +37,15 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
-      cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
+      cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
           stream, lwe_array_out, lwe_output_indexes, lut_vector,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, grouping_factor, base_log, level_count,
           input_lwe_ciphertext_count, num_luts, lwe_idx, max_shared_memory);
       break;
-    case LOW_LAT:
-      cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
-          stream, lwe_array_out, lwe_output_indexes, lut_vector,
-          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-          num_luts, lwe_idx, max_shared_memory);
-      break;
-    case AMORTIZED:
-      cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
+    case CLASSICAL:
+      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
           stream, lwe_array_out, lwe_output_indexes, lut_vector,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
@@ -92,14 +76,9 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
     switch (pbs_type) {
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
-    case LOW_LAT:
-      scratch_cuda_bootstrap_low_latency_32(
+    case CLASSICAL:
+      scratch_cuda_programmable_bootstrap_32(
           stream, pbs_buffer, glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
-      break;
-    case AMORTIZED:
-      scratch_cuda_bootstrap_amortized_32(
-          stream, pbs_buffer, glwe_dimension, polynomial_size,
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
       break;
     default:
@@ -110,19 +89,14 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
-      scratch_cuda_multi_bit_pbs_64(
+      scratch_cuda_multi_bit_programmable_bootstrap_64(
           stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
           level_count, grouping_factor, input_lwe_ciphertext_count,
           max_shared_memory, allocate_gpu_memory);
       break;
-    case LOW_LAT:
-      scratch_cuda_bootstrap_low_latency_64(
+    case CLASSICAL:
+      scratch_cuda_programmable_bootstrap_64(
           stream, pbs_buffer, glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
-      break;
-    case AMORTIZED:
-      scratch_cuda_bootstrap_amortized_64(
-          stream, pbs_buffer, glwe_dimension, polynomial_size,
           input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
       break;
     default:

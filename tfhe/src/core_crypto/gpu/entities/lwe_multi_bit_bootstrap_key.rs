@@ -56,7 +56,7 @@ impl CudaLweMultiBitBootstrapKey {
         };
         // Copy to the GPU
         unsafe {
-            stream.convert_lwe_multi_bit_bootstrap_key_async(
+            stream.convert_lwe_multi_bit_programmable_bootstrap_key_async(
                 &mut d_vec,
                 bsk.as_ref(),
                 input_lwe_dimension,

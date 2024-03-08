@@ -21,25 +21,6 @@ __device__ void real_to_complex_compressed(int16_t *src, double2 *dst) {
   }
 }
 
-/*
- * copy source polynomial to specific slice of batched polynomials
- * used only in low latency version
- */
-template <typename T, class params>
-__device__ void copy_into_ith_polynomial_low_lat(T *source, T *dst, int i) {
-  int tid = threadIdx.x;
-  int begin = i * (params::degree / 2 + 1);
-#pragma unroll
-  for (int i = 0; i < params::opt / 2; i++) {
-    dst[tid + begin] = source[tid];
-    tid = tid + params::degree / params::opt;
-  }
-
-  if (threadIdx.x == 0) {
-    dst[params::degree / 2 + begin] = source[params::degree / 2];
-  }
-}
-
 template <typename T, int elems_per_thread, int block_size>
 __device__ void copy_polynomial(T *source, T *dst) {
   int tid = threadIdx.x;
@@ -47,25 +28,6 @@ __device__ void copy_polynomial(T *source, T *dst) {
   for (int i = 0; i < elems_per_thread; i++) {
     dst[tid] = source[tid];
     tid = tid + block_size;
-  }
-}
-
-/*
- * accumulates source polynomial into specific slice of batched polynomial
- * used only in low latency version
- */
-template <typename T, class params>
-__device__ void add_polynomial_inplace_low_lat(T *source, T *dst, int p_id) {
-  int tid = threadIdx.x;
-  int begin = p_id * (params::degree / 2 + 1);
-#pragma unroll
-  for (int i = 0; i < params::opt / 2; i++) {
-    dst[tid] += source[tid + begin];
-    tid = tid + params::degree / params::opt;
-  }
-
-  if (threadIdx.x == 0) {
-    dst[params::degree / 2] += source[params::degree / 2 + begin];
   }
 }
 

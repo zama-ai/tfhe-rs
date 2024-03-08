@@ -66,7 +66,7 @@ impl CudaStream {
     /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
     /// required
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn bootstrap_low_latency_async<T: UnsignedInteger>(
+    pub unsafe fn bootstrap_async<T: UnsignedInteger>(
         &self,
         lwe_array_out: &mut CudaVec<T>,
         lwe_out_indexes: &CudaVec<T>,
@@ -84,7 +84,7 @@ impl CudaStream {
         lwe_idx: LweCiphertextIndex,
     ) {
         let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_bootstrap_low_latency_64(
+        scratch_cuda_programmable_bootstrap_64(
             self.as_c_ptr(),
             std::ptr::addr_of_mut!(pbs_buffer),
             glwe_dimension.0 as u32,
@@ -94,7 +94,7 @@ impl CudaStream {
             self.device().get_max_shared_memory() as u32,
             true,
         );
-        cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             self.as_c_ptr(),
             lwe_array_out.as_mut_c_ptr(),
             lwe_out_indexes.as_c_ptr(),
@@ -114,7 +114,7 @@ impl CudaStream {
             lwe_idx.0 as u32,
             self.device().get_max_shared_memory() as u32,
         );
-        cleanup_cuda_bootstrap_low_latency_64(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
+        cleanup_cuda_programmable_bootstrap(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
     }
 
     /// Discarding bootstrap on a vector of LWE ciphertexts
@@ -124,7 +124,7 @@ impl CudaStream {
     /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
     /// required
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn bootstrap_multi_bit_async<T: UnsignedInteger>(
+    pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         &self,
         lwe_array_out: &mut CudaVec<T>,
         output_indexes: &CudaVec<T>,
@@ -143,7 +143,7 @@ impl CudaStream {
         lwe_idx: LweCiphertextIndex,
     ) {
         let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_multi_bit_pbs_64(
+        scratch_cuda_multi_bit_programmable_bootstrap_64(
             self.as_c_ptr(),
             std::ptr::addr_of_mut!(pbs_buffer),
             lwe_dimension.0 as u32,
@@ -156,7 +156,7 @@ impl CudaStream {
             true,
             0u32,
         );
-        cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
             self.as_c_ptr(),
             lwe_array_out.as_mut_c_ptr(),
             output_indexes.as_c_ptr(),
@@ -178,7 +178,10 @@ impl CudaStream {
             self.device().get_max_shared_memory() as u32,
             0u32,
         );
-        cleanup_cuda_multi_bit_pbs_64(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
+        cleanup_cuda_multi_bit_programmable_bootstrap(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
     }
 
     /// Discarding keyswitch on a vector of LWE ciphertexts
@@ -231,14 +234,14 @@ impl CudaStream {
         dest.copy_from_cpu_async(src, self);
     }
 
-    /// Convert bootstrap key
+    /// Convert programmable bootstrap key
     ///
     /// # Safety
     ///
     /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
     /// required
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn convert_lwe_bootstrap_key_async<T: UnsignedInteger>(
+    pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
         &self,
         dest: &mut CudaVec<f64>,
         src: &[T],
@@ -250,7 +253,7 @@ impl CudaStream {
         let size = std::mem::size_of_val(src);
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
 
-        cuda_convert_lwe_bootstrap_key_64(
+        cuda_convert_lwe_programmable_bootstrap_key_64(
             dest.as_mut_c_ptr(),
             src.as_ptr().cast(),
             self.as_c_ptr(),
@@ -261,14 +264,14 @@ impl CudaStream {
         );
     }
 
-    /// Convert multi-bit bootstrap key
+    /// Convert multi-bit programmable bootstrap key
     ///
     /// # Safety
     ///
     /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
     /// required
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn convert_lwe_multi_bit_bootstrap_key_async<T: UnsignedInteger>(
+    pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: UnsignedInteger>(
         &self,
         dest: &mut CudaVec<u64>,
         src: &[T],
@@ -280,7 +283,7 @@ impl CudaStream {
     ) {
         let size = std::mem::size_of_val(src);
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-        cuda_convert_lwe_multi_bit_bootstrap_key_64(
+        cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
             dest.as_mut_c_ptr(),
             src.as_ptr().cast(),
             self.as_c_ptr(),

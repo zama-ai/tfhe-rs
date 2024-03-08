@@ -1,7 +1,6 @@
 #ifndef CUDA_INTEGER_CUH
 #define CUDA_INTEGER_CUH
 
-#include "bootstrap.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.h"
@@ -9,6 +8,7 @@
 #include "linear_algebra.h"
 #include "linearalgebra/addition.cuh"
 #include "polynomial/functions.cuh"
+#include "programmable_bootstrap.h"
 #include "utils/kernel_dimensions.cuh"
 #include <functional>
 
@@ -276,7 +276,7 @@ void generate_device_accumulator(cuda_stream_t *stream, Torus *acc,
 }
 
 template <typename Torus>
-void scratch_cuda_propagate_single_carry_low_latency_kb_inplace(
+void scratch_cuda_propagate_single_carry_kb_inplace(
     cuda_stream_t *stream, int_sc_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
@@ -286,11 +286,9 @@ void scratch_cuda_propagate_single_carry_low_latency_kb_inplace(
 }
 
 template <typename Torus>
-void host_propagate_single_carry_low_latency(cuda_stream_t *stream,
-                                             Torus *lwe_array,
-                                             int_sc_prop_memory<Torus> *mem,
-                                             void *bsk, Torus *ksk,
-                                             uint32_t num_blocks) {
+void host_propagate_single_carry(cuda_stream_t *stream, Torus *lwe_array,
+                                 int_sc_prop_memory<Torus> *mem, void *bsk,
+                                 Torus *ksk, uint32_t num_blocks) {
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;

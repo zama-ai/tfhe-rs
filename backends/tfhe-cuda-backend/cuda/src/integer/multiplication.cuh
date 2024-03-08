@@ -6,12 +6,12 @@
 #include <cuda_runtime.h>
 #endif
 
-#include "bootstrap.h"
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.h"
 #include "integer/integer.cuh"
 #include "linear_algebra.h"
+#include "programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
@@ -459,8 +459,8 @@ __host__ void host_integer_mult_radix_kb(
   host_addition(stream, radix_lwe_out, vector_result_sb, block_mul_res,
                 big_lwe_dimension, num_blocks);
 
-  host_propagate_single_carry_low_latency<Torus>(
-      stream, radix_lwe_out, mem_ptr->scp_mem, bsk, ksk, num_blocks);
+  host_propagate_single_carry<Torus>(stream, radix_lwe_out, mem_ptr->scp_mem,
+                                     bsk, ksk, num_blocks);
 }
 
 template <typename Torus>
@@ -561,7 +561,7 @@ void apply_lookup_table(Torus *input_ciphertexts, Torus *output_ciphertexts,
         gpu_blocks_count);
 
     // execute pbs on a current gpu with corresponding input and output
-    cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
+    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         this_stream, i, mem_ptr->pbs_output_multi_gpu[i],
         mem_ptr->lut_multi_gpu[i], cur_lut_indexes,
         mem_ptr->pbs_input_multi_gpu[i], mem_ptr->bsk_multi_gpu[i],

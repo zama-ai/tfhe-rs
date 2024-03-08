@@ -1,12 +1,11 @@
-#ifndef CUDA_LOWLAT_PBS_CUH
-#define CUDA_LOWLAT_PBS_CUH
+#ifndef CUDA_PBS_CUH
+#define CUDA_PBS_CUH
 
 #ifdef __CDT_PARSER__
 #undef __CUDA_RUNTIME_H__
 #include <cuda_runtime.h>
 #endif
 
-#include "bootstrap.h"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -14,10 +13,11 @@
 #include "fft/twiddles.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.h"
 #include "types/complex/operations.cuh"
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_bootstrap_low_latency_step_one(
+__global__ void device_programmable_bootstrap_step_one(
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
     Torus *global_accumulator, double2 *global_accumulator_fft,
@@ -127,7 +127,7 @@ __global__ void device_bootstrap_low_latency_step_one(
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_bootstrap_low_latency_step_two(
+__global__ void device_programmable_bootstrap_step_two(
     Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, double2 *bootstrapping_key,
     Torus *global_accumulator, double2 *global_accumulator_fft,
@@ -222,18 +222,18 @@ __global__ void device_bootstrap_low_latency_step_two(
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_bootstrap_low_latency(
+__host__ __device__ uint64_t get_buffer_size_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
 
   uint64_t full_sm_step_one =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_one<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
   uint64_t full_sm_step_two =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_two<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_low_latency<Torus>(polynomial_size);
+      get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
 
   uint64_t partial_dm_step_one = full_sm_step_one - partial_sm;
   uint64_t partial_dm_step_two = full_sm_step_two - partial_sm;
@@ -263,37 +263,37 @@ __host__ __device__ uint64_t get_buffer_size_bootstrap_low_latency(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void scratch_bootstrap_low_latency(
-    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **buffer,
+__host__ void scratch_programmable_bootstrap(
+    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
 
   uint64_t full_sm_step_one =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_one<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
   uint64_t full_sm_step_two =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_two<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_low_latency<Torus>(polynomial_size);
+      get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
 
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_low_latency_step_one<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_bootstrap_low_latency_step_one<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_low_latency_step_one<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
     cudaFuncSetCacheConfig(
-        device_bootstrap_low_latency_step_one<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -301,29 +301,29 @@ __host__ void scratch_bootstrap_low_latency(
   // Configure step two
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_two) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_low_latency_step_two<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_bootstrap_low_latency_step_two<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_bootstrap_low_latency_step_two<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
     cudaFuncSetCacheConfig(
-        device_bootstrap_low_latency_step_two<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
 
-  *buffer = new pbs_buffer<Torus, LOW_LAT>(
+  *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
-__host__ void execute_low_latency_step_one(
+__host__ void execute_step_one(
     cuda_stream_t *stream, Torus *lut_vector, Torus *lut_vector_indexes,
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     Torus *global_accumulator, double2 *global_accumulator_fft,
@@ -337,21 +337,21 @@ __host__ void execute_low_latency_step_one(
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
 
   if (max_shared_memory < partial_sm) {
-    device_bootstrap_low_latency_step_one<Torus, params, NOSM>
+    device_programmable_bootstrap_step_one<Torus, params, NOSM>
         <<<grid, thds, 0, stream->stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
-    device_bootstrap_low_latency_step_one<Torus, params, PARTIALSM>
+    device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream->stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, partial_dm);
   } else {
-    device_bootstrap_low_latency_step_one<Torus, params, FULLSM>
+    device_programmable_bootstrap_step_one<Torus, params, FULLSM>
         <<<grid, thds, full_sm, stream->stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
@@ -362,7 +362,7 @@ __host__ void execute_low_latency_step_one(
 }
 
 template <typename Torus, class params>
-__host__ void execute_low_latency_step_two(
+__host__ void execute_step_two(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, double2 *bootstrapping_key,
     Torus *global_accumulator, double2 *global_accumulator_fft,
@@ -376,21 +376,21 @@ __host__ void execute_low_latency_step_two(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
-    device_bootstrap_low_latency_step_two<Torus, params, NOSM>
+    device_programmable_bootstrap_step_two<Torus, params, NOSM>
         <<<grid, thds, 0, stream->stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
-    device_bootstrap_low_latency_step_two<Torus, params, PARTIALSM>
+    device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream->stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, partial_dm);
   } else {
-    device_bootstrap_low_latency_step_two<Torus, params, FULLSM>
+    device_programmable_bootstrap_step_two<Torus, params, FULLSM>
         <<<grid, thds, full_sm, stream->stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_accumulator_fft,
@@ -404,11 +404,11 @@ __host__ void execute_low_latency_step_two(
  * of bootstrapping
  */
 template <typename Torus, class params>
-__host__ void host_bootstrap_low_latency(
+__host__ void host_programmable_bootstrap(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
-    pbs_buffer<Torus, LOW_LAT> *pbs_buffer, uint32_t glwe_dimension,
+    pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_luts, uint32_t max_shared_memory) {
@@ -417,14 +417,14 @@ __host__ void host_bootstrap_low_latency(
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
   uint64_t full_sm_step_one =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_one<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
   uint64_t full_sm_step_two =
-      get_buffer_size_full_sm_bootstrap_low_latency_step_two<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
 
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_low_latency<Torus>(polynomial_size);
+      get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
 
   uint64_t partial_dm_step_one = full_sm_step_one - partial_sm;
   uint64_t partial_dm_step_two = full_sm_step_two - partial_sm;
@@ -436,13 +436,13 @@ __host__ void host_bootstrap_low_latency(
   int8_t *d_mem = pbs_buffer->d_mem;
 
   for (int i = 0; i < lwe_dimension; i++) {
-    execute_low_latency_step_one<Torus, params>(
+    execute_step_one<Torus, params>(
         stream, lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
         bootstrapping_key, global_accumulator, global_accumulator_fft,
         input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
         polynomial_size, base_log, level_count, d_mem, max_shared_memory, i,
         partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
-    execute_low_latency_step_two<Torus, params>(
+    execute_step_two<Torus, params>(
         stream, lwe_array_out, lwe_output_indexes, lut_vector,
         lut_vector_indexes, bootstrapping_key, global_accumulator,
         global_accumulator_fft, input_lwe_ciphertext_count, lwe_dimension,
@@ -452,4 +452,4 @@ __host__ void host_bootstrap_low_latency(
   }
 }
 
-#endif // LOWLAT_PBS_H
+#endif // CUDA_PBS_CUH

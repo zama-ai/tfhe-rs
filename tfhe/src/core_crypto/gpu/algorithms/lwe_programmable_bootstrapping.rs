@@ -32,7 +32,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         accumulator.ciphertext_modulus()
     );
 
-    stream.bootstrap_low_latency_async(
+    stream.bootstrap_async(
         &mut output.0.d_vec,
         output_indexes,
         &accumulator.0.d_vec,

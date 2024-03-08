@@ -1,30 +1,28 @@
 #ifndef CUDA_MULTI_BIT_H
 #define CUDA_MULTI_BIT_H
 
-#include "bootstrap.h"
+#include "programmable_bootstrap.h"
 #include <cstdint>
 
 extern "C" {
 
-bool has_support_to_cuda_bootstrap_fast_multi_bit(uint32_t glwe_dimension,
-                                                  uint32_t polynomial_size,
-                                                  uint32_t level_count,
-                                                  uint32_t num_samples,
-                                                  uint32_t max_shared_memory);
+bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t num_samples, uint32_t max_shared_memory);
 
-void cuda_convert_lwe_multi_bit_bootstrap_key_64(
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
     void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
     uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size,
     uint32_t grouping_factor);
 
-void scratch_cuda_multi_bit_pbs_64(
+void scratch_cuda_multi_bit_programmable_bootstrap_64(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t chunk_size = 0);
 
-void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
+void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
@@ -33,14 +31,14 @@ void cuda_multi_bit_pbs_lwe_ciphertext_vector_64(
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
 
-void scratch_cuda_generic_multi_bit_pbs_64(
+void scratch_cuda_generic_multi_bit_programmable_bootstrap_64(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t lwe_chunk_size = 0);
 
-void cuda_generic_multi_bit_pbs_lwe_ciphertext_vector_64(
+void cuda_generic_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
@@ -49,12 +47,12 @@ void cuda_generic_multi_bit_pbs_lwe_ciphertext_vector_64(
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
 
-void cleanup_cuda_multi_bit_pbs_32(cuda_stream_t *stream, int8_t **pbs_buffer);
-void cleanup_cuda_multi_bit_pbs_64(cuda_stream_t *stream, int8_t **pbs_buffer);
+void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
+                                                   int8_t **pbs_buffer);
 }
 
 template <typename Torus, typename STorus>
-void scratch_cuda_fast_multi_bit_pbs(
+void scratch_cuda_cg_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t grouping_factor,
@@ -62,7 +60,7 @@ void scratch_cuda_fast_multi_bit_pbs(
     bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0);
 
 template <typename Torus>
-void cuda_fast_multi_bit_pbs_lwe_ciphertext_vector(
+void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, Torus *bootstrapping_key,
@@ -73,7 +71,7 @@ void cuda_fast_multi_bit_pbs_lwe_ciphertext_vector(
     uint32_t lwe_chunk_size = 0);
 
 template <typename Torus, typename STorus>
-void scratch_cuda_multi_bit_pbs(
+void scratch_cuda_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t grouping_factor,
@@ -81,7 +79,7 @@ void scratch_cuda_multi_bit_pbs(
     bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0);
 
 template <typename Torus>
-void cuda_multi_bit_pbs_lwe_ciphertext_vector(
+void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, Torus *bootstrapping_key,
@@ -108,7 +106,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     if (allocate_gpu_memory) {
       switch (pbs_variant) {
       case DEFAULT:
-      case FAST:
+      case CG:
         keybundle_fft = (double2 *)cuda_malloc_async(
             input_lwe_ciphertext_count * lwe_chunk_size * level_count *
                 (glwe_dimension + 1) * (glwe_dimension + 1) *

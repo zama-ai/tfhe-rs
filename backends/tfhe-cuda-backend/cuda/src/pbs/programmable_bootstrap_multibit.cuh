@@ -1,9 +1,6 @@
 #ifndef CUDA_MULTIBIT_PBS_CUH
 #define CUDA_MULTIBIT_PBS_CUH
 
-#include "bootstrap.h"
-#include "bootstrap_fast_low_latency.cuh"
-#include "bootstrap_multibit.h"
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/ggsw.cuh"
@@ -14,6 +11,9 @@
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.h"
+#include "programmable_bootstrap_cg_classic.cuh"
+#include "programmable_bootstrap_multibit.h"
 #include "types/complex/operations.cuh"
 #include <vector>
 
@@ -33,7 +33,7 @@ __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
 }
 
 template <typename Torus, class params>
-__global__ void device_multi_bit_bootstrap_keybundle(
+__global__ void device_multi_bit_programmable_bootstrap_keybundle(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *keybundle_array,
     Torus *bootstrapping_key, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
@@ -137,7 +137,7 @@ __global__ void device_multi_bit_bootstrap_keybundle(
 }
 
 template <typename Torus, class params>
-__global__ void device_multi_bit_bootstrap_accumulate_step_one(
+__global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
     Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, Torus *global_accumulator,
     double2 *global_accumulator_fft, uint32_t lwe_dimension,
@@ -220,7 +220,7 @@ __global__ void device_multi_bit_bootstrap_accumulate_step_one(
 }
 
 template <typename Torus, class params>
-__global__ void device_multi_bit_bootstrap_accumulate_step_two(
+__global__ void device_multi_bit_programmable_bootstrap_accumulate_step_two(
     Torus *lwe_array_out, Torus *lwe_output_indexes, double2 *keybundle_array,
     Torus *global_accumulator, double2 *global_accumulator_fft,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -295,23 +295,26 @@ __global__ void device_multi_bit_bootstrap_accumulate_step_two(
 }
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_bootstrap_keybundle(uint32_t polynomial_size) {
+get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
+    uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_bootstrap_step_one(uint32_t polynomial_size) {
+get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
+    uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_bootstrap_step_two(uint32_t polynomial_size) {
+get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
+    uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_multibit_bootstrap(
+__host__ __device__ uint64_t get_buffer_size_multibit_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size) {
 
@@ -329,7 +332,7 @@ __host__ __device__ uint64_t get_buffer_size_multibit_bootstrap(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void scratch_multi_bit_pbs(
+__host__ void scratch_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -339,37 +342,42 @@ __host__ void scratch_multi_bit_pbs(
   cudaSetDevice(stream->gpu_index);
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_bootstrap_keybundle<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate_step_one =
-      get_buffer_size_full_sm_multibit_bootstrap_step_one<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate_step_two =
-      get_buffer_size_full_sm_multibit_bootstrap_step_two<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
 
   check_cuda_error(cudaFuncSetAttribute(
-      device_multi_bit_bootstrap_keybundle<Torus, params>,
+      device_multi_bit_programmable_bootstrap_keybundle<Torus, params>,
       cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
-  cudaFuncSetCacheConfig(device_multi_bit_bootstrap_keybundle<Torus, params>,
-                         cudaFuncCachePreferShared);
-  check_cuda_error(cudaGetLastError());
-
-  check_cuda_error(cudaFuncSetAttribute(
-      device_multi_bit_bootstrap_accumulate_step_one<Torus, params>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      full_sm_accumulate_step_one));
   cudaFuncSetCacheConfig(
-      device_multi_bit_bootstrap_accumulate_step_one<Torus, params>,
+      device_multi_bit_programmable_bootstrap_keybundle<Torus, params>,
       cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
   check_cuda_error(cudaFuncSetAttribute(
-      device_multi_bit_bootstrap_accumulate_step_two<Torus, params>,
+      device_multi_bit_programmable_bootstrap_accumulate_step_one<Torus,
+                                                                  params>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize,
+      full_sm_accumulate_step_one));
+  cudaFuncSetCacheConfig(
+      device_multi_bit_programmable_bootstrap_accumulate_step_one<Torus,
+                                                                  params>,
+      cudaFuncCachePreferShared);
+  check_cuda_error(cudaGetLastError());
+
+  check_cuda_error(cudaFuncSetAttribute(
+      device_multi_bit_programmable_bootstrap_accumulate_step_two<Torus,
+                                                                  params>,
       cudaFuncAttributeMaxDynamicSharedMemorySize,
       full_sm_accumulate_step_two));
   cudaFuncSetCacheConfig(
-      device_multi_bit_bootstrap_accumulate_step_two<Torus, params>,
+      device_multi_bit_programmable_bootstrap_accumulate_step_two<Torus,
+                                                                  params>,
       cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
@@ -383,7 +391,7 @@ __host__ void scratch_multi_bit_pbs(
 }
 
 template <typename Torus, typename STorus, class params>
-__host__ void host_multi_bit_pbs(
+__host__ void host_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
@@ -405,13 +413,13 @@ __host__ void host_multi_bit_pbs(
 
   //
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_bootstrap_keybundle<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate_step_one =
-      get_buffer_size_full_sm_multibit_bootstrap_step_one<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
   uint64_t full_sm_accumulate_step_two =
-      get_buffer_size_full_sm_multibit_bootstrap_step_two<Torus>(
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
 
   uint32_t keybundle_size_per_input =
@@ -433,7 +441,7 @@ __host__ void host_multi_bit_pbs(
     dim3 grid_keybundle(num_samples * chunk_size,
                         (glwe_dimension + 1) * (glwe_dimension + 1),
                         level_count);
-    device_multi_bit_bootstrap_keybundle<Torus, params>
+    device_multi_bit_programmable_bootstrap_keybundle<Torus, params>
         <<<grid_keybundle, thds, full_sm_keybundle, stream->stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
@@ -443,7 +451,7 @@ __host__ void host_multi_bit_pbs(
 
     // Accumulate
     for (int j = 0; j < chunk_size; j++) {
-      device_multi_bit_bootstrap_accumulate_step_one<Torus, params>
+      device_multi_bit_programmable_bootstrap_accumulate_step_one<Torus, params>
           <<<grid_accumulate_step_one, thds, full_sm_accumulate_step_one,
              stream->stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
                                lut_vector_indexes, global_accumulator,
@@ -452,7 +460,7 @@ __host__ void host_multi_bit_pbs(
                                level_count, j + lwe_offset);
       check_cuda_error(cudaGetLastError());
 
-      device_multi_bit_bootstrap_accumulate_step_two<Torus, params>
+      device_multi_bit_programmable_bootstrap_accumulate_step_two<Torus, params>
           <<<grid_accumulate_step_two, thds, full_sm_accumulate_step_two,
              stream->stream>>>(lwe_array_out, lwe_output_indexes, keybundle_fft,
                                global_accumulator, global_accumulator_fft,

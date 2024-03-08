@@ -1,6 +1,6 @@
 #include <algorithm>
-#include <bootstrap.h>
-#include <bootstrap_multibit.h>
+#include <programmable_bootstrap.h>
+#include <programmable_bootstrap_multibit.h>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -135,7 +135,7 @@ void generate_glwe_secret_keys(uint64_t **glwe_sk_array, int glwe_dimension,
 }
 
 // Generate repetitions LWE bootstrap keys
-void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
+void generate_lwe_programmable_bootstrap_keys(cuda_stream_t *stream,
                                  double **d_fourier_bsk_array,
                                  uint64_t *lwe_sk_in_array,
                                  uint64_t *lwe_sk_out_array, int lwe_dimension,
@@ -164,7 +164,7 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
     double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_synchronize_stream(stream);
-    cuda_convert_lwe_bootstrap_key_64((void *)(d_fourier_bsk), (void *)(bsk),
+    cuda_convert_lwe_programmable_bootstrap_key_64((void *)(d_fourier_bsk), (void *)(bsk),
                                       stream, lwe_dimension, glwe_dimension,
                                       pbs_level, polynomial_size);
     shift_in += lwe_dimension;
@@ -175,7 +175,7 @@ void generate_lwe_bootstrap_keys(cuda_stream_t *stream,
   free(bsk_array);
 }
 
-void generate_lwe_multi_bit_pbs_keys(
+void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor, int pbs_level, int pbs_base_log,
@@ -201,7 +201,7 @@ void generate_lwe_multi_bit_pbs_keys(
         pbs_level, grouping_factor, noise_distribution, 0, 0);
     uint64_t *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
-    cuda_convert_lwe_multi_bit_bootstrap_key_64(
+    cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
         d_bsk, bsk, stream, lwe_dimension, glwe_dimension, pbs_level,
         polynomial_size, grouping_factor);
     shift_in += lwe_dimension;

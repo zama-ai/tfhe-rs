@@ -50,7 +50,7 @@ impl CudaLweBootstrapKey {
         );
         // Copy to the GPU
         unsafe {
-            stream.convert_lwe_bootstrap_key_async(
+            stream.convert_lwe_programmable_bootstrap_key_async(
                 &mut d_vec,
                 bsk.as_ref(),
                 input_lwe_dimension,

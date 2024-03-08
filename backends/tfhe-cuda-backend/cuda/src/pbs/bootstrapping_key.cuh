@@ -1,11 +1,11 @@
 #ifndef CUDA_BSK_CUH
 #define CUDA_BSK_CUH
 
-#include "bootstrap.h"
-#include "bootstrap_multibit.h"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
 #include "polynomial/parameters.cuh"
+#include "programmable_bootstrap.h"
+#include "programmable_bootstrap_multibit.h"
 #include <atomic>
 #include <cstdint>
 
@@ -60,12 +60,10 @@ __device__ T *get_multi_bit_ith_lwe_gth_group_kth_block(
 }
 ////////////////////////////////////////////////
 template <typename T, typename ST>
-void cuda_convert_lwe_bootstrap_key(double2 *dest, ST *src,
-                                    cuda_stream_t *stream,
-                                    uint32_t input_lwe_dim, uint32_t glwe_dim,
-                                    uint32_t level_count,
-                                    uint32_t polynomial_size,
-                                    uint32_t total_polynomials) {
+void cuda_convert_lwe_programmable_bootstrap_key(
+    double2 *dest, ST *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
+    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size,
+    uint32_t total_polynomials) {
 
   cudaSetDevice(stream->gpu_index);
   int shared_memory_size = sizeof(double) * polynomial_size;

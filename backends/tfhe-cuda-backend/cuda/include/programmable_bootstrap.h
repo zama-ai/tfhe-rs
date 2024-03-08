@@ -4,8 +4,8 @@
 #include "device.h"
 #include <cstdint>
 
-enum PBS_TYPE { MULTI_BIT = 0, LOW_LAT = 1, AMORTIZED = 2 };
-enum PBS_VARIANT { DEFAULT = 0, FAST = 1 };
+enum PBS_TYPE { MULTI_BIT = 0, CLASSICAL = 1 };
+enum PBS_VARIANT { DEFAULT = 0, CG = 1 };
 
 extern "C" {
 void cuda_fourier_polynomial_mul(void *input1, void *input2, void *output,
@@ -13,29 +13,25 @@ void cuda_fourier_polynomial_mul(void *input1, void *input2, void *output,
                                  uint32_t polynomial_size,
                                  uint32_t total_polynomials);
 
-void cuda_convert_lwe_bootstrap_key_32(void *dest, void *src,
-                                       cuda_stream_t *stream,
-                                       uint32_t input_lwe_dim,
-                                       uint32_t glwe_dim, uint32_t level_count,
-                                       uint32_t polynomial_size);
+void cuda_convert_lwe_programmable_bootstrap_key_32(
+    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
+    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size);
 
-void cuda_convert_lwe_bootstrap_key_64(void *dest, void *src,
-                                       cuda_stream_t *stream,
-                                       uint32_t input_lwe_dim,
-                                       uint32_t glwe_dim, uint32_t level_count,
-                                       uint32_t polynomial_size);
+void cuda_convert_lwe_programmable_bootstrap_key_64(
+    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
+    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size);
 
-void scratch_cuda_bootstrap_amortized_32(
+void scratch_cuda_programmable_bootstrap_amortized_32(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory);
 
-void scratch_cuda_bootstrap_amortized_64(
+void scratch_cuda_programmable_bootstrap_amortized_64(
     cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t input_lwe_ciphertext_count,
     uint32_t max_shared_memory, bool allocate_gpu_memory);
 
-void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
+void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
@@ -43,7 +39,7 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_32(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
-void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
+void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
@@ -51,22 +47,22 @@ void cuda_bootstrap_amortized_lwe_ciphertext_vector_64(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
-void cleanup_cuda_bootstrap_amortized(cuda_stream_t *stream,
-                                      int8_t **pbs_buffer);
+void cleanup_cuda_programmable_bootstrap_amortized(cuda_stream_t *stream,
+                                                   int8_t **pbs_buffer);
 
-void scratch_cuda_bootstrap_low_latency_32(
+void scratch_cuda_programmable_bootstrap_32(
     cuda_stream_t *stream, int8_t **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
 
-void scratch_cuda_bootstrap_low_latency_64(
+void scratch_cuda_programmable_bootstrap_64(
     cuda_stream_t *stream, int8_t **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
 
-void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
@@ -74,7 +70,7 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_32(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
-void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
     void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
@@ -82,31 +78,28 @@ void cuda_bootstrap_low_latency_lwe_ciphertext_vector_64(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory);
 
-void cleanup_cuda_bootstrap_low_latency_32(cuda_stream_t *stream,
-                                           int8_t **pbs_buffer);
+void cleanup_cuda_programmable_bootstrap(cuda_stream_t *stream,
+                                         int8_t **pbs_buffer);
 
-void cleanup_cuda_bootstrap_low_latency_64(cuda_stream_t *stream,
-                                           int8_t **pbs_buffer);
-
-uint64_t get_buffer_size_bootstrap_amortized_64(
+uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory);
 
-uint64_t get_buffer_size_bootstrap_low_latency_64(
+uint64_t get_buffer_size_programmable_bootstrap_64(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory);
 }
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_low_latency_step_one(
+get_buffer_size_full_sm_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_low_latency_step_two(
+get_buffer_size_full_sm_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator
          sizeof(double2) * polynomial_size / 2; // accumulator fft
@@ -114,13 +107,13 @@ get_buffer_size_full_sm_bootstrap_low_latency_step_two(
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_partial_sm_bootstrap_low_latency(uint32_t polynomial_size) {
+get_buffer_size_partial_sm_programmable_bootstrap(uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_full_sm_bootstrap_fast_low_latency(uint32_t polynomial_size) {
+get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(Torus) * polynomial_size +      // accumulator
          sizeof(double2) * polynomial_size / 2; // accumulator fft
@@ -128,14 +121,13 @@ get_buffer_size_full_sm_bootstrap_fast_low_latency(uint32_t polynomial_size) {
 
 template <typename Torus>
 __host__ __device__ uint64_t
-get_buffer_size_partial_sm_bootstrap_fast_low_latency(
-    uint32_t polynomial_size) {
+get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
 }
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
-template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::LOW_LAT> {
+template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   int8_t *d_mem;
 
   Torus *global_accumulator;
@@ -155,13 +147,13 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::LOW_LAT> {
       switch (pbs_variant) {
       case PBS_VARIANT::DEFAULT: {
         uint64_t full_sm_step_one =
-            get_buffer_size_full_sm_bootstrap_low_latency_step_one<Torus>(
+            get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
                 polynomial_size);
         uint64_t full_sm_step_two =
-            get_buffer_size_full_sm_bootstrap_low_latency_step_two<Torus>(
+            get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
                 polynomial_size);
         uint64_t partial_sm =
-            get_buffer_size_partial_sm_bootstrap_low_latency<Torus>(
+            get_buffer_size_partial_sm_programmable_bootstrap<Torus>(
                 polynomial_size);
 
         uint64_t partial_dm_step_one = full_sm_step_one - partial_sm;
@@ -193,12 +185,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::LOW_LAT> {
                 polynomial_size * sizeof(Torus),
             stream);
       } break;
-      case PBS_VARIANT::FAST: {
+      case PBS_VARIANT::CG: {
         uint64_t full_sm =
-            get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(
+            get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(
                 polynomial_size);
         uint64_t partial_sm =
-            get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
+            get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
                 polynomial_size);
 
         uint64_t partial_dm = full_sm - partial_sm;
@@ -237,14 +229,14 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::LOW_LAT> {
 };
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_bootstrap_fast_low_latency(
+__host__ __device__ uint64_t get_buffer_size_programmable_bootstrap_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
 
-  uint64_t full_sm = get_buffer_size_full_sm_bootstrap_fast_low_latency<Torus>(
-      polynomial_size);
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_bootstrap_fast_low_latency<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           polynomial_size);
   uint64_t partial_dm = full_sm - partial_sm;
   uint64_t full_dm = full_sm;
@@ -263,42 +255,42 @@ __host__ __device__ uint64_t get_buffer_size_bootstrap_fast_low_latency(
 }
 
 template <typename Torus>
-bool has_support_to_cuda_bootstrap_fast_low_latency(uint32_t glwe_dimension,
-                                                    uint32_t polynomial_size,
-                                                    uint32_t level_count,
-                                                    uint32_t num_samples,
-                                                    uint32_t max_shared_memory);
+bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
+                                                   uint32_t polynomial_size,
+                                                   uint32_t level_count,
+                                                   uint32_t num_samples,
+                                                   uint32_t max_shared_memory);
 
 template <typename Torus>
-void cuda_bootstrap_fast_low_latency_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
-    pbs_buffer<Torus, LOW_LAT> *buffer, uint32_t lwe_dimension,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
     uint32_t lwe_idx, uint32_t max_shared_memory);
 
 template <typename Torus>
-void cuda_bootstrap_low_latency_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
-    pbs_buffer<Torus, LOW_LAT> *buffer, uint32_t lwe_dimension,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
     uint32_t lwe_idx, uint32_t max_shared_memory);
 
 template <typename Torus, typename STorus>
-void scratch_cuda_fast_bootstrap_low_latency(
-    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **pbs_buffer,
+void scratch_cuda_programmable_bootstrap_cg(
+    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
 
 template <typename Torus, typename STorus>
-void scratch_cuda_bootstrap_low_latency(
-    cuda_stream_t *stream, pbs_buffer<Torus, LOW_LAT> **buffer,
+void scratch_cuda_programmable_bootstrap(
+    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
