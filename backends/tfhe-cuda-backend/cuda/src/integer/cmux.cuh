@@ -30,7 +30,7 @@ __host__ void zero_out_if(cuda_stream_t *stream, Torus *lwe_array_out,
     device_pack_bivariate_blocks<<<num_blocks, num_threads, 0,
                                    stream->stream>>>(
         lwe_array_out_block, lwe_array_input_block, lwe_condition,
-        predicate->lwe_indexes, params.big_lwe_dimension,
+        predicate->lwe_indexes_in, params.big_lwe_dimension,
         params.message_modulus, 1);
     check_cuda_error(cudaGetLastError());
   }

@@ -3472,3 +3472,50 @@ where
         }
     }
 }
+
+pub(crate) fn default_sum_ciphertexts_vec_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((
+        cks,
+        crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT,
+    ));
+    let sks = Arc::new(sks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks
+        .parameters()
+        .message_modulus()
+        .0
+        .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32)
+        as u64;
+
+    executor.setup(&cks, sks);
+
+    for len in [1, 2, 15, 16, 17, 64, 65] {
+        for _ in 0..crate::integer::server_key::radix_parallel::tests_unsigned::NB_TESTS_SMALLER {
+            let clears = (0..len)
+                .map(|_| rng.gen::<u64>() % modulus)
+                .collect::<Vec<_>>();
+
+            // encryption of integers
+            let ctxts = clears
+                .iter()
+                .copied()
+                .map(|clear| cks.encrypt(clear))
+                .collect::<Vec<_>>();
+
+            let ct_res = executor.execute(&ctxts).unwrap();
+            let ct_res: u64 = cks.decrypt(&ct_res);
+            let clear = clears.iter().sum::<u64>() % modulus;
+
+            assert_eq!(ct_res, clear);
+        }
+    }
+}

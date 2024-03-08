@@ -474,7 +474,6 @@ create_parametrized_test!(
     }
 );
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
-create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
@@ -687,6 +686,21 @@ where
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
+impl<'a, F> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>
+    for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &Vec<RadixCiphertext>) -> Option<RadixCiphertext>,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: &'a Vec<RadixCiphertext>) -> Option<RadixCiphertext> {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input)
     }
@@ -926,41 +940,6 @@ where
                 .collect::<Vec<_>>();
 
             let ct_res = sks.smart_sum_ciphertexts_parallelized(&mut ctxts).unwrap();
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
-}
-
-fn integer_default_sum_ciphertexts_vec<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TESTS_SMALLER {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let ct_res = sks.sum_ciphertexts_parallelized(&ctxts).unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 

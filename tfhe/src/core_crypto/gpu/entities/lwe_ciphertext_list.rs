@@ -4,6 +4,7 @@ use crate::core_crypto::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
     LweDimension, LweSize, UnsignedInteger,
 };
+use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
 /// A structure representing a vector of LWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
@@ -75,6 +76,65 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             lwe_dimension,
             ciphertext_modulus,
         };
+        Self(cuda_lwe_list)
+    }
+
+    pub fn from_vec_cuda_lwe_ciphertexts_list<'a, Iter>(
+        mut cuda_ciphertexts_list_vec: Iter,
+        stream: &CudaStream,
+    ) -> Self
+    where
+        Iter: Iterator<Item = &'a Self> + Clone,
+    {
+        let lwe_ciphertext_count = LweCiphertextCount(
+            cuda_ciphertexts_list_vec
+                .clone()
+                .map(|list| list.0.lwe_ciphertext_count.0)
+                .sum(),
+        );
+
+        assert_ne!(
+            lwe_ciphertext_count.0, 0,
+            "Empty iterator of CudaLweCiphertextList"
+        );
+
+        let first_item = cuda_ciphertexts_list_vec.next().unwrap();
+        let lwe_dimension = first_item.lwe_dimension();
+        let mut d_vec = CudaVec::new(
+            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+            stream,
+        );
+        let mut ptr = d_vec.as_mut_c_ptr();
+        let size = first_item.lwe_ciphertext_count().0
+            * lwe_dimension.to_lwe_size().0
+            * std::mem::size_of::<T>();
+        // Concatenate device memory
+        unsafe {
+            cuda_memcpy_async_gpu_to_gpu(
+                ptr,
+                first_item.0.d_vec.as_c_ptr(),
+                size as u64,
+                stream.as_c_ptr(),
+            );
+            ptr = ptr.cast::<u8>().add(size).cast();
+            for list in cuda_ciphertexts_list_vec {
+                cuda_memcpy_async_gpu_to_gpu(
+                    ptr,
+                    list.0.d_vec.as_c_ptr(),
+                    size as u64,
+                    stream.as_c_ptr(),
+                );
+                ptr = ptr.cast::<u8>().add(size).cast();
+            }
+        }
+
+        let cuda_lwe_list = CudaLweList {
+            d_vec,
+            lwe_ciphertext_count,
+            lwe_dimension,
+            ciphertext_modulus: first_item.ciphertext_modulus(),
+        };
+
         Self(cuda_lwe_list)
     }
 
