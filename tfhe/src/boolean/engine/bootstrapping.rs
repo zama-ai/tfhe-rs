@@ -336,7 +336,7 @@ impl Bootstrapper {
     }
 
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
-        #[cfg(not(feature = "__wasm_api"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
             &cks.lwe_secret_key,
             &cks.glwe_secret_key,
@@ -347,7 +347,7 @@ impl Bootstrapper {
             &mut self.seeder,
         );
 
-        #[cfg(feature = "__wasm_api")]
+        #[cfg(target_arch = "wasm32")]
         let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
             &cks.lwe_secret_key,
             &cks.glwe_secret_key,

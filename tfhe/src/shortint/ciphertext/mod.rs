@@ -600,14 +600,14 @@ impl CompactCiphertextList {
         );
 
         // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
+        #[cfg(all(target_arch = "wasm32", not(feature = "parallel-wasm-api")))]
         {
             use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
             expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 
         // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+        #[cfg(any(not(target_arch = "wasm32"), feature = "parallel-wasm-api"))]
         {
             use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
             par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
