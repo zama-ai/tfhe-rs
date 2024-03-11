@@ -4,7 +4,6 @@ use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-use crate::shortint::ClassicPBSParameters;
 
 use crate::integer::keycache::KEY_CACHE;
 

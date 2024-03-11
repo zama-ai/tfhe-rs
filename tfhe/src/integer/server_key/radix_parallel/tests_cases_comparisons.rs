@@ -8,7 +8,6 @@ use crate::integer::{IntegerKeyKind, ServerKey, I256, U256};
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
-use rand;
 use rand::distributions::Standard;
 use rand::prelude::*;
 use rand_distr::num_traits::WrappingAdd;

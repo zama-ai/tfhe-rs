@@ -36,7 +36,7 @@ impl KreyviumStreamShortint {
         let mut c_register: [Ciphertext; 111] = [0; 111].map(|x| sk.create_trivial(x));
 
         for i in 0..93 {
-            a_register[i] = key[128 - 93 + i].clone();
+            a_register[i].clone_from(&key[128 - 93 + i]);
         }
         for i in 0..84 {
             b_register[i] = sk.create_trivial(iv[128 - 84 + i]);

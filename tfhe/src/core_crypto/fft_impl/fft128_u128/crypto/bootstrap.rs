@@ -10,7 +10,6 @@ use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::fast_pbs_modulus_switch;
-use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
 use crate::core_crypto::prelude::{Container, ContainerMut};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};

@@ -3,7 +3,6 @@ use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
 
 create_parametrized_test!(integer_unchecked_crt_mul);

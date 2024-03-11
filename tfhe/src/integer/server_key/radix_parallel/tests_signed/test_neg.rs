@@ -6,7 +6,6 @@ use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-use crate::shortint::PBSParameters;
 
 create_parametrized_test!(integer_signed_unchecked_neg);
 create_parametrized_test!(integer_signed_smart_neg);

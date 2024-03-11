@@ -7,7 +7,6 @@ use std::env;
 use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
 use rand::prelude::*;
-use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
@@ -1202,14 +1201,10 @@ criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::{write_to_json, OperatorType};
-    use criterion::{criterion_group, Criterion};
+    use criterion::criterion_group;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
-    use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::IntegerKeyKind;
-    use tfhe::keycache::NamedParam;
 
     /// Base function to bench a server key function that is a binary operation, input ciphertext
     /// will contain only zero carries

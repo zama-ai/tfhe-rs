@@ -3,8 +3,7 @@
 //! [`LWE Ciphertext`](`LweCiphertext`) from a given [`GLWE ciphertext`](`GlweCiphertext`).
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::parameters::{MonomialDegree, *};
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;

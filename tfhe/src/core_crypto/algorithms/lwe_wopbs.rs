@@ -6,7 +6,6 @@ use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
     circuit_bootstrap_boolean_vertical_packing, circuit_bootstrap_boolean_vertical_packing_scratch,
     extract_bits, extract_bits_scratch,

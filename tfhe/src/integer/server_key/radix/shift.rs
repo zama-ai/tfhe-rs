@@ -43,7 +43,7 @@ impl ServerKey {
             .iter_mut()
             .zip(ctxt.blocks[shift..].iter())
         {
-            *res_i = c_i.clone();
+            res_i.clone_from(c_i);
         }
 
         result

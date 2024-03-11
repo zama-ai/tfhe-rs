@@ -12,7 +12,6 @@ use tfhe::boolean::parameters::{
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::ClassicPBSParameters;
 
 const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
     PARAM_MESSAGE_1_CARRY_0_KS_PBS,

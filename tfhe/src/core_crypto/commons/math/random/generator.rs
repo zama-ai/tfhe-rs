@@ -6,7 +6,6 @@ use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
 use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 use rayon::prelude::*;
-use std::convert::TryInto;
 
 pub use concrete_csprng::generators::{
     ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,

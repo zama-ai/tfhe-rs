@@ -2278,13 +2278,9 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 
 #[cfg(test)]
 mod test {
+    use crate::core_crypto::commons::generators::DeterministicSeeder;
     use crate::core_crypto::commons::test_tools;
     use crate::core_crypto::prelude::*;
-
-    use crate::core_crypto::commons::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-    };
-    use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Gaussian};
 
     #[test]
     fn test_compact_public_key_encryption() {

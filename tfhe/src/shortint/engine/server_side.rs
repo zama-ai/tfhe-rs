@@ -5,7 +5,6 @@ use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
