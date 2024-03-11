@@ -6,17 +6,13 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
-    bootstrap_scratch as bootstrap_scratch_f128, Fourier128LweBootstrapKey,
-};
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch as bootstrap_scratch_f128;
 use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    bootstrap_scratch, FourierLweBootstrapKey,
-};
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::bootstrap_scratch;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
-    cmux_scratch, FourierGgswCiphertext,
+    cmux_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::blind_rotate_assign_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};

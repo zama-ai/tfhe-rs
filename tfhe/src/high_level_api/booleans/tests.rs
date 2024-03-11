@@ -354,7 +354,6 @@ fn compact_bool_list_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
 
 mod cpu {
     use super::*;
-    use crate::Device;
 
     fn setup_default() -> ClientKey {
         let config = ConfigBuilder::default().build();

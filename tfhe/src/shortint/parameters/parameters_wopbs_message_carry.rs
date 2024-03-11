@@ -8,7 +8,6 @@ pub use crate::core_crypto::commons::parameters::{
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
 use crate::shortint::parameters::{CarryModulus, EncryptionKeyChoice, MessageModulus};
-use crate::shortint::WopbsParameters;
 
 pub const ALL_PARAMETER_VEC_WOPBS: [WopbsParameters; 116] = [
     WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS,

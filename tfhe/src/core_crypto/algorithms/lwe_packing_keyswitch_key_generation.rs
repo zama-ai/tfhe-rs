@@ -7,9 +7,7 @@ use crate::core_crypto::algorithms::{
 };
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::{
-    ActivatedRandomGenerator, ByteRandomGenerator, Distribution, Uniform,
-};
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::{

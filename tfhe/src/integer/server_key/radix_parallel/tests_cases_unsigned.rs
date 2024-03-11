@@ -52,18 +52,17 @@ pub(crate) trait FunctionExecutor<TestInput, TestOutput> {
     fn execute(&mut self, input: TestInput) -> TestOutput;
 }
 
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::unchecked_add_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::{
-    default_add_test, unchecked_add_assign_test, unchecked_add_test,
+    default_add_test, unchecked_add_assign_test,
 };
 #[cfg(feature = "gpu")]
-pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::{
-    default_neg_test, unchecked_neg_test,
-};
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::default_neg_test;
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::unchecked_neg_test;
 #[cfg(feature = "gpu")]
-pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
-    default_sub_test, unchecked_sub_test,
-};
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_sub_test;
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::unchecked_sub_test;
 //=============================================================================
 // Unchecked Tests
 //=============================================================================

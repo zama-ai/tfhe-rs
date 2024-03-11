@@ -112,7 +112,6 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::IntegerKeyKind;
     use crate::shortint::parameters::*;
-    use crate::shortint::ClassicPBSParameters;
 
     create_parametrized_test!(integer_public_key_decompression_small {
         PARAM_MESSAGE_2_CARRY_2_PBS_KS,

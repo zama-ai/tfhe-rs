@@ -16,7 +16,7 @@ use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
-use crate::shortint::{Ciphertext, ClientKey, ServerKey, WopbsParameters};
+use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]

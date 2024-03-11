@@ -3,22 +3,15 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
 use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
-    LweDimension, PlaintextCount, PolynomialCount, PolynomialSize,
-};
 use crate::core_crypto::commons::test_tools;
 use crate::core_crypto::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
-};
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::core_crypto::prelude::test::{
     TestResources, FFT_WOPBS_N1024_PARAMS, FFT_WOPBS_N2048_PARAMS, FFT_WOPBS_N512_PARAMS,
     FFT_WOPBS_PARAMS,
 };
-use concrete_fft::c64;
-use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut, StackReq};
+use dyn_stack::GlobalPodBuffer;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 

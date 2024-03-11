@@ -424,7 +424,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::UnsignedInteger;
     use crate::prelude::*;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;

@@ -7,9 +7,7 @@ use std::env;
 use criterion::{criterion_group, Criterion};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{
-    Ciphertext, ClassicPBSParameters, CompressedServerKey, ServerKey, ShortintParameterSet,
-};
+use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
 
 use rand::Rng;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};

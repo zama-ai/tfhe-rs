@@ -72,7 +72,7 @@ pub mod test_tools {
         LweDimension, PlaintextCount, PolynomialSize,
     };
     use crate::core_crypto::commons::traits::*;
-    use concrete_csprng::seeders::{Seed, Seeder};
+    use concrete_csprng::seeders::Seed;
 
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();

@@ -198,8 +198,8 @@ impl<BlockCipher: AesBlockCipher> Iterator for AesCtrGenerator<BlockCipher> {
 }
 
 #[cfg(test)]
+#[allow(unused)] // to please clippy when tests are not activated
 pub mod aes_ctr_generic_test {
-    #![allow(unused)] // to please clippy when tests are not activated
 
     use super::*;
     use crate::generators::aes_ctr::index::{AesIndex, ByteIndex};

@@ -4,7 +4,7 @@ use super::MaxDegree;
 use crate::core_crypto::prelude::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
-use crate::shortint::{ClientKey, PBSOrder};
+use crate::shortint::ClientKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

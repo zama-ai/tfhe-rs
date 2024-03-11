@@ -6,7 +6,6 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_add_test, unchecked_add_assign_test, unchecked_add_test,
 };
 use crate::shortint::parameters::*;
-use crate::shortint::PBSParameters;
 
 create_gpu_parametrized_test!(integer_unchecked_add);
 create_gpu_parametrized_test!(integer_unchecked_add_assign);

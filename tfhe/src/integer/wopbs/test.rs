@@ -6,7 +6,7 @@ use crate::integer::{gen_keys, IntegerKeyKind};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
-use crate::shortint::parameters::{ClassicPBSParameters, *};
+use crate::shortint::parameters::*;
 use rand::Rng;
 use std::cmp::max;
 

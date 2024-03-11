@@ -89,7 +89,6 @@ pub mod tests {
     pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 
     use crate::core_crypto::algorithms::test::{FftBootstrapKeys, FftTestParams, TestResources};
-    use crate::core_crypto::commons::numeric::Numeric;
     use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
     use crate::core_crypto::keycache::KeyCacheAccess;
     use crate::core_crypto::prelude::*;

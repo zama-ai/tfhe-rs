@@ -38,8 +38,6 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
     })
 }
 
-use tfhe_c_api_dynamic_buffer::DynamicBuffer;
-
 #[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_ciphertext(
     ciphertext: *const ShortintCiphertext,

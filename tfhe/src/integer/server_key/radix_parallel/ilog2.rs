@@ -1114,7 +1114,7 @@ pub(crate) mod tests_signed {
         random_non_zero_value, signed_add_under_modulus,
     };
     use crate::integer::server_key::radix_parallel::tests_signed::{NB_CTXT, NB_TESTS_SMALLER};
-    use crate::integer::{IntegerKeyKind, RadixClientKey, SignedRadixCiphertext};
+    use crate::integer::{IntegerKeyKind, RadixClientKey};
     use crate::shortint::PBSParameters;
     use rand::Rng;
 
