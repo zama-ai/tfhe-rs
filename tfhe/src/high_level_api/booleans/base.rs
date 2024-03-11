@@ -439,8 +439,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitand(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
                 InnerBoolean::Cuda(inner_ct)
@@ -515,8 +515,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitor(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
                 InnerBoolean::Cuda(inner_ct)
@@ -591,8 +591,8 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitxor(
-                    &self.ciphertext.on_gpu(),
-                    &rhs.borrow().ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
                 InnerBoolean::Cuda(inner_ct)
@@ -992,7 +992,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 cuda_key.key.bitand_assign(
                     self.ciphertext.as_gpu_mut(),
-                    &rhs.ciphertext.on_gpu(),
+                    &*rhs.ciphertext.on_gpu(),
                     stream,
                 );
             }),

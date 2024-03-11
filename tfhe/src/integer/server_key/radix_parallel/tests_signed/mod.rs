@@ -1,4 +1,5 @@
 pub(crate) mod test_add;
+pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
@@ -19,31 +20,6 @@ use itertools::iproduct;
 use paste::paste;
 use rand::Rng;
 use std::sync::Arc;
-
-/// Number of loop iteration within randomized tests
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS: usize = 30;
-/// Smaller number of loop iteration within randomized test,
-/// meant for test where the function tested is more expensive
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS_SMALLER: usize = 10;
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS_UNCHECKED: usize = NB_TESTS;
-
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS: usize = 1;
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS_SMALLER: usize = 1;
-/// Unchecked test cases needs a minimum number of tests of 4 in order to provide guarantees.
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS_UNCHECKED: usize = 4;
-
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_CTXT: usize = 4;
-#[cfg(tarpaulin)]
-pub(crate) const NB_CTXT: usize = 2;
 
 macro_rules! create_parametrized_test{
     (
@@ -233,9 +209,6 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 //     Unchecked Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_unchecked_bitand);
-create_parametrized_test!(integer_signed_unchecked_bitor);
-create_parametrized_test!(integer_signed_unchecked_bitxor);
 create_parametrized_test!(
     integer_signed_unchecked_left_shift {
         coverage => {
@@ -353,66 +326,6 @@ create_parametrized_test!(
     }
 );
 create_parametrized_test!(integer_signed_unchecked_absolute_value);
-
-fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for (clear_0, clear_1) in
-        create_iterator_of_signed_random_pairs::<NB_TESTS_UNCHECKED>(&mut rng, modulus)
-    {
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.unchecked_bitand_parallelized(&ctxt_0, &ctxt_1);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 & clear_1;
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for (clear_0, clear_1) in
-        create_iterator_of_signed_random_pairs::<NB_TESTS_UNCHECKED>(&mut rng, modulus)
-    {
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.unchecked_bitor_parallelized(&ctxt_0, &ctxt_1);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 | clear_1;
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for (clear_0, clear_1) in
-        create_iterator_of_signed_random_pairs::<NB_TESTS_UNCHECKED>(&mut rng, modulus)
-    {
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.unchecked_bitxor_parallelized(&ctxt_0, &ctxt_1);
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 ^ clear_1;
-        assert_eq!(clear_res, dec_res);
-    }
-}
 
 fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -832,10 +745,6 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
 //     Default Tests
 //================================================================================
 
-create_parametrized_test!(integer_signed_default_bitnot);
-create_parametrized_test!(integer_signed_default_bitand);
-create_parametrized_test!(integer_signed_default_bitor);
-create_parametrized_test!(integer_signed_default_bitxor);
 create_parametrized_test!(integer_signed_default_absolute_value);
 
 create_parametrized_test!(
@@ -930,161 +839,6 @@ create_parametrized_test!(integer_signed_default_checked_ilog2 {
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
-
-fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<i64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-
-        let ct_res = sks.bitnot_parallelized(&ctxt_0);
-        let ct_res2 = sks.bitnot_parallelized(&ctxt_0);
-        assert_eq!(ct_res, ct_res2);
-
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = !clear_0;
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let mut clear_1 = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let mut ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.bitand_parallelized(&ctxt_0, &ctxt_1);
-        let ct_res2 = sks.bitand_parallelized(&ctxt_0, &ctxt_1);
-        assert_eq!(ct_res, ct_res2);
-
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 & clear_1;
-        assert_eq!(clear_res, dec_res);
-
-        let clear_2 = random_non_zero_value(&mut rng, modulus);
-        let clear_3 = random_non_zero_value(&mut rng, modulus);
-
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
-        sks.unchecked_scalar_add_assign(&mut ctxt_1, clear_3);
-
-        assert!(!ctxt_0.block_carries_are_empty());
-        assert!(!ctxt_1.block_carries_are_empty());
-
-        clear_0 = signed_add_under_modulus(clear_0, clear_2, modulus);
-        clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
-
-        let ct_res = sks.bitand_parallelized(&ctxt_0, &ctxt_1);
-        assert!(ct_res.block_carries_are_empty());
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-
-        let expected_result = clear_0 & clear_1;
-        assert_eq!(dec_res, expected_result);
-    }
-}
-
-fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let mut clear_1 = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let mut ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.bitor_parallelized(&ctxt_0, &ctxt_1);
-        let ct_res2 = sks.bitor_parallelized(&ctxt_0, &ctxt_1);
-        assert_eq!(ct_res, ct_res2);
-
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 | clear_1;
-        assert_eq!(clear_res, dec_res);
-
-        let clear_2 = random_non_zero_value(&mut rng, modulus);
-        let clear_3 = random_non_zero_value(&mut rng, modulus);
-
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
-        sks.unchecked_scalar_add_assign(&mut ctxt_1, clear_3);
-
-        assert!(!ctxt_0.block_carries_are_empty());
-        assert!(!ctxt_1.block_carries_are_empty());
-
-        clear_0 = signed_add_under_modulus(clear_0, clear_2, modulus);
-        clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
-
-        let ct_res = sks.bitor_parallelized(&ctxt_0, &ctxt_1);
-        assert!(ct_res.block_carries_are_empty());
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-
-        let expected_result = clear_0 | clear_1;
-        assert_eq!(dec_res, expected_result);
-    }
-}
-
-fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let mut clear_1 = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let mut ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
-
-        let ct_res = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
-        let ct_res2 = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
-        assert_eq!(ct_res, ct_res2);
-
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-        let clear_res = clear_0 ^ clear_1;
-        assert_eq!(clear_res, dec_res);
-
-        let clear_2 = random_non_zero_value(&mut rng, modulus);
-        let clear_3 = random_non_zero_value(&mut rng, modulus);
-
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
-        sks.unchecked_scalar_add_assign(&mut ctxt_1, clear_3);
-
-        assert!(!ctxt_0.block_carries_are_empty());
-        assert!(!ctxt_1.block_carries_are_empty());
-
-        clear_0 = signed_add_under_modulus(clear_0, clear_2, modulus);
-        clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
-
-        let ct_res = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
-        assert!(ct_res.block_carries_are_empty());
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-
-        let expected_result = clear_0 ^ clear_1;
-        assert_eq!(dec_res, expected_result);
-    }
-}
 
 fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

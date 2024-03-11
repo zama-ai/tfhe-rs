@@ -1,4 +1,5 @@
 pub(crate) mod test_add;
+pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
@@ -475,13 +476,6 @@ create_parametrized_test!(
 );
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
-create_parametrized_test!(integer_smart_bitand);
-create_parametrized_test!(integer_smart_bitor);
-create_parametrized_test!(integer_smart_bitxor);
-create_parametrized_test!(integer_default_bitand);
-create_parametrized_test!(integer_default_bitor);
-create_parametrized_test!(integer_default_bitnot);
-create_parametrized_test!(integer_default_bitxor);
 create_parametrized_test!(integer_default_scalar_bitand);
 create_parametrized_test!(integer_default_scalar_bitor);
 create_parametrized_test!(integer_default_scalar_bitxor);
@@ -857,30 +851,6 @@ where
 // Smart Tests
 //=============================================================================
 
-fn integer_smart_bitand<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitand_parallelized);
-    smart_bitand_test(param, executor);
-}
-
-fn integer_smart_bitor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitor_parallelized);
-    smart_bitor_test(param, executor);
-}
-
-fn integer_smart_bitxor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitxor_parallelized);
-    smart_bitxor_test(param, executor);
-}
-
 fn integer_smart_if_then_else<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -986,38 +956,6 @@ where
 //=============================================================================
 // Default Tests
 //=============================================================================
-
-fn integer_default_bitand<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitand_parallelized);
-    default_bitand_test(param, executor);
-}
-
-fn integer_default_bitor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitor_parallelized);
-    default_bitor_test(param, executor);
-}
-
-fn integer_default_bitxor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitxor_parallelized);
-    default_bitxor_test(param, executor);
-}
-
-fn integer_default_bitnot<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot_parallelized);
-    default_bitnot_test(param, executor);
-}
 
 fn integer_default_div_rem<P>(param: P)
 where
