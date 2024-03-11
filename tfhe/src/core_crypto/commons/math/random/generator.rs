@@ -7,7 +7,7 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
-pub use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
+pub use concrete_csprng::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError};
 use rayon::prelude::*;
 
 pub use concrete_csprng::generators::{
