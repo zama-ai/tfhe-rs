@@ -1,4 +1,3 @@
-use crate::core_crypto::commons::dispersion::*;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CastFrom, CastInto, UnsignedInteger};
@@ -59,7 +58,7 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
     pub ks_level: DecompositionLevelCount,
     pub pfks_level: DecompositionLevelCount,
     pub pfks_base_log: DecompositionBaseLog,
-    pub pfks_modular_std_dev: StandardDev,
+    pub pfks_noise_distribution: DynamicDistribution<Scalar>,
     pub cbs_level: DecompositionLevelCount,
     pub cbs_base_log: DecompositionBaseLog,
     pub message_modulus_log: CiphertextModulusLog,
@@ -118,7 +117,7 @@ pub struct FftWopPbsTestParams<Scalar: UnsignedInteger> {
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub lwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub glwe_modular_std_dev: StandardDev,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub pfks_level: DecompositionLevelCount,

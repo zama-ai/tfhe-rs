@@ -595,8 +595,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let base_log_cbs = params.cbs_base_log;
     let level_ksk = DecompositionLevelCount(9);
     let base_log_ksk = DecompositionBaseLog(1);
-    let std_big = params.glwe_modular_std_dev;
-    let noise_distribution_big_std = DynamicDistribution::new_gaussian(std_big);
+    let noise_distribution_big_std = params.glwe_noise_distribution;
 
     let mut rsc = TestResources::new();
 

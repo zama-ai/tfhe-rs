@@ -52,6 +52,7 @@ For instance:
 
 ```rust
 use tfhe::shortint::prelude::*;
+use tfhe::shortint::parameters::DynamicDistribution;
 
 fn main() {
     let param = unsafe {
@@ -59,8 +60,12 @@ fn main() {
             LweDimension(656),
             GlweDimension(2),
             PolynomialSize(512),
-            StandardDev(0.000034119201269311964),
-            StandardDev(0.00000004053919869756513),
+            DynamicDistribution::new_gaussian_from_std_dev(
+                StandardDev(0.000034119201269311964),
+            ),
+            DynamicDistribution::new_gaussian_from_std_dev(
+                StandardDev(0.00000004053919869756513),
+            ),
             DecompositionBaseLog(8),
             DecompositionLevelCount(2),
             DecompositionBaseLog(3),

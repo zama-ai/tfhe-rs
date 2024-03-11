@@ -32,8 +32,12 @@ fn main() {
             LweDimension(586),
             GlweDimension(2),
             PolynomialSize(512),
-            StandardDev(0.00008976167396834998),
-            StandardDev(0.00000002989040792967434),
+            DynamicDistribution::new_gaussian_from_std_dev(
+                StandardDev(0.00008976167396834998),
+            ),
+            DynamicDistribution::new_gaussian_from_std_dev(
+                StandardDev(0.00000002989040792967434),
+            ),
             DecompositionBaseLog(8),
             DecompositionLevelCount(2),
             DecompositionBaseLog(2),

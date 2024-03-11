@@ -69,7 +69,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestPar
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(4),
@@ -92,7 +94,9 @@ pub const TEST_PARAMS_3_BITS_63_U64: ClassicTestParams<u64> = ClassicTestParams 
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
@@ -115,7 +119,9 @@ pub const TEST_PARAMS_3_BITS_SOLINAS_U64: ClassicTestParams<u64> = ClassicTestPa
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
@@ -138,7 +144,9 @@ pub const DUMMY_NATIVE_U32: ClassicTestParams<u32> = ClassicTestParams {
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(4),
@@ -161,7 +169,9 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
@@ -314,7 +324,9 @@ pub const FFT_WOPBS_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
     // Value was 0.000_061_200_133_780_220_371_345
     // But rust indicates it gets truncated anyways to
     // 0.000_061_200_133_780_220_36
-    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_061_200_133_780_220_36,
+    )),
     pbs_base_log: DecompositionBaseLog(4),
     pbs_level: DecompositionLevelCount(9),
     pfks_level: DecompositionLevelCount(9),
@@ -331,7 +343,9 @@ pub const FFT_WOPBS_N512_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams 
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000_000_000_000_000_221_486_881_160_055_68,
     )),
-    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_061_200_133_780_220_36,
+    )),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),
     pfks_level: DecompositionLevelCount(2),
@@ -348,7 +362,9 @@ pub const FFT_WOPBS_N1024_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000_000_000_000_000_221_486_881_160_055_68,
     )),
-    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_061_200_133_780_220_36,
+    )),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),
     pfks_level: DecompositionLevelCount(2),
@@ -365,7 +381,9 @@ pub const FFT_WOPBS_N2048_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.000_000_000_000_000_221_486_881_160_055_68,
     )),
-    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.000_061_200_133_780_220_36,
+    )),
     pbs_base_log: DecompositionBaseLog(9),
     pbs_level: DecompositionLevelCount(4),
     pfks_level: DecompositionLevelCount(2),

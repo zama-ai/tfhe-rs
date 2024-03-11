@@ -390,7 +390,9 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U128: ClassicTestParams<u128> = ClassicTestP
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(4),
@@ -413,7 +415,9 @@ pub const TEST_PARAMS_3_BITS_127_U128: ClassicTestParams<u128> = ClassicTestPara
     ks_base_log: DecompositionBaseLog(3),
     pfks_level: DecompositionLevelCount(1),
     pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pfks_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000000000000029403601535432533,
+    )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),

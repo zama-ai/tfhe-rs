@@ -155,7 +155,7 @@ pub mod tests {
         K: FourierBootstrapKey<Scalar>,
         FftTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
     {
-        let lwe_modular_std_dev = params.lwe_noise_distribution;
+        let lwe_noise_distribution = params.lwe_noise_distribution;
         let glwe_dimension = params.glwe_dimension;
         let polynomial_size = params.polynomial_size;
         let ciphertext_modulus = params.ciphertext_modulus;
@@ -202,7 +202,7 @@ pub mod tests {
         let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
             &small_lwe_sk,
             plaintext,
-            lwe_modular_std_dev,
+            lwe_noise_distribution,
             ciphertext_modulus,
             &mut rsc.encryption_random_generator,
         );
