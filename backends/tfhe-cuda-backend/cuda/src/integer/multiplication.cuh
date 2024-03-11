@@ -457,7 +457,7 @@ __host__ void host_integer_mult_radix_kb(
   cuda_memset_async(block_mul_res, 0, big_lwe_size * sizeof(Torus), stream);
 
   host_addition(stream, radix_lwe_out, vector_result_sb, block_mul_res,
-                big_lwe_size, num_blocks);
+                big_lwe_dimension, num_blocks);
 
   host_propagate_single_carry_low_latency<Torus>(
       stream, radix_lwe_out, mem_ptr->scp_mem, bsk, ksk, num_blocks);
