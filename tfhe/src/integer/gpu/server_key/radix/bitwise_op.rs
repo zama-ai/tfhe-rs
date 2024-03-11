@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{BitOpType, CudaServerKey};
 
@@ -46,11 +46,11 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn unchecked_bitnot(
+    pub fn unchecked_bitnot<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_bitnot_assign(&mut result, stream);
         result
@@ -60,9 +60,9 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_bitnot_assign_async(
+    pub unsafe fn unchecked_bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         stream: &CudaStream,
     ) {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
@@ -116,9 +116,9 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_bitnot_assign(
+    pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -171,12 +171,12 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 & msg2);
     /// ```
-    pub fn unchecked_bitand(
+    pub fn unchecked_bitand<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitand_assign(&mut result, ct_right, stream);
         result
@@ -186,10 +186,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_bitop_assign_async(
+    pub unsafe fn unchecked_bitop_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         op: BitOpType,
         stream: &CudaStream,
     ) {
@@ -257,10 +257,10 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_bitand_assign(
+    pub fn unchecked_bitand_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -314,21 +314,21 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 | msg2);
     /// ```
-    pub fn unchecked_bitor(
+    pub fn unchecked_bitor<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitor_assign(&mut result, ct_right, stream);
         result
     }
 
-    pub fn unchecked_bitor_assign(
+    pub fn unchecked_bitor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -382,21 +382,21 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 ^ msg2);
     /// ```
-    pub fn unchecked_bitxor(
+    pub fn unchecked_bitxor<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitxor_assign(&mut result, ct_right, stream);
         result
     }
 
-    pub fn unchecked_bitxor_assign(
+    pub fn unchecked_bitxor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -450,12 +450,12 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 & msg2);
     /// ```
-    pub fn bitand(
+    pub fn bitand<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitand_assign(&mut result, ct_right, stream);
         result
@@ -465,10 +465,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn bitand_assign_async(
+    pub unsafe fn bitand_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -500,10 +500,10 @@ impl CudaServerKey {
         self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::And, stream);
     }
 
-    pub fn bitand_assign(
+    pub fn bitand_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -556,12 +556,12 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 | msg2);
     /// ```
-    pub fn bitor(
+    pub fn bitor<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitor_assign(&mut result, ct_right, stream);
         result
@@ -571,10 +571,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn bitor_assign_async(
+    pub unsafe fn bitor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -605,10 +605,10 @@ impl CudaServerKey {
         self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Or, stream);
     }
 
-    pub fn bitor_assign(
+    pub fn bitor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -661,12 +661,12 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 ^ msg2);
     /// ```
-    pub fn bitxor(
+    pub fn bitxor<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitxor_assign(&mut result, ct_right, stream);
         result
@@ -676,10 +676,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn bitxor_assign_async(
+    pub unsafe fn bitxor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         let mut tmp_rhs;
@@ -710,10 +710,10 @@ impl CudaServerKey {
         self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Xor, stream);
     }
 
-    pub fn bitxor_assign(
+    pub fn bitxor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct_left: &mut CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &mut T,
+        ct_right: &T,
         stream: &CudaStream,
     ) {
         unsafe {
@@ -764,11 +764,7 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn bitnot(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, stream: &CudaStream) -> T {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.bitnot_assign(&mut result, stream);
         result
@@ -778,9 +774,9 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn bitnot_assign_async(
+    pub unsafe fn bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         stream: &CudaStream,
     ) {
         if !ct.block_carries_are_empty() {
@@ -790,7 +786,7 @@ impl CudaServerKey {
         self.unchecked_bitnot_assign_async(ct, stream);
     }
 
-    pub fn bitnot_assign(&self, ct: &mut CudaUnsignedRadixCiphertext, stream: &CudaStream) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, stream: &CudaStream) {
         unsafe {
             self.bitnot_assign_async(ct, stream);
         }

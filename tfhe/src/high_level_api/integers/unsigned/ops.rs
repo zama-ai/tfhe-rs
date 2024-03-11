@@ -863,7 +863,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                      with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .bitand(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .bitand(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }
@@ -904,7 +904,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                      with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .bitor(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .bitor(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }
@@ -945,7 +945,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Cuda(cuda_key) => {
                      with_thread_local_cuda_stream(|stream| {
                         let inner_result = cuda_key.key
-                            .bitxor(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            .bitxor(&*lhs.ciphertext.on_gpu(), &*rhs.ciphertext.on_gpu(), stream);
                         FheUint::new(inner_result)
                     })
                 }
@@ -1982,7 +1982,7 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner_result = cuda_key.key.bitnot(&self.ciphertext.on_gpu(), stream);
+                let inner_result = cuda_key.key.bitnot(&*self.ciphertext.on_gpu(), stream);
                 FheUint::new(inner_result)
             }),
         })

@@ -1726,6 +1726,172 @@ where
     }
 }
 
+pub(crate) fn unchecked_bitnot_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let ctxt = cks.encrypt(clear);
+
+        let tmp = executor.execute(&ctxt);
+        let ct_res = executor.execute(&ctxt);
+        assert_eq!(ct_res, tmp);
+
+        let dec: u64 = cks.decrypt(&ct_res);
+
+        let clear_result = !clear % modulus;
+        assert_eq!(clear_result, dec);
+    }
+}
+
+pub(crate) fn unchecked_bitand_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TESTS_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert_eq!(ct_res, tmp);
+            clear &= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn unchecked_bitor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TESTS_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+            let ctxt_2 = cks.encrypt(clear_2);
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert_eq!(ct_res, tmp);
+            clear |= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn unchecked_bitxor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+
+        clear = clear_0 ^ clear_1;
+
+        for _ in 0..NB_TESTS_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert_eq!(ct_res, tmp);
+            clear = (clear ^ clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
 pub(crate) fn default_bitand_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
