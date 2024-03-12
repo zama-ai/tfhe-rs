@@ -1,6 +1,7 @@
 #ifndef GPU_BOOTSTRAP_COMMON_CUH
 #define GPU_BOOTSTRAP_COMMON_CUH
 
+#include "../../polynomial/parameters.cuh"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -70,6 +71,24 @@ __device__ inline double2 operator*(const double2 a, double b) {
 }
 
 __device__ inline void operator*=(double2 &a, const double2 b) {
+  double tmp = a.x;
+  a.x *= b.x;
+  a.x -= a.y * b.y;
+  a.y *= b.x;
+  a.y += b.y * tmp;
+}
+
+__device__ inline void operator*=(cufftdx::detail::complex<double> &a,
+                                  const double2 b) {
+  double tmp = a.x;
+  a.x *= b.x;
+  a.x -= a.y * b.y;
+  a.y *= b.x;
+  a.y += b.y * tmp;
+}
+
+__device__ inline void operator*=(double2 &a,
+                                  const cufftdx::detail::complex<double> b) {
   double tmp = a.x;
   a.x *= b.x;
   a.x -= a.y * b.y;
