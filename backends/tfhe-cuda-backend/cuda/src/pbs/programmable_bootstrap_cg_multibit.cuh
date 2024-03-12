@@ -438,14 +438,14 @@ __host__ bool supports_cooperative_groups_on_multibit_programmable_bootstrap(
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
         Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
                                       max_shared_memory);
-  case 16384:
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
-        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
-                                       max_shared_memory);
+//  case 16384:
+//    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<
+//        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
+//                                       max_shared_memory);
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 #endif // FASTMULTIBIT_PBS_H

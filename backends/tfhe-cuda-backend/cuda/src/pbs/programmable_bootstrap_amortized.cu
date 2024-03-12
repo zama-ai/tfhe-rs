@@ -59,16 +59,16 @@ void scratch_cuda_programmable_bootstrap_amortized_32(
         stream, pbs_buffer, glwe_dimension, polynomial_size,
         input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
-  case 16384:
-    scratch_programmable_bootstrap_amortized<uint32_t, int32_t,
-                                             AmortizedDegree<16384>>(
-        stream, pbs_buffer, glwe_dimension, polynomial_size,
-        input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
-    break;
+//  case 16384:
+//    scratch_programmable_bootstrap_amortized<uint32_t, int32_t,
+//                                             AmortizedDegree<16384>>(
+//        stream, pbs_buffer, glwe_dimension, polynomial_size,
+//        input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
+//    break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -120,16 +120,16 @@ void scratch_cuda_programmable_bootstrap_amortized_64(
         stream, pbs_buffer, glwe_dimension, polynomial_size,
         input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
     break;
-  case 16384:
-    scratch_programmable_bootstrap_amortized<uint64_t, int64_t,
-                                             AmortizedDegree<16384>>(
-        stream, pbs_buffer, glwe_dimension, polynomial_size,
-        input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
-    break;
+//  case 16384:
+//    scratch_programmable_bootstrap_amortized<uint64_t, int64_t,
+//                                             AmortizedDegree<16384>>(
+//        stream, pbs_buffer, glwe_dimension, polynomial_size,
+//        input_lwe_ciphertext_count, max_shared_memory, allocate_gpu_memory);
+//    break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -203,19 +203,19 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
         max_shared_memory);
     break;
-  case 16384:
-    host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
-        stream, (uint32_t *)lwe_array_out, (uint32_t *)lwe_output_indexes,
-        (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
-        (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
-        (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
-        max_shared_memory);
-    break;
+//  case 16384:
+//    host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
+//        stream, (uint32_t *)lwe_array_out, (uint32_t *)lwe_output_indexes,
+//        (uint32_t *)lut_vector, (uint32_t *)lut_vector_indexes,
+//        (uint32_t *)lwe_array_in, (uint32_t *)lwe_input_indexes,
+//        (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
+//        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+//        max_shared_memory);
+//    break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -351,19 +351,19 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
         max_shared_memory);
     break;
-  case 16384:
-    host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
-        stream, (uint64_t *)lwe_array_out, (uint64_t *)lwe_output_indexes,
-        (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
-        (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
-        (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
-        max_shared_memory);
-    break;
+//  case 16384:
+//    host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
+//        stream, (uint64_t *)lwe_array_out, (uint64_t *)lwe_output_indexes,
+//        (uint64_t *)lut_vector, (uint64_t *)lut_vector_indexes,
+//        (uint64_t *)lwe_array_in, (uint64_t *)lwe_input_indexes,
+//        (double2 *)bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
+//        polynomial_size, base_log, level_count, num_samples, num_luts, lwe_idx,
+//        max_shared_memory);
+//    break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 

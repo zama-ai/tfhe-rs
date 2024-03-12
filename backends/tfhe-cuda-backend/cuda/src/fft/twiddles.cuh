@@ -1,13 +1,11 @@
 #ifndef GPU_BOOTSTRAP_TWIDDLES_CUH
 #define GPU_BOOTSTRAP_TWIDDLES_CUH
 
-/*
- * 'negtwiddles' are stored in constant memory for faster access times
- * because of it's limited size, only twiddles for up to 2^12 polynomial size
- * can be stored there, twiddles for 2^13 are stored in device memory
- * 'negtwiddles13'
- */
+extern __device__ cufftdx::detail::complex<double> neg_twist_128[128];
+extern __device__ cufftdx::detail::complex<double> neg_twist_256[256];
+extern __device__ cufftdx::detail::complex<double> neg_twist_512[512];
+extern __device__ cufftdx::detail::complex<double> neg_twist_1024[1024];
+extern __device__ cufftdx::detail::complex<double> neg_twist_2048[2048];
+extern __device__ cufftdx::detail::complex<double> neg_twist_4096[4096];
 
-extern __constant__ double2 negtwiddles[4096];
-extern __device__ double2 negtwiddles13[4096];
 #endif

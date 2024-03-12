@@ -217,16 +217,9 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
-  case 16384:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<16384>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
-        static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
-        static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
-        num_radix_in_vec);
-    break;
   default:
     PANIC("Cuda error (integer sum ciphertexts): unsupported polynomial size. "
-          "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
+          "Only N = 512, 1024, 2048, 4096, 8192 is supported")
   }
 
   free(terms_degree);
