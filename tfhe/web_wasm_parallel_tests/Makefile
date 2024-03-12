@@ -23,3 +23,13 @@ bench: run_server
 
 .PHONY: bench-ci # Run benchmarks on web client in CI
 bench-ci: run_server
+
+.PHONY: fmt # Format Javascript code
+fmt:
+	npm install
+	npm run format
+
+.PHONY: fmt # Check Javascript code format
+check_fmt:
+	npm install
+	npm run check-format
