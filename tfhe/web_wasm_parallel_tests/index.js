@@ -36,7 +36,9 @@ async function setup() {
         'compactPublicKeyBench32BitBig',
         'compactPublicKeyBench32BitSmall',
         'compactPublicKeyBench256BitBig',
-        'compactPublicKeyBench256BitSmall'
+        'compactPublicKeyBench256BitSmall',
+        'compressedServerKeyBenchMessage1Carry1',
+        'compressedServerKeyBenchMessage2Carry2',
     ]
 
     function setupBtn(id) {
