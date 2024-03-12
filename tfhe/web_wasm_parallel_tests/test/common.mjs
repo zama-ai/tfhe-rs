@@ -59,6 +59,7 @@ async function runTestAttachedToButton(buttonId) {
 
     let page = await browser.newPage();
 
+    await page.setDefaultTimeout(300000)  // Five minutes timeout
     await page.goto('http://localhost:3000');
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
  

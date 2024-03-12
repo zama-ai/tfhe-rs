@@ -441,6 +441,62 @@ async function compactPublicKeyBench256BitSmall() {
     );
 }
 
+async function compressedServerKeyBenchConfig(config) {
+    const bench_loops = 35;
+    let bench_results = {};
+
+    console.log('Begin benchmarks')  // DEBUG
+    let clientKey = TfheClientKey.generate(config);
+
+    // Bench the sk generation for bench_loops iterations
+    let start = performance.now();
+    for (let i = 0; i < bench_loops; i++) {
+        let _ = TfheCompressedServerKey.new(clientKey);
+    }
+    let end = performance.now();
+    const timing_1 = (end - start) / bench_loops
+    console.log('CompressedServerKey Gen bench: ', timing_1, ' ms');
+    bench_results["compressed_server_key_gen_mean"] = timing_1;
+
+    let serverKey = TfheCompressedServerKey.new(clientKey);
+    let serialized_key = serverKey.serialize();
+    console.log("Serialized ServerKey size: ", serialized_key.length);
+
+    // Bench the serialization for bench_loops iterations
+    start = performance.now();
+    for (let i = 0; i < bench_loops; i++) {
+        let _ = serverKey.serialize();
+    }
+    end = performance.now();
+    const timing_2 = (end - start) / bench_loops
+    console.log('CompressedServerKey serialization bench: ', timing_2, ' ms');
+    bench_results["compressed_server_key_serialization_mean"] = timing_2;
+
+    return bench_results;
+}
+
+async function compressedServerKeyBenchMessage1Carry1() {
+    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
+        .build();
+    return append_param_name(
+        await compressedServerKeyBenchConfig(config),
+        "PARAM_MESSAGE_1_CARRY_1_KS_PBS"
+    );
+}
+
+async function compressedServerKeyBenchMessage2Carry2() {
+    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
+        .build();
+    return append_param_name(
+        await compressedServerKeyBenchConfig(config),
+        "PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+    );
+}
+
 async function main() {
     await init()
     await initThreadPool(navigator.hardwareConcurrency);
@@ -459,6 +515,8 @@ async function main() {
         compactPublicKeyBench32BitSmall,
         compactPublicKeyBench256BitBig,
         compactPublicKeyBench256BitSmall,
+        compressedServerKeyBenchMessage1Carry1,
+        compressedServerKeyBenchMessage2Carry2,
     })
 }
 
