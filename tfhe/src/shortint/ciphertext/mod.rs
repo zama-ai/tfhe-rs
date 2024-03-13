@@ -511,7 +511,7 @@ impl CompressedCiphertext {
         }
     }
 
-    /// Deconstruct a [`CompressedCiphertext`] into its constituants.
+    /// Deconstruct a [`CompressedCiphertext`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -541,7 +541,7 @@ impl CompressedCiphertext {
         )
     }
 
-    /// Construct a [`CompressedCiphertext`] from its constituants.
+    /// Construct a [`CompressedCiphertext`] from its constituents.
     pub fn from_raw_parts(
         ct: SeededLweCiphertext<u64>,
         degree: Degree,
@@ -633,7 +633,7 @@ impl CompactCiphertextList {
             .collect::<Vec<_>>()
     }
 
-    /// Deconstruct a [`CompactCiphertextList`] into its constituants.
+    /// Deconstruct a [`CompactCiphertextList`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -663,7 +663,7 @@ impl CompactCiphertextList {
         )
     }
 
-    /// Construct a [`CompactCiphertextList`] from its constituants.
+    /// Construct a [`CompactCiphertextList`] from its constituents.
     pub fn from_raw_parts(
         ct_list: LweCompactCiphertextListOwned<u64>,
         degree: Degree,

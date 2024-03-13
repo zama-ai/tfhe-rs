@@ -227,12 +227,12 @@ impl WopbsKey {
         }
     }
 
-    /// Deconstruct a [`WopbsKey`] into its constituants.
+    /// Deconstruct a [`WopbsKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::wopbs::WopbsKey {
         self.wopbs_key
     }
 
-    /// Construct a [`WopbsKey`] from its constituants.
+    /// Construct a [`WopbsKey`] from its constituents.
     pub fn from_raw_parts(wopbs_key: crate::shortint::wopbs::WopbsKey) -> Self {
         Self { wopbs_key }
     }

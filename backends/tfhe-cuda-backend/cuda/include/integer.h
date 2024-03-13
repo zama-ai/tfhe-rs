@@ -358,7 +358,7 @@ template <typename Torus> struct int_radix_lut {
 
     // Allocate LUT
     // LUT is used as a trivial encryption and must be initialized outside
-    // this contructor
+    // this constructor
     lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size, stream);
 
     lut_indexes = (Torus *)cuda_malloc_async(lut_indexes_size, stream);

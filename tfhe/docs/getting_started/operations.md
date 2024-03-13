@@ -19,7 +19,7 @@ In the same manner as many programming languages, the number of bits used to rep
 ```
 
 ## Operation list
-The table below contains an overview of the available operations in `TFHE-rs`. The notation `Enc` (for Encypted) either refers to `FheInt` or `FheUint`, for any size between 1 and 256-bits.
+The table below contains an overview of the available operations in `TFHE-rs`. The notation `Enc` (for Encrypted) either refers to `FheInt` or `FheUint`, for any size between 1 and 256-bits.
 
 More details, and further examples, are given in the following sections.
 

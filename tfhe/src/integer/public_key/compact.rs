@@ -26,12 +26,12 @@ impl CompactPublicKey {
         Some(Self { key })
     }
 
-    /// Deconstruct a [`CompactPublicKey`] into its constituants.
+    /// Deconstruct a [`CompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> ShortintCompactPublicKey {
         self.key
     }
 
-    /// Construct a [`CompactPublicKey`] from its constituants.
+    /// Construct a [`CompactPublicKey`] from its constituents.
     pub fn from_raw_parts(key: ShortintCompactPublicKey) -> Self {
         Self { key }
     }
@@ -153,12 +153,12 @@ impl CompressedCompactPublicKey {
         Self { key }
     }
 
-    /// Deconstruct a [`CompressedCompactPublicKey`] into its constituants.
+    /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> ShortintCompressedCompactPublicKey {
         self.key
     }
 
-    /// Construct a [`CompressedCompactPublicKey`] from its constituants.
+    /// Construct a [`CompressedCompactPublicKey`] from its constituents.
     pub fn from_raw_parts(key: ShortintCompressedCompactPublicKey) -> Self {
         Self { key }
     }

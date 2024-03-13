@@ -24,12 +24,12 @@ impl PublicKey {
         }
     }
 
-    /// Deconstruct a [`PublicKey`] into its constituants.
+    /// Deconstruct a [`PublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> ShortintPublicKey {
         self.key
     }
 
-    /// Construct a [`PublicKey`] from its constituants.
+    /// Construct a [`PublicKey`] from its constituents.
     pub fn from_raw_parts(key: ShortintPublicKey) -> Self {
         Self { key }
     }

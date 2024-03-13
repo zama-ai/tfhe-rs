@@ -21,12 +21,12 @@ impl CompressedPublicKey {
         }
     }
 
-    /// Deconstruct a [`CompressedPublicKey`] into its constituants.
+    /// Deconstruct a [`CompressedPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::CompressedPublicKey {
         self.key
     }
 
-    /// Construct a [`CompressedPublicKey`] from its constituants.
+    /// Construct a [`CompressedPublicKey`] from its constituents.
     pub fn from_raw_parts(key: crate::shortint::CompressedPublicKey) -> Self {
         Self { key }
     }

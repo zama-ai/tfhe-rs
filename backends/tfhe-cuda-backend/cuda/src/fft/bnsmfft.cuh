@@ -181,7 +181,7 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
   // from level 8, we need to check size of params degree, because we support
   // minimum actual polynomial size = 256,  when compressed size is halfed and
   // minimum supported compressed size is 128, so we always need first 7
-  // levels of butterfy operation, since butterfly levels are hardcoded
+  // levels of butterfly operation, since butterfly levels are hardcoded
   // we need to check if polynomial size is big enough to require specific level
   // of butterfly.
   if constexpr (params::degree >= 256) {
@@ -353,7 +353,7 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
 
   // compressed size = 8192 is actual polynomial size = 16384.
   // twiddles for this size can't fit in constant memory so
-  // butterfly operation for this level acess device memory to fetch
+  // butterfly operation for this level access device memory to fetch
   // twiddles
   if constexpr (params::degree >= 8192) {
     // level 13
@@ -484,7 +484,7 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
   // below level 8, we don't need to check size of params degree, because we
   // support minimum actual polynomial size = 256,  when compressed size is
   // halfed and minimum supported compressed size is 128, so we always need
-  // last 7 levels of butterfy operation, since butterfly levels are hardcoded
+  // last 7 levels of butterfly operation, since butterfly levels are hardcoded
   // we don't need to check if polynomial size is big enough to require
   // specific level of butterfly.
   // level 7
