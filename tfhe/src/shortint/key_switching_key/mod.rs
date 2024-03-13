@@ -80,7 +80,7 @@ impl KeySwitchingKey {
         }
     }
 
-    /// Deconstruct a [`KeySwitchingKey`] into its constituants.
+    /// Deconstruct a [`KeySwitchingKey`] into its constituents.
     pub fn into_raw_parts(self) -> (LweKeyswitchKeyOwned<u64>, ServerKey, ServerKey, i8) {
         let Self {
             key_switching_key,
@@ -97,7 +97,7 @@ impl KeySwitchingKey {
         )
     }
 
-    /// Construct a [`KeySwitchingKey`] from its constituants.
+    /// Construct a [`KeySwitchingKey`] from its constituents.
     ///
     /// # Panics
     ///

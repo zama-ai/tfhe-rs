@@ -255,7 +255,7 @@ impl WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_wopbs_key(cks, sks, parameters))
     }
 
-    /// Deconstruct a [`WopbsKey`] into its constituants.
+    /// Deconstruct a [`WopbsKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -282,11 +282,11 @@ impl WopbsKey {
         )
     }
 
-    /// Construct a [`WopbsKey`] from its constituants.
+    /// Construct a [`WopbsKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         wopbs_server_key: ServerKey,
         pbs_server_key: ServerKey,

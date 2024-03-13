@@ -426,7 +426,7 @@ impl ServerKey {
         }
     }
 
-    /// Deconstruct a [`ServerKey`] into its constituants.
+    /// Deconstruct a [`ServerKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -462,11 +462,11 @@ impl ServerKey {
         )
     }
 
-    /// Construct a [`ServerKey`] from its constituants.
+    /// Construct a [`ServerKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         key_switching_key: LweKeyswitchKeyOwned<u64>,
@@ -826,7 +826,7 @@ impl ServerKey {
     }
 
     /// Applies the given function to the message of a ciphertext
-    /// The input is reduced to the message space before the funciton application
+    /// The input is reduced to the message space before the function application
     /// Thee output of the function is also rduced to the message space such that the carry bits are
     /// clean on the output
     pub fn evaluate_msg_univariate_function_assign<F>(&self, ct: &mut Ciphertext, f: F)
@@ -840,7 +840,7 @@ impl ServerKey {
     }
 
     /// Applies the given function to the message of a ciphertext
-    /// The input is reduced to the message space before the funciton application
+    /// The input is reduced to the message space before the function application
     /// Thee output of the function is also rduced to the message space such that the carry bits are
     /// clean on the output
     pub fn evaluate_msg_univariate_function<F>(&self, ct: &Ciphertext, f: F) -> Ciphertext

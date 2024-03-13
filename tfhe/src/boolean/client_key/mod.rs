@@ -166,7 +166,7 @@ impl ClientKey {
         (lwe_secret_key, glwe_secret_key, parameters)
     }
 
-    /// Construct a [`ClientKey`] from its constituants.
+    /// Construct a [`ClientKey`] from its constituents.
     ///
     /// # Panics
     ///

@@ -36,12 +36,12 @@ impl KeySwitchingKey {
         ret
     }
 
-    /// Deconstruct a [`KeySwitchingKey`] into its constituants.
+    /// Deconstruct a [`KeySwitchingKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::KeySwitchingKey {
         self.key
     }
 
-    /// Construct a [`KeySwitchingKey`] from its constituants.
+    /// Construct a [`KeySwitchingKey`] from its constituents.
     pub fn from_raw_parts(key: crate::shortint::KeySwitchingKey) -> Self {
         Self { key }
     }
