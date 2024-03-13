@@ -167,6 +167,37 @@ public:
   }
 };
 
+#if CUDA_ARCH >= 900
+BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
+(benchmark::State &st) {
+  if (!has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+          polynomial_size, cuda_get_max_shared_memory(stream->gpu_index))) {
+    st.SkipWithError("Configuration not supported for tbc operation");
+    return;
+  }
+
+  scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t, int64_t>(
+      stream, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, pbs_level, grouping_factor,
+      input_lwe_ciphertext_count, cuda_get_max_shared_memory(stream->gpu_index),
+      true, chunk_size);
+
+  for (auto _ : st) {
+    // Execute PBS
+    cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+        stream, d_lwe_ct_out_array, d_lwe_output_indexes, d_lut_pbs_identity,
+        d_lut_pbs_indexes, d_lwe_ct_in_array, d_lwe_input_indexes, d_bsk,
+        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
+        pbs_level, input_lwe_ciphertext_count, 1, 0,
+        cuda_get_max_shared_memory(stream->gpu_index), chunk_size);
+    cuda_synchronize_stream(stream);
+  }
+
+  cleanup_cuda_multi_bit_programmable_bootstrap(stream, &buffer);
+}
+#endif
+
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
@@ -353,6 +384,14 @@ BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
                x.pbs_base_log, x.pbs_level, num_samples});
     }
 }
+
+#if CUDA_ARCH >= 900
+BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, TbcMultiBit)
+    ->Apply(MultiBitPBSBenchmarkGenerateParams)
+    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
+                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
+                "grouping_factor", "chunk_size"});
+#endif
 
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, CgMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)

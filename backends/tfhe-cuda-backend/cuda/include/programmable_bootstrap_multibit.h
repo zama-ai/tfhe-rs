@@ -51,6 +51,34 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
                                                    int8_t **pbs_buffer);
 }
 
+template <typename Torus>
+__host__ bool
+supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
+    uint32_t polynomial_size, uint32_t max_shared_memory);
+
+template <typename Torus>
+bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
+    uint32_t polynomial_size, uint32_t max_shared_memory);
+
+template <typename Torus, typename STorus>
+void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
+    cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t grouping_factor,
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
+    bool allocate_gpu_memory, uint32_t lwe_chunk_size);
+
+template <typename Torus>
+void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
+    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
+    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
+    uint32_t lwe_chunk_size);
+
 template <typename Torus, typename STorus>
 void scratch_cuda_cg_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
@@ -113,12 +141,25 @@ template <typename Torus>
 __host__ __device__ uint64_t
 get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
+template <typename Torus>
+__host__ __device__ uint64_t
+get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap(
+    uint32_t polynomial_size);
+template <typename Torus>
+__host__ __device__ uint64_t
+get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap(
+    uint32_t polynomial_size);
+template <typename Torus>
+__host__ __device__ uint64_t
+get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
+    uint32_t polynomial_size);
 
 template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_keybundle = NULL;
   int8_t *d_mem_acc_step_one = NULL;
   int8_t *d_mem_acc_step_two = NULL;
   int8_t *d_mem_acc_cg = NULL;
+  int8_t *d_mem_acc_tbc = NULL;
 
   double2 *keybundle_fft;
   Torus *global_accumulator;
@@ -164,6 +205,19 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     auto num_blocks_acc_cg =
         level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
 
+#if CUDA_ARCH >= 900
+    uint64_t full_sm_tbc_accumulate =
+        get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
+            polynomial_size);
+    uint64_t partial_sm_tbc_accumulate =
+        get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap<Torus>(
+            polynomial_size);
+    uint64_t minimum_sm_tbc =
+        get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
+            polynomial_size);
+    auto num_blocks_acc_tbc = num_blocks_acc_cg;
+#endif
+
     if (allocate_gpu_memory) {
       // Keybundle
       if (max_shared_memory < full_sm_keybundle)
@@ -194,6 +248,17 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
           d_mem_acc_step_two = (int8_t *)cuda_malloc_async(
               num_blocks_acc_step_two * full_sm_accumulate_step_two, stream);
         break;
+#if CUDA_ARCH >= 900
+      case TBC:
+        // Accumulator TBC
+        if (max_shared_memory < partial_sm_tbc_accumulate + minimum_sm_tbc)
+          d_mem_acc_tbc = (int8_t *)cuda_malloc_async(
+              num_blocks_acc_tbc * full_sm_tbc_accumulate, stream);
+        else if (max_shared_memory < full_sm_tbc_accumulate + minimum_sm_tbc)
+          d_mem_acc_tbc = (int8_t *)cuda_malloc_async(
+              num_blocks_acc_tbc * partial_sm_tbc_accumulate, stream);
+        break;
+#endif
       default:
         PANIC("Cuda error (PBS): unsupported implementation variant.")
       }
@@ -224,6 +289,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       if (d_mem_acc_cg)
         cuda_drop_async(d_mem_acc_cg, stream);
       break;
+#if CUDA_ARCH >= 900
+    case TBC:
+      if (d_mem_acc_tbc)
+        cuda_drop_async(d_mem_acc_tbc, stream);
+      break;
+#endif
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }

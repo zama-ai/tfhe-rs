@@ -7,7 +7,6 @@
 #endif
 
 #include "cooperative_groups.h"
-
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -15,103 +14,12 @@
 #include "fft/twiddles.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.cuh"
 #include "programmable_bootstrap.h"
 #include "types/complex/operations.cuh"
 
-// Cooperative groups are used for this implementation
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
-
-template <typename Torus, class params>
-__device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
-                              double2 *join_buffer, double2 *bootstrapping_key,
-                              int polynomial_size, uint32_t glwe_dimension,
-                              int level_count, int iteration,
-                              grid_group &grid) {
-
-  // Switch to the FFT space
-  NSMFFT_direct<HalfDegree<params>>(fft);
-  synchronize_threads_in_block();
-
-  // Get the pieces of the bootstrapping key that will be needed for the
-  // external product; blockIdx.x is the ID of the block that's executing
-  // this function, so we end up getting the lines of the bootstrapping key
-  // needed to perform the external product in this block (corresponding to
-  // the same decomposition level)
-  auto bsk_slice = get_ith_mask_kth_block(
-      bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
-      glwe_dimension, level_count);
-
-  // Selects all GLWEs in a particular decomposition level
-  auto level_join_buffer =
-      join_buffer + blockIdx.x * (glwe_dimension + 1) * params::degree / 2;
-
-  // Perform the matrix multiplication between the GGSW and the GLWE,
-  // each block operating on a single level for mask and body
-
-  // The first product is used to initialize level_join_buffer
-  auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2;
-  auto buffer_slice = level_join_buffer + blockIdx.y * params::degree / 2;
-
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    buffer_slice[tid] = fft[tid] * bsk_poly[tid];
-    tid += params::degree / params::opt;
-  }
-
-  grid.sync();
-
-  // Continues multiplying fft by every polynomial in that particular bsk level
-  // Each y-block accumulates in a different polynomial at each iteration
-  for (int j = 1; j < (glwe_dimension + 1); j++) {
-    int idx = (j + blockIdx.y) % (glwe_dimension + 1);
-
-    auto bsk_poly = bsk_slice + idx * params::degree / 2;
-    auto buffer_slice = level_join_buffer + idx * params::degree / 2;
-
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt / 2; i++) {
-      buffer_slice[tid] += fft[tid] * bsk_poly[tid];
-      tid += params::degree / params::opt;
-    }
-    grid.sync();
-  }
-
-  // -----------------------------------------------------------------
-  // All blocks are synchronized here; after this sync, level_join_buffer has
-  // the values needed from every other block
-
-  auto src_acc = join_buffer + blockIdx.y * params::degree / 2;
-
-  // copy first product into fft buffer
-  tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    fft[tid] = src_acc[tid];
-    tid += params::degree / params::opt;
-  }
-  synchronize_threads_in_block();
-
-  // accumulate rest of the products into fft buffer
-  for (int l = 1; l < gridDim.x; l++) {
-    auto cur_src_acc = &src_acc[l * (glwe_dimension + 1) * params::degree / 2];
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] += cur_src_acc[tid];
-      tid += params::degree / params::opt;
-    }
-  }
-
-  synchronize_threads_in_block();
-
-  // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
-  // accumulator
-  NSMFFT_inverse<HalfDegree<params>>(fft);
-  synchronize_threads_in_block();
-
-  add_to_torus<Torus, params>(fft, accumulator);
-
-  __syncthreads();
-}
 
 /*
  * Kernel that computes the classical PBS using cooperative groups
@@ -222,7 +130,7 @@ __global__ void device_programmable_bootstrap_cg(
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, params>(
+    mul_ggsw_glwe<Torus, grid_group, params>(
         accumulator, accumulator_fft, block_join_buffer, bootstrapping_key,
         polynomial_size, glwe_dimension, level_count, i, grid);
 
