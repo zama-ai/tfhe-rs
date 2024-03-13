@@ -5,6 +5,7 @@ mod bitwise_op;
 mod cmux;
 mod comparison;
 mod div_mod;
+mod modulus_switch_compression;
 mod mul;
 mod neg;
 mod rotate;
