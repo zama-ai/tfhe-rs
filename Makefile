@@ -119,7 +119,12 @@ install_wasm_pack: install_rs_build_toolchain
 
 .PHONY: install_node # Install last version of NodeJS via nvm
 install_node:
-	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | $(SHELL)
+	curl -o nvm_install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh
+	@echo "2ed5e94ba12434370f0358800deb69f514e8bce90f13beb0e1b241d42c6abafd nvm_install.sh" > nvm_checksum
+	@sha256sum -c nvm_checksum
+	@rm nvm_checksum
+	$(SHELL) nvm_install.sh
+	@rm nvm_install.sh
 	source ~/.bashrc
 	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
