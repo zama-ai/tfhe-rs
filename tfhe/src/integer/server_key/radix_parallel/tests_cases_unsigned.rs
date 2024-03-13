@@ -3020,7 +3020,7 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         // Do with a small clear to check the way we avoid
-        // unecesseray work is correct
+        // unnecessary work is correct
         let ct_res = executor.execute((&ctxt_0, 1));
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear_0 ^ 1, dec_res);

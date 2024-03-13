@@ -3,6 +3,7 @@ pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
+pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_sub;
 
@@ -78,9 +79,6 @@ impl<F> GpuFunctionExecutor<F> {
 
 // Unchecked operations
 create_gpu_parametrized_test!(integer_unchecked_small_scalar_mul);
-create_gpu_parametrized_test!(integer_unchecked_scalar_bitand);
-create_gpu_parametrized_test!(integer_unchecked_scalar_bitor);
-create_gpu_parametrized_test!(integer_unchecked_scalar_bitxor);
 create_gpu_parametrized_test!(integer_unchecked_eq);
 create_gpu_parametrized_test!(integer_unchecked_ne);
 create_gpu_parametrized_test!(integer_unchecked_gt);
@@ -107,9 +105,6 @@ create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 create_gpu_parametrized_test!(integer_small_scalar_mul);
 create_gpu_parametrized_test!(integer_scalar_right_shift);
 create_gpu_parametrized_test!(integer_scalar_left_shift);
-create_gpu_parametrized_test!(integer_scalar_bitand);
-create_gpu_parametrized_test!(integer_scalar_bitor);
-create_gpu_parametrized_test!(integer_scalar_bitxor);
 create_gpu_parametrized_test!(integer_eq);
 create_gpu_parametrized_test!(integer_ne);
 create_gpu_parametrized_test!(integer_gt);
@@ -334,125 +329,6 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_small_scalar_mul);
     unchecked_small_scalar_mul_test(param, executor);
-}
-
-fn integer_unchecked_scalar_bitand<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
-
-    // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &stream);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TEST {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        // encryption of integers
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // Copy to the GPU
-        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-
-        // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitand(&d_ctxt_0, clear_1, &stream);
-
-        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
-
-        // decryption of ct_res
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
-        assert_eq!(clear_0 & clear_1, dec_res);
-    }
-}
-
-fn integer_unchecked_scalar_bitor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
-
-    // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &stream);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TEST {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        // encryption of integers
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // Copy to the GPU
-        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-
-        // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitor(&d_ctxt_0, clear_1, &stream);
-
-        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
-
-        // decryption of ct_res
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
-        assert_eq!(clear_0 | clear_1, dec_res);
-    }
-}
-
-fn integer_unchecked_scalar_bitxor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
-
-    // let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let (cks, sks) = gen_keys_gpu(param, &stream);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TEST {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        // encryption of integers
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // Copy to the GPU
-        let d_ctxt_0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_0, &stream);
-
-        // add the two ciphertexts
-        let d_ct_res = sks.unchecked_scalar_bitxor(&d_ctxt_0, clear_1, &stream);
-
-        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
-
-        // decryption of ct_res
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
-        assert_eq!(clear_0 ^ clear_1, dec_res);
-    }
 }
 
 fn integer_unchecked_eq<P>(param: P)
@@ -1335,30 +1211,6 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::small_scalar_mul);
     default_small_scalar_mul_test(param, executor);
-}
-
-fn integer_scalar_bitand<P>(param: P)
-where
-    P: Into<PBSParameters> + Copy,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitand);
-    default_scalar_bitand_test(param, executor);
-}
-
-fn integer_scalar_bitor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitor);
-    default_scalar_bitor_test(param, executor);
-}
-
-fn integer_scalar_bitxor<P>(param: P)
-where
-    P: Into<PBSParameters> + Copy,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitxor);
-    default_scalar_bitxor_test(param, executor);
 }
 
 fn integer_eq<P>(param: P)

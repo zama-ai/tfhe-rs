@@ -10,6 +10,7 @@ use crate::core_crypto::prelude::{
 use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
+use std::cmp::min;
 use tfhe_cuda_backend::cuda_bind::*;
 
 #[repr(u32)]
@@ -754,7 +755,7 @@ impl CudaStream {
             radix_lwe.as_mut_c_ptr(),
             radix_lwe.as_mut_c_ptr(),
             clear_blocks.as_c_ptr(),
-            clear_blocks.len() as u32,
+            min(clear_blocks.len() as u32, num_blocks),
             mem_ptr,
             bootstrapping_key.as_c_ptr(),
             keyswitch_key.as_c_ptr(),
@@ -815,7 +816,7 @@ impl CudaStream {
             radix_lwe.as_mut_c_ptr(),
             radix_lwe.as_mut_c_ptr(),
             clear_blocks.as_c_ptr(),
-            clear_blocks.len() as u32,
+            min(clear_blocks.len() as u32, num_blocks),
             mem_ptr,
             bootstrapping_key.as_c_ptr(),
             keyswitch_key.as_c_ptr(),

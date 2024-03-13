@@ -1491,9 +1491,53 @@ mod cuda {
         display_name: mul
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_bitand,
+        display_name: bitand
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_bitor,
+        display_name: bitor
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_bitxor,
+        display_name: bitxor
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: unchecked_bitnot,
+        display_name: bitnot
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_sub,
+        display_name: sub,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_bitand,
+        display_name: bitand,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_bitor,
+        display_name: bitor,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_bitxor,
+        display_name: bitxor,
         rng_func: default_signed_scalar
     );
 
@@ -1521,9 +1565,53 @@ mod cuda {
         display_name: mul
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: bitand,
+        display_name: bitand
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_unary_fn!(
+        method_name: bitnot,
+        display_name: bitnot
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: bitor,
+        display_name: bitor
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: bitxor,
+        display_name: bitxor
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_sub,
+        display_name: sub,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_bitand,
+        display_name: bitand,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_bitor,
+        display_name: bitor,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_bitxor,
+        display_name: bitxor,
         rng_func: default_signed_scalar
     );
 
@@ -1533,13 +1621,41 @@ mod cuda {
         cuda_unchecked_sub,
         cuda_unchecked_neg,
         cuda_unchecked_mul,
+        cuda_unchecked_bitand,
+        cuda_unchecked_bitnot,
+        cuda_unchecked_bitor,
+        cuda_unchecked_bitxor,
     );
 
-    criterion_group!(unchecked_scalar_cuda_ops, cuda_unchecked_scalar_add,);
+    criterion_group!(
+        unchecked_scalar_cuda_ops,
+        cuda_unchecked_scalar_add,
+        cuda_unchecked_scalar_sub,
+        cuda_unchecked_scalar_bitand,
+        cuda_unchecked_scalar_bitor,
+        cuda_unchecked_scalar_bitxor,
+    );
 
-    criterion_group!(default_cuda_ops, cuda_add, cuda_sub, cuda_neg, cuda_mul);
+    criterion_group!(
+        default_cuda_ops,
+        cuda_add,
+        cuda_sub,
+        cuda_neg,
+        cuda_mul,
+        cuda_bitand,
+        cuda_bitnot,
+        cuda_bitor,
+        cuda_bitxor,
+    );
 
-    criterion_group!(default_scalar_cuda_ops, cuda_scalar_add);
+    criterion_group!(
+        default_scalar_cuda_ops,
+        cuda_scalar_add,
+        cuda_scalar_sub,
+        cuda_scalar_bitand,
+        cuda_scalar_bitor,
+        cuda_scalar_bitxor,
+    );
 }
 
 #[cfg(feature = "gpu")]
