@@ -1245,11 +1245,8 @@ impl std::ops::Not for &FheBool {
     fn not(self) -> Self::Output {
         let ciphertext = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let inner = key
-                    .pbs_key()
-                    .key
-                    .scalar_bitxor(self.ciphertext.on_cpu().as_ref(), 1);
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
+                let inner = key.pbs_key().boolean_bitnot(&self.ciphertext.on_cpu());
+                InnerBoolean::Cpu(inner)
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {

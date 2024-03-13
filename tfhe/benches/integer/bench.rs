@@ -721,7 +721,7 @@ define_server_key_bench_default_fn!(method_name: div_rem_parallelized, display_n
 define_server_key_bench_default_fn!(method_name: bitand_parallelized, display_name: bitand);
 define_server_key_bench_default_fn!(method_name: bitxor_parallelized, display_name: bitxor);
 define_server_key_bench_default_fn!(method_name: bitor_parallelized, display_name: bitor);
-define_server_key_bench_unary_default_fn!(method_name: bitnot_parallelized, display_name: bitnot);
+define_server_key_bench_unary_default_fn!(method_name: bitnot, display_name: bitnot);
 
 define_server_key_bench_default_fn!(method_name: unchecked_add, display_name: add);
 define_server_key_bench_default_fn!(method_name: unchecked_sub, display_name: sub);
@@ -2071,7 +2071,7 @@ criterion_group!(
     // rem_parallelized,
     div_rem_parallelized,
     bitand_parallelized,
-    bitnot_parallelized,
+    bitnot,
     bitor_parallelized,
     bitxor_parallelized,
     left_shift_parallelized,

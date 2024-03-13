@@ -513,9 +513,6 @@ impl ServerKey {
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
     ///
-    /// # Warning
-    ///
-    /// - Multithreaded
     ///
     /// # Example
     ///
@@ -531,22 +528,22 @@ impl ServerKey {
     ///
     /// let ct = cks.encrypt(msg);
     ///
-    /// let ct_res = sks.bitnot_parallelized(&ct);
+    /// let ct_res = sks.bitnot(&ct);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, (!msg) % (1 << 8));
     /// ```
-    pub fn bitnot_parallelized<T>(&self, ct: &T) -> T
+    pub fn bitnot<T>(&self, ct: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
         let mut ct_res = ct.clone();
-        self.bitnot_assign_parallelized(&mut ct_res);
+        self.bitnot_assign(&mut ct_res);
         ct_res
     }
 
-    pub fn bitnot_assign_parallelized<T>(&self, ct: &mut T)
+    pub fn bitnot_assign<T>(&self, ct: &mut T)
     where
         T: IntegerRadixCiphertext,
     {
@@ -554,10 +551,8 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        let modulus = self.key.message_modulus.0 as u64;
-        let lut = self.key.generate_lookup_table(|x| (!x) % modulus);
         ct.blocks_mut()
-            .par_iter_mut()
-            .for_each(|block| self.key.apply_lookup_table_assign(block, &lut));
+            .iter_mut()
+            .for_each(|block| self.key.bitnot_assign(block));
     }
 }

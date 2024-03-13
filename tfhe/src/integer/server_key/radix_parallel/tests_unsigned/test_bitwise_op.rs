@@ -73,7 +73,7 @@ fn integer_default_bitnot<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot_parallelized);
+    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot);
     default_bitnot_test(param, executor);
 }
 
@@ -105,6 +105,6 @@ fn integer_unchecked_bitnot<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot_parallelized);
+    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot);
     unchecked_bitnot_test(param, executor);
 }

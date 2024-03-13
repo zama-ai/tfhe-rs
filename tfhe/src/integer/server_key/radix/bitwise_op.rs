@@ -730,11 +730,18 @@ impl ServerKey {
     /// assert_eq!(dec_result, !msg);
     /// ```
     pub fn boolean_bitnot(&self, boolean_block: &BooleanBlock) -> BooleanBlock {
-        let result = self.key.scalar_bitxor(&boolean_block.0, 1);
-        BooleanBlock::new_unchecked(result)
+        let mut result = boolean_block.clone();
+        self.boolean_bitnot_assign(&mut result);
+        result
     }
     pub fn boolean_bitnot_assign(&self, boolean_block: &mut BooleanBlock) {
-        self.key.scalar_bitxor_assign(&mut boolean_block.0, 1);
+        let orignal_modulus = boolean_block.0.message_modulus;
+        // bitnot_assign uses the message modulus, which in the case of
+        // a boolean block is implicitely 2, not the actual message mod
+        // of the parameters
+        boolean_block.0.message_modulus.0 = 2;
+        self.key.bitnot_assign(&mut boolean_block.0);
+        boolean_block.0.message_modulus = orignal_modulus;
     }
 }
 
