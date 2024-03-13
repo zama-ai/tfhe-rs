@@ -24,11 +24,19 @@ use tfhe::shortint::parameters::{
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
 
+#[cfg(not(feature = "gpu"))]
 const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+];
+
+#[cfg(feature = "gpu")]
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 3] = [
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
 ];
 
 #[cfg(not(feature = "gpu"))]

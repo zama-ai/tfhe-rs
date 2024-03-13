@@ -1,7 +1,6 @@
 #ifndef CUDA_PARAMETERS_CUH
 #define CUDA_PARAMETERS_CUH
 
-#include "cuda_config.h"
 #include <cufftdx.hpp>
 constexpr int log2(int n) { return (n <= 2) ? 1 : 1 + log2(n / 2); }
 
