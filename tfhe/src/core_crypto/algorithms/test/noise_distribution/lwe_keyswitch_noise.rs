@@ -146,7 +146,6 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
                 std_dev_noise_samples.extend(&current_noise_samples);
                 normality_noise_samples.push(current_noise_samples);
             }
-            println!("repeat {repeat_count} done");
             (std_dev_noise_samples, normality_noise_samples)
         })
         .collect();
