@@ -70,11 +70,7 @@ add_executable(${BINARY} ${TEST_SOURCES} ../utils.cpp ../setup_and_teardown.cpp)
 
 add_test(NAME ${BINARY} COMMAND ${BINARY})
 
-set_target_properties(
-  ${BINARY}
-  PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-             CUDA_RESOLVE_DEVICE_SYMBOLS ON
-             CUDA_ARCHITECTURES native)
+set_target_properties(${BINARY} PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 target_link_libraries(${BINARY} PUBLIC GTest::gtest_main tfhe_rs_lib tfhe_cuda_backend cudart)
 
 include(GoogleTest)
