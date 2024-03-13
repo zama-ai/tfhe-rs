@@ -106,7 +106,7 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Integer RTX 4090 full benchmarks failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Integer RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   cuda-core-crypto-benchmarks:
     name: Cuda core crypto benchmarks  (RTX 4090)
@@ -188,7 +188,7 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Core crypto RTX 4090 full benchmarks failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Core crypto RTX 4090 full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   remove_github_label:
     name: Remove 4090 bench label

@@ -93,4 +93,4 @@ jobs:
         uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "EC2 teardown (csprng-randomness-tests) failed. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "EC2 teardown (csprng-randomness-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
