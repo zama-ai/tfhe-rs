@@ -50,12 +50,7 @@ public:
   constexpr static int opt = choose_opt_amortized(N);
   constexpr static int log2_degree = log2(N);
 };
-enum sharedMemDegree {
-  NOSM = 0,
-  PARTIALSM = 1,
-  FULLSM = 2
-
-};
+enum sharedMemDegree { NOSM = 0, PARTIALSM = 1, FULLSM = 2 };
 
 class ForwardFFT {
 public:

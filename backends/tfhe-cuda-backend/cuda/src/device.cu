@@ -71,6 +71,18 @@ bool cuda_check_support_cooperative_groups() {
   return cooperative_groups_supported > 0;
 }
 
+/// Returns
+///  false if Thread Block Cluster is not supported.
+///  true otherwise
+bool cuda_check_support_thread_block_clusters() {
+  // To-do: Is this really the best way to check support?
+  int tbc_supported = 0;
+  check_cuda_error(
+      cudaDeviceGetAttribute(&tbc_supported, cudaDevAttrClusterLaunch, 0));
+
+  return tbc_supported > 0;
+}
+
 /// Copy memory to the GPU asynchronously
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cuda_stream_t *stream) {
