@@ -57,7 +57,7 @@ impl SplitAsciiWhitespace {
 
             // 0u8 is kept the same, but 1u8 is transformed into 255u8
             sk.key.scalar_sub_assign_parallelized(&mut mask_u8, 1);
-            sk.key.bitnot_assign_parallelized(&mut mask_u8);
+            sk.key.bitnot_assign(&mut mask_u8);
 
             *char.ciphertext_mut() = mask_u8;
 

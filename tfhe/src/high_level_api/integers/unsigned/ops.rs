@@ -1973,9 +1973,7 @@ where
     fn not(self) -> Self::Output {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let ciphertext = cpu_key
-                    .pbs_key()
-                    .bitnot_parallelized(&*self.ciphertext.on_cpu());
+                let ciphertext = cpu_key.pbs_key().bitnot(&*self.ciphertext.on_cpu());
                 FheUint::new(ciphertext)
             }
             #[cfg(feature = "gpu")]

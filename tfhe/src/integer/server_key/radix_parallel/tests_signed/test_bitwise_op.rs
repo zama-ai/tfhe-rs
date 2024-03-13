@@ -45,7 +45,7 @@ fn integer_signed_default_bitnot<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot_parallelized);
+    let executor = CpuFunctionExecutor::new(&ServerKey::bitnot);
     signed_default_bitnot_test(param, executor);
 }
 

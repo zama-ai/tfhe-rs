@@ -399,7 +399,7 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
     display_name: bitor
 );
 define_server_key_bench_unary_signed_clean_input_fn!(
-    method_name: bitnot_parallelized,
+    method_name: bitnot,
     display_name: bitnot
 );
 
@@ -494,7 +494,7 @@ criterion_group!(
     // rem_parallelized,
     div_rem_parallelized, // For ciphertext div == rem == div_rem
     bitand_parallelized,
-    bitnot_parallelized,
+    bitnot,
     bitor_parallelized,
     bitxor_parallelized,
     left_shift_parallelized,

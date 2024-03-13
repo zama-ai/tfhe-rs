@@ -699,7 +699,7 @@ where
     /// ```
     fn not(self) -> Self::Output {
         let ciphertext = global_state::with_cpu_internal_keys(|integer_key| {
-            integer_key.pbs_key().bitnot_parallelized(&self.ciphertext)
+            integer_key.pbs_key().bitnot(&self.ciphertext)
         });
         FheInt::<Id>::new(ciphertext)
     }

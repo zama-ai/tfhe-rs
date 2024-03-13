@@ -1,4 +1,6 @@
 use super::ServerKey;
+use crate::core_crypto::algorithms::lwe_ciphertext_opposite_assign;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::{CheckError, Ciphertext};
 
 impl ServerKey {
@@ -1216,5 +1218,22 @@ impl ServerKey {
     /// ```
     pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
+    }
+
+    pub fn bitnot_assign(&self, ct: &mut Ciphertext) {
+        assert!(ct.message_modulus.0.is_power_of_two());
+        if !ct.carry_is_empty() {
+            self.message_extract_assign(ct);
+        }
+        // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
+        lwe_ciphertext_opposite_assign(&mut ct.ct);
+        self.unchecked_scalar_add_assign(ct, ct.message_modulus.0 as u8 - 1);
+        ct.degree = Degree::new(ct.message_modulus.0 - 1)
+    }
+
+    pub fn bitnot(&self, ct: &Ciphertext) -> Ciphertext {
+        let mut result = ct.clone();
+        self.bitnot_assign(&mut result);
+        result
     }
 }
