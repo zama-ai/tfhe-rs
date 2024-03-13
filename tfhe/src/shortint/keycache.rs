@@ -415,7 +415,7 @@ impl NamedParam for WopbsParamPair {
 /// The KeyCache struct for shortint.
 ///
 /// You should not create an instance yourself,
-/// but rather use the global variable defined: [KEY_CACHE_WOPBS]
+/// but rather use the global variable defined: [static@KEY_CACHE_WOPBS]
 pub struct KeycacheWopbsV0 {
     inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
 }
@@ -471,7 +471,7 @@ impl NamedParam for KeySwitchingKeyParams {
 /// The KeyCache struct for shortint.
 ///
 /// You should not create an instance yourself,
-/// but rather use the global variable defined: [KEY_CACHE_KSK]
+/// but rather use the global variable defined: [static@KEY_CACHE_KSK]
 pub struct KeycacheKeySwitchingKey {
     inner: ImplKeyCache<KeySwitchingKeyParams, KeySwitchingKey, FileStorage>,
 }
