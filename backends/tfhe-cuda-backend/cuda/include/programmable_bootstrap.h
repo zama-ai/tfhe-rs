@@ -5,7 +5,7 @@
 #include <cstdint>
 
 enum PBS_TYPE { MULTI_BIT = 0, CLASSICAL = 1 };
-enum PBS_VARIANT { DEFAULT = 0, CG = 1 };
+enum PBS_VARIANT { DEFAULT = 0, CG = 1, TBC = 2 };
 
 extern "C" {
 void cuda_fourier_polynomial_mul(void *input1, void *input2, void *output,
@@ -294,6 +294,12 @@ void scratch_cuda_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
+
+template <typename G>
+__device__ int get_this_block_rank(G &group, bool support_dsm);
+template <typename G, class params>
+__device__  double2 *get_join_buffer_element(int i, G &group, bool support_dsm,
+                                 double2 *global_memory_buffer);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
