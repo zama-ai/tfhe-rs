@@ -25,6 +25,7 @@ mod lwe_packing_keyswitch_key_generation;
 mod lwe_private_functional_packing_keyswitch;
 pub(crate) mod lwe_programmable_bootstrapping;
 mod noise_distribution;
+mod glwe_tensor_product;
 
 pub struct TestResources {
     pub seeder: Box<dyn Seeder>,

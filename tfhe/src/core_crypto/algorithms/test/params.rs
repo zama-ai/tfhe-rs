@@ -159,6 +159,23 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> From<ClassicTe
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TensorProductTestParams<Scalar: UnsignedInteger> {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_modular_std_dev: StandardDev,
+    pub glwe_modular_std_dev: StandardDev,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub relin_base_log: DecompositionBaseLog,
+    pub relin_level: DecompositionLevelCount,
+    pub message_modulus_log: CiphertextModulusLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
 impl<Scalar: UnsignedInteger> NamedParam for ClassicTestParams<Scalar> {
     fn name(&self) -> String {
         format!(
@@ -215,3 +232,4 @@ impl<Scalar: UnsignedInteger> NamedParam for PackingKeySwitchTestParams<Scalar> 
             )
     }
 }
+

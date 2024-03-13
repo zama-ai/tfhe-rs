@@ -355,10 +355,19 @@ build_concrete_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng --all-targets
 
+#.PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
+#test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
+#	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+#		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) -- core_crypto::
+#	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+#		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+#			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
+#	fi
+
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) -- core_crypto::
+		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) -- glwe_encrypt_tensor_prod_decrypt
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
