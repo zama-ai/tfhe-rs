@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{BitOpType, CudaServerKey};
 
@@ -10,14 +10,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_bitop_assign_async<Scalar>(
+    pub unsafe fn unchecked_scalar_bitop_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         op: BitOpType,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let message_modulus = self.message_modulus.0;
@@ -82,27 +83,24 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_bitand<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_bitand<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_scalar_bitand_assign(&mut result, rhs, stream);
         result
     }
 
-    pub fn unchecked_scalar_bitand_assign<Scalar>(
+    pub fn unchecked_scalar_bitand_assign<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarAnd, stream);
@@ -111,27 +109,24 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn unchecked_scalar_bitor<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_scalar_bitor_assign(&mut result, rhs, stream);
         result
     }
 
-    pub fn unchecked_scalar_bitor_assign<Scalar>(
+    pub fn unchecked_scalar_bitor_assign<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarOr, stream);
@@ -140,27 +135,24 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn unchecked_scalar_bitxor<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_bitxor<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_scalar_bitxor_assign(&mut result, rhs, stream);
         result
     }
 
-    pub fn unchecked_scalar_bitxor_assign<Scalar>(
+    pub fn unchecked_scalar_bitxor_assign<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.unchecked_scalar_bitop_assign_async(ct, rhs, BitOpType::ScalarXor, stream);
@@ -173,13 +165,14 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_bitand_assign_async<Scalar>(
+    pub unsafe fn scalar_bitand_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, stream);
@@ -188,13 +181,10 @@ impl CudaServerKey {
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitand(rhs);
     }
 
-    pub fn scalar_bitand_assign<Scalar>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) where
+    pub fn scalar_bitand_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, stream: &CudaStream)
+    where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.scalar_bitand_assign_async(ct, rhs, stream);
@@ -202,14 +192,10 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_bitand<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_bitand<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_bitand_assign(&mut result, rhs, stream);
@@ -220,13 +206,14 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_bitor_assign_async<Scalar>(
+    pub unsafe fn scalar_bitor_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, stream);
@@ -235,13 +222,10 @@ impl CudaServerKey {
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitor(rhs);
     }
 
-    pub fn scalar_bitor_assign<Scalar>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) where
+    pub fn scalar_bitor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, stream: &CudaStream)
+    where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.scalar_bitor_assign_async(ct, rhs, stream);
@@ -249,14 +233,10 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_bitor<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_bitor_assign(&mut result, rhs, stream);
@@ -267,13 +247,14 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_bitxor_assign_async<Scalar>(
+    pub unsafe fn scalar_bitxor_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
+        ct: &mut T,
         rhs: Scalar,
         stream: &CudaStream,
     ) where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, stream);
@@ -282,13 +263,10 @@ impl CudaServerKey {
         ct.as_mut().info = ct.as_ref().info.after_scalar_bitxor(rhs);
     }
 
-    pub fn scalar_bitxor_assign<Scalar>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) where
+    pub fn scalar_bitxor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, stream: &CudaStream)
+    where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         unsafe {
             self.scalar_bitxor_assign_async(ct, rhs, stream);
@@ -296,14 +274,10 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_bitxor<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        rhs: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_bitxor<Scalar, T>(&self, ct: &T, rhs: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u8>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_bitxor_assign(&mut result, rhs, stream);

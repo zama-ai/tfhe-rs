@@ -3,6 +3,7 @@ pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
+pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_sub;
 
@@ -476,9 +477,6 @@ create_parametrized_test!(
 );
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
-create_parametrized_test!(integer_default_scalar_bitand);
-create_parametrized_test!(integer_default_scalar_bitor);
-create_parametrized_test!(integer_default_scalar_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_default_small_scalar_mul);
@@ -1035,34 +1033,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2);
     default_checked_ilog2_test(param, executor);
-}
-
-//=============================================================================
-// Default Scalar Tests
-//=============================================================================
-
-fn integer_default_scalar_bitand<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitand_parallelized);
-    default_scalar_bitand_test(param, executor);
-}
-
-fn integer_default_scalar_bitor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitor_parallelized);
-    default_scalar_bitor_test(param, executor);
-}
-
-fn integer_default_scalar_bitxor<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitxor_parallelized);
-    default_scalar_bitxor_test(param, executor);
 }
 
 fn integer_default_small_scalar_mul<P>(param: P)
