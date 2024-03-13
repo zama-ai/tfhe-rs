@@ -545,6 +545,10 @@ impl ServerKey {
         &self,
         generates_or_propagates: Vec<Ciphertext>,
     ) -> (Vec<Ciphertext>, Ciphertext) {
+        if generates_or_propagates.is_empty() {
+            return (vec![], self.key.create_trivial(0));
+        }
+
         let lut_carry_propagation_sum = self
             .key
             .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
@@ -580,6 +584,10 @@ impl ServerKey {
         F: for<'a, 'b> Fn(&'a mut Ciphertext, &'b Ciphertext) + Sync,
     {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
+
+        if blocks.is_empty() {
+            return vec![];
+        }
 
         let num_blocks = blocks.len();
         let num_steps = blocks.len().ceil_ilog2() as usize;
@@ -1274,6 +1282,20 @@ impl ServerKey {
 #[cfg(test)]
 mod tests {
     use super::should_hillis_steele_propagation_be_faster;
+    use crate::integer::gen_keys_radix;
+    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+
+    #[test]
+    fn test_propagate_single_carry_on_empty_input_ci_run_filter() {
+        // Parameters and num blocks do not matter here
+        let (_, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 4);
+
+        let carry = sks.propagate_single_carry_parallelized_low_latency([].as_mut_slice());
+
+        // The most interesting part we test is that the code does not panic
+        assert!(carry.is_trivial());
+        assert_eq!(carry.decrypt_trivial().unwrap(), 0u64);
+    }
 
     #[test]
     fn test_hillis_steele_choice_128_threads() {

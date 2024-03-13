@@ -177,6 +177,7 @@ impl ServerKey {
             }
 
             let len = ctxt.blocks().len();
+            // If start_index >= len, the range is considered empty
             for i in start_index..len {
                 let _ = self.propagate_parallelized(ctxt, i);
             }
