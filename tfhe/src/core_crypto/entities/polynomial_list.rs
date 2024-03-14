@@ -33,7 +33,7 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialList<C> {
     ///
     /// This docstring exhibits [`PolynomialList`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

@@ -491,7 +491,7 @@ impl ClientKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -526,7 +526,7 @@ impl ClientKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::{BooleanBlock, ClientKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///

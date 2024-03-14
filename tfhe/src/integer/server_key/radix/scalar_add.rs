@@ -122,7 +122,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -136,13 +135,11 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.checked_scalar_add(&mut ct, scalar)?;
+    /// let ct_res = sks.checked_scalar_add(&mut ct, scalar).unwrap();
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_scalar_add<T, C>(&self, ct: &C, scalar: T) -> Result<C, CheckError>
     where

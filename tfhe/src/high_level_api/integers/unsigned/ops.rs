@@ -33,12 +33,11 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-    /// # set_server_key(server_key);
-    /// #
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
     ///
     /// let clears = [1, 2, 3, 4, 5];
     /// let encrypted = clears
@@ -101,12 +100,11 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-    /// # set_server_key(server_key);
-    /// #
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
     ///
     /// let clears = [1, 2, 3, 4, 5];
     /// let encrypted = clears
@@ -173,10 +171,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -218,10 +216,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -274,10 +272,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -312,10 +310,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -376,10 +374,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -414,10 +412,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -452,10 +450,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -490,10 +488,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(1u16, &client_key);
@@ -631,10 +629,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(23u16, &client_key);
@@ -702,26 +700,26 @@ macro_rules! generic_integer_impl_operation (
     }
 );
 generic_integer_impl_operation!(
-   /// Adds two [FheUint]
-   ///
-   /// The operation is modular, i.e on overflow it wraps around.
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(23u16, &client_key);
-   /// let b = FheUint16::encrypt(3u16, &client_key);
-   ///
-   /// let result = &a + &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 23u16 + 3u16);
-   /// ```
+    /// Adds two [FheUint]
+    ///
+    /// The operation is modular, i.e on overflow it wraps around.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(23u16, &client_key);
+    /// let b = FheUint16::encrypt(3u16, &client_key);
+    ///
+    /// let result = &a + &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 23u16 + 3u16);
+    /// ```
    rust_trait: Add(add),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -745,26 +743,26 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Subtracts two [FheUint]
-   ///
-   /// The operation is modular, i.e on overflow it wraps around.
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(3u16, &client_key);
-   /// let b = FheUint16::encrypt(37849u16, &client_key);
-   ///
-   /// let result = &a - &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 3u16.wrapping_sub(37849u16));
-   /// ```
+    /// Subtracts two [FheUint]
+    ///
+    /// The operation is modular, i.e on overflow it wraps around.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3u16, &client_key);
+    /// let b = FheUint16::encrypt(37849u16, &client_key);
+    ///
+    /// let result = &a - &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 3u16.wrapping_sub(37849u16));
+    /// ```
    rust_trait: Sub(sub),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -788,26 +786,26 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Multiplies two [FheUint]
-   ///
-   /// The operation is modular, i.e on overflow it wraps around.
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(3u16, &client_key);
-   /// let b = FheUint16::encrypt(37849u16, &client_key);
-   ///
-   /// let result = &a * &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 3u16.wrapping_mul(37849u16));
-   /// ```
+    /// Multiplies two [FheUint]
+    ///
+    /// The operation is modular, i.e on overflow it wraps around.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3u16, &client_key);
+    /// let b = FheUint16::encrypt(37849u16, &client_key);
+    ///
+    /// let result = &a * &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 3u16.wrapping_mul(37849u16));
+    /// ```
    rust_trait: Mul(mul),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -831,24 +829,24 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Performs a bitwise 'and' between two [FheUint]
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(3u16, &client_key);
-   /// let b = FheUint16::encrypt(37849u16, &client_key);
-   ///
-   /// let result = &a & &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result,  3u16 & 37849u16);
-   /// ```
+    /// Performs a bitwise 'and' between two [FheUint]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3u16, &client_key);
+    /// let b = FheUint16::encrypt(37849u16, &client_key);
+    ///
+    /// let result = &a & &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result,  3u16 & 37849u16);
+    /// ```
    rust_trait: BitAnd(bitand),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -872,24 +870,24 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Performs a bitwise 'or' between two [FheUint]
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(3u16, &client_key);
-   /// let b = FheUint16::encrypt(37849u16, &client_key);
-   ///
-   /// let result = &a | &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result,  3u16 | 37849u16);
-   /// ```
+    /// Performs a bitwise 'or' between two [FheUint]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3u16, &client_key);
+    /// let b = FheUint16::encrypt(37849u16, &client_key);
+    ///
+    /// let result = &a | &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result,  3u16 | 37849u16);
+    /// ```
    rust_trait: BitOr(bitor),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -913,24 +911,24 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Performs a bitwise 'xor' between two [FheUint]
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(3u16, &client_key);
-   /// let b = FheUint16::encrypt(37849u16, &client_key);
-   ///
-   /// let result = &a ^ &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result,  3u16 ^ 37849u16);
-   /// ```
+    /// Performs a bitwise 'xor' between two [FheUint]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(3u16, &client_key);
+    /// let b = FheUint16::encrypt(37849u16, &client_key);
+    ///
+    /// let result = &a ^ &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result,  3u16 ^ 37849u16);
+    /// ```
    rust_trait: BitXor(bitxor),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -954,32 +952,32 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Divides two [FheUint] and returns the quotient
-   ///
-   /// # Note
-   ///
-   /// If you need both the quotient and remainder, then prefer to use
-   /// [FheUint::div_rem], instead of using `/` and `%` separately.
-   ///
-   /// When the divisor is 0, the returned quotient will be the max value (i.e. all bits set to 1).
-   ///
-   /// This behaviour should not be relied on.
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(37849u16, &client_key);
-   /// let b = FheUint16::encrypt(3u16, &client_key);
-   ///
-   /// let result = &a / &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 37849u16 / 3u16);
-   /// ```
+    /// Divides two [FheUint] and returns the quotient
+    ///
+    /// # Note
+    ///
+    /// If you need both the quotient and remainder, then prefer to use
+    /// [FheUint::div_rem], instead of using `/` and `%` separately.
+    ///
+    /// When the divisor is 0, the returned quotient will be the max value (i.e. all bits set to 1).
+    ///
+    /// This behaviour should not be relied on.
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(37849u16, &client_key);
+    /// let b = FheUint16::encrypt(3u16, &client_key);
+    ///
+    /// let result = &a / &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 37849u16 / 3u16);
+    /// ```
    rust_trait: Div(div),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -999,33 +997,33 @@ generic_integer_impl_operation!(
    },
 );
 generic_integer_impl_operation!(
-   /// Divides two [FheUint] and returns the remainder
-   ///
-   /// # Note
-   ///
-   /// If you need both the quotient and remainder, then prefer to use
-   /// [FheUint::div_rem], instead of using `/` and `%` separately.
-   ///
-   /// When the divisor is 0, the returned remainder will have the value of the numerator.
-   ///
-   /// This behaviour should not be relied on.
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(37849u16, &client_key);
-   /// let b = FheUint16::encrypt(3u16, &client_key);
-   ///
-   /// let result = &a % &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 37849u16 % 3u16);
-   /// ```
+    /// Divides two [FheUint] and returns the remainder
+    ///
+    /// # Note
+    ///
+    /// If you need both the quotient and remainder, then prefer to use
+    /// [FheUint::div_rem], instead of using `/` and `%` separately.
+    ///
+    /// When the divisor is 0, the returned remainder will have the value of the numerator.
+    ///
+    /// This behaviour should not be relied on.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(37849u16, &client_key);
+    /// let b = FheUint16::encrypt(3u16, &client_key);
+    ///
+    /// let result = &a % &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 37849u16 % 3u16);
+    /// ```
    rust_trait: Rem(rem),
    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -1115,25 +1113,25 @@ macro_rules! generic_integer_impl_shift_rotate (
     }
 );
 generic_integer_impl_shift_rotate!(
-   /// Performs a bitwise left shift of a [FheUint] by another [FheUint]
-   ///
-   ///
-   /// # Example
-   ///
-   /// ```rust
-   /// # use tfhe::prelude::*;
-   /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-   /// #
-   /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-   /// set_server_key(server_key);
-   ///
-   /// let a = FheUint16::encrypt(37849u16, &client_key);
-   /// let b = FheUint16::encrypt(3u16, &client_key);
-   ///
-   /// let result = &a << &b;
-   /// let result: u16 = result.decrypt(&client_key);
-   /// assert_eq!(result, 37849u16 << 3u16);
-   /// ```
+    /// Performs a bitwise left shift of a [FheUint] by another [FheUint]
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(37849u16, &client_key);
+    /// let b = FheUint16::encrypt(3u16, &client_key);
+    ///
+    /// let result = &a << &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 37849u16 << 3u16);
+    /// ```
     rust_trait: Shl(shl),
     implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
@@ -1161,10 +1159,10 @@ generic_integer_impl_shift_rotate!(
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(37849u16, &client_key);
@@ -1201,10 +1199,10 @@ generic_integer_impl_shift_rotate!(
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(37849u16, &client_key);
@@ -1241,10 +1239,10 @@ generic_integer_impl_shift_rotate!(
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(37849u16, &client_key);
@@ -1289,10 +1287,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1334,10 +1332,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1379,10 +1377,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1422,10 +1420,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1465,10 +1463,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1508,10 +1506,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(3u16, &client_key);
@@ -1556,10 +1554,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1600,10 +1598,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1655,10 +1653,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1708,10 +1706,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1762,10 +1760,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1816,10 +1814,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheUint16::encrypt(37849u16, &client_key);
@@ -1860,10 +1858,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(3u16, &client_key);
@@ -1892,10 +1890,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(3u16, &client_key);
@@ -1932,10 +1930,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(3u16, &client_key);
@@ -1960,10 +1958,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheUint16::encrypt(3u16, &client_key);

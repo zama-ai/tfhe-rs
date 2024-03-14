@@ -18,7 +18,7 @@ use crate::CompactPublicKey;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompactFheInt32, CompactPublicKey, ConfigBuilder, FheInt32};
 ///
@@ -103,7 +103,7 @@ impl<Id: FheIntId> ParameterSetConformant for CompactFheInt<Id> {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompactFheInt32List, CompactPublicKey, ConfigBuilder, FheInt32};
 ///

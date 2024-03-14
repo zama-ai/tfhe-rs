@@ -43,7 +43,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     ///
     /// This docstring exhibits [`SeededLweCiphertextList`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

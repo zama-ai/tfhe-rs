@@ -20,7 +20,7 @@ use crate::ClientKey;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompressedFheInt32, ConfigBuilder};
 ///

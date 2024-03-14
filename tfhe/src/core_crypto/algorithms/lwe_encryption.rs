@@ -183,7 +183,7 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -275,7 +275,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Ge
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -366,7 +366,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -440,7 +440,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -616,7 +616,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -727,7 +727,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, NoiseDistribution, KeyCont, OutputCon
 /// See this [`formal definition`](`encrypt_lwe_ciphertext#formal-definition`) for the definition
 /// of the LWE encryption algorithm.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -880,7 +880,7 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -998,7 +998,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1186,7 +1186,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// Encrypt a [`PlaintextList`] in a
 /// [`compressed/seeded LWE ciphertext list`](`SeededLweCiphertextList`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1357,7 +1357,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 
 /// Parallel variant of [`encrypt_seeded_lwe_ciphertext_list`].
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1504,7 +1504,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1596,7 +1596,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1689,7 +1689,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1829,7 +1829,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -2052,7 +2052,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

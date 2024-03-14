@@ -19,7 +19,7 @@ use crate::core_crypto::entities::{
 /// keyswitching key constructed from an input [`LWE secret key`](`LweSecretKey`) and an output
 /// [`GLWE secret key`](`GlweSecretKey`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -210,7 +210,7 @@ where
 /// constructed from an input [`LWE secret key`](`LweSecretKey`) and an output
 /// [`GLWE secret key`](`GlweSecretKey`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

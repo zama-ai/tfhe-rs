@@ -21,7 +21,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweBody<C> {
     ///
     /// This docstring exhibits [`GlweBody`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -102,7 +102,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweMask<C> {
     ///
     /// This docstring exhibits [`GlweMask`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -315,7 +315,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
     ///
     /// This docstring exhibits [`GlweCiphertext`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

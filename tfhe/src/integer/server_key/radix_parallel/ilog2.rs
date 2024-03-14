@@ -440,7 +440,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
@@ -484,7 +484,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
@@ -528,7 +528,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
@@ -572,7 +572,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
@@ -609,7 +609,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
@@ -650,7 +650,7 @@ impl ServerKey {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///

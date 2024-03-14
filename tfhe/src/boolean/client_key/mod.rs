@@ -51,7 +51,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -63,7 +62,6 @@ impl ClientKey {
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
-    /// # }
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt(message, self))
@@ -74,7 +72,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -88,7 +85,6 @@ impl ClientKey {
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
-    /// # }
     /// ```
     pub fn encrypt_compressed(&self, message: bool) -> CompressedCiphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt_compressed(message, self))
@@ -99,7 +95,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -111,7 +106,6 @@ impl ClientKey {
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
-    /// # }
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> bool {
         BooleanEngine::with_thread_local_mut(|engine| engine.decrypt(ct, self))
@@ -122,14 +116,12 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
-    /// # }
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
@@ -140,7 +132,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     /// use tfhe::boolean::prelude::*;
@@ -148,7 +139,6 @@ impl ClientKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// let raw_parts = cks.into_raw_parts();
-    /// # }
     /// ```
     pub fn into_raw_parts(
         self,
@@ -175,7 +165,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     /// use tfhe::boolean::prelude::*;
@@ -184,7 +173,6 @@ impl ClientKey {
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// let (lwe_secret_key, glwe_secret_key, parameters) = cks.into_raw_parts();
     /// let reconstructed_cks = ClientKey::new_from_raw_parts(lwe_secret_key, glwe_secret_key, parameters);
-    /// # }
     pub fn new_from_raw_parts(
         lwe_secret_key: LweSecretKeyOwned<u32>,
         glwe_secret_key: GlweSecretKeyOwned<u32>,

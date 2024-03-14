@@ -64,7 +64,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     ///
     ///F # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

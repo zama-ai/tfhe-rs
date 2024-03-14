@@ -16,7 +16,7 @@ use rayon::prelude::*;
 ///
 /// Consider using [`par_generate_lwe_bootstrap_key`] for better key generation times.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -197,7 +197,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

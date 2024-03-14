@@ -173,7 +173,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -187,13 +186,11 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Compute the subtraction:
-    /// let ct_res = sks.checked_scalar_sub(&ct, scalar)?;
+    /// let ct_res = sks.checked_scalar_sub(&ct, scalar).unwrap();
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_scalar_sub<T, Scalar>(&self, ct: &T, scalar: Scalar) -> Result<T, CheckError>
     where
@@ -212,7 +209,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -226,13 +222,11 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute the subtraction:
-    /// sks.checked_scalar_sub_assign(&mut ct, scalar)?;
+    /// sks.checked_scalar_sub_assign(&mut ct, scalar).unwrap();
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg - scalar, dec);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_scalar_sub_assign<T, Scalar>(
         &self,

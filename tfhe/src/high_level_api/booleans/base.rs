@@ -103,10 +103,10 @@ impl FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// // This is not a trivial ciphertext as we use a client key to encrypt.
@@ -131,10 +131,10 @@ impl FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let non_trivial = FheBool::encrypt(false, &client_key);
@@ -218,10 +218,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
     ///
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -259,10 +259,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
     ///
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -302,10 +302,10 @@ impl FheEq<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
     ///
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -341,10 +341,10 @@ impl FheEq<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
     ///
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -387,10 +387,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -415,10 +415,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -461,10 +461,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -490,10 +490,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -537,10 +537,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -566,10 +566,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -610,10 +610,10 @@ impl BitAnd<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -635,10 +635,10 @@ impl BitAnd<bool> for &FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -677,10 +677,10 @@ impl BitOr<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -702,10 +702,10 @@ impl BitOr<bool> for &FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -744,10 +744,10 @@ impl BitXor<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -769,10 +769,10 @@ impl BitXor<bool> for &FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -811,10 +811,10 @@ impl BitAnd<FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -836,10 +836,10 @@ impl BitAnd<&FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -862,10 +862,10 @@ impl BitOr<FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -887,10 +887,10 @@ impl BitOr<&FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -913,10 +913,10 @@ impl BitXor<FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -939,10 +939,10 @@ impl BitXor<&FheBool> for bool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -966,10 +966,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1009,10 +1009,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1052,10 +1052,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1092,10 +1092,10 @@ impl BitAndAssign<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1129,10 +1129,10 @@ impl BitOrAssign<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1166,10 +1166,10 @@ impl BitXorAssign<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let mut a = FheBool::encrypt(true, &client_key);
@@ -1205,10 +1205,10 @@ impl std::ops::Not for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);
@@ -1230,10 +1230,10 @@ impl std::ops::Not for &FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::prelude::*;
-    /// # use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt(true, &client_key);

@@ -90,7 +90,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
@@ -104,13 +103,11 @@ impl ServerKey {
     ///
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// let ct_res = sks.checked_crt_scalar_sub(&mut ctxt_1, clear_2)?;
+    /// let ct_res = sks.checked_crt_scalar_sub(&mut ctxt_1, clear_2).unwrap();
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 - clear_2) % modulus, dec);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_crt_scalar_sub(
         &self,
@@ -129,7 +126,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
@@ -143,13 +139,12 @@ impl ServerKey {
     ///
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.checked_crt_scalar_sub_assign(&mut ctxt_1, clear_2)?;
+    /// sks.checked_crt_scalar_sub_assign(&mut ctxt_1, clear_2)
+    ///     .unwrap();
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ctxt_1);
     /// assert_eq!((clear_1 - clear_2) % modulus, dec);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_crt_scalar_sub_assign(
         &self,

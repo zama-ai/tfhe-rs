@@ -22,7 +22,6 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -38,7 +37,6 @@ impl PublicKey {
     /// // Decryption:
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(false, dec);
-    /// # }
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt_with_public_key(message, self))
@@ -49,14 +47,12 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys();
     ///
     /// let pks = PublicKey::new(&cks);
-    /// # }
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))

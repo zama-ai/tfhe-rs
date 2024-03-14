@@ -107,9 +107,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, prefix, not_prefix) = ("hello world", "hello", "world");
@@ -190,9 +190,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, suffix, not_suffix) = ("hello world", "world", "hello");

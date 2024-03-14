@@ -71,7 +71,6 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
@@ -90,8 +89,6 @@ impl ServerKey {
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
     /// assert_eq!((clear_1 + clear_2) % modulus, res);
-    /// # Ok(())
-    /// # }
     /// ```
     pub fn checked_crt_scalar_add_parallelized(
         &self,

@@ -73,9 +73,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");
@@ -143,9 +143,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = (" hello world", " ");

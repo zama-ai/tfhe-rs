@@ -46,7 +46,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
     ///
     /// This docstring exhibits [`LweSecretKey`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -134,7 +134,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

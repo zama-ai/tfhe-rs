@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompressedFheBool, ConfigBuilder};
 ///

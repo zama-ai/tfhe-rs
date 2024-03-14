@@ -84,7 +84,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -816,7 +816,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

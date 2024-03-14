@@ -46,10 +46,10 @@ impl FheTrivialEncrypt<bool> for FheBool {
     /// # Example
     ///
     /// ```rust
-    /// # use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheBool};
-    /// # use tfhe::prelude::*;
-    /// #
-    /// # let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
     /// let a = FheBool::encrypt_trivial(true);

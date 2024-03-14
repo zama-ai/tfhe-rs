@@ -13,7 +13,7 @@ use rayon::prelude::*;
 /// Apply a keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and
 /// write the result in an output [`GLWE ciphertext`](`GlweCiphertext`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -191,7 +191,7 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 /// list`](`LweCiphertextList`) and pack the result in an output [`GLWE
 /// ciphertext`](`GlweCiphertext`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -386,7 +386,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 ///
 /// This will use all threads available in the current rayon thread pool.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -523,7 +523,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// the available number of threads in the current rayon thread pool then only the number of
 /// available threads will be used. Note that `thread_count` cannot be 0.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

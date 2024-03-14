@@ -45,7 +45,7 @@ impl ServerKey {
     /// Note that while the returned ciphertext encrypts the same value as
     /// either true_ct or false_ct, it won't exactly be true_ct or false_ct.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
@@ -120,7 +120,7 @@ impl ServerKey {
     /// Note that while the returned ciphertext encrypts the same value as
     /// either true_ct or false_ct, it won't exactly be true_ct or false_ct.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///

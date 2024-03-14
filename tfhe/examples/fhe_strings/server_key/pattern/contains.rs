@@ -87,9 +87,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, nana, apples) = ("bananas", "nana", "apples");
@@ -147,9 +147,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, ba, nan) = ("bananas", "ba", "nan");
@@ -216,9 +216,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{ClearString, FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{ClearString, FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (bananas, anas, nana) = ("bananas", "anas", "nana");

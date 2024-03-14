@@ -31,7 +31,7 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextList<C> {
     ///
     /// This docstring exhibits [`PlaintextList`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // Define parameters for PlaintextList creation

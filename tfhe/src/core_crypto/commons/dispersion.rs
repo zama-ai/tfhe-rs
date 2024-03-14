@@ -43,7 +43,7 @@ pub trait DispersionParameter: Copy {
 ///
 /// # Example:
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, LogStandardDev};
 /// let params = LogStandardDev::from_log_standard_dev(-25.);
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
@@ -97,7 +97,7 @@ impl DispersionParameter for LogStandardDev {
 ///
 /// # Example:
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 /// let params = StandardDev::from_standard_dev(2_f64.powf(-25.));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
@@ -148,7 +148,7 @@ impl DispersionParameter for StandardDev {
 ///
 /// # Example:
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 /// let params = Variance::from_variance(2_f64.powi(-50));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));

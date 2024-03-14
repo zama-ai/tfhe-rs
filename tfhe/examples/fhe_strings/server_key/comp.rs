@@ -52,9 +52,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "hello");
@@ -106,9 +106,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("hello", "world");
@@ -133,9 +133,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::FheString;
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::FheString;
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
@@ -163,9 +163,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::FheString;
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::FheString;
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");
@@ -194,9 +194,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::FheString;
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::FheString;
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("apple", "banana");
@@ -225,9 +225,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::FheString;
-    /// # use crate::server_key::gen_keys;
+    /// ```rust
+    /// use crate::ciphertext::FheString;
+    /// use crate::server_key::gen_keys;
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s1, s2) = ("banana", "apple");

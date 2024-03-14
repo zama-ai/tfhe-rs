@@ -13,7 +13,7 @@ use crate::core_crypto::entities::Polynomial;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -72,7 +72,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -139,7 +139,7 @@ pub fn slice_wrapping_add_custom_mod<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -192,7 +192,7 @@ pub fn slice_wrapping_add_assign_custom_mod<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -227,7 +227,7 @@ pub fn slice_wrapping_add_scalar_mul_assign<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -294,7 +294,7 @@ pub fn slice_wrapping_sub_custom_mod<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -353,7 +353,7 @@ pub fn slice_wrapping_sub_assign_custom_mod<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
@@ -490,7 +490,7 @@ pub fn slice_wrapping_sub_scalar_mul_assign_custom_modulus<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// slice_wrapping_opposite_assign(&mut first);
@@ -525,7 +525,7 @@ pub fn slice_wrapping_opposite_assign_custom_mod<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let scalar = 252;
@@ -568,7 +568,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 255];
 /// let scalar = 1;
@@ -592,7 +592,7 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![0u8, 1, 2, 3, 4, 5];
 /// let scalar = 1;
@@ -610,7 +610,7 @@ where
 /// Primitive for compact LWE public key
 ///
 /// Here $i$ from section 3 of <https://eprint.iacr.org/2023/603> is taken equal to $n$.
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let lhs = vec![1u8, 2u8, 3u8];
 /// let rhs = vec![4u8, 5u8, 6u8];

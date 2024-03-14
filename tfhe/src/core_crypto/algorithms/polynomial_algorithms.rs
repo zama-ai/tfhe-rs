@@ -14,7 +14,7 @@ use crate::core_crypto::entities::*;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::entities::*;
 /// let mut first = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
@@ -43,7 +43,7 @@ pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::entities::*;
 /// let mut first = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
@@ -79,7 +79,7 @@ pub fn polynomial_wrapping_sub_assign<Scalar, OutputCont, InputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -153,7 +153,7 @@ fn polynomial_wrapping_add_mul_assign_schoolbook<Scalar, OutputCont, InputCont1,
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::entities::*;
 /// let poly_1 = Polynomial::from_container(vec![1_u8, 2, 3]);
@@ -207,7 +207,7 @@ pub fn polynomial_wrapping_add_mul_assign<Scalar, OutputCont, InputCont1, InputC
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -249,7 +249,7 @@ pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -302,7 +302,7 @@ fn copy_without_neg<Scalar: UnsignedInteger>(dst: &mut [Scalar], src: &[Scalar])
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -362,7 +362,7 @@ pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -504,7 +504,7 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -579,7 +579,7 @@ fn polynomial_wrapping_sub_mul_assign_schoolbook<Scalar, OutputCont, InputCont1,
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::entities::*;
 /// let poly_1 = Polynomial::from_container(vec![1_u8, 2, 3]);
@@ -633,7 +633,7 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
@@ -667,7 +667,7 @@ pub fn polynomial_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
