@@ -6,9 +6,7 @@ use crate::core_crypto::commons::traits::contiguous_entity_container::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft128::crypto::ggsw::{
-    update_with_fmadd, Fourier128GgswCiphertext,
-};
+use crate::core_crypto::fft_impl::fft128::crypto::ggsw::update_with_fmadd;
 use crate::core_crypto::prelude::{Container, ContainerMut, SignedDecomposer};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};

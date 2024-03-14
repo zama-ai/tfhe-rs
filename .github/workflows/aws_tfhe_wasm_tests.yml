@@ -57,13 +57,20 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install Node
+        run: |
+          make install_node
+
+      - name: Run fmt checks
+        run: |
+          make check_fmt_js
+
       - name: Run js on wasm API tests
         run: |
           make test_nodejs_wasm_api_in_docker
 
       - name: Run parallel wasm tests
         run: |
-          make install_node
           make ci_test_web_js_api_parallel
 
       - name: Slack Notification

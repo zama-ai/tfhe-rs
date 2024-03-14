@@ -1,11 +1,8 @@
+use criterion::Criterion;
 use tfhe::prelude::*;
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::KeySwitchingKey;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
-
 use tfhe_trivium::{KreyviumStreamShortint, TransCiphering};
-
-use criterion::Criterion;
 
 pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
     let config = ConfigBuilder::default().build();

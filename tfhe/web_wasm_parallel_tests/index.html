@@ -1,49 +1,121 @@
-<!DOCTYPE html>
+<!doctype html>
 <title>TFHE-RS Web Wasm Demo</title>
 <body>
-    <style>
-        .loader {
-            border: 16px solid #f3f3f3; /* Light grey */
-            border-top: 16px solid #3498db; /* Blue */
-            border-radius: 50%;
-            width: 120px;
-            height: 120px;
-            animation: spin 2s linear infinite;
-        }
+  <style>
+    .loader {
+      border: 16px solid #f3f3f3; /* Light grey */
+      border-top: 16px solid #3498db; /* Blue */
+      border-radius: 50%;
+      width: 120px;
+      height: 120px;
+      animation: spin 2s linear infinite;
+    }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
 
-    <div>
-        <input type="button" id="publicKeyTest" value="Public Key Test" disabled />
-        <input type="button" id="compressedPublicKeyTest" value="Compressed Public Key Test" disabled />
+  <div>
+    <input type="button" id="publicKeyTest" value="Public Key Test" disabled />
+    <input
+      type="button"
+      id="compressedPublicKeyTest"
+      value="Compressed Public Key Test"
+      disabled
+    />
 
-        <input type="button" id="compactPublicKeyTest32BitSmall" value="Compact Public Key Test 32 Bits Small" disabled />
-        <input type="button" id="compactPublicKeyTest32BitBig" value="Compact Public Key Test 32 Bits Big" disabled />
+    <input
+      type="button"
+      id="compactPublicKeyTest32BitSmall"
+      value="Compact Public Key Test 32 Bits Small"
+      disabled
+    />
+    <input
+      type="button"
+      id="compactPublicKeyTest32BitBig"
+      value="Compact Public Key Test 32 Bits Big"
+      disabled
+    />
 
-        <input type="button" id="compactPublicKeyTest256BitSmall" value="Compact Public Key Test 256 Bits Small" disabled />
-        <input type="button" id="compactPublicKeyTest256BitBig" value="Compact Public Key Test 256 Bits Big" disabled />
+    <input
+      type="button"
+      id="compactPublicKeyTest256BitSmall"
+      value="Compact Public Key Test 256 Bits Small"
+      disabled
+    />
+    <input
+      type="button"
+      id="compactPublicKeyTest256BitBig"
+      value="Compact Public Key Test 256 Bits Big"
+      disabled
+    />
 
-        <input type="button" id="compressedCompactPublicKeyTest256BitSmall" value="Compressed Compact Public Key Test 256 Bits Small" disabled />
-        <input type="button" id="compressedCompactPublicKeyTest256BitBig" value="Compressed Compact Public Key Test 256 Bits Big" disabled />
+    <input
+      type="button"
+      id="compressedCompactPublicKeyTest256BitSmall"
+      value="Compressed Compact Public Key Test 256 Bits Small"
+      disabled
+    />
+    <input
+      type="button"
+      id="compressedCompactPublicKeyTest256BitBig"
+      value="Compressed Compact Public Key Test 256 Bits Big"
+      disabled
+    />
 
-        <input type="checkbox" id="testSuccess" disabled>
-        <label for="testSuccess"> TestSuccess </label><br>
+    <input type="checkbox" id="testSuccess" disabled />
+    <label for="testSuccess"> TestSuccess </label><br />
 
-        <input type="button" id="compactPublicKeyBench32BitSmall" value="Compact Public Key Bench 32 Bits Small" disabled />
-        <input type="button" id="compactPublicKeyBench32BitBig" value="Compact Public Key Bench 32 Bits Big" disabled />
+    <input
+      type="button"
+      id="compactPublicKeyBench32BitSmall"
+      value="Compact Public Key Bench 32 Bits Small"
+      disabled
+    />
+    <input
+      type="button"
+      id="compactPublicKeyBench32BitBig"
+      value="Compact Public Key Bench 32 Bits Big"
+      disabled
+    />
 
-        <input type="button" id="compactPublicKeyBench256BitSmall" value="Compact Public Key Bench 256 Bits Small" disabled />
-        <input type="button" id="compactPublicKeyBench256BitBig" value="Compact Public Key Bench 256 Bits Big" disabled />
+    <input
+      type="button"
+      id="compactPublicKeyBench256BitSmall"
+      value="Compact Public Key Bench 256 Bits Small"
+      disabled
+    />
+    <input
+      type="button"
+      id="compactPublicKeyBench256BitBig"
+      value="Compact Public Key Bench 256 Bits Big"
+      disabled
+    />
 
-        <input type="text" id="benchmarkResults" disabled>
-        <label for="benchmarkResults"> BenchmarkResults </label><br>
+    <input
+      type="button"
+      id="compressedServerKeyBenchMessage1Carry1"
+      value="Compressed Server Key Bench 1_1"
+      disabled
+    />
+    <input
+      type="button"
+      id="compressedServerKeyBenchMessage2Carry2"
+      value="Compressed Server Key Bench 2_2"
+      disabled
+    />
 
-        <div id="loader" class="loader" hidden></div>
-    </div>
+    <input type="text" id="benchmarkResults" disabled />
+    <label for="benchmarkResults"> BenchmarkResults </label><br />
 
-    <script type="module" src="index.js"></script>
+    <div id="loader" class="loader" hidden></div>
+  </div>
+
+  <script type="module" src="index.js"></script>
 </body>

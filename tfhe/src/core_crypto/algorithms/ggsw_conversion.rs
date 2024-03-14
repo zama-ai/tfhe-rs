@@ -5,9 +5,7 @@
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    fill_with_forward_fourier_scratch, FourierGgswCiphertext,
-};
+use crate::core_crypto::fft_impl::fft64::crypto::ggsw::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};

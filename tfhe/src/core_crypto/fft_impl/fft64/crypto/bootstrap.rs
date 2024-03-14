@@ -6,15 +6,15 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
-    ModulusSwitchOffset, MonomialDegree, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
+    PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{fast_pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
@@ -251,12 +251,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-        let monomial_degree = MonomialDegree(fast_pbs_modulus_switch(
-            *lwe_body,
-            lut_poly_size,
-            ModulusSwitchOffset(0),
-            LutCountLog(0),
-        ));
+        let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body, lut_poly_size));
 
         lut.as_mut_polynomial_list()
             .iter_mut()
@@ -279,12 +274,8 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), self.into_ggsw_iter())
         {
             if *lwe_mask_element != Scalar::ZERO {
-                let monomial_degree = MonomialDegree(fast_pbs_modulus_switch(
-                    *lwe_mask_element,
-                    lut_poly_size,
-                    ModulusSwitchOffset(0),
-                    LutCountLog(0),
-                ));
+                let monomial_degree =
+                    MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size));
 
                 // we effectively inline the body of cmux here, merging the initial subtraction
                 // operation with the monic polynomial multiplication, then performing the external

@@ -257,7 +257,7 @@ impl ServerKey {
 
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             self.unchecked_scalar_add_assign(ct, scalar);
-            let _carry = self.propagate_single_carry_parallelized_low_latency(ct);
+            let _carry = self.propagate_single_carry_parallelized_low_latency(ct.blocks_mut());
         } else {
             self.unchecked_scalar_add_assign(ct, scalar);
             self.full_propagate_parallelized(ct);

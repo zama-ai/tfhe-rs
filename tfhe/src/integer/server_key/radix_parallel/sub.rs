@@ -1,6 +1,8 @@
 use super::add::OutputCarry;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{
+    BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext,
+};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -607,7 +609,7 @@ impl ServerKey {
 
         let ((input_carries, output_carry), last_block_inner_propagation) = rayon::join(
             || {
-                let generates_or_propagates = self.generate_init_carry_array(&result);
+                let generates_or_propagates = self.generate_init_carry_array(result.blocks());
                 self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates)
             },
             || {

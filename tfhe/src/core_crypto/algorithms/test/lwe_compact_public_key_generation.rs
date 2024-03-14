@@ -1,9 +1,5 @@
 use super::*;
-
-use crate::core_crypto::commons::generators::{
-    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-};
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Gaussian};
+use crate::core_crypto::commons::generators::DeterministicSeeder;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;

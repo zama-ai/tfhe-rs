@@ -119,7 +119,12 @@ install_wasm_pack: install_rs_build_toolchain
 
 .PHONY: install_node # Install last version of NodeJS via nvm
 install_node:
-	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | $(SHELL)
+	curl -o nvm_install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh
+	@echo "2ed5e94ba12434370f0358800deb69f514e8bce90f13beb0e1b241d42c6abafd nvm_install.sh" > nvm_checksum
+	@sha256sum -c nvm_checksum
+	@rm nvm_checksum
+	$(SHELL) nvm_install.sh
+	@rm nvm_install.sh
 	source ~/.bashrc
 	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
@@ -149,9 +154,21 @@ check_actionlint_installed:
 	@actionlint --version > /dev/null 2>&1 || \
 	( echo "Unable to locate actionlint. Try installing it: https://github.com/rhysd/actionlint/releases" && exit 1 )
 
+.PHONY: check_nvm_installed # Check if Node Version Manager is installed
+check_nvm_installed:
+	@source ~/.nvm/nvm.sh && nvm --version > /dev/null 2>&1 || \
+	( echo "Unable to locate Node. Run 'make install_node'" && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
+
+.PHONY: fmt_js # Format javascript code
+fmt_js: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt
 
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
@@ -166,6 +183,13 @@ check_fmt: install_rs_check_toolchain
 check_fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 	cd "$(TFHECUDA_SRC)" && ./format_tfhe_cuda_backend.sh -c
+
+.PHONY: check_fmt_js # Check javascript code format
+check_fmt_js: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
@@ -244,7 +268,7 @@ clippy_tasks:
 
 .PHONY: clippy_trivium # Run clippy lints on Trivium app
 clippy_trivium: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)

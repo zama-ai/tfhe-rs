@@ -5,7 +5,9 @@ use super::{
     ExpectedNoiseLevels, NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
 };
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
+    default_sum_ciphertexts_vec_test, FunctionExecutor,
+};
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]
@@ -37,6 +39,7 @@ create_parametrized_test!(
         }
     }
 );
+create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -449,4 +452,18 @@ where
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
+}
+
+fn integer_default_sum_ciphertexts_vec<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    // Without this the compiler seems lost, and outputs errors about
+    // 'one type is more general than the other' probably because the
+    // `sum_ciphertexts_parallelized` is generic over the input collection
+    let sum_vec = |sks: &ServerKey, ctxt: &Vec<RadixCiphertext>| -> Option<RadixCiphertext> {
+        sks.sum_ciphertexts_parallelized(ctxt)
+    };
+    let executor = CpuFunctionExecutor::new(sum_vec);
+    default_sum_ciphertexts_vec_test(param, executor);
 }

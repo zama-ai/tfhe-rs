@@ -1,22 +1,16 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::smart_add_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::smart_neg_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
+    default_overflowing_sub_test, smart_sub_test,
+};
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
-
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::{
-    smart_add_test, unchecked_add_test,
-};
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::{
-    smart_neg_test, unchecked_neg_test,
-};
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
-    default_overflowing_sub_test, smart_sub_test, unchecked_sub_test,
-};
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 
 /// Number of loop iteration within randomized tests
 #[cfg(not(tarpaulin))]

@@ -1,7 +1,7 @@
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-use crate::integer::gpu::server_key::CudaServerKey;
-
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 impl CudaServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
@@ -209,5 +209,146 @@ impl CudaServerKey {
             self.unchecked_add_assign_async(ct_left, ct_right, stream);
         }
         stream.synchronize();
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_sum_ciphertexts_assign_async(
+        &self,
+        result: &mut CudaUnsignedRadixCiphertext,
+        ciphertexts: &[CudaUnsignedRadixCiphertext],
+        stream: &CudaStream,
+    ) {
+        if ciphertexts.is_empty() {
+            return;
+        }
+
+        result
+            .as_mut()
+            .d_blocks
+            .0
+            .d_vec
+            .copy_from_gpu_async(&ciphertexts[0].as_ref().d_blocks.0.d_vec, stream);
+        if ciphertexts.len() == 1 {
+            return;
+        }
+
+        let num_blocks = ciphertexts[0].as_ref().d_blocks.0.lwe_ciphertext_count;
+
+        assert!(
+            ciphertexts[1..]
+                .iter()
+                .all(|ct| ct.as_ref().d_blocks.0.lwe_ciphertext_count == num_blocks),
+            "Not all ciphertexts have the same number of blocks"
+        );
+
+        if ciphertexts.len() == 2 {
+            self.add_assign_async(result, &ciphertexts[1], stream);
+            return;
+        }
+
+        let radix_count_in_vec = ciphertexts.len();
+
+        let mut terms = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+            ciphertexts
+                .iter()
+                .map(|ciphertext| &ciphertext.as_ref().d_blocks),
+            stream,
+        );
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                stream.unchecked_sum_ciphertexts_integer_radix_classic_kb_assign_async(
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &mut terms.0.d_vec,
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    num_blocks.0 as u32,
+                    radix_count_in_vec as u32,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                stream.unchecked_sum_ciphertexts_integer_radix_multibit_kb_assign_async(
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &mut terms.0.d_vec,
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    num_blocks.0 as u32,
+                    radix_count_in_vec as u32,
+                );
+            }
+        }
+    }
+
+    pub fn unchecked_sum_ciphertexts(
+        &self,
+        ciphertexts: &[CudaUnsignedRadixCiphertext],
+        stream: &CudaStream,
+    ) -> Option<CudaUnsignedRadixCiphertext> {
+        if ciphertexts.is_empty() {
+            return None;
+        }
+
+        let mut result = unsafe { ciphertexts[0].duplicate_async(stream) };
+
+        if ciphertexts.len() == 1 {
+            return Some(result);
+        }
+
+        unsafe { self.unchecked_sum_ciphertexts_assign_async(&mut result, ciphertexts, stream) };
+        stream.synchronize();
+        Some(result)
+    }
+
+    pub fn sum_ciphertexts(
+        &self,
+        mut ciphertexts: Vec<CudaUnsignedRadixCiphertext>,
+        stream: &CudaStream,
+    ) -> Option<CudaUnsignedRadixCiphertext> {
+        if ciphertexts.is_empty() {
+            return None;
+        }
+
+        unsafe {
+            ciphertexts
+                .iter_mut()
+                .filter(|ct| !ct.block_carries_are_empty())
+                .for_each(|ct| {
+                    self.full_propagate_assign_async(&mut *ct, stream);
+                });
+        }
+
+        self.unchecked_sum_ciphertexts(&ciphertexts, stream)
     }
 }

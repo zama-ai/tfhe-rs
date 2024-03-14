@@ -34,7 +34,7 @@ impl TriviumStreamShortint {
         let mut c_register: [Ciphertext; 111] = [0; 111].map(|x| sk.create_trivial(x));
 
         for i in 0..80 {
-            a_register[93 - 80 + i] = key[i].clone();
+            a_register[93 - 80 + i].clone_from(&key[i]);
             b_register[84 - 80 + i] = sk.create_trivial(iv[i]);
         }
 

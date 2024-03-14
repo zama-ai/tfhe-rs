@@ -9,7 +9,6 @@ use std::env;
 use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
 use rand::prelude::*;
-use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -1187,14 +1186,10 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::{write_to_json, EnvConfig, OperatorType};
-    use criterion::{criterion_group, Criterion};
+    use criterion::criterion_group;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
-    use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::IntegerKeyKind;
-    use tfhe::keycache::NamedParam;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(
         c: &mut Criterion,

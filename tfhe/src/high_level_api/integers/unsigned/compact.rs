@@ -199,7 +199,6 @@ impl<Id: FheUintId> ParameterSetConformant for CompactFheUintList<Id> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::UnsignedInteger;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     use crate::shortint::{CiphertextModulus, PBSOrder};

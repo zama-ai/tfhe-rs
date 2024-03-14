@@ -1,5 +1,4 @@
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsError;
 
 use crate::high_level_api::prelude::*;
 use crate::integer::{I256, U256};

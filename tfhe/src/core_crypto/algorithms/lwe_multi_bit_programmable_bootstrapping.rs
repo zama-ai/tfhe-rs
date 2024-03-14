@@ -6,7 +6,7 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::fast_pbs_modulus_switch;
+use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
 };
@@ -61,12 +61,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
                 monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
         }
 
-        let switched_degree = fast_pbs_modulus_switch(
-            monomial_degree,
-            polynomial_size,
-            ModulusSwitchOffset(0),
-            LutCountLog(0),
-        );
+        let switched_degree = pbs_modulus_switch(monomial_degree, polynomial_size);
 
         let factor = fft.incomplete_monomial_forward_as_integer(
             fourier_a_monomial.as_mut_view(),
@@ -372,12 +367,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     let work_queue = Mutex::new(work_queue);
 
     let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = fast_pbs_modulus_switch(
-        *lwe_body.data,
-        lut_poly_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
-    );
+    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
     // Modulus switching
     accumulator
@@ -621,12 +611,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
     let work_queue = &work_queue;
 
     let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = fast_pbs_modulus_switch(
-        *lwe_body.data,
-        lut_poly_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
-    );
+    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
     // Modulus switching
     accumulator
@@ -704,12 +689,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
                             monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
                     }
 
-                    let switched_degree = fast_pbs_modulus_switch(
-                        monomial_degree,
-                        lut_poly_size,
-                        ModulusSwitchOffset(0),
-                        LutCountLog(0),
-                    );
+                    let switched_degree = pbs_modulus_switch(monomial_degree, lut_poly_size);
 
                     let factor = fft.incomplete_monomial_forward_as_integer(
                         fourier_a_monomial.as_mut_view(),
@@ -1265,12 +1245,7 @@ pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, Ggs
                 monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
         }
 
-        let switched_degree = fast_pbs_modulus_switch(
-            monomial_degree,
-            polynomial_size,
-            ModulusSwitchOffset(0),
-            LutCountLog(0),
-        );
+        let switched_degree = pbs_modulus_switch(monomial_degree, polynomial_size);
 
         tmp_ggsw_buffer
             .as_mut_polynomial_list()
@@ -1371,12 +1346,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     let work_queue = Mutex::new(work_queue);
 
     let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = fast_pbs_modulus_switch(
-        *lwe_body.data,
-        lut_poly_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
-    );
+    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
     // Modulus switching
     accumulator
@@ -1655,12 +1625,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     let work_queue = &work_queue;
 
     let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = fast_pbs_modulus_switch(
-        *lwe_body.data,
-        lut_poly_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
-    );
+    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
     // Modulus switching
     accumulator

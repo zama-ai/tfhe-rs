@@ -3,14 +3,12 @@ use super::ggsw::cmux_split;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, LutCountLog,
-    ModulusSwitchOffset, MonomialDegree,
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, MonomialDegree,
 };
 use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::fast_pbs_modulus_switch;
-use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
+use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
 use crate::core_crypto::prelude::{Container, ContainerMut};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};
@@ -84,12 +82,7 @@ where
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
             let lut_poly_size = lut_lo.polynomial_size();
-            let monomial_degree = fast_pbs_modulus_switch(
-                *lwe_body,
-                lut_poly_size,
-                ModulusSwitchOffset(0),
-                LutCountLog(0),
-            );
+            let monomial_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
 
             for (poly_lo, poly_hi) in izip!(
                 lut_lo.as_mut_polynomial_list().iter_mut(),
@@ -135,12 +128,7 @@ where
                         polynomial_wrapping_monic_monomial_mul_assign_split(
                             poly_lo,
                             poly_hi,
-                            MonomialDegree(fast_pbs_modulus_switch(
-                                *lwe_mask_element,
-                                lut_poly_size,
-                                ModulusSwitchOffset(0),
-                                LutCountLog(0),
-                            )),
+                            MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size)),
                         );
                     }
 

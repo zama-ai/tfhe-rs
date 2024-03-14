@@ -5,7 +5,6 @@ use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
@@ -193,7 +192,7 @@ impl ShortintEngine {
     ) -> CompressedServerKey {
         let bootstrapping_key = match cks.parameters.pbs_parameters().unwrap() {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
-                #[cfg(not(feature = "__wasm_api"))]
+                #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
                 let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
                     &cks.small_lwe_secret_key(),
                     &cks.glwe_secret_key,
@@ -204,7 +203,7 @@ impl ShortintEngine {
                     &mut self.seeder,
                 );
 
-                #[cfg(feature = "__wasm_api")]
+                #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
                 let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
                     &cks.small_lwe_secret_key(),
                     &cks.glwe_secret_key,
@@ -218,7 +217,7 @@ impl ShortintEngine {
                 ShortintCompressedBootstrappingKey::Classic(bootstrapping_key)
             }
             crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
-                #[cfg(not(feature = "__wasm_api"))]
+                #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
                 let bootstrapping_key =
                     par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
                         &cks.small_lwe_secret_key(),
@@ -231,7 +230,7 @@ impl ShortintEngine {
                         &mut self.seeder,
                     );
 
-                #[cfg(feature = "__wasm_api")]
+                #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
                 let bootstrapping_key =
                     allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
                         &cks.small_lwe_secret_key(),

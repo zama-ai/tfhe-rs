@@ -83,7 +83,6 @@ fn aes_encrypt_many(
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::convert::TryInto;
 
     // Test vector for aes128, from the FIPS publication 197
     const CIPHER_KEY: u128 = u128::from_be(0x000102030405060708090a0b0c0d0e0f);

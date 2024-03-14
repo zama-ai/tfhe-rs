@@ -1,7 +1,6 @@
 use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::lwe_encryption::trivially_encrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::{Ciphertext, ServerKey};

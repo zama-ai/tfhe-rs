@@ -124,8 +124,8 @@ mod implem;
 pub use implem::*;
 
 #[cfg(test)]
+#[allow(unused)] // to please clippy when tests are not activated
 pub mod generator_generic_test {
-    #![allow(unused)] // to please clippy when tests are not activated
     use super::*;
     use rand::Rng;
 

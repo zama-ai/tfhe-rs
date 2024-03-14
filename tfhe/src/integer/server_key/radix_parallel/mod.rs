@@ -88,16 +88,26 @@ impl ServerKey {
         carry
     }
 
-    pub fn partial_propagate_parallelized<T>(&self, ctxt: &mut T, start_index: usize)
+    /// Propagates carries starting from start_index.
+    ///
+    /// Does nothing if start_index >= ctxt.len() or ctxt is empty
+    pub fn partial_propagate_parallelized<T>(&self, ctxt: &mut T, mut start_index: usize)
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_eligible_for_parallel_single_carry_propagation(ctxt) {
-            let num_blocks = ctxt.blocks().len();
+        if start_index >= ctxt.blocks().len() || ctxt.blocks().is_empty() {
+            return;
+        }
 
-            let (mut message_blocks, carry_blocks) = rayon::join(
+        // Extract message blocks and carry blocks from the
+        // input block slice.
+        // Carries Vec has one less block than message Vec
+        let extract_message_and_carry_blocks = |blocks: &[crate::shortint::Ciphertext]| {
+            let num_blocks = blocks.len();
+
+            rayon::join(
                 || {
-                    ctxt.blocks()[start_index..]
+                    blocks
                         .par_iter()
                         .map(|block| self.key.message_extract(block))
                         .collect::<Vec<_>>()
@@ -105,20 +115,69 @@ impl ServerKey {
                 || {
                     let mut carry_blocks = Vec::with_capacity(num_blocks);
                     // No need to compute the carry of the last block, we would just throw it away
-                    ctxt.blocks()[start_index..num_blocks - 1]
+                    blocks[..num_blocks - 1]
                         .par_iter()
                         .map(|block| self.key.carry_extract(block))
                         .collect_into_vec(&mut carry_blocks);
-                    carry_blocks.insert(0, self.key.create_trivial(0));
                     carry_blocks
                 },
-            );
+            )
+        };
 
-            ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
-            let carries = T::from_blocks(carry_blocks);
-            let _ = self.unchecked_add_assign_parallelized_low_latency(ctxt, &carries);
+        if self.is_eligible_for_parallel_single_carry_propagation(ctxt) {
+            let highest_degree = ctxt.blocks()[start_index..]
+                .iter()
+                .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
+                .map(|block| block.degree.get())
+                .unwrap(); // We checked for emptiness earlier
+            if highest_degree <= (self.key.message_modulus.0 - 1) * 2 {
+                let _ = self.propagate_single_carry_parallelized_low_latency(
+                    &mut ctxt.blocks_mut()[start_index..],
+                );
+            } else {
+                // At least one of the blocks has more than one carry,
+                // we need to extract message and carries, then add + propagate
+                let (mut message_blocks, carry_blocks) =
+                    extract_message_and_carry_blocks(&ctxt.blocks()[start_index..]);
+
+                ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
+                for (block, carry) in ctxt.blocks_mut()[start_index + 1..]
+                    .iter_mut()
+                    .zip(carry_blocks.iter())
+                {
+                    self.key.unchecked_add_assign(block, carry);
+                }
+                // We can start propagation one index later as we already did the first block
+                let _ = self.propagate_single_carry_parallelized_low_latency(
+                    &mut ctxt.blocks_mut()[start_index + 1..],
+                );
+            }
         } else {
+            let maybe_highest_degree = ctxt
+                // We do not care about degree of 'first' block as it won't receive any carries
+                .blocks()[start_index + 1..]
+                .iter()
+                .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
+                .map(|block| block.degree.get());
+
+            if maybe_highest_degree.is_some_and(|degree| degree > self.key.max_degree.get()) {
+                // At least one of the blocks than can receive a carry, won't be able too
+                // so we need to do a first 'partial' round
+                let (mut message_blocks, carry_blocks) =
+                    extract_message_and_carry_blocks(&ctxt.blocks()[start_index..]);
+                ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
+                for (block, carry) in ctxt.blocks_mut()[start_index + 1..]
+                    .iter_mut()
+                    .zip(carry_blocks.iter())
+                {
+                    self.key.unchecked_add_assign(block, carry);
+                }
+                // We can start propagation one index later as we already did the first block
+                start_index += 1;
+            }
+
             let len = ctxt.blocks().len();
+            // If start_index >= len, the range is considered empty
             for i in start_index..len {
                 let _ = self.propagate_parallelized(ctxt, i);
             }
@@ -154,6 +213,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.partial_propagate_parallelized(ctxt, 0);
+        let Some(start_index) = ctxt
+            .blocks()
+            .iter()
+            .position(|block| !block.carry_is_empty())
+        else {
+            // No block has any carries, do nothing
+            return;
+        };
+        self.partial_propagate_parallelized(ctxt, start_index);
     }
 }

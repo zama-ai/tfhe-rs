@@ -198,6 +198,23 @@ void cuda_propagate_single_carry_kb_64_inplace(cuda_stream_t *stream,
 
 void cleanup_cuda_propagate_single_carry(cuda_stream_t *stream,
                                          int8_t **mem_ptr_void);
+
+void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory);
+
+void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+    cuda_stream_t *stream, void *radix_lwe_out, void *radix_lwe_vec,
+    uint32_t num_radix_in_vec, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t num_blocks_in_radix);
+
+void cleanup_cuda_integer_radix_sum_ciphertexts_vec(cuda_stream_t *stream,
+                                                    int8_t **mem_ptr_void);
 }
 
 /*
@@ -278,7 +295,8 @@ template <typename Torus> struct int_radix_lut {
   int8_t *buffer;
 
   Torus *lut_indexes;
-  Torus *lwe_indexes;
+  Torus *lwe_indexes_in;
+  Torus *lwe_indexes_out;
 
   Torus *tmp_lwe_before_ks;
   Torus *tmp_lwe_after_ks;
@@ -319,14 +337,18 @@ template <typename Torus> struct int_radix_lut {
 
       // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
       // by default
-      lwe_indexes = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
-                                         stream->gpu_index);
+      lwe_indexes_in = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                            stream->gpu_index);
+      lwe_indexes_out = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                             stream->gpu_index);
       auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
       for (int i = 0; i < num_radix_blocks; i++)
         h_lwe_indexes[i] = i;
 
-      cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes,
+      cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes,
+                               num_radix_blocks * sizeof(Torus), stream);
+      cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes,
                                num_radix_blocks * sizeof(Torus), stream);
       free(h_lwe_indexes);
 
@@ -369,14 +391,18 @@ template <typename Torus> struct int_radix_lut {
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
-    lwe_indexes = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
-                                       stream->gpu_index);
+    lwe_indexes_in = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                          stream->gpu_index);
+    lwe_indexes_out = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                           stream->gpu_index);
     auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes[i] = i;
 
-    cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes,
+    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes,
+                             num_radix_blocks * sizeof(Torus), stream);
+    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes,
                              num_radix_blocks * sizeof(Torus), stream);
     cuda_synchronize_stream(stream);
     free(h_lwe_indexes);
@@ -390,7 +416,8 @@ template <typename Torus> struct int_radix_lut {
   Torus *get_lut_indexes(size_t ind) { return &lut_indexes[ind]; }
   void release(cuda_stream_t *stream) {
     cuda_drop_async(lut_indexes, stream);
-    cuda_drop_async(lwe_indexes, stream);
+    cuda_drop_async(lwe_indexes_in, stream);
+    cuda_drop_async(lwe_indexes_out, stream);
     cuda_drop_async(lut, stream);
     if (!mem_reuse) {
       switch (params.pbs_type) {
@@ -522,14 +549,150 @@ template <typename Torus> struct int_sc_prop_memory {
   }
 };
 
+template <typename Torus> struct int_sum_ciphertexts_vec_memory {
+  Torus *new_blocks;
+  Torus *old_blocks;
+  Torus *small_lwe_vector;
+  int_radix_params params;
+  int_radix_lut<Torus> *luts_message_carry;
+  int_sc_prop_memory<Torus> *scp_mem;
+
+  int32_t *d_smart_copy_in;
+  int32_t *d_smart_copy_out;
+
+  bool mem_reuse = false;
+
+  int_sum_ciphertexts_vec_memory(cuda_stream_t *stream, int_radix_params params,
+                                 uint32_t num_blocks_in_radix,
+                                 uint32_t max_num_radix_in_vec,
+                                 bool allocate_gpu_memory) {
+    this->params = params;
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+
+    // create single carry propagation memory object
+    scp_mem = new int_sc_prop_memory<Torus>(stream, params, num_blocks_in_radix,
+                                            allocate_gpu_memory);
+    int max_pbs_count = num_blocks_in_radix * max_num_radix_in_vec;
+
+    // allocate gpu memory for intermediate buffers
+    new_blocks = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus), stream);
+    old_blocks = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus), stream);
+    small_lwe_vector = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.small_lwe_dimension + 1) * sizeof(Torus),
+        stream);
+
+    d_smart_copy_in =
+        (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
+    d_smart_copy_out =
+        (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
+
+    // create lut object for message and carry
+    luts_message_carry = new int_radix_lut<Torus>(
+        stream, params, 2, max_pbs_count, allocate_gpu_memory);
+
+    auto message_acc = luts_message_carry->get_lut(0);
+    auto carry_acc = luts_message_carry->get_lut(1);
+
+    // define functions for each accumulator
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
+    };
+
+    // generate accumulators
+    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_message);
+    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_carry);
+  }
+
+  int_sum_ciphertexts_vec_memory(cuda_stream_t *stream, int_radix_params params,
+                                 uint32_t num_blocks_in_radix,
+                                 uint32_t max_num_radix_in_vec,
+                                 Torus *new_blocks, Torus *old_blocks,
+                                 Torus *small_lwe_vector,
+                                 int_radix_lut<Torus> *base_lut_object) {
+    mem_reuse = true;
+    this->params = params;
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+
+    // create single carry propagation memory object
+    scp_mem = new int_sc_prop_memory<Torus>(stream, params, num_blocks_in_radix,
+                                            true);
+    int max_pbs_count = num_blocks_in_radix * max_num_radix_in_vec;
+
+    // assign  gpu memory for intermediate buffers
+    this->new_blocks = new_blocks;
+    this->old_blocks = old_blocks;
+    this->small_lwe_vector = small_lwe_vector;
+
+    d_smart_copy_in =
+        (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
+    d_smart_copy_out =
+        (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
+
+    // create lut object for message and carry
+    luts_message_carry = new int_radix_lut<Torus>(
+        stream, params, 2, max_pbs_count, base_lut_object);
+
+    auto message_acc = luts_message_carry->get_lut(0);
+    auto carry_acc = luts_message_carry->get_lut(1);
+
+    // define functions for each accumulator
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
+    };
+
+    // generate accumulators
+    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_message);
+    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_carry);
+  }
+
+  void release(cuda_stream_t *stream) {
+    cuda_drop_async(d_smart_copy_in, stream);
+    cuda_drop_async(d_smart_copy_out, stream);
+
+    if (!mem_reuse) {
+      cuda_drop_async(new_blocks, stream);
+      cuda_drop_async(old_blocks, stream);
+      cuda_drop_async(small_lwe_vector, stream);
+    }
+
+    scp_mem->release(stream);
+    luts_message_carry->release(stream);
+
+    delete scp_mem;
+    delete luts_message_carry;
+  }
+};
+
 template <typename Torus> struct int_mul_memory {
   Torus *vector_result_sb;
   Torus *block_mul_res;
   Torus *small_lwe_vector;
+
   int_radix_lut<Torus> *luts_array; // lsb msb
-  int_radix_lut<Torus> *luts_message;
-  int_radix_lut<Torus> *luts_carry;
-  int_sc_prop_memory<Torus> *scp_mem;
+  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
+
   int_radix_params params;
 
   int_mul_memory(cuda_stream_t *stream, int_radix_params params,
@@ -541,9 +704,6 @@ template <typename Torus> struct int_mul_memory {
     auto carry_modulus = params.carry_modulus;
     auto lwe_dimension = params.small_lwe_dimension;
 
-    // create single carry propagation memory object
-    scp_mem = new int_sc_prop_memory<Torus>(stream, params, num_radix_blocks,
-                                            allocate_gpu_memory);
     // 'vector_result_lsb' contains blocks from all possible shifts of
     // radix_lwe_left excluding zero ciphertext blocks
     int lsb_vector_block_count = num_radix_blocks * (num_radix_blocks + 1) / 2;
@@ -570,15 +730,8 @@ template <typename Torus> struct int_mul_memory {
     // luts_array -> lut = {lsb_acc, msb_acc}
     luts_array = new int_radix_lut<Torus>(stream, params, 2, total_block_count,
                                           allocate_gpu_memory);
-    luts_message = new int_radix_lut<Torus>(stream, params, 1,
-                                            total_block_count, luts_array);
-    luts_carry = new int_radix_lut<Torus>(stream, params, 1, total_block_count,
-                                          luts_array);
-
     auto lsb_acc = luts_array->get_lut(0);
     auto msb_acc = luts_array->get_lut(1);
-    auto message_acc = luts_message->get_lut(0);
-    auto carry_acc = luts_carry->get_lut(0);
 
     // define functions for each accumulator
     auto lut_f_lsb = [message_modulus](Torus x, Torus y) -> Torus {
@@ -587,20 +740,8 @@ template <typename Torus> struct int_mul_memory {
     auto lut_f_msb = [message_modulus](Torus x, Torus y) -> Torus {
       return (x * y) / message_modulus;
     };
-    auto lut_f_message = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
-    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
-      return x / message_modulus;
-    };
 
     // generate accumulators
-    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_message);
-    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_carry);
     generate_device_accumulator_bivariate<Torus>(
         stream, lsb_acc, glwe_dimension, polynomial_size, message_modulus,
         carry_modulus, lut_f_lsb);
@@ -615,6 +756,11 @@ template <typename Torus> struct int_mul_memory {
     cuda_set_value_async<Torus>(
         &(stream->stream), luts_array->get_lut_indexes(lsb_vector_block_count),
         1, msb_vector_block_count);
+
+    // create memory object for sum ciphertexts
+    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+        stream, params, num_radix_blocks, 2 * num_radix_blocks, block_mul_res,
+        vector_result_sb, small_lwe_vector, luts_array);
   }
 
   void release(cuda_stream_t *stream) {
@@ -623,16 +769,11 @@ template <typename Torus> struct int_mul_memory {
     cuda_drop_async(small_lwe_vector, stream);
 
     luts_array->release(stream);
-    luts_message->release(stream);
-    luts_carry->release(stream);
 
-    scp_mem->release(stream);
+    sum_ciphertexts_mem->release(stream);
 
     delete luts_array;
-    delete luts_message;
-    delete luts_carry;
-
-    delete scp_mem;
+    delete sum_ciphertexts_mem;
   }
 };
 
