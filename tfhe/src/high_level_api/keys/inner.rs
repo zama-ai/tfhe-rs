@@ -71,7 +71,7 @@ impl IntegerClientKey {
         }
     }
 
-    /// Deconstruct an [`IntegerClientKey`] into its constituants.
+    /// Deconstruct an [`IntegerClientKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -85,7 +85,7 @@ impl IntegerClientKey {
         (key, wopbs_block_parameters)
     }
 
-    /// Construct a, [`IntegerClientKey`] from its constituants.
+    /// Construct a, [`IntegerClientKey`] from its constituents.
     ///
     /// # Panics
     ///
@@ -251,12 +251,12 @@ impl IntegerCompressedCompactPublicKey {
         Self { key }
     }
 
-    /// Deconstruct a [`IntegerCompressedCompactPublicKey`] into its constituants.
+    /// Deconstruct a [`IntegerCompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> CompressedCompactPublicKey {
         self.key
     }
 
-    /// Construct a [`IntegerCompressedCompactPublicKey`] from its constituants.
+    /// Construct a [`IntegerCompressedCompactPublicKey`] from its constituents.
     pub fn from_raw_parts(key: CompressedCompactPublicKey) -> Self {
         Self { key }
     }

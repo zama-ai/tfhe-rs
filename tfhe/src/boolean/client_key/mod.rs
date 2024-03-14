@@ -135,7 +135,7 @@ impl ClientKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
     }
 
-    /// Deconstruct a [`ClientKey`] into its constituants.
+    /// Deconstruct a [`ClientKey`] into its constituents.
     ///
     /// # Example
     ///
@@ -166,7 +166,7 @@ impl ClientKey {
         (lwe_secret_key, glwe_secret_key, parameters)
     }
 
-    /// Construct a [`ClientKey`] from its constituants.
+    /// Construct a [`ClientKey`] from its constituents.
     ///
     /// # Panics
     ///

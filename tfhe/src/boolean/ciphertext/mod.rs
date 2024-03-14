@@ -29,12 +29,12 @@ impl From<CompressedCiphertext> for Ciphertext {
 }
 
 impl CompressedCiphertext {
-    /// Deconstruct a [`CompressedCiphertext`] into its constituants.
+    /// Deconstruct a [`CompressedCiphertext`] into its constituents.
     pub fn into_raw_parts(self) -> SeededLweCiphertext<u32> {
         self.ciphertext
     }
 
-    /// Construct a [`CompressedCiphertext`] from its constituants.
+    /// Construct a [`CompressedCiphertext`] from its constituents.
     pub fn from_raw_parts(ciphertext: SeededLweCiphertext<u32>) -> Self {
         Self { ciphertext }
     }

@@ -34,7 +34,7 @@ impl PublicKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key))
     }
 
-    /// Deconstruct a [`PublicKey`] into its constituants.
+    /// Deconstruct a [`PublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> (LwePublicKeyOwned<u64>, ShortintParameterSet, PBSOrder) {
         let Self {
             lwe_public_key,
@@ -45,11 +45,11 @@ impl PublicKey {
         (lwe_public_key, parameters, pbs_order)
     }
 
-    /// Construct a [`PublicKey`] from its constituants.
+    /// Construct a [`PublicKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         lwe_public_key: LwePublicKeyOwned<u64>,
         parameters: ShortintParameterSet,

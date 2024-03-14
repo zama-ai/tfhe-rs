@@ -87,7 +87,7 @@ impl CompactPublicKey {
         })
     }
 
-    /// Deconstruct a [`CompactPublicKey`] into its constituants.
+    /// Deconstruct a [`CompactPublicKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -104,11 +104,11 @@ impl CompactPublicKey {
         (key, parameters, pbs_order)
     }
 
-    /// Construct a [`CompactPublicKey`] from its constituants.
+    /// Construct a [`CompactPublicKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         key: LweCompactPublicKeyOwned<u64>,
         parameters: ShortintParameterSet,
@@ -316,7 +316,7 @@ impl CompressedCompactPublicKey {
         }
     }
 
-    /// Deconstruct a [`CompressedCompactPublicKey`] into its constituants.
+    /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -333,11 +333,11 @@ impl CompressedCompactPublicKey {
         (key, parameters, pbs_order)
     }
 
-    /// Construct a [`CompressedCompactPublicKey`] from its constituants.
+    /// Construct a [`CompressedCompactPublicKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         key: SeededLweCompactPublicKeyOwned<u64>,
         parameters: ShortintParameterSet,

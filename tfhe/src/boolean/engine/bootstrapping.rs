@@ -97,7 +97,7 @@ pub struct ServerKey {
 }
 
 impl ServerKey {
-    /// Deconstruct a [`ServerKey`] into its constituants.
+    /// Deconstruct a [`ServerKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -114,11 +114,11 @@ impl ServerKey {
         (bootstrapping_key, key_switching_key, pbs_order)
     }
 
-    /// Construct a [`ServerKey`] from its constituants.
+    /// Construct a [`ServerKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         bootstrapping_key: FourierLweBootstrapKeyOwned,
         key_switching_key: LweKeyswitchKeyOwned<u32>,
@@ -190,7 +190,7 @@ pub struct CompressedServerKey {
 }
 
 impl CompressedServerKey {
-    /// Deconstruct a [`CompressedServerKey`] into its constituants.
+    /// Deconstruct a [`CompressedServerKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -207,11 +207,11 @@ impl CompressedServerKey {
         (bootstrapping_key, key_switching_key, pbs_order)
     }
 
-    /// Construct a [`CompressedServerKey`] from its constituants.
+    /// Construct a [`CompressedServerKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         bootstrapping_key: SeededLweBootstrapKeyOwned<u32>,
         key_switching_key: SeededLweKeyswitchKeyOwned<u32>,
