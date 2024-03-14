@@ -15,7 +15,7 @@ BUILD_ONLY=0
 WITH_FEATURE_GPU="OFF"
 while [ -n "$1" ]
 do
-   case "$1" in
+    case "$1" in
         "--help" | "-h" )
             usage
             exit 0
@@ -32,8 +32,8 @@ do
             echo "Unknown param : $1"
             exit 1
             ;;
-   esac
-   shift
+    esac
+    shift
 done
 
 CURR_DIR="$(dirname "$0")"

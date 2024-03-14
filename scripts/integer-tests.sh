@@ -28,7 +28,7 @@ tfhe_package="tfhe"
 
 while [ -n "$1" ]
 do
-   case "$1" in
+    case "$1" in
         "--help" | "-h" )
             usage
             exit 0
@@ -75,7 +75,7 @@ do
             echo "Unknown param : $1"
             exit 1
             ;;
-   esac
+    esac
    shift
 done
 
