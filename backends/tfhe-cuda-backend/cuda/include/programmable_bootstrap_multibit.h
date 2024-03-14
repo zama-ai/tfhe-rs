@@ -58,8 +58,10 @@ supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
-    uint32_t polynomial_size, uint32_t max_shared_memory);
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory);
 
+#if CUDA_ARCH >= 900
 template <typename Torus, typename STorus>
 void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **buffer,
@@ -78,6 +80,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
     uint32_t lwe_chunk_size);
+#endif
 
 template <typename Torus, typename STorus>
 void scratch_cuda_cg_multi_bit_programmable_bootstrap(
@@ -250,6 +253,16 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
         break;
 #if CUDA_ARCH >= 900
       case TBC:
+        // There is a minimum amount of memory we need to run the TBC PBS, which
+        // is minimum_sm_tbc. We know that minimum_sm_tbc bytes are available
+        // because otherwise the previous check would have redirected
+        // computation to some other variant. If over that we don't have more
+        // partial_sm_tbc_accumulate bytes, TBC PBS will run on NOSM. If we have
+        // partial_sm_tbc_accumulate but not full_sm_tbc_accumulate bytes, it
+        // will run on PARTIALSM. Otherwise, FULLSM.
+        //
+        // NOSM mode actually requires minimum_sm_tbc shared memory bytes.
+
         // Accumulator TBC
         if (max_shared_memory < partial_sm_tbc_accumulate + minimum_sm_tbc)
           d_mem_acc_tbc = (int8_t *)cuda_malloc_async(
@@ -306,7 +319,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 };
 
 template <typename Torus, class params>
-__host__ uint32_t get_lwe_chunk_size(int gpu_index, uint32_t max_num_pbs,
+__host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                                      uint32_t polynomial_size,
                                      uint32_t max_shared_memory);
 

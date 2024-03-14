@@ -113,6 +113,28 @@ get_buffer_size_partial_sm_programmable_bootstrap(uint32_t polynomial_size) {
 
 template <typename Torus>
 __host__ __device__ uint64_t
+get_buffer_size_full_sm_programmable_bootstrap_tbc(uint32_t polynomial_size) {
+  return sizeof(Torus) * polynomial_size +      // accumulator_rotated
+         sizeof(Torus) * polynomial_size +      // accumulator
+         sizeof(double2) * polynomial_size / 2; // accumulator fft
+}
+
+template <typename Torus>
+__host__ __device__ uint64_t
+get_buffer_size_partial_sm_programmable_bootstrap_tbc(
+    uint32_t polynomial_size) {
+  return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
+}
+
+template <typename Torus>
+__host__ __device__ uint64_t
+get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
+    uint32_t polynomial_size) {
+  return sizeof(double2) * polynomial_size / 2; // tbc
+}
+
+template <typename Torus>
+__host__ __device__ uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(Torus) * polynomial_size +      // accumulator
@@ -124,6 +146,11 @@ __host__ __device__ uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
 }
+
+template <typename Torus>
+__host__ bool
+supports_distributed_shared_memory_on_classic_programmable_bootstrap(
+    uint32_t polynomial_size, uint32_t max_shared_memory);
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
@@ -213,6 +240,54 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
                 polynomial_size / 2 * sizeof(double2),
             stream);
       } break;
+#if CUDA_ARCH >= 900
+      case PBS_VARIANT::TBC: {
+
+        bool supports_dsm =
+            supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+                Torus>(polynomial_size, max_shared_memory);
+
+        uint64_t full_sm =
+            get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
+                polynomial_size);
+        uint64_t partial_sm =
+            get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
+                polynomial_size);
+        uint64_t minimum_sm_tbc = 0;
+        if (supports_dsm)
+          minimum_sm_tbc =
+              get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<
+                  Torus>(polynomial_size);
+
+        uint64_t partial_dm = full_sm - partial_sm;
+        uint64_t full_dm = full_sm;
+        uint64_t device_mem = 0;
+
+        // There is a minimum amount of memory we need to run the TBC PBS, which
+        // is minimum_sm_tbc. We know that minimum_sm_tbc bytes are available
+        // because otherwise the previous check would have redirected
+        // computation to some other variant. If over that we don't have more
+        // partial_sm bytes, TBC PBS will run on NOSM. If we have partial_sm but
+        // not full_sm bytes, it will run on PARTIALSM. Otherwise, FULLSM.
+        //
+        // NOSM mode actually requires minimum_sm_tbc shared memory bytes.
+        if (max_shared_memory < partial_sm + minimum_sm_tbc) {
+          device_mem = full_dm * input_lwe_ciphertext_count * level_count *
+                       (glwe_dimension + 1);
+        } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
+          device_mem = partial_dm * input_lwe_ciphertext_count * level_count *
+                       (glwe_dimension + 1);
+        }
+
+        // Otherwise, both kernels run all in shared memory
+        d_mem = (int8_t *)cuda_malloc_async(device_mem, stream);
+
+        global_accumulator_fft = (double2 *)cuda_malloc_async(
+            (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
+                polynomial_size / 2 * sizeof(double2),
+            stream);
+      } break;
+#endif
       default:
         PANIC("Cuda error (PBS): unsupported implementation variant.")
       }
@@ -281,6 +356,25 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
     uint32_t lwe_idx, uint32_t max_shared_memory);
 
+#if (CUDA_ARCH >= 900)
+template <typename Torus>
+void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
+    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
+    Torus *lwe_input_indexes, double2 *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
+    uint32_t lwe_idx, uint32_t max_shared_memory);
+
+template <typename Torus, typename STorus>
+void scratch_cuda_programmable_bootstrap_tbc(
+    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
+    bool allocate_gpu_memory);
+#endif
+
 template <typename Torus, typename STorus>
 void scratch_cuda_programmable_bootstrap_cg(
     cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
@@ -295,11 +389,12 @@ void scratch_cuda_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory);
 
-template <typename G>
-__device__ int get_this_block_rank(G &group, bool support_dsm);
-template <typename G, class params>
-__device__  double2 *get_join_buffer_element(int i, G &group, bool support_dsm,
-                                 double2 *global_memory_buffer);
+template <typename Torus>
+bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,
+                                                    uint32_t glwe_dimension,
+                                                    uint32_t polynomial_size,
+                                                    uint32_t level_count,
+                                                    uint32_t max_shared_memory);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,

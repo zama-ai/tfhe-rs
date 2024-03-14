@@ -40,8 +40,8 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
     // The first (polynomial_size/2) * sizeof(double2) bytes are reserved for
     // external product using distributed shared memory
     selected_memory = sharedmem;
-    if(support_dsm)
-        selected_memory += sizeof(Torus) * polynomial_size;
+    if (support_dsm)
+      selected_memory += sizeof(Torus) * polynomial_size;
   } else {
     int block_index = blockIdx.x + blockIdx.y * gridDim.x +
                       blockIdx.z * gridDim.x * gridDim.y;
@@ -53,10 +53,10 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
       (double2 *)accumulator +
       (ptrdiff_t)(sizeof(Torus) * polynomial_size / sizeof(double2));
 
-  if constexpr (SMD == PARTIALSM){
+  if constexpr (SMD == PARTIALSM) {
     accumulator_fft = (double2 *)sharedmem;
-    if(support_dsm)
-        accumulator_fft += sizeof(double2) * (polynomial_size/2);
+    if (support_dsm)
+      accumulator_fft += sizeof(double2) * (polynomial_size / 2);
   }
 
   // The third dimension of the block is used to determine on which ciphertext
@@ -249,8 +249,9 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
   }
 
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_average_lwe_chunk_size(
-        lwe_dimension, level_count, glwe_dimension, input_lwe_ciphertext_count);
+    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+        stream->gpu_index, input_lwe_ciphertext_count, polynomial_size,
+        max_shared_memory);
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::TBC,
@@ -307,7 +308,7 @@ __host__ void execute_tbc_external_product_loop(
 
   cudaLaunchAttribute attribute[1];
   attribute[0].id = cudaLaunchAttributeClusterDimension;
-  attribute[0].val.clusterDim.x = 1; // Cluster size in X-dimension
+  attribute[0].val.clusterDim.x = level_count; // Cluster size in X-dimension
   attribute[0].val.clusterDim.y = (glwe_dimension + 1);
   attribute[0].val.clusterDim.z = 1;
   config.attrs = attribute;
@@ -363,8 +364,8 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
   cudaSetDevice(stream->gpu_index);
 
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                glwe_dimension, num_samples);
+    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+        stream->gpu_index, num_samples, polynomial_size, max_shared_memory);
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
@@ -389,27 +390,91 @@ template <typename Torus>
 __host__ bool
 supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t max_shared_memory) {
-    uint64_t minimum_sm =
+  uint64_t minimum_sm =
+      get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
+
+  if (max_shared_memory <= minimum_sm) {
+    // If we cannot store a single polynomial in a block shared memory we
+    // cannot use TBC
+    return false;
+  } else {
+    return cuda_check_support_thread_block_clusters();
+  }
+}
+
+template <typename Torus, class params>
+__host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory) {
+
+  if (!cuda_check_support_thread_block_clusters())
+    return false;
+
+  uint64_t full_sm_tbc_accumulate =
+      get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
+  uint64_t partial_sm_tbc_accumulate =
+      get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
+  uint64_t minimum_sm_tbc_accumulate = 0;
+  if (supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
+          Torus>(polynomial_size, max_shared_memory))
+    minimum_sm_tbc_accumulate =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
 
-    if (max_shared_memory <= minimum_sm) {
-      // If we cannot store a single polynomial in a block shared memory we
-// cannot use TBC
-  return false;
-    } else {
-      return cuda_check_support_thread_block_clusters();
-    }
+  int cluster_size;
+
+  dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  cudaLaunchConfig_t config = {0};
+  // The grid dimension is not affected by cluster launch, and is still
+  // enumerated using number of blocks. The grid dimension should be a multiple
+  // of cluster size.
+  config.gridDim = grid_accumulate;
+  config.blockDim = thds;
+  config.numAttrs = 0;
+
+  if (max_shared_memory <
+      partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               NOSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               NOSM>,
+        &config));
+  } else if (max_shared_memory <
+             full_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               PARTIALSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               PARTIALSM>,
+        &config));
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               FULLSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size,
+        device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
+                                                               FULLSM>,
+        &config));
+  }
+
+  return cluster_size >= level_count * (glwe_dimension + 1);
 }
 
-template <typename Torus>
-__host__ bool
-supports_thread_block_clusters_on_multibit_programmable_bootstrap() {
-  return cuda_check_support_thread_block_clusters();
-}
-
-template
-__host__ bool
+template __host__ bool
 supports_distributed_shared_memory_on_multibit_programmable_bootstrap<uint64_t>(
     uint32_t polynomial_size, uint32_t max_shared_memory);
 #endif // FASTMULTIBIT_PBS_H
