@@ -15,8 +15,10 @@ template <typename G>
 __device__ int get_this_block_rank(G &group, bool support_dsm);
 
 template <typename G>
-__device__  double2 *get_join_buffer_element(int i, G &group, bool support_dsm,
-                                 double2 *global_memory_buffer, uint32_t polynomial_size);
+__device__ double2 *
+get_join_buffer_element(int level_id, int glwe_id, G &group,
+                        double2 *global_memory_buffer, uint32_t polynomial_size,
+                        uint32_t glwe_dimension, bool support_dsm);
 
 template <typename Torus, typename G, class params>
 __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
@@ -38,18 +40,15 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
       bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
       glwe_dimension, level_count);
 
-  // Selects all GLWEs in a particular decomposition level
-  auto level_join_buffer =
-      join_buffer + blockIdx.x * (glwe_dimension + 1) * params::degree / 2;
-
   // Perform the matrix multiplication between the GGSW and the GLWE,
   // each block operating on a single level for mask and body
 
   // The first product is used to initialize level_join_buffer
   auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2;
   auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
-  auto buffer_slice = get_join_buffer_element<G>(
-      this_block_rank, group, support_dsm, level_join_buffer, polynomial_size);
+  auto buffer_slice =
+      get_join_buffer_element<G>(blockIdx.x, blockIdx.y, group, join_buffer,
+                                 polynomial_size, glwe_dimension, support_dsm);
 
   int tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
@@ -65,8 +64,9 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
     int idx = (j + this_block_rank) % (glwe_dimension + 1);
 
     auto bsk_poly = bsk_slice + idx * params::degree / 2;
-    auto buffer_slice = get_join_buffer_element<G>(
-        idx, group, support_dsm, level_join_buffer, polynomial_size);
+    auto buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
+                                                   join_buffer, polynomial_size,
+                                                   glwe_dimension, support_dsm);
 
     int tid = threadIdx.x;
     for (int i = 0; i < params::opt / 2; i++) {
@@ -80,8 +80,9 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
   // All blocks are synchronized here; after this sync, level_join_buffer has
   // the values needed from every other block
 
-  auto src_acc = get_join_buffer_element<G>(blockIdx.y, group,
-                                                    support_dsm, join_buffer, polynomial_size);
+  auto src_acc =
+      get_join_buffer_element<G>(0, blockIdx.y, group, join_buffer,
+                                 polynomial_size, glwe_dimension, support_dsm);
 
   // copy first product into fft buffer
   tid = threadIdx.x;
@@ -93,7 +94,9 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
 
   // accumulate rest of the products into fft buffer
   for (int l = 1; l < gridDim.x; l++) {
-    auto cur_src_acc = &src_acc[l * (glwe_dimension + 1) * params::degree / 2];
+    auto cur_src_acc = get_join_buffer_element<G>(l, blockIdx.y, group,
+                                                  join_buffer, polynomial_size,
+                                                  glwe_dimension, support_dsm);
     tid = threadIdx.x;
     for (int i = 0; i < params::opt / 2; i++) {
       fft[tid] += cur_src_acc[tid];

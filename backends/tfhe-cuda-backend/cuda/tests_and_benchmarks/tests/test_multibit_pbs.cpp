@@ -86,16 +86,15 @@ public:
         stream, &seed, &lwe_sk_in_array, &lwe_sk_out_array, &d_bsk_array,
         &plaintexts, &d_lut_pbs_identity, &d_lut_pbs_indexes,
         &d_lwe_ct_in_array, &d_lwe_input_indexes, &d_lwe_ct_out_array,
-        &d_lwe_output_indexes, lwe_dimension, glwe_dimension,
-        polynomial_size, grouping_factor, lwe_noise_distribution,
-        glwe_noise_distribution, pbs_base_log, pbs_level, message_modulus,
-        carry_modulus, &payload_modulus, &delta, number_of_inputs, repetitions,
-        samples);
+        &d_lwe_output_indexes, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, lwe_noise_distribution, glwe_noise_distribution,
+        pbs_base_log, pbs_level, message_modulus, carry_modulus,
+        &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
-  scratch_cuda_multi_bit_programmable_bootstrap_64(
-      stream, &pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-      pbs_level, grouping_factor, number_of_inputs,
-      cuda_get_max_shared_memory(stream->gpu_index), true);
+    scratch_cuda_multi_bit_programmable_bootstrap_64(
+        stream, &pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+        pbs_level, grouping_factor, number_of_inputs,
+        cuda_get_max_shared_memory(stream->gpu_index), true);
 
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *

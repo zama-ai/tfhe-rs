@@ -3,7 +3,7 @@
 #include "programmable_bootstrap_multibit.cuh"
 #include "programmable_bootstrap_multibit.h"
 
-#if CUDA_ARCH >= 900
+#if (CUDA_ARCH >= 900)
 #include "programmable_bootstrap_tbc_multibit.cuh"
 #endif
 
@@ -17,8 +17,53 @@ bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
-    uint32_t polynomial_size, uint32_t max_shared_memory) {
-  return cuda_check_support_thread_block_clusters();
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory) {
+#if CUDA_ARCH >= 900
+  switch (polynomial_size) {
+  case 256:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<256>>(num_samples, glwe_dimension,
+                                     polynomial_size, level_count,
+                                     max_shared_memory);
+  case 512:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<512>>(num_samples, glwe_dimension,
+                                     polynomial_size, level_count,
+                                     max_shared_memory);
+  case 1024:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<1024>>(num_samples, glwe_dimension,
+                                      polynomial_size, level_count,
+                                      max_shared_memory);
+  case 2048:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<2048>>(num_samples, glwe_dimension,
+                                      polynomial_size, level_count,
+                                      max_shared_memory);
+  case 4096:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<4096>>(num_samples, glwe_dimension,
+                                      polynomial_size, level_count,
+                                      max_shared_memory);
+  case 8192:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<8192>>(num_samples, glwe_dimension,
+                                      polynomial_size, level_count,
+                                      max_shared_memory);
+  case 16384:
+    return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
+        Torus, AmortizedDegree<16384>>(num_samples, glwe_dimension,
+                                       polynomial_size, level_count,
+                                       max_shared_memory);
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
+  }
+#else
+  return false;
+#endif
 }
 
 template <typename Torus>
@@ -205,8 +250,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
 
   switch (buffer->pbs_variant) {
+  case PBS_VARIANT::TBC:
 #if CUDA_ARCH >= 900
-      case PBS_VARIANT::TBC:
     cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -218,8 +263,10 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
-    break;
+#else
+    PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
 #endif
+    break;
   case PBS_VARIANT::CG:
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
@@ -386,9 +433,10 @@ void scratch_cuda_multi_bit_programmable_bootstrap_64(
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t lwe_chunk_size) {
 
-#if CUDA_ARCH >= 900
+#if (CUDA_ARCH >= 900)
   if (has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-          polynomial_size, max_shared_memory))
+          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
+          level_count, max_shared_memory))
     scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t, int64_t>(
         stream, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count, grouping_factor,
@@ -430,7 +478,7 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
  */
 template <typename Torus, class params>
-__host__ uint32_t get_lwe_chunk_size(int gpu_index, uint32_t max_num_pbs,
+__host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                                      uint32_t polynomial_size,
                                      uint32_t max_shared_memory) {
 
@@ -524,9 +572,10 @@ cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
 
 template bool
 has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-    uint32_t polynomial_size, uint32_t max_shared_memory);
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory);
 
-#if CUDA_ARCH >= 900
+#if (CUDA_ARCH >= 900)
 template <typename Torus, typename STorus>
 void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **buffer,
