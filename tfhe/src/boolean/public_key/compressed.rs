@@ -42,7 +42,7 @@ impl CompressedPublicKey {
         })
     }
 
-    /// Deconstruct a [`CompressedPublicKey`] into its constituants.
+    /// Deconstruct a [`CompressedPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> (SeededLwePublicKeyOwned<u32>, BooleanParameters) {
         let Self {
             compressed_lwe_public_key,
@@ -52,11 +52,11 @@ impl CompressedPublicKey {
         (compressed_lwe_public_key, parameters)
     }
 
-    /// Construct a [`CompressedPublicKey`] from its constituants.
+    /// Construct a [`CompressedPublicKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         compressed_lwe_public_key: SeededLwePublicKeyOwned<u32>,
         parameters: BooleanParameters,

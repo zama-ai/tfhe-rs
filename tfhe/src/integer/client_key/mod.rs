@@ -137,7 +137,7 @@ impl ClientKey {
         }
     }
 
-    /// Deconstruct a [`ClientKey`] into its constituants.
+    /// Deconstruct a [`ClientKey`] into its constituents.
     ///
     /// # Example
     ///
@@ -156,7 +156,7 @@ impl ClientKey {
         self.key
     }
 
-    /// Construct a [`ClientKey`] from its constituants.
+    /// Construct a [`ClientKey`] from its constituents.
     ///
     /// # Example
     ///

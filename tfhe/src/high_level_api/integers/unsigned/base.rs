@@ -209,7 +209,7 @@ where
     /// Sums multiple ciphertexts together.
     ///
     /// This is much more efficient than manually calling the `+` operator, thus
-    /// using sum should always be prefered.
+    /// using sum should always be preferred.
     ///
     /// # Example
     ///
