@@ -415,71 +415,76 @@ fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
 }
 
 macro_rules! define_server_key_unary_bench_fn (
-  (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
-      fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_unary_function(
-              c,
-              concat!("shortint::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs| {
-                let _ = server_key.$server_key_method(lhs);},
-              $params_set)
-      }
-  }
+    (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_unary_function(
+                c,
+                concat!("shortint::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs| {
+                    let _ = server_key.$server_key_method(lhs);},
+                $params_set
+            )
+        }
+    }
 );
 
 macro_rules! define_server_key_bench_fn (
-  (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
-      fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_binary_function(
-              c,
-              concat!("shortint::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                let _ = server_key.$server_key_method(lhs, rhs);},
-              $params_set)
-      }
-  }
+    (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_function(
+                c,
+                concat!("shortint::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    let _ = server_key.$server_key_method(lhs, rhs);},
+                $params_set
+            )
+        }
+    }
 );
 
 macro_rules! define_server_key_scalar_bench_fn (
-  (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
-      fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_binary_scalar_function(
-              c,
-              concat!("shortint::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                let _ = server_key.$server_key_method(lhs, rhs);},
-              $params_set)
-      }
-  }
+    (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_scalar_function(
+                c,
+                concat!("shortint::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    let _ = server_key.$server_key_method(lhs, rhs);},
+                $params_set
+            )
+        }
+    }
 );
 
 macro_rules! define_server_key_scalar_div_bench_fn (
-  (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
-      fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_binary_scalar_division_function(
-              c,
-              concat!("shortint::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                let _ = server_key.$server_key_method(lhs, rhs);},
-              $params_set)
-      }
-  }
+    (method_name:$server_key_method:ident, display_name:$name:ident, $params_set:expr) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_scalar_division_function(
+                c,
+                concat!("shortint::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    let _ = server_key.$server_key_method(lhs, rhs);},
+                $params_set
+            )
+        }
+    }
 );
 
 macro_rules! define_custom_bench_fn (
-  (function_name:$function:ident, $params_set:expr) => {
-      fn $function(c: &mut Criterion) {
-          ::paste::paste! {
-              [<$function _bench>](
-                  c,
-                  $params_set)
-          }
-      }
-  }
+    (function_name:$function:ident, $params_set:expr) => {
+        fn $function(c: &mut Criterion) {
+            ::paste::paste! {
+                [<$function _bench>](
+                    c,
+                    $params_set
+                )
+            }
+        }
+    }
 );
 
 define_server_key_unary_bench_fn!(

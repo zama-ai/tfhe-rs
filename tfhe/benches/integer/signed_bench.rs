@@ -315,7 +315,7 @@ macro_rules! define_server_key_bench_binary_signed_clean_inputs_fn (
             )
         }
     }
-  );
+);
 
 macro_rules! define_server_key_bench_unary_signed_clean_input_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident $(,)?) => {
@@ -330,7 +330,7 @@ macro_rules! define_server_key_bench_unary_signed_clean_input_fn (
             )
         }
     };
-  );
+);
 
 define_server_key_bench_unary_signed_clean_input_fn!(
     method_name: neg_parallelized,
@@ -835,7 +835,7 @@ macro_rules! define_server_key_bench_binary_scalar_clean_inputs_fn (
                 }, $($rng_fn)*)
         }
     }
-  );
+);
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_add_parallelized,
@@ -1180,17 +1180,17 @@ fn bench_server_key_signed_cast_function<F>(
 }
 
 macro_rules! define_server_key_bench_cast_fn (
-  (method_name: $server_key_method:ident, display_name:$name:ident) => {
-      fn $server_key_method(c: &mut Criterion) {
-        bench_server_key_signed_cast_function(
-              c,
-              concat!("integer::signed::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-          })
-      }
-  }
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_signed_cast_function(
+                c,
+                concat!("integer::signed::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, rhs);
+            })
+        }
+    }
 );
 
 define_server_key_bench_cast_fn!(method_name: cast_to_unsigned, display_name: cast_to_unsigned);
@@ -1283,21 +1283,21 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_signed_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident) => {
-        ::paste::paste!{
-            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                bench_cuda_server_key_binary_signed_function_clean_inputs(
-                    c,
-                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, lhs, rhs, stream| {
-                        server_key.$server_key_method(lhs, rhs, stream);
-                    }
-                )
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_binary_signed_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
+                        }
+                    )
+                }
             }
         }
-    }
-  );
+    );
 
     /// Base function to bench a server key function that is a unary operation, input ciphertext
     /// will contain only zero carries
@@ -1361,21 +1361,21 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_signed_unary_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident) => {
-        ::paste::paste!{
-            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                bench_cuda_server_key_unary_signed_function_clean_inputs(
-                    c,
-                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, input, stream| {
-                        server_key.$server_key_method(input, stream);
-                    }
-                )
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_unary_signed_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, input, stream| {
+                            server_key.$server_key_method(input, stream);
+                        }
+                    )
+                }
             }
         }
-    }
-  );
+    );
 
     fn bench_cuda_server_key_binary_scalar_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
@@ -1447,22 +1447,22 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_scalar_signed_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
-        ::paste::paste!{
-            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
-                    c,
-                    concat!("integer::cuda::signed::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, lhs, rhs, stream| {
-                        server_key.$server_key_method(lhs, rhs, stream);
-                    },
-                    $($rng_fn)*
-                )
+        (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
+                        },
+                        $($rng_fn)*
+                    )
+                }
             }
-      }
-    }
-  );
+        }
+    );
 
     // Functions used to apply different way of selecting a scalar based on the context.
     fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {

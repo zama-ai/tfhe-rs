@@ -71,61 +71,61 @@ static_int_type! {
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 8,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 10,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 12,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 14,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 16,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 32,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 64,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 128,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 160,
     }
 }
 
 static_int_type! {
-   Signed {
+    Signed {
         num_bits: 256,
     }
 }

@@ -459,7 +459,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -497,10 +497,10 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
-                 InternalServerKey::Cuda(cuda_key) => {
+                InternalServerKey::Cuda(cuda_key) => {
                     let inner_result = with_thread_local_cuda_stream(|stream| {
                         cuda_key.key.scalar_sub(
                             &*lhs.ciphertext.on_gpu(), rhs, stream
@@ -535,7 +535,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_) => {
@@ -568,7 +568,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -606,7 +606,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -644,7 +644,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
 
                 #[cfg(feature = "gpu")]
@@ -683,7 +683,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -721,11 +721,11 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                   let inner_result = with_thread_local_cuda_stream(|stream| {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
                         cuda_key.key.scalar_right_shift(
                             &lhs.ciphertext.on_gpu(), u64::cast_from(rhs), stream
                         )
@@ -759,7 +759,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -797,7 +797,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -835,7 +835,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_) => {
@@ -868,7 +868,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                   RadixCiphertext::Cpu(inner_result)
+                    RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_) => {
@@ -1247,7 +1247,7 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
         implem: {
             $closure:expr
         },
-         // A 'list' of tuple, where the first element is the concrete Fhe type
+        // A 'list' of tuple, where the first element is the concrete Fhe type
         // e.g (FheUint8 and the rest is scalar types (u8, u16, etc)
         fhe_and_scalar_type: $(
             ($concrete_type:ty, $($(#[$doc:meta])* $scalar_type:ty),*)
@@ -1271,15 +1271,15 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
                         .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
                 #[cfg(feature = "gpu")]
-                 InternalServerKey::Cuda(cuda_key) => {
+                InternalServerKey::Cuda(cuda_key) => {
                     with_thread_local_cuda_stream(|stream| {
                         cuda_key.key
                             .scalar_add_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
@@ -1328,8 +1328,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: SubAssign(sub_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1363,8 +1363,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: MulAssign(mul_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1395,8 +1395,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitAndAssign(bitand_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1430,8 +1430,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitOrAssign(bitor_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1465,8 +1465,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitXorAssign(bitxor_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1500,8 +1500,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShlAssign(shl_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1535,8 +1535,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShrAssign(shr_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1570,8 +1570,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateLeftAssign(rotate_left_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1605,8 +1605,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateRightAssign(rotate_right_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1640,8 +1640,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: DivAssign(div_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()
@@ -1672,8 +1672,8 @@ generic_integer_impl_scalar_operation_assign!(
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RemAssign(rem_assign),
     implem: {
-         |lhs: &mut FheUint<_>, rhs| {
-             global_state::with_internal_keys(|key| match key {
+        |lhs: &mut FheUint<_>, rhs| {
+            global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
                     cpu_key
                         .pbs_key()

@@ -23,7 +23,7 @@ macro_rules! create_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_test!($name
         {
             (PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
@@ -46,7 +46,7 @@ macro_rules! create_parametrized_wopbs_only_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_wopbs_only_test!($name
         {
             WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
@@ -70,7 +70,7 @@ macro_rules! create_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_test!($name
         {
             (PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
@@ -90,7 +90,7 @@ macro_rules! create_parametrized_wopbs_only_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_wopbs_only_test!($name
         {
             WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS

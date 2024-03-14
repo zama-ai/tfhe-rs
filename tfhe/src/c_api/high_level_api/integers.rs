@@ -222,8 +222,8 @@ macro_rules! impl_operations_for_integer_type {
                 })
             }
 
-             // map cmux to if_then_else
-             pub unsafe extern "C" fn [<$name:snake _cmux>](
+            // map cmux to if_then_else
+            pub unsafe extern "C" fn [<$name:snake _cmux>](
                 condition_ct: *const FheBool,
                 then_ct: *const $name,
                 else_ct: *const $name,
