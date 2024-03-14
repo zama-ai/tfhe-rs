@@ -39,7 +39,9 @@ macro_rules! create_gpu_multi_bit_parametrized_test{
         create_gpu_multi_bit_parametrized_test!($name
         {
             MULTI_BIT_2_2_2_PARAMS,
-            MULTI_BIT_2_2_3_PARAMS
+            MULTI_BIT_2_2_3_PARAMS,
+            MULTI_BIT_3_3_2_PARAMS,
+            MULTI_BIT_3_3_3_PARAMS
         });
     };
 }

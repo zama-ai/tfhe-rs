@@ -196,6 +196,24 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     thread_count: ThreadCount(5),
 };
 
+pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(922),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000003272369292345697,
+    )),
+    decomp_base_log: DecompositionBaseLog(14),
+    decomp_level_count: DecompositionLevelCount(2),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(8192),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
+    message_modulus_log: MessageModulusLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(2),
+    thread_count: ThreadCount(5),
+};
+
 pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(818),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
@@ -230,6 +248,24 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
+};
+
+pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(972),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.00000013016688349592805,
+    )),
+    decomp_base_log: DecompositionBaseLog(14),
+    decomp_level_count: DecompositionLevelCount(2),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(8192),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+        0.0000000000000000002168404344971009,
+    )),
+    message_modulus_log: MessageModulusLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(5),
 };
 
 pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
