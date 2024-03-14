@@ -188,7 +188,7 @@ impl ServerKey {
 
             // All blocks starting from the first_trivial_block are known to be trivial
             // So we can avoid work.
-            // Note that, these are always non-emtpy (i.e. there is always at least one non trivial
+            // Note that, these are always non-empty (i.e. there is always at least one non trivial
             // block)
             let mut interesting_remainder1 =
                 RadixCiphertext::from(remainder1.blocks[..=last_non_trivial_block].to_vec());

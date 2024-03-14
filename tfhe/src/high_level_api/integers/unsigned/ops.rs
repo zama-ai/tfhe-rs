@@ -1853,7 +1853,7 @@ where
 
     /// Computes the negation of a [FheUint].
     ///
-    /// Since FheUint are usigned integers meaning the value they can
+    /// Since FheUint are unsigned integers meaning the value they can
     /// represent is always positive, negating a FheUint will yield a
     /// positive number.
     ///
@@ -1885,7 +1885,7 @@ where
 
     /// Computes the negation of a [FheUint].
     ///
-    /// Since FheUint are usigned integers meaning the value they can
+    /// Since FheUint are unsigned integers meaning the value they can
     /// represent is always positive, negating a FheUint will yield a
     /// positive number.
     ///

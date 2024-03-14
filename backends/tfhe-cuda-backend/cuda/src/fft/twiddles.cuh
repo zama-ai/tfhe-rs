@@ -3,7 +3,7 @@
 
 /*
  * 'negtwiddles' are stored in constant memory for faster access times
- * because of it's limitied size, only twiddles for up to 2^12 polynomial size
+ * because of it's limited size, only twiddles for up to 2^12 polynomial size
  * can be stored there, twiddles for 2^13 are stored in device memory
  * 'negtwiddles13'
  */

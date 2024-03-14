@@ -209,7 +209,7 @@ macro_rules! impl_try_decrypt_trivial_on_type {
                 let mut rust_result: Option<RustScalarType_> = None;
 
                 // This is done the 'hard' way because we don't want to unwrap the decrypt_trivial
-                // as the panic will print something and polute.
+                // as the panic will print something and pollute.
                 $crate::c_api::utils::catch_panic(|| {
                     let encrypted_value = $crate::c_api::utils::get_ref_checked(encrypted_value).unwrap();
 

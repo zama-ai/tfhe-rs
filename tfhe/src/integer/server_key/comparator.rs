@@ -278,7 +278,7 @@ impl<'a> Comparator<'a> {
         } else {
             let final_lut = self.server_key.key.generate_lookup_table(|x| {
                 // sign blocks have values in the set {0, 1, 2}
-                // here we force apply that modulus explicitely
+                // here we force apply that modulus explicitly
                 // so that generate_lookup_table has the correct
                 // degree estimation
                 let final_sign = x % 3;
@@ -337,7 +337,7 @@ impl<'a> Comparator<'a> {
         } else {
             let final_lut = self.server_key.key.generate_lookup_table(|x| {
                 // sign blocks have values in the set {0, 1, 2}
-                // here we force apply that modulus explicitely
+                // here we force apply that modulus explicitly
                 // so that generate_lookup_table has the correct
                 // degree estimation
                 let final_sign = x % 3;

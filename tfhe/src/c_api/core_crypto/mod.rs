@@ -4,7 +4,7 @@ use crate::core_crypto::commons::math::random::DynamicDistribution as RustDynami
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use std::os::raw::c_int;
 
-// f64 will be aligned as a u64, use the same alignement
+// f64 will be aligned as a u64, use the same alignment
 #[repr(u64)]
 #[derive(Clone, Copy)]
 pub enum DynamicDistributionTag {
