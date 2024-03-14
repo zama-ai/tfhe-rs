@@ -95,7 +95,7 @@ impl CompactCiphertextList {
         T::from(blocks)
     }
 
-    /// Deconstruct a [`CompactCiphertextList`] into its constituants.
+    /// Deconstruct a [`CompactCiphertextList`] into its constituents.
     pub fn into_raw_parts(self) -> (crate::shortint::ciphertext::CompactCiphertextList, usize) {
         let Self {
             ct_list,
@@ -104,11 +104,11 @@ impl CompactCiphertextList {
         (ct_list, num_blocks_per_integer)
     }
 
-    /// Construct a [`CompactCiphertextList`] from its constituants.
+    /// Construct a [`CompactCiphertextList`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         ct_list: crate::shortint::ciphertext::CompactCiphertextList,
         num_blocks_per_integer: usize,

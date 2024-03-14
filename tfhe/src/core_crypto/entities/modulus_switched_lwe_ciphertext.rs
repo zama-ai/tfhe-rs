@@ -162,7 +162,7 @@ impl<Scalar: UnsignedTorus> PackedModulusSwitchedLweCiphertext<Scalar> {
     }
 
     /// Converts back a compressed ciphertext to its initial modulus
-    /// The noise added during the compression says int hte output
+    /// The noise added during the compression says int the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> LweCiphertextOwned<Scalar> {
         let log_modulus = self.log_modulus.0;
