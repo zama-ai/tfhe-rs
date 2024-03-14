@@ -121,7 +121,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -465,7 +465,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -485,7 +485,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -537,7 +537,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -604,7 +604,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -637,7 +637,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -688,7 +688,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -722,7 +722,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
@@ -779,7 +779,7 @@ impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;

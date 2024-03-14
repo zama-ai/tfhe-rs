@@ -17,20 +17,17 @@ impl CompressedPublicKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys();
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
-    /// # }
     /// ```
     ///
     /// Decompressing the key
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -38,7 +35,6 @@ impl CompressedPublicKey {
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
     /// let pks = PublicKey::from(cpks);
-    /// # }
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| {
@@ -112,7 +108,6 @@ impl CompressedPublicKey {
     /// # Example
     ///
     /// ```rust
-    /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
@@ -128,7 +123,6 @@ impl CompressedPublicKey {
     /// // Decryption:
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(false, dec);
-    /// # }
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| {

@@ -8,7 +8,7 @@ pub struct Cleartext<T: Numeric>(pub T);
 /// An immutable reference to a cleartext value.
 ///
 /// Can be converted to a cleartext via a call to `into`
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::entities::*;
 ///
 /// pub fn takes_cleartext(clear: Cleartext<u64>) {
@@ -26,7 +26,7 @@ pub struct CleartextRef<'data, T: Numeric>(pub &'data T);
 /// A mutable reference to a cleartext (encoded) value.
 ///
 /// Can be converted to a cleartext via a call to `into`
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::entities::*;
 ///
 /// pub fn takes_cleartext(clear: Cleartext<u64>) {

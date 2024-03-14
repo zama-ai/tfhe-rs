@@ -24,11 +24,11 @@ thread_local! {
 ///
 /// Only working in the `main` thread
 ///
-/// ```
-/// use tfhe;
+/// ```rust
+/// use tfhe::{generate_keys, ConfigBuilder};
 ///
-/// # let config = tfhe::ConfigBuilder::default().build();
-/// let (client_key, server_key) = tfhe::generate_keys(config);
+/// let config = ConfigBuilder::default().build();
+/// let (client_key, server_key) = generate_keys(config);
 ///
 /// tfhe::set_server_key(server_key);
 /// // Now we can do operations on homomorphic types
@@ -37,12 +37,12 @@ thread_local! {
 ///
 /// Working with multiple threads
 ///
-/// ```
+/// ```rust
 /// use std::thread;
 /// use tfhe;
 /// use tfhe::ConfigBuilder;
 ///
-/// # let config = tfhe::ConfigBuilder::default().build();
+/// let config = tfhe::ConfigBuilder::default().build();
 /// let (client_key, server_key) = tfhe::generate_keys(config);
 /// let server_key_2 = server_key.clone();
 ///

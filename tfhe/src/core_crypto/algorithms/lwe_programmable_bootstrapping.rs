@@ -29,7 +29,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // This example recreates a PBS by combining a blind rotate and a sample extract.
@@ -300,7 +300,7 @@ pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
 ///
 /// ```text
 /// out <- out + glwe * ggsw
-/// ```
+/// ```rust
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`add_external_product_assign_mem_optimized`].
@@ -343,11 +343,11 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///
 /// ```text
 /// out <- out + glwe * ggsw
-/// ```
+/// ```rust
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -529,7 +529,7 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
 /// ```text
 /// ct1 <- ct1 - ct0
 /// ct0 <- ct1 * ggsw + ct0
-/// ```
+/// ```rust
 ///
 /// Therefore encrypting values other than 0 or 1 in the `ggsw` will yield a linear combination of
 /// `ct0` and `ct1`
@@ -544,7 +544,7 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
 ///         return ct1
 ///     else:
 ///         return ct0
-/// ```
+/// ```rust
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`cmux_assign_mem_optimized`].
@@ -583,7 +583,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -821,7 +821,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1132,7 +1132,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

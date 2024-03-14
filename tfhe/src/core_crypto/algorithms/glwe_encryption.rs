@@ -76,7 +76,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -310,7 +310,7 @@ pub fn fill_glwe_mask_and_body_for_encryption<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -431,7 +431,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, NoiseDistribution, KeyCont, InputCont, Ou
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -689,7 +689,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -783,7 +783,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -932,7 +932,7 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
 /// Encrypt a [`PlaintextList`] in a
 /// [`compressed/seeded GLWE ciphertext`](`SeededGlweCiphertext`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1120,7 +1120,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// Encrypt a [`PlaintextList`] in a
 /// [`compressed/seeded LWE ciphertext list`](`SeededLweCiphertextList`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

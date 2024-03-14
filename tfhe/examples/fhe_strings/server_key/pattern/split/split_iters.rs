@@ -46,9 +46,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
@@ -91,9 +91,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello ", " ");
@@ -137,9 +137,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern, UIntArg};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
@@ -189,9 +189,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern, UIntArg};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern, UIntArg};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world", " ");
@@ -239,9 +239,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
@@ -287,9 +287,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");
@@ -334,9 +334,9 @@ impl ServerKey {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::ciphertext::{FheString, GenericPattern};
-    /// # use crate::server_key::{FheStringIterator, gen_keys};
+    /// ```rust
+    /// use crate::ciphertext::{FheString, GenericPattern};
+    /// use crate::server_key::{gen_keys, FheStringIterator};
     ///
     /// let (ck, sk) = gen_keys();
     /// let (s, pat) = ("hello world ", " ");

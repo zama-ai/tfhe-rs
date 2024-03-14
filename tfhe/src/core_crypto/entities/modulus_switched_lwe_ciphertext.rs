@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::*;
 /// The uncompacted result can be used as the input of a blind rotation to recover a low noise lwe
 /// ciphertext
 ///
-/// ```
+/// ```rust
 /// use concrete_csprng::seeders::Seed;
 /// use tfhe::core_crypto::prelude::*;
 /// use tfhe::core_crypto::fft_impl::common::modulus_switch;

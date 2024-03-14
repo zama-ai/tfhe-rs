@@ -25,7 +25,7 @@ pub(in crate::high_level_api) use inner::{
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::{generate_keys, ConfigBuilder};
 ///
 /// let config = ConfigBuilder::default().build();

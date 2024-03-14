@@ -13,7 +13,7 @@ use crate::core_crypto::entities::*;
 /// Fill an [`LWE keyswitch key`](`LweKeyswitchKey`) with an actual keyswitching key constructed
 /// from an input and an output key [`LWE secret key`](`LweSecretKey`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -186,7 +186,7 @@ where
 /// Fill an [`LWE keyswitch key`](`SeededLweKeyswitchKey`) with an actual keyswitching key
 /// constructed from an input and an output key [`LWE secret key`](`LweSecretKey`).
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

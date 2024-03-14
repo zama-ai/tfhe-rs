@@ -20,7 +20,7 @@ use crate::CompactPublicKey;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompactFheBool, CompactPublicKey, ConfigBuilder, FheBool};
 ///
@@ -88,7 +88,7 @@ impl ParameterSetConformant for CompactFheBool {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompactFheBoolList, CompactPublicKey, ConfigBuilder};
 ///

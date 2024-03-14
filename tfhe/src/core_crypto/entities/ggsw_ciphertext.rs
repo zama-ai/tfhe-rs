@@ -228,7 +228,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> 
     ///
     /// This docstring exhibits [`GgswCiphertext`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -512,7 +512,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswLevelMatrix<C>
     ///
     /// This docstring exhibits [`GgswLevelMatrix`] primitives usage.
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::core_crypto::prelude::*;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

@@ -409,7 +409,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// ```text
 /// small lut for 1st output ciphertext|...|small lut for 4th output ciphertext
 /// |[polynomial 1] ... [polynomial 64]|...|[polynomial 1] ... [polynomial 64]|
-/// ```
+/// ```rust
 ///
 /// The polynomials in the above representation are not necessarily the same, this is just for
 /// illustration purposes.
@@ -423,14 +423,14 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// ```text
 /// small lut for 1st output ciphertext|...|small lut for 4th output ciphertext
 /// |[          polynomial 1          ]|...|[          polynomial 1          ]|
-/// ```
+/// ```rust
 ///
 /// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
 /// memory buffer having a capacity at least as large as the result of
 /// [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement`].
 ///
 /// # Example
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

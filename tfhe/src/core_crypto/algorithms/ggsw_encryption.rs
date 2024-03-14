@@ -16,7 +16,7 @@ use rayon::prelude::*;
 /// See the [`GGSW ciphertext formal definition`](`GgswCiphertext#ggsw-encryption`) for the
 /// definition of the encryption algorithm.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -158,7 +158,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 ///
 /// New tasks are created per level matrix and per row of each level matrix.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -419,7 +419,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -607,7 +607,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 ///
 /// New tasks are created per level matrix and per row of each level matrix.
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -765,7 +765,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

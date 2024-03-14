@@ -8,7 +8,7 @@ pub struct Plaintext<T: Numeric>(pub T);
 /// An immutable reference to a plaintext (encoded) value.
 ///
 /// Can be converted to a plaintext via a call to `into`
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::entities::*;
 ///
 /// pub fn takes_plaintext(plain: Plaintext<u64>) {
@@ -26,7 +26,7 @@ pub struct PlaintextRef<'data, T: Numeric>(pub &'data T);
 /// A mutable reference to a plaintext (encoded) value.
 ///
 /// Can be converted to a plaintext via a call to `into`
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::entities::*;
 ///
 /// pub fn takes_plaintext(plain: Plaintext<u64>) {

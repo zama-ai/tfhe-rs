@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 /// ## Converting a [BooleanBlock] to a [RadixCiphertext]
 ///
-/// ```
+/// ```rust
 /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
 /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 ///
@@ -78,7 +78,7 @@ impl BooleanBlock {
     /// # Examples
     /// ## Converting a [BooleanBlock] to a [RadixCiphertext]
     ///
-    /// ```
+    /// ```rust
     /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///

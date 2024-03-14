@@ -58,7 +58,7 @@ mod wasm_seeder {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// let mut seeder = new_seeder();

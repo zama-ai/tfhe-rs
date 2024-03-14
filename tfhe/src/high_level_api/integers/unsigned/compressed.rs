@@ -19,7 +19,7 @@ use crate::named::Named;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::{generate_keys, CompressedFheUint32, ConfigBuilder};
 ///
