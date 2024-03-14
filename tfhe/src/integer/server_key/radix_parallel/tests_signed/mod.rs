@@ -38,7 +38,7 @@ macro_rules! create_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_test!($name
         {
             #[cfg(not(tarpaulin))]
@@ -749,7 +749,7 @@ create_parametrized_test!(integer_signed_default_absolute_value);
 
 create_parametrized_test!(
     integer_signed_default_left_shift {
-         coverage => {
+        coverage => {
             COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
         },

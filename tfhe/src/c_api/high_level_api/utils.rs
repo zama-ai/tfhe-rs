@@ -368,14 +368,14 @@ macro_rules! impl_binary_fn_on_type {
     //
     // In practice, this is used for shifts on signed type,
     // where lhs is a signed type and rhs is an unsigned type
-     (
+    (
         lhs_type: $lhs_type:ty,
         rhs_type: $rhs_type:ty,
         binary_fn_names: $($binary_fn_name:ident),*
         $(,)?
     ) => {
-         $( // unroll binary_fn_names
-           ::paste::paste! {
+        $( // unroll binary_fn_names
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_fn_name>](
                     lhs: *const $lhs_type,
@@ -392,7 +392,7 @@ macro_rules! impl_binary_fn_on_type {
                     })
                 }
             }
-         )*
+        )*
 
     };
 
@@ -407,14 +407,14 @@ macro_rules! impl_binary_fn_on_type {
 }
 // Like binary fn, but an extra output value is needed for the overflow flag
 macro_rules! impl_binary_overflowing_fn_on_type {
-     (
+    (
         lhs_type: $lhs_type:ty,
         rhs_type: $rhs_type:ty,
         binary_fn_names: $($binary_fn_name:ident),*
         $(,)?
     ) => {
-         $( // unroll binary_fn_names
-           ::paste::paste! {
+        $( // unroll binary_fn_names
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_fn_name>](
                     lhs: *const $lhs_type,
@@ -433,7 +433,7 @@ macro_rules! impl_binary_overflowing_fn_on_type {
                     })
                 }
             }
-         )*
+        )*
 
     };
 
@@ -450,14 +450,14 @@ macro_rules! impl_binary_overflowing_fn_on_type {
 // Comparisons returns FheBool so we use a specialized
 // macro for them
 macro_rules! impl_comparison_fn_on_type {
-     (
+    (
         lhs_type: $lhs_type:ty,
         rhs_type: $rhs_type:ty,
         comparison_fn_names: $($comparison_fn_name:ident),*
         $(,)?
     ) => {
-         $( // unroll comparison_fn_names
-           ::paste::paste! {
+        $( // unroll comparison_fn_names
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$lhs_type:snake _ $comparison_fn_name>](
                     lhs: *const $lhs_type,
@@ -475,19 +475,19 @@ macro_rules! impl_comparison_fn_on_type {
                     })
                 }
             }
-         )*
+        )*
     };
 }
 
 macro_rules! impl_scalar_comparison_fn_on_type {
-     (
+    (
         lhs_type: $lhs_type:ty,
         clear_type: $scalar_type:ty,
         comparison_fn_names: $($comparison_fn_name:ident),*
         $(,)?
     ) => {
-         $( // unroll comparison_fn_names
-           ::paste::paste! {
+        $( // unroll comparison_fn_names
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$lhs_type:snake _scalar_ $comparison_fn_name>](
                     lhs: *const $lhs_type,
@@ -506,14 +506,14 @@ macro_rules! impl_scalar_comparison_fn_on_type {
                     })
                 }
             }
-         )*
+        )*
     };
 }
 
 macro_rules! impl_unary_fn_on_type {
     ($wrapper_type:ty => $($unary_fn_name:ident),* $(,)?) => {
         $(
-           ::paste::paste! {
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$wrapper_type:snake _ $unary_fn_name>](
                     lhs: *const $wrapper_type,
@@ -547,7 +547,7 @@ macro_rules! impl_binary_assign_fn_on_type {
         $(,)?
     ) => {
         $(
-           ::paste::paste! {
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_assign_fn_name>](
                     lhs: *mut $lhs_type,
@@ -564,7 +564,7 @@ macro_rules! impl_binary_assign_fn_on_type {
         )*
     };
     ($wrapper_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
-         impl_binary_assign_fn_on_type!(
+        impl_binary_assign_fn_on_type!(
             lhs_type: $wrapper_type,
             rhs_type: $wrapper_type,
             binary_fn_names: $($binary_assign_fn_name),*
@@ -576,7 +576,7 @@ macro_rules! impl_binary_assign_fn_on_type {
 macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
         $(
-           ::paste::paste! {
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$wrapper_type:snake _scalar_ $binary_fn_name>](
                     lhs: *const $wrapper_type,
@@ -601,7 +601,7 @@ macro_rules! impl_scalar_binary_fn_on_type {
 macro_rules! impl_scalar_binary_assign_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
         $(
-           ::paste::paste! {
+            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$wrapper_type:snake _scalar_ $binary_assign_fn_name>](
                     lhs: *mut $wrapper_type,

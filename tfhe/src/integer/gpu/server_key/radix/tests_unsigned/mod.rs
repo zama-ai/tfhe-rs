@@ -27,7 +27,7 @@ macro_rules! create_gpu_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_gpu_parametrized_test!($name
         {
             // PARAM_MESSAGE_1_CARRY_1_KS_PBS,

@@ -19,7 +19,7 @@ macro_rules! create_gpu_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_gpu_parametrized_test!($name
         {
             TEST_PARAMS_4_BITS_NATIVE_U64
@@ -37,7 +37,7 @@ macro_rules! create_gpu_multi_bit_parametrized_test{
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_gpu_multi_bit_parametrized_test!($name
         {
             MULTI_BIT_2_2_2_PARAMS,

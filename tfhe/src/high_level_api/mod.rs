@@ -5,7 +5,7 @@
 #[allow(unused)]
 macro_rules! expand_pub_use_fhe_type(
     (
-       pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
+        pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
     )=> {
 
         ::paste::paste! {

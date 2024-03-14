@@ -310,7 +310,7 @@ macro_rules! create_parametrized_test {
             )*
         }
     };
-     ($name:ident)=> {
+    ($name:ident)=> {
         create_parametrized_test!($name
         {
             #[cfg(not(tarpaulin))]

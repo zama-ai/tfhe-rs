@@ -607,7 +607,7 @@ macro_rules! define_server_key_bench_unary_fn (
                 concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs| {
-                  server_key.$server_key_method(lhs);
+                    server_key.$server_key_method(lhs);
             })
         }
     }
@@ -621,54 +621,55 @@ macro_rules! define_server_key_bench_unary_default_fn (
                 concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs| {
-                  server_key.$server_key_method(lhs);
+                    server_key.$server_key_method(lhs);
             })
         }
     }
 );
 
 macro_rules! define_server_key_bench_fn (
-  (method_name: $server_key_method:ident, display_name:$name:ident) => {
-      fn $server_key_method(c: &mut Criterion) {
-        bench_server_key_binary_function_dirty_inputs(
-              c,
-              concat!("integer::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-          })
-      }
-  }
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_function_dirty_inputs(
+                c,
+                concat!("integer::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, rhs);
+                }
+            )
+        }
+    }
 );
 
 macro_rules! define_server_key_bench_default_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident) => {
         fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_binary_function_clean_inputs(
+            bench_server_key_binary_function_clean_inputs(
                 c,
                 concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs, rhs| {
-                  server_key.$server_key_method(lhs, rhs);
+                    server_key.$server_key_method(lhs, rhs);
             })
         }
     }
-  );
+);
 
 macro_rules! define_server_key_bench_scalar_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
-      fn $server_key_method(c: &mut Criterion) {
-          bench_server_key_binary_scalar_function_dirty_inputs(
-              c,
-              concat!("integer::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-              },
-              $($rng_fn)*
-          )
-      }
-  }
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_scalar_function_dirty_inputs(
+                c,
+                concat!("integer::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, rhs);
+                },
+                $($rng_fn)*
+            )
+        }
+    }
 );
 
 macro_rules! define_server_key_bench_scalar_default_fn (
@@ -679,13 +680,13 @@ macro_rules! define_server_key_bench_scalar_default_fn (
                 concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs, rhs| {
-                  server_key.$server_key_method(lhs, rhs);
+                    server_key.$server_key_method(lhs, rhs);
                 },
                 $($rng_fn)*
             )
         }
     }
-  );
+);
 
 define_server_key_bench_fn!(method_name: smart_add, display_name: add);
 define_server_key_bench_fn!(method_name: smart_sub, display_name: sub);
@@ -1482,43 +1483,42 @@ mod cuda {
                     )
                 }
             }
-        }
-      );
+        });
 
     macro_rules! define_cuda_server_key_bench_clean_input_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident) => {
-        ::paste::paste!{
-            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                bench_cuda_server_key_binary_function_clean_inputs(
-                    c,
-                    concat!("integer::cuda::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, lhs, rhs, stream| {
-                        server_key.$server_key_method(lhs, rhs, stream);
-                    }
-                )
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_binary_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
+                        }
+                    )
+                }
             }
         }
-    }
-  );
+    );
 
     macro_rules! define_cuda_server_key_bench_clean_input_scalar_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
-        ::paste::paste!{
-            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                bench_cuda_server_key_binary_scalar_function_clean_inputs(
-                    c,
-                    concat!("integer::cuda::", stringify!($server_key_method)),
-                    stringify!($name),
-                    |server_key, lhs, rhs, stream| {
-                        server_key.$server_key_method(lhs, rhs, stream);
-                    },
-                    $($rng_fn)*
-                )
+        (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_binary_scalar_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
+                        },
+                        $($rng_fn)*
+                    )
+                }
             }
         }
-    }
-  );
+    );
 
     //===========================================
     // Unchecked
@@ -2306,17 +2306,17 @@ fn bench_server_key_cast_function<F>(
 }
 
 macro_rules! define_server_key_bench_cast_fn (
-  (method_name: $server_key_method:ident, display_name:$name:ident) => {
-      fn $server_key_method(c: &mut Criterion) {
-        bench_server_key_cast_function(
-              c,
-              concat!("integer::", stringify!($server_key_method)),
-              stringify!($name),
-              |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-          })
-      }
-  }
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_cast_function(
+                c,
+                concat!("integer::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, rhs);
+            })
+        }
+    }
 );
 
 define_server_key_bench_cast_fn!(method_name: cast_to_unsigned, display_name: cast_to_unsigned);

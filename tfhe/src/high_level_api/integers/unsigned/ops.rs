@@ -720,8 +720,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result, 23u16 + 3u16);
     /// ```
-   rust_trait: Add(add),
-   implem: {
+    rust_trait: Add(add),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -740,7 +740,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Subtracts two [FheUint]
@@ -763,8 +763,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result, 3u16.wrapping_sub(37849u16));
     /// ```
-   rust_trait: Sub(sub),
-   implem: {
+    rust_trait: Sub(sub),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -783,7 +783,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Multiplies two [FheUint]
@@ -806,8 +806,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result, 3u16.wrapping_mul(37849u16));
     /// ```
-   rust_trait: Mul(mul),
-   implem: {
+    rust_trait: Mul(mul),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -826,7 +826,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Performs a bitwise 'and' between two [FheUint]
@@ -847,8 +847,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result,  3u16 & 37849u16);
     /// ```
-   rust_trait: BitAnd(bitand),
-   implem: {
+    rust_trait: BitAnd(bitand),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -867,7 +867,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Performs a bitwise 'or' between two [FheUint]
@@ -888,8 +888,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result,  3u16 | 37849u16);
     /// ```
-   rust_trait: BitOr(bitor),
-   implem: {
+    rust_trait: BitOr(bitor),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -908,7 +908,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Performs a bitwise 'xor' between two [FheUint]
@@ -929,8 +929,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result,  3u16 ^ 37849u16);
     /// ```
-   rust_trait: BitXor(bitxor),
-   implem: {
+    rust_trait: BitXor(bitxor),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -949,7 +949,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Divides two [FheUint] and returns the quotient
@@ -978,8 +978,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result, 37849u16 / 3u16);
     /// ```
-   rust_trait: Div(div),
-   implem: {
+    rust_trait: Div(div),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -994,7 +994,7 @@ generic_integer_impl_operation!(
                 }
             })
         }
-   },
+    },
 );
 generic_integer_impl_operation!(
     /// Divides two [FheUint] and returns the remainder
@@ -1024,8 +1024,8 @@ generic_integer_impl_operation!(
     /// let result: u16 = result.decrypt(&client_key);
     /// assert_eq!(result, 37849u16 % 3u16);
     /// ```
-   rust_trait: Rem(rem),
-   implem: {
+    rust_trait: Rem(rem),
+    implem: {
         |lhs: &FheUint<_>, rhs: &FheUint<_>| {
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
@@ -1036,11 +1036,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_cuda_key) => {
-                   panic!("Remainder/Modulo '%' is not yet supported by Cuda devices")
+                    panic!("Remainder/Modulo '%' is not yet supported by Cuda devices")
                 }
             })
         }
-   },
+    },
 );
 // Shifts and rotations are special cases where the right hand side
 // is for now, required to be a unsigned integer type.
@@ -1107,7 +1107,7 @@ macro_rules! generic_integer_impl_shift_rotate (
 
             $(#[$outer])*
             fn $rust_trait_method(self, rhs: &FheUint<Id2>) -> Self::Output {
-                 $closure(self, rhs.borrow())
+                $closure(self, rhs.borrow())
             }
         }
     }

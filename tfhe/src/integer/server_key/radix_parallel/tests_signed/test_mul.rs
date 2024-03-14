@@ -95,7 +95,7 @@ fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
             decrypted_overflowed,
             expected_overflowed,
             "Invalid overflow flag result for overflowing_mul for ({clear_0} * {clear_1}) % {modulus}
-           expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
