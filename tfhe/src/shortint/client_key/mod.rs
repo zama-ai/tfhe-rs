@@ -59,7 +59,7 @@ impl ClientKey {
         self.lwe_secret_key.as_view()
     }
 
-    /// Deconstruct a [`ClientKey`] into its constituants.
+    /// Deconstruct a [`ClientKey`] into its constituents.
     ///
     /// # Example
     ///
@@ -88,7 +88,7 @@ impl ClientKey {
         (glwe_secret_key, lwe_secret_key, parameters)
     }
 
-    /// Construct a [`ClientKey`] from its constituants.
+    /// Construct a [`ClientKey`] from its constituents.
     ///
     /// # Panics
     ///

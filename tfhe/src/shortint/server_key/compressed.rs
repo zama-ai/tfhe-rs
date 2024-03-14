@@ -136,7 +136,7 @@ impl CompressedServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_server_key(client_key))
     }
 
-    /// Deconstruct a [`CompressedServerKey`] into its constituants.
+    /// Deconstruct a [`CompressedServerKey`] into its constituents.
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -169,11 +169,11 @@ impl CompressedServerKey {
         )
     }
 
-    /// Construct a [`CompressedServerKey`] from its constituants.
+    /// Construct a [`CompressedServerKey`] from its constituents.
     ///
     /// # Panics
     ///
-    /// Panics if the constituants are not compatible with each others.
+    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
         bootstrapping_key: ShortintCompressedBootstrappingKey,

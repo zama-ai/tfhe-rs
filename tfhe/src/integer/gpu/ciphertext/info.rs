@@ -328,7 +328,7 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    // eq/ne, and comparisons retuns a ciphertext that encrypts a 0 or 1, so the first block
+    // eq/ne, and comparisons returns a ciphertext that encrypts a 0 or 1, so the first block
     // (least significant) has a degree of 1, the other blocks should be trivial lwe encrypting 0,
     // so degree 0
     pub(crate) fn after_eq(&self) -> Self {

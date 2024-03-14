@@ -40,7 +40,7 @@
 // Would require a ; for the last statement of a function even if the function returns (), compiler
 // indicates it is for formatting consistency, cargo fmt works well with it allowed anyways.
 #![allow(clippy::semicolon_if_nothing_returned)]
-// Warns when iter or iter_mut are called explicitely, but it reads more nicely e.g. when there are
+// Warns when iter or iter_mut are called explicitly, but it reads more nicely e.g. when there are
 // parallel and sequential iterators that are mixed
 #![allow(clippy::explicit_iter_loop)]
 // End allowed pedantic lints
