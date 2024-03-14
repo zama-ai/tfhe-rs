@@ -9,7 +9,6 @@
 #include <cuda_runtime.h>
 
 #define synchronize_threads_in_block() __syncthreads()
-
 extern "C" {
 
 #define check_cuda_error(ans)                                                  \

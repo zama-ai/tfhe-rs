@@ -58,8 +58,10 @@ supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
-    uint32_t polynomial_size, uint32_t max_shared_memory);
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory);
 
+#if CUDA_ARCH >= 900
 template <typename Torus, typename STorus>
 void scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **buffer,
@@ -78,6 +80,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
     uint32_t lwe_chunk_size);
+#endif
 
 template <typename Torus, typename STorus>
 void scratch_cuda_cg_multi_bit_programmable_bootstrap(
