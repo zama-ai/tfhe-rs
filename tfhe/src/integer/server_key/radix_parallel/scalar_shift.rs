@@ -168,7 +168,7 @@ impl ServerKey {
 
         let message_modulus = self.key.message_modulus.0 as u64;
 
-        // In the artithemtic shift case we have to pad with the value of the sign bit.
+        // In the arithmetic shift case we have to pad with the value of the sign bit.
         //
         // This creates the need for a different shifting lut than in the logical shift case
         // and also we need another PBS to create the padding block.

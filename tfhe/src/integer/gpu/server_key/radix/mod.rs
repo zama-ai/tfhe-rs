@@ -23,8 +23,8 @@ mod scalar_add;
 mod scalar_bitwise_op;
 mod scalar_comparison;
 mod scalar_mul;
+mod scalar_shift;
 mod scalar_sub;
-mod shift;
 mod sub;
 
 mod scalar_rotate;

@@ -88,7 +88,7 @@ void cuda_small_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     cuda_stream_t *stream, void *lwe_array, uint64_t scalar,
     uint32_t lwe_dimension, uint32_t lwe_ciphertext_count);
 
-void scratch_cuda_integer_radix_scalar_shift_kb_64(
+void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -96,12 +96,27 @@ void scratch_cuda_integer_radix_scalar_shift_kb_64(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, SHIFT_TYPE shift_type, bool allocate_gpu_memory);
 
-void cuda_integer_radix_scalar_shift_kb_64_inplace(
+void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     cuda_stream_t *stream, void *lwe_array, uint32_t shift, int8_t *mem_ptr,
     void *bsk, void *ksk, uint32_t num_blocks);
 
-void cleanup_cuda_integer_radix_scalar_shift(cuda_stream_t *stream,
-                                             int8_t **mem_ptr_void);
+void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, SHIFT_TYPE shift_type, bool allocate_gpu_memory);
+
+void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
+    cuda_stream_t *stream, void *lwe_array, uint32_t shift, int8_t *mem_ptr,
+    void *bsk, void *ksk, uint32_t num_blocks);
+
+void cleanup_cuda_integer_radix_logical_scalar_shift(cuda_stream_t *stream,
+                                                     int8_t **mem_ptr_void);
+
+void cleanup_cuda_integer_radix_arithmetic_scalar_shift(cuda_stream_t *stream,
+                                                        int8_t **mem_ptr_void);
 
 void scratch_cuda_integer_radix_comparison_kb_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
@@ -942,18 +957,18 @@ template <typename Torus> struct int_mul_memory {
   }
 };
 
-template <typename Torus> struct int_shift_buffer {
+template <typename Torus> struct int_logical_scalar_shift_buffer {
   int_radix_params params;
   std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
-  std::vector<int_radix_lut<Torus> *> lut_buffers_univariate;
 
   SHIFT_TYPE shift_type;
 
   Torus *tmp_rotated;
 
-  int_shift_buffer(cuda_stream_t *stream, SHIFT_TYPE shift_type,
-                   int_radix_params params, uint32_t num_radix_blocks,
-                   bool allocate_gpu_memory) {
+  int_logical_scalar_shift_buffer(cuda_stream_t *stream, SHIFT_TYPE shift_type,
+                                  int_radix_params params,
+                                  uint32_t num_radix_blocks,
+                                  bool allocate_gpu_memory) {
     this->shift_type = shift_type;
     this->params = params;
 
@@ -981,6 +996,8 @@ template <typename Torus> struct int_shift_buffer {
       // pass along lut_indexes filled with zeros
 
       // calculate bivariate lut for each 'shift_within_block'
+      // so that in case an application calls scratches only once for a whole
+      // circuit it can reuse memory for different shift values
       for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
         auto cur_lut_bivariate = new int_radix_lut<Torus>(
             stream, params, 1, num_radix_blocks, allocate_gpu_memory);
@@ -1028,6 +1045,144 @@ template <typename Torus> struct int_shift_buffer {
             params.carry_modulus, shift_lut_f);
 
         lut_buffers_bivariate.push_back(cur_lut_bivariate);
+      }
+    }
+  }
+
+  void release(cuda_stream_t *stream) {
+    for (auto &buffer : lut_buffers_bivariate) {
+      buffer->release(stream);
+      delete buffer;
+    }
+    lut_buffers_bivariate.clear();
+
+    cuda_drop_async(tmp_rotated, stream);
+  }
+};
+
+template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
+  int_radix_params params;
+  std::vector<int_radix_lut<Torus> *> lut_buffers_univariate;
+  std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
+
+  SHIFT_TYPE shift_type;
+
+  Torus *tmp_rotated;
+
+  int_arithmetic_scalar_shift_buffer(cuda_stream_t *stream,
+                                     SHIFT_TYPE shift_type,
+                                     int_radix_params params,
+                                     uint32_t num_radix_blocks,
+                                     bool allocate_gpu_memory) {
+    this->shift_type = shift_type;
+    this->params = params;
+
+    if (allocate_gpu_memory) {
+      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
+      uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+      tmp_rotated = (Torus *)cuda_malloc_async(
+          (num_radix_blocks + 1) * big_lwe_size_bytes, stream);
+
+      cuda_memset_async(tmp_rotated, 0,
+                        (num_radix_blocks + 1) * big_lwe_size_bytes, stream);
+
+      uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
+
+      // LUT
+      // pregenerate lut vector and indexes lut for right shift
+
+      // lut to shift the last block
+      // calculate lut for each 'shift_within_block'
+      // so that in case an application calls scratches only once for a whole
+      // circuit it can reuse memory for different shift values
+      for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
+        auto shift_last_block_lut_univariate =
+            new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
+
+        uint32_t shift_within_block = s_w_b;
+
+        std::function<Torus(Torus)> last_block_lut_f;
+        last_block_lut_f = [num_bits_in_block, shift_within_block,
+                            params](Torus x) -> Torus {
+          x = x % params.message_modulus;
+          uint32_t x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+          uint32_t shifted = x >> shift_within_block;
+          // padding is a message full of 1 if sign bit is one
+          // else padding is a zero message
+          uint32_t padding = (params.message_modulus - 1) * x_sign_bit;
+
+          // Make padding have 1s only in places where bits
+          // where actually need to be padded
+          padding <<= num_bits_in_block - shift_within_block;
+          padding %= params.message_modulus;
+
+          return shifted | padding;
+        };
+
+        generate_device_accumulator<Torus>(
+            stream, shift_last_block_lut_univariate->lut, params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, last_block_lut_f);
+
+        lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
+      }
+
+      auto padding_block_lut_univariate =
+          new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
+
+      // lut to compute the padding block
+      std::function<Torus(Torus)> padding_block_lut_f;
+      padding_block_lut_f = [num_bits_in_block, params](Torus x) -> Torus {
+        x = x % params.message_modulus;
+        uint32_t x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+        // padding is a message full of 1 if sign bit is one
+        // else padding is a zero message
+        return (params.message_modulus - 1) * x_sign_bit;
+      };
+
+      generate_device_accumulator<Torus>(
+          stream, padding_block_lut_univariate->lut, params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          padding_block_lut_f);
+
+      lut_buffers_univariate.push_back(padding_block_lut_univariate);
+
+      // lut to shift the first blocks
+      // calculate lut for each 'shift_within_block'
+      // so that in case an application calls scratches only once for a whole
+      // circuit it can reuse memory for different shift values
+      for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
+        auto shift_blocks_lut_bivariate = new int_radix_lut<Torus>(
+            stream, params, 1, num_radix_blocks, allocate_gpu_memory);
+
+        uint32_t shift_within_block = s_w_b;
+
+        std::function<Torus(Torus, Torus)> blocks_lut_f;
+        blocks_lut_f = [num_bits_in_block, shift_within_block, params](
+                           Torus current_block, Torus next_block) -> Torus {
+          // left shift so as not to lose
+          // bits when shifting right after
+          next_block <<= num_bits_in_block;
+          next_block >>= shift_within_block;
+
+          // The way of getting carry / message is reversed compared
+          // to the usual way but its normal:
+          // The message is in the upper bits, the carry in lower bits
+          uint32_t message_of_current_block =
+              current_block >> shift_within_block;
+          uint32_t carry_of_previous_block =
+              next_block % params.message_modulus;
+
+          return message_of_current_block + carry_of_previous_block;
+        };
+
+        generate_device_accumulator_bivariate<Torus>(
+            stream, shift_blocks_lut_bivariate->lut, params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, blocks_lut_f);
+
+        lut_buffers_bivariate.push_back(shift_blocks_lut_bivariate);
       }
     }
   }

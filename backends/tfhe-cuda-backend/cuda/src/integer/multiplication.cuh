@@ -260,6 +260,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec) {
 
+  cudaSetDevice(stream->gpu_index);
   auto new_blocks = mem_ptr->new_blocks;
   auto old_blocks = mem_ptr->old_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
