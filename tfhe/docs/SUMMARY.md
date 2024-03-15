@@ -73,6 +73,3 @@
 * [Release note](https://github.com/zama-ai/tfhe-rs/releases)
 * [Feature request](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=feature\_request\&projects=\&template=feature\_request.md\&title=)
 * [Bug report](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage\_required\&projects=\&template=bug\_report.md\&title=)
-* [Check the release note](https://github.com/zama-ai/tfhe-rs/releases)
-* [Request a feature](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=feature\_request\&projects=\&template=feature\_request.md\&title=)
-* [Report a bug](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage\_required\&projects=\&template=bug\_report.md\&title=)
