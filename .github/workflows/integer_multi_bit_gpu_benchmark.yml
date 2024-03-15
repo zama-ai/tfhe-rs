@@ -133,7 +133,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Send data to Slab
         shell: bash
