@@ -8,17 +8,19 @@ use crate::core_crypto::prelude::*;
 ///
 /// ```rust
 /// use concrete_csprng::seeders::Seed;
-/// use tfhe::core_crypto::prelude::*;
 /// use tfhe::core_crypto::fft_impl::common::modulus_switch;
-/// use tfhe::core_crypto::prelude::modulus_switched_lwe_ciphertext::PackedModulusSwitchedLweCiphertext;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 ///
 /// let log_modulus = 12;
 ///
 /// let mut secret_generator = SecretRandomGenerator::<ActivatedRandomGenerator>::new(Seed(0));
 ///
 /// // Create the LweSecretKey
-/// let lwe_secret_key =
-///     allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(LweDimension(2048), &mut secret_generator);
+/// let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(
+///     LweDimension(2048),
+///     &mut secret_generator,
+/// );
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// let mut seeder = new_seeder();
@@ -26,7 +28,6 @@ use crate::core_crypto::prelude::*;
 ///
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-///
 ///
 /// // Unsecure parameters, do not use them
 /// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
@@ -38,7 +39,7 @@ use crate::core_crypto::prelude::*;
 /// );
 ///
 /// // Can be stored using much less space than the standard lwe ciphertexts
-/// let compressed = PackedModulusSwitchedLweCiphertext::compress(
+/// let compressed = CompressedModulusSwitchedLweCiphertext::compress(
 ///     &lwe,
 ///     CiphertextModulusLog(log_modulus as usize),
 /// );
@@ -53,14 +54,15 @@ use crate::core_crypto::prelude::*;
 ///     0
 /// );
 /// ```
-pub struct PackedModulusSwitchedLweCiphertext<Scalar: UnsignedTorus> {
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedTorus> {
     packed_coeffs: Vec<Scalar>,
     lwe_dimension: LweDimension,
     log_modulus: CiphertextModulusLog,
     uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl<Scalar: UnsignedTorus> PackedModulusSwitchedLweCiphertext<Scalar> {
+impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
     /// Compresses a ciphertext by reducing its modulus
     /// This operation adds a lot of noise
     pub fn compress<Cont: Container<Element = Scalar>>(
@@ -286,8 +288,10 @@ mod test {
 
         let lwe = LweCiphertextOwned::from_container(lwe, ciphertext_modulus);
 
-        let compressed =
-            PackedModulusSwitchedLweCiphertext::compress(&lwe, CiphertextModulusLog(log_modulus));
+        let compressed = CompressedModulusSwitchedLweCiphertext::compress(
+            &lwe,
+            CiphertextModulusLog(log_modulus),
+        );
 
         let lwe_ms_ed: Vec<Scalar> = compressed.extract().into_container();
 

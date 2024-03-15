@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::prelude::modulus_switched_lwe_ciphertext::PackedModulusSwitchedLweCiphertext;
+use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
@@ -42,7 +42,7 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send>(
             );
 
             // Can be stored using much less space than the standard lwe ciphertexts
-            let compressed = PackedModulusSwitchedLweCiphertext::compress(
+            let compressed = CompressedModulusSwitchedLweCiphertext::compress(
                 &lwe,
                 CiphertextModulusLog(params.polynomial_size.log2().0 + 1),
             );
