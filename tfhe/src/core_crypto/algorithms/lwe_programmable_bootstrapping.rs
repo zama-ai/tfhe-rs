@@ -1103,6 +1103,23 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
         output.ciphertext_modulus()
     );
 
+    assert_eq!(
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.input_lwe_dimension(),
+        input.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        FourierLweBootstrapKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        fourier_bsk.output_lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+    );
+
     fourier_bsk.as_view().bootstrap(
         output.as_mut_view(),
         input.as_view(),
