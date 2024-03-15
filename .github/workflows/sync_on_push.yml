@@ -26,12 +26,12 @@ jobs:
         with:
           source_repo: "zama-ai/tfhe-rs"
           source_branch: "main"
-          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.CONCRETE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
+          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.FHE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
           destination_branch: "main"
       - name: git-sync tags
         uses: wei/git-sync@55c6b63b4f21607da0e9877ca9b4d11a29fc6d83
         with:
           source_repo: "zama-ai/tfhe-rs"
           source_branch: "refs/tags/*"
-          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.CONCRETE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
+          destination_repo: "https://${{ secrets.BOT_USERNAME }}:${{ secrets.FHE_ACTIONS_TOKEN }}@github.com/${{ secrets.SYNC_DEST_REPO }}"
           destination_branch: "refs/tags/*"
