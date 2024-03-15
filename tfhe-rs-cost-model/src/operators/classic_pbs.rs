@@ -73,7 +73,8 @@ pub fn classic_pbs_external_product(
     for _ in 0..sample_size {
         let mut input_plaintext_list =
             PlaintextList::new(0u64, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        encryption_random_generator
+            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
         let scaling_to_native_torus = parameters
             .ciphertext_modulus
             .get_power_of_two_scaling_to_native_torus();
@@ -213,7 +214,8 @@ pub fn classic_pbs_external_product_u128_split(
     for _ in 0..sample_size {
         let mut input_plaintext_list =
             PlaintextList::new(0u128, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        encryption_random_generator
+            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
         let scaling_to_native_torus = parameters
             .ciphertext_modulus
             .get_power_of_two_scaling_to_native_torus();
@@ -428,7 +430,8 @@ pub fn classic_pbs_external_product_u128(
     for _ in 0..sample_size {
         let mut input_plaintext_list =
             PlaintextList::new(0u128, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        encryption_random_generator
+            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
         let scaling_to_native_torus = parameters
             .ciphertext_modulus
             .get_power_of_two_scaling_to_native_torus();

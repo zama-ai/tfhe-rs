@@ -1,5 +1,4 @@
 use concrete_cpu_noise_model::gaussian_noise;
-use tfhe::core_crypto::commons::dispersion::DispersionParameter;
 use tfhe::core_crypto::prelude::*;
 
 pub fn classic_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe<D1>(
