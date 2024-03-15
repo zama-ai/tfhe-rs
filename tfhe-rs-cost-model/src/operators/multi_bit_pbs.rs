@@ -1,6 +1,6 @@
 use crate::GlweCiphertextGgswCiphertextExternalProductParameters;
 use tfhe::core_crypto::algorithms::polynomial_algorithms;
-use tfhe::core_crypto::fft_impl::common::fast_pbs_modulus_switch;
+use tfhe::core_crypto::fft_impl::common::pbs_modulus_switch;
 use tfhe::core_crypto::fft_impl::fft64::crypto::ggsw::FourierGgswCiphertext;
 use tfhe::core_crypto::fft_impl::fft64::math::fft::FftView;
 use tfhe::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
@@ -11,8 +11,8 @@ use tfhe::core_crypto::prelude::{
     encrypt_glwe_ciphertext, prepare_multi_bit_ggsw_mem_optimized, std_prepare_multi_bit_ggsw,
     ActivatedRandomGenerator, ComputationBuffers, ContiguousEntityContainer,
     EncryptionRandomGenerator, FourierLweMultiBitBootstrapKey, GgswCiphertext, GlweCiphertext,
-    LutCountLog, LweBskGroupingFactor, LweSecretKey, ModulusSwitchOffset, MonomialDegree, Numeric,
-    PlaintextCount, PlaintextList, SecretRandomGenerator,
+    LweBskGroupingFactor, LweSecretKey, MonomialDegree, Numeric, PlaintextCount, PlaintextList,
+    SecretRandomGenerator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -69,15 +69,13 @@ pub fn multi_bit_pbs_external_product(
     assert_eq!(ggsw_vec.len(), ggsw_per_multi_bit_element.0);
 
     let mut random_mask = vec![0u64; grouping_factor.0];
-    encryption_random_generator.fill_slice_with_random_mask(&mut random_mask);
+    encryption_random_generator.fill_slice_with_random_uniform_mask(&mut random_mask);
 
     // Recompute it here to rotate and negate the input or output vector to compute errors that make
     // sense
-    let equivalent_monomial_degree = MonomialDegree(fast_pbs_modulus_switch(
+    let equivalent_monomial_degree = MonomialDegree(pbs_modulus_switch(
         random_mask.iter().sum::<u64>(),
         parameters.polynomial_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
     ));
 
     let mut fourier_a_monomial = FourierPolynomial::new(fbsk.polynomial_size());
@@ -104,7 +102,8 @@ pub fn multi_bit_pbs_external_product(
     for _ in 0..sample_size {
         let mut input_plaintext_list =
             PlaintextList::new(0u64, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        encryption_random_generator
+            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
         // Shift to match the behavior of the previous concrete-core fixtures
         input_plaintext_list
             .as_mut()
@@ -205,15 +204,13 @@ pub fn std_multi_bit_pbs_external_product(
     assert_eq!(bsk.entity_count(), ggsw_per_multi_bit_element.0);
 
     let mut random_mask = vec![0u64; grouping_factor.0];
-    encryption_random_generator.fill_slice_with_random_mask(&mut random_mask);
+    encryption_random_generator.fill_slice_with_random_uniform_mask(&mut random_mask);
 
     // Recompute it here to rotate and negate the input or output vector to compute errors that make
     // sense
-    let equivalent_monomial_degree = MonomialDegree(fast_pbs_modulus_switch(
+    let equivalent_monomial_degree = MonomialDegree(pbs_modulus_switch(
         random_mask.iter().sum::<u64>(),
         parameters.polynomial_size,
-        ModulusSwitchOffset(0),
-        LutCountLog(0),
     ));
 
     let mut fourier_ggsw = FourierGgswCiphertext::new(
@@ -255,7 +252,8 @@ pub fn std_multi_bit_pbs_external_product(
     for _ in 0..sample_size {
         let mut input_plaintext_list =
             PlaintextList::new(0u64, PlaintextCount(parameters.polynomial_size.0));
-        encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        encryption_random_generator
+            .fill_slice_with_random_uniform_mask(input_plaintext_list.as_mut());
         // Shift to match the behavior of the previous concrete-core fixtures
         input_plaintext_list
             .as_mut()

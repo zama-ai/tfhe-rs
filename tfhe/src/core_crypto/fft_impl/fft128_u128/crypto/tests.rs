@@ -1,5 +1,4 @@
 use super::super::super::{fft128, fft128_u128};
-use super::super::math::fft::Fft128View;
 use crate::core_crypto::fft_impl::common::tests::{
     gen_keys_or_get_from_cache_if_enabled, generate_keys,
 };

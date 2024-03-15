@@ -25,8 +25,8 @@ pub const EXT_PROD_U128_ALGO: &str = "ext-prod-u128";
 
 #[derive(Debug)]
 pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: UnsignedInteger> {
-    pub ggsw_noise: Variance,
-    pub glwe_noise: Variance,
+    pub ggsw_noise: Gaussian<f64>,
+    pub glwe_noise: Gaussian<f64>,
     pub glwe_dimension: GlweDimension,
     pub ggsw_encrypted_value: Scalar,
     pub polynomial_size: PolynomialSize,
@@ -395,17 +395,20 @@ fn main() {
 
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
-                let ggsw_noise = Variance::from_variance(minimal_variance_for_security(
-                    glwe_dimension,
-                    polynomial_size,
-                    modulus_log2,
-                ));
+                let ggsw_noise = Gaussian::from_dispersion_parameter(
+                    Variance::from_variance(minimal_variance_for_security(
+                        glwe_dimension,
+                        polynomial_size,
+                        modulus_log2,
+                    )),
+                    0.0,
+                );
                 // We measure the noise added to a GLWE ciphertext, here we can choose to have no
                 // input noise
                 // It also avoid potential cases where the noise is so big it gets decomposed
                 // during computations, it's an assumption we apparently already make ("small noise
                 // regime")
-                let glwe_noise = Variance(0.0);
+                let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
                 // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
                 // poly_size));
 
@@ -427,7 +430,7 @@ fn main() {
             EXT_PROD_ALGO => noise_estimation::classic_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
                 polynomial_size,
                 glwe_dimension,
-                ggsw_noise,
+                ggsw_noise.standard_dev(),
                 decomposition_base_log,
                 decomposition_level_count,
                 modulus_log2,
@@ -435,7 +438,7 @@ fn main() {
             MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
                 polynomial_size,
                 glwe_dimension,
-                ggsw_noise,
+                ggsw_noise.standard_dev(),
                 decomposition_base_log,
                 decomposition_level_count,
                 modulus_log2,
@@ -444,7 +447,7 @@ fn main() {
             STD_MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
                 polynomial_size,
                 glwe_dimension,
-                ggsw_noise,
+                ggsw_noise.standard_dev(),
                 decomposition_base_log,
                 decomposition_level_count,
                 modulus_log2,
@@ -543,7 +546,7 @@ fn main() {
                     let mean_prep_time_ns = total_prep_time_ns / (total_repetitions as u128);
                     write_to_file(
                         &parameters,
-                        variance_to_stddev(parameters.glwe_noise),
+                        parameters.glwe_noise.standard_dev(),
                         std_err,
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
@@ -556,7 +559,7 @@ fn main() {
                 } else {
                     write_to_file(
                         &parameters,
-                        variance_to_stddev(parameters.glwe_noise),
+                        parameters.glwe_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
@@ -600,17 +603,20 @@ fn main() {
 
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
-                let ggsw_noise = Variance::from_variance(minimal_variance_for_security(
-                    glwe_dimension,
-                    polynomial_size,
-                    modulus_log2,
-                ));
+                let ggsw_noise = Gaussian::from_dispersion_parameter(
+                    Variance::from_variance(minimal_variance_for_security(
+                        glwe_dimension,
+                        polynomial_size,
+                        modulus_log2,
+                    )),
+                    0.0,
+                );
                 // We measure the noise added to a GLWE ciphertext, here we can choose to have no
                 // input noise
                 // It also avoid potential cases where the noise is so big it gets decomposed
                 // during computations, it's an assumption we apparently already make ("small noise
                 // regime")
-                let glwe_noise = Variance(0.0);
+                let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
                 // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
                 // poly_size));
 
@@ -632,7 +638,7 @@ fn main() {
             EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => noise_estimation::classic_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
                 polynomial_size,
                 glwe_dimension,
-                ggsw_noise,
+                ggsw_noise.standard_dev(),
                 decomposition_base_log,
                 decomposition_level_count,
                 modulus_log2,
@@ -718,7 +724,7 @@ fn main() {
                     let mean_prep_time_ns = total_prep_time_ns / (total_repetitions as u128);
                     write_to_file(
                         &parameters,
-                        variance_to_stddev(parameters.glwe_noise),
+                        parameters.glwe_noise.standard_dev(),
                         std_err,
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
@@ -731,7 +737,7 @@ fn main() {
                 } else {
                     write_to_file(
                         &parameters,
-                        variance_to_stddev(parameters.glwe_noise),
+                        parameters.glwe_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
