@@ -14,8 +14,8 @@ void scratch_cuda_integer_radix_scalar_rotate_kb_64(
                           message_modulus, carry_modulus);
 
   scratch_cuda_integer_radix_scalar_rotate_kb<uint64_t>(
-      stream, (int_shift_buffer<uint64_t> **)mem_ptr, num_blocks, params,
-      shift_type, allocate_gpu_memory);
+      stream, (int_logical_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks,
+      params, shift_type, allocate_gpu_memory);
 }
 
 void cuda_integer_radix_scalar_rotate_kb_64_inplace(cuda_stream_t *stream,
@@ -26,15 +26,15 @@ void cuda_integer_radix_scalar_rotate_kb_64_inplace(cuda_stream_t *stream,
 
   host_integer_radix_scalar_rotate_kb_inplace<uint64_t>(
       stream, static_cast<uint64_t *>(lwe_array), n,
-      (int_shift_buffer<uint64_t> *)mem_ptr, bsk, static_cast<uint64_t *>(ksk),
-      num_blocks);
+      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsk,
+      static_cast<uint64_t *>(ksk), num_blocks);
 }
 
 void cleanup_cuda_integer_radix_scalar_rotate(cuda_stream_t *stream,
                                               int8_t **mem_ptr_void) {
 
-  int_shift_buffer<uint64_t> *mem_ptr =
-      (int_shift_buffer<uint64_t> *)(*mem_ptr_void);
+  int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
+      (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(stream);
 }

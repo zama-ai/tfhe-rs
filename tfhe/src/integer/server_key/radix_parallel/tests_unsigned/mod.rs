@@ -4,6 +4,7 @@ pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
+pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_sub;
 
@@ -503,11 +504,6 @@ create_parametrized_test!(
 );
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
-// scalar left/right shifts
-create_parametrized_test!(integer_unchecked_scalar_left_shift);
-create_parametrized_test!(integer_default_scalar_left_shift);
-create_parametrized_test!(integer_unchecked_scalar_right_shift);
-create_parametrized_test!(integer_default_scalar_right_shift);
 // left/right shifts
 create_parametrized_test!(
     integer_unchecked_left_shift {
@@ -812,22 +808,6 @@ where
     unchecked_scalar_mul_corner_cases_test(param, executor);
 }
 
-fn integer_unchecked_scalar_left_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift_parallelized);
-    unchecked_scalar_left_shift_test(param, executor);
-}
-
-fn integer_unchecked_scalar_right_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift_parallelized);
-    unchecked_scalar_right_shift_test(param, executor);
-}
-
 fn integer_unchecked_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1055,22 +1035,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
     default_scalar_mul_test(param, executor);
-}
-
-fn integer_default_scalar_left_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_left_shift_parallelized);
-    default_scalar_left_shift_test(param, executor);
-}
-
-fn integer_default_scalar_right_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_right_shift_parallelized);
-    default_scalar_right_shift_test(param, executor);
 }
 
 fn integer_default_scalar_rotate_right<P>(param: P)
