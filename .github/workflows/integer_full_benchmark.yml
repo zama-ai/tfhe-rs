@@ -74,7 +74,7 @@ jobs:
           echo "Request ID: ${{ inputs.request_id }}"
 
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
         with:
           fetch-depth: 0
 
@@ -97,7 +97,7 @@ jobs:
           toolchain: nightly
 
       - name: Checkout Slab repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
         with:
           repository: zama-ai/slab
           path: slab
