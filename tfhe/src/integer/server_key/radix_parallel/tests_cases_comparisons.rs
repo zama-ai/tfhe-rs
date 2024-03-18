@@ -3,6 +3,7 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, ServerKey, I256, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -244,7 +245,7 @@ fn test_default_function<SmartFn, ClearF, T>(
 /// the 5 variants described above
 macro_rules! define_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
-        paste::paste!{
+        ::paste::paste!{
             fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>](params:  crate::shortint::ClassicPBSParameters) {
                 let num_tests = 1;
                 test_unchecked_function(
@@ -627,7 +628,7 @@ fn test_signed_default_function<SmartFn, ClearF, T>(
 /// the 5 variants described above
 macro_rules! define_signed_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
-        paste::paste!{
+        ::paste::paste!{
             // Fist we "specialialize" the test_signed fns
 
             fn [<integer_signed_unchecked_ $comparison_name _ $clear_type>](params:  crate::shortint::ClassicPBSParameters) {
@@ -942,7 +943,7 @@ fn test_default_scalar_function<SmartFn, ClearF, T>(
 /// this macro will generate the tests for the 3 variants described above
 macro_rules! define_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
-        paste::paste!{
+        ::paste::paste!{
 
             fn [<integer_unchecked_scalar_ $comparison_name _parallelized _ $clear_type:lower>](params:  crate::shortint::ClassicPBSParameters) {
                 let num_tests = 1;
@@ -1398,7 +1399,7 @@ fn test_signed_default_scalar_function<SmartFn, ClearF, T>(
 /// this macro will generate the tests for the 3 variants described above
 macro_rules! define_signed_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
-        paste::paste!{
+        ::paste::paste!{
             fn [<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>](params:  crate::shortint::ClassicPBSParameters) {
                 let num_tests = 2;
                 test_signed_unchecked_scalar_function(

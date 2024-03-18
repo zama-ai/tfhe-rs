@@ -1,5 +1,6 @@
 use crate::execution::{Executed, Execution, LazyExecution};
 use crate::parser::{parse, RegExpr};
+use log::{info, trace};
 use std::rc::Rc;
 use tfhe::integer::{RadixCiphertext, ServerKey};
 

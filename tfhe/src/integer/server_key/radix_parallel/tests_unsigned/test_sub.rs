@@ -9,6 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
     ExpectedNoiseLevels,
 };
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]

@@ -1,7 +1,6 @@
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::*;
-use paste::paste;
 use rand::Rng;
 
 /// Number of assert in randomized tests
@@ -24,7 +23,7 @@ const NB_SUB_TEST: usize = 5;
 #[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {
@@ -100,7 +99,7 @@ macro_rules! create_parametrized_test{
 #[cfg(tarpaulin)]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {

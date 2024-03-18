@@ -1,3 +1,4 @@
+use super::utils::*;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 

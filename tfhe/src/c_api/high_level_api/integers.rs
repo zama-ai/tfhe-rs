@@ -1,3 +1,4 @@
+use super::utils::*;
 use crate::c_api::high_level_api::booleans::FheBool;
 use crate::c_api::high_level_api::i128::I128;
 use crate::c_api::high_level_api::i256::I256;

@@ -2,6 +2,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_overflowing_scalar_add_test, default_scalar_add_test, smart_scalar_add_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;

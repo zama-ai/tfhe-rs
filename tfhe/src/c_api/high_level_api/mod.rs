@@ -1,5 +1,3 @@
-#[macro_use]
-mod utils;
 #[cfg(feature = "boolean")]
 pub mod booleans;
 pub mod config;
@@ -10,3 +8,4 @@ pub mod keys;
 mod threading;
 pub mod u128;
 pub mod u256;
+mod utils;

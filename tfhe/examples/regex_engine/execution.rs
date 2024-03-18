@@ -1,8 +1,8 @@
+use crate::parser::u8_to_char;
+use log::{debug, trace};
 use std::collections::HashMap;
 use std::rc::Rc;
 use tfhe::integer::{IntegerCiphertext, RadixCiphertext, ServerKey};
-
-use crate::parser::u8_to_char;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Executed {

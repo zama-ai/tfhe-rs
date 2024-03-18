@@ -3,7 +3,6 @@ pub use utils::{
     SharedKey as GenericSharedKey,
 };
 
-#[macro_use]
 pub mod utils {
     use fs2::FileExt;
     use serde::de::DeserializeOwned;
@@ -23,11 +22,10 @@ pub mod utils {
         fn name(&self) -> String;
     }
 
-    #[macro_export]
     macro_rules! named_params_impl(
         (expose $($const_param:ident),* $(,)? ) => {
             $(
-                paste::paste! {
+                ::paste::paste! {
                     pub const [<$const_param _NAME>]: &'static str = stringify!($const_param);
                 }
             )*
@@ -42,7 +40,7 @@ pub mod utils {
             impl NamedParam for $param_type {
                 fn name(&self) -> String {
                     $(
-                       $(#[$cfg])?
+                        $(#[$cfg])?
                         named_params_impl!({*self; $param_type} == ( $const_param ));
                     )*
                     panic!("Unnamed parameters");
@@ -52,7 +50,7 @@ pub mod utils {
 
         ({$thing:expr; $param_type:ty} == ( $($const_param:ident),* $(,)? )) => {
             $(
-                paste::paste! {
+                ::paste::paste! {
                     if $thing == <$param_type>::from($const_param) {
                         return [<$const_param _NAME>].to_string();
                     }
@@ -60,6 +58,8 @@ pub mod utils {
             )*
         }
     );
+
+    pub(crate) use named_params_impl;
 
     pub struct FileStorage {
         prefix: String,

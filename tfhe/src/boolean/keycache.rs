@@ -1,7 +1,7 @@
 use crate::boolean::parameters::*;
 use crate::boolean::{ClientKey, ServerKey};
+use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
-use crate::named_params_impl;
 use lazy_static::*;
 
 named_params_impl!( BooleanParameters =>

@@ -1,6 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_signed::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };

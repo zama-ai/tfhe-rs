@@ -23,7 +23,7 @@ pub use bivariate_pbs::{
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{

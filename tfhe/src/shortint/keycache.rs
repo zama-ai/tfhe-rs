@@ -1,5 +1,5 @@
+use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
-use crate::named_params_impl;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::*;

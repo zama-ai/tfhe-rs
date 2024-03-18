@@ -1,11 +1,10 @@
-use rand::Rng;
-
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-
-use crate::integer::keycache::KEY_CACHE;
+use rand::Rng;
 
 create_parametrized_test!(big_radix_encrypt_decrypt_128_bits {
 

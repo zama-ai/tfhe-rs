@@ -5,7 +5,6 @@ pub use super::misc::check_encrypted_content_respects_mod;
 use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
-use paste::paste;
 use std::fmt::Debug;
 
 mod ggsw_encryption;
@@ -482,7 +481,7 @@ pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
 // Macro to generate tests for all parameter sets
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),*  $(,)? }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {

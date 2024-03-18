@@ -46,11 +46,10 @@
 //! Currently, the radix approach is only compatible with parameter sets such
 //! that the message and carry buffers have the same size.
 
-#[cfg(test)]
-#[macro_use]
-mod tests;
 pub mod block_decomposition;
 pub(crate) mod encryption;
+#[cfg(test)]
+mod tests;
 
 pub mod bigint;
 pub mod ciphertext;
