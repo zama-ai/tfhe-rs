@@ -26,23 +26,6 @@ instance_type = "p3.2xlarge"
 spawn_retry_attempts = 120
 spawn_retry_duration = 60
 
-[profile.gpu-bench]
-region = "us-east-1"
-image_id = "ami-0c0bf195ca4c175b6"
-instance_type = "p4d.24xlarge"
-# One spawn attempt every 30 seconds for 6 hours
-spawn_retry_attempts = 720
-spawn_retry_duration = 360
-max_spot_hourly_price = "100.0"
-
-[profile.gpu-bench-big]
-region = "us-east-1"
-image_id = "ami-0c0bf195ca4c175b6"
-instance_type = "p5.48xlarge"
-spawn_retry_attempts = 720
-spawn_retry_duration = 360
-max_spot_hourly_price = "150.0"
-
 [command.cpu_test]
 workflow = "aws_tfhe_tests.yml"
 profile = "cpu-big"
@@ -110,7 +93,7 @@ check_run_name = "Signed integer multi bit CPU AWS Benchmarks"
 
 [command.integer_multi_bit_gpu_bench]
 workflow = "integer_multi_bit_gpu_benchmark.yml"
-profile = "gpu-bench"
+profile = "gpu-test"
 check_run_name = "Integer multi bit GPU AWS Benchmarks"
 
 [command.shortint_full_bench]
