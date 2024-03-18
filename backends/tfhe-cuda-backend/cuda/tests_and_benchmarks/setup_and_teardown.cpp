@@ -134,7 +134,7 @@ void programmable_bootstrap_multibit_setup(
     uint64_t **d_lut_pbs_identity, uint64_t **d_lut_pbs_indexes,
     uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
     uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
-    int8_t **pbs_buffer, int lwe_dimension, int glwe_dimension,
+    int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor,
     DynamicDistribution lwe_noise_distribution,
     DynamicDistribution glwe_noise_distribution, int pbs_base_log,
@@ -226,11 +226,6 @@ void programmable_bootstrap_multibit_setup(
                            number_of_inputs * sizeof(uint64_t), stream);
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
                            number_of_inputs * sizeof(uint64_t), stream);
-
-  scratch_cuda_multi_bit_programmable_bootstrap_64(
-      stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-      pbs_level, grouping_factor, number_of_inputs,
-      cuda_get_max_shared_memory(stream->gpu_index), true, lwe_chunk_size);
 
   stream->synchronize();
 
