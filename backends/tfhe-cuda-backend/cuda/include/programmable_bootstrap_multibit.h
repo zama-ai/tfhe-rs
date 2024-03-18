@@ -233,19 +233,9 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 };
 
 #ifdef __CUDACC__
-__host__ uint32_t get_lwe_chunk_size(uint32_t lwe_dimension,
-                                     uint32_t level_count,
-                                     uint32_t glwe_dimension,
-                                     uint32_t num_samples);
 
-__host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
-                                             uint32_t level_count,
-                                             uint32_t glwe_dimension,
-                                             uint32_t ct_count);
+__host__ uint32_t get_lwe_chunk_size(uint32_t ct_count);
 
-__host__ uint64_t get_max_buffer_size_multibit_bootstrap(
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_input_lwe_ciphertext_count);
 #endif
 
 #endif // CUDA_MULTI_BIT_H

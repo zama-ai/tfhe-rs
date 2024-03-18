@@ -1,6 +1,7 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
+#include "cuda_config.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>

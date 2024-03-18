@@ -469,8 +469,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
   }
 
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_average_lwe_chunk_size(
-        lwe_dimension, level_count, glwe_dimension, input_lwe_ciphertext_count);
+    lwe_chunk_size = get_lwe_chunk_size(input_lwe_ciphertext_count);
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
@@ -631,8 +630,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
 
   // If a chunk size is not passed to this function, select one.
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                glwe_dimension, num_samples);
+    lwe_chunk_size = get_lwe_chunk_size(num_samples);
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {

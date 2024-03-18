@@ -378,131 +378,22 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
   x->release(stream);
 }
 
-// Pick the best possible chunk size for each GPU
-__host__ uint32_t get_lwe_chunk_size(uint32_t lwe_dimension,
-                                     uint32_t level_count,
-                                     uint32_t glwe_dimension,
-                                     uint32_t num_samples) {
-
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, 0); // Assuming device 0
-
-  const char *v100Name = "V100"; // Known name of V100 GPU
-  const char *a100Name = "A100"; // Known name of A100 GPU
-  const char *h100Name = "H100"; // Known name of H100 GPU
-
-  if (std::strstr(deviceProp.name, v100Name) != nullptr) {
-    // Tesla V100
-    if (num_samples == 1)
-      return 60;
-    else if (num_samples == 2)
-      return 40;
-    else if (num_samples <= 4)
-      return 20;
-    else if (num_samples <= 8)
-      return 10;
-    else if (num_samples <= 16)
-      return 40;
-    else if (num_samples <= 32)
-      return 27;
-    else if (num_samples <= 64)
-      return 20;
-    else if (num_samples <= 128)
-      return 18;
-    else if (num_samples <= 256)
-      return 16;
-    else if (num_samples <= 512)
-      return 15;
-    else if (num_samples <= 1024)
-      return 15;
-    else
-      return 12;
-  } else if (std::strstr(deviceProp.name, a100Name) != nullptr) {
-    // Tesla A100
-    if (num_samples < 4)
-      return 11;
-    else if (num_samples < 8)
-      return 6;
-    else if (num_samples < 16)
-      return 13;
-    else if (num_samples < 64)
-      return 19;
-    else if (num_samples < 128)
-      return 1;
-    else if (num_samples < 512)
-      return 19;
-    else if (num_samples < 1024)
-      return 17;
-    else if (num_samples < 8192)
-      return 19;
-    else if (num_samples < 16384)
-      return 12;
-    else
-      return 9;
-  } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
-    // Tesla H100
-    if (num_samples < 1024)
-      return 128;
-    else if (num_samples < 4096)
-      return 64;
-    else
-      return 32;
-  }
-
-  // Generic case
-  return 1;
-}
-
 // Returns a chunk size that is not optimal but close to
-__host__ uint32_t get_average_lwe_chunk_size(uint32_t lwe_dimension,
-                                             uint32_t level_count,
-                                             uint32_t glwe_dimension,
-                                             uint32_t ct_count) {
+__host__ uint32_t get_lwe_chunk_size(uint32_t ct_count) {
 
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, 0); // Assuming device 0
-
-  const char *v100Name = "V100"; // Known name of V100 GPU
-  const char *a100Name = "A100"; // Known name of A100 GPU
-  const char *h100Name = "H100"; // Known name of H100 GPU
-
-  if (std::strstr(deviceProp.name, v100Name) != nullptr) {
-    // Tesla V100
-    return (ct_count > 10000) ? 12 : 18;
-  } else if (std::strstr(deviceProp.name, a100Name) != nullptr) {
-    // Tesla A100
-    return (ct_count > 10000) ? 30 : 45;
-  } else if (std::strstr(deviceProp.name, h100Name) != nullptr) {
-    // Tesla H100
-    return 64;
-  }
-
+#if CUDA_ARCH >= 900
+  // Tesla H100
+  return 64;
+#elif CUDA_ARCH >= 800
+  // Tesla A100
+  return (ct_count > 10000) ? 30 : 45;
+#elif CUDA_ARCH >= 700
+  // Tesla V100
+  return (ct_count > 10000) ? 12 : 18;
+#else
   // Generic case
   return (ct_count > 10000) ? 2 : 1;
-}
-
-// Returns the maximum buffer size required to execute batches up to
-// max_input_lwe_ciphertext_count
-// todo: Deprecate this function
-__host__ uint64_t get_max_buffer_size_multibit_bootstrap(
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_input_lwe_ciphertext_count) {
-
-  uint64_t max_buffer_size = 0;
-  for (uint32_t input_lwe_ciphertext_count = 1;
-       input_lwe_ciphertext_count <= max_input_lwe_ciphertext_count;
-       input_lwe_ciphertext_count *= 2) {
-    max_buffer_size =
-        std::max(max_buffer_size,
-                 get_buffer_size_multibit_programmable_bootstrap<uint64_t>(
-                     glwe_dimension, polynomial_size, level_count,
-                     input_lwe_ciphertext_count,
-                     get_average_lwe_chunk_size(lwe_dimension, level_count,
-                                                glwe_dimension,
-                                                input_lwe_ciphertext_count)));
-  }
-
-  return max_buffer_size;
+#endif
 }
 
 template void scratch_cuda_multi_bit_programmable_bootstrap<uint64_t, int64_t>(
