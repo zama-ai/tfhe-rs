@@ -1069,13 +1069,100 @@ fn tensor_product_with_relin<Scalar: UnsignedTorus + CastInto<usize> + Default +
     }
 }
 
-fn mult_circuit_clot21<
+fn params_scenario_a<Scalar: UnsignedInteger + Default + Serialize>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            (
+                "message_1_carry_1_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(3)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(663)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(23)),
+                    relin_base_log: Some(DecompositionBaseLog(23)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00003879148821333555)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_2_carry_2_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(2)),
+                    polynomial_size1: Some(PolynomialSize(1 << 10)),
+                    lwe_dimension1: Some(LweDimension(730)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(15)),
+                    relin_base_log: Some(DecompositionBaseLog(23)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000011278507355490732)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_3_carry_3_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(3)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(1)),
+                    polynomial_size1: Some(PolynomialSize(1 << 12)),
+                    lwe_dimension1: Some(LweDimension(847)),
+                    packing_base_log: Some(DecompositionBaseLog(28)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(11)),
+                    relin_base_log: Some(DecompositionBaseLog(20)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.0000013043826430106891)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_4_carry_4_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(2)),
+                    ks_level1: Some(DecompositionLevelCount(10)),
+                    pbs_level: Some(DecompositionLevelCount(7)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(1)),
+                    polynomial_size1: Some(PolynomialSize(1 << 14)),
+                    lwe_dimension1: Some(LweDimension(970)),
+                    packing_base_log: Some(DecompositionBaseLog(18)),
+                    ks_base_log1: Some(DecompositionBaseLog(2)),
+                    pbs_base_log: Some(DecompositionBaseLog(6)),
+                    relin_base_log: Some(DecompositionBaseLog(19)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00000013505634085553605)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+        ]
+    } else {
+        // For now there are no parameters available to test multi bit PBS on 32 bits.
+        vec![]
+    }
+}
+
+fn mult_circuit_clot21_scenario_a<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
     c: &mut Criterion,
 ) {
     //only written for local development benchmarking
-    let bench_name = "full_mult_circuit_clot21";
+    let bench_name = "mult_circuit_clot21_scenario_a";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
@@ -1087,28 +1174,30 @@ fn mult_circuit_clot21<
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    for (name, params) in tensor_prod_with_relin_benchmark_parameters::<Scalar>().iter() {
+    for (name, params) in params_scenario_a::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
+            params.lwe_dimension1.unwrap(),
             &mut secret_generator,
         );
 
         // Create the GlweSecretKey
         let glwe_secret_key: GlweSecretKeyOwned<Scalar> =
             allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension.unwrap(),
-                params.polynomial_size.unwrap(),
+                params.glwe_dimension1.unwrap(),
+                params.polynomial_size1.unwrap(),
                 &mut secret_generator,
             );
 
+        let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+
         //Create packing key switching key
         let lwe_pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
-            &input_lwe_secret_key,
+            &equivalent_lwe_sk,
             &glwe_secret_key,
             params.packing_base_log.unwrap(), //TODO
             params.packing_level.unwrap(),    //TODO
-            params.glwe_modular_std_dev.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
@@ -1116,21 +1205,21 @@ fn mult_circuit_clot21<
         // Create new LweCiphertext list
         let mut input_lwe_list1 = LweCiphertextList::new(
             Scalar::ZERO,
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_lwe_list2 = LweCiphertextList::new(
             Scalar::ZERO,
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
-            PlaintextCount(glwe_secret_key.polynomial_size().0),
+            PlaintextCount(2),//PlaintextCount(glwe_secret_key.polynomial_size().0),
         );
 
         //need to change these values if we do not work with u64
@@ -1142,31 +1231,27 @@ fn mult_circuit_clot21<
             .for_each(|(idx, dst)| *dst.0 = (Scalar::cast_from(idx) % modulus) << shift);
 
         encrypt_lwe_ciphertext_list(
-            &input_lwe_secret_key,
+            &equivalent_lwe_sk,
             &mut input_lwe_list1,
             &input_plaintext_list,
-            params.lwe_modular_std_dev.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
             &mut encryption_generator,
         );
 
         encrypt_lwe_ciphertext_list(
-            &input_lwe_secret_key,
+            &equivalent_lwe_sk,
             &mut input_lwe_list2,
             &input_plaintext_list,
-            params.lwe_modular_std_dev.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
             &mut encryption_generator,
         );
 
-        // Allocate a new GlweCiphertext and encrypt our plaintext
-        //let mut packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
-        //    params.glwe_dimension.unwrap().to_glwe_size(),
-        //    params.polynomial_size.unwrap(),
-        //    tfhe::core_crypto::prelude::CiphertextModulus::new_native());
-
-        //let mut packed_glwe2 = GlweCiphertext::new(Scalar::ZERO,
-        //    params.glwe_dimension.unwrap().to_glwe_size(),
-        //    params.polynomial_size.unwrap(),
-        //    tfhe::core_crypto::prelude::CiphertextModulus::new_native());
+        let mut output_pks = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
 
         //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
         let log_delta1 = 59;
@@ -1178,38 +1263,59 @@ fn mult_circuit_clot21<
             &glwe_secret_key,
             params.relin_base_log.unwrap(),
             params.relin_level.unwrap(),
-            params.glwe_modular_std_dev.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
 
         let mut output_relin = GlweCiphertext::new(
             Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
-        print!("{}", equivalent_lwe_sk.lwe_dimension().0);
         let mut extracted_sample = LweCiphertext::new(
             Scalar::ZERO,
             equivalent_lwe_sk.lwe_dimension().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
+        
+        let input_ks_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            equivalent_lwe_sk.lwe_dimension(),
+            &mut secret_generator,
+        );
+
+        //for benchmarking it does not matter what the input/output key is
+        let ksk = allocate_and_generate_new_lwe_keyswitch_key(
+            &input_ks_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log1.unwrap(),
+            params.ks_level1.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension1.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
 
         let accumulator = GlweCiphertext::new(
             Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         // Create the empty bootstrapping key in the Fourier domain
         let fourier_bsk = FourierLweBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
+            params.lwe_dimension1.unwrap(),
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
         );
@@ -1244,10 +1350,13 @@ fn mult_circuit_clot21<
                         &lwe_pksk,
                         &input_lwe_list1,
                         &input_lwe_list2,
+                        &mut output_pks,
                         scale,
                         &relinearisation_key,
                         &mut output_relin,
                         &mut extracted_sample,
+                        &ksk,
+                        &mut ks_result,
                         &accumulator,
                         &fourier_bsk,
                         fft,
@@ -1264,7 +1373,860 @@ fn mult_circuit_clot21<
             &id,
             *params,
             name,
-            "circuit lev mult with clot21",
+            "circuit clot21 mult scenario A",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn params_scenario_c<Scalar: UnsignedInteger + Default + Serialize>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            (
+                "message_1_carry_1_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(3)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(4)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1044)),
+                    glwe_dimension2: Some(GlweDimension(4)),
+                    polynomial_size2: Some(PolynomialSize(1<<9)),
+                    lwe_dimension2: Some (LweDimension(684)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(23)),
+                    relin_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log2: Some(DecompositionBaseLog(5)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00000003451274578348382)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.00002633810257226614)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_2_carry_2_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(3)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1328)),
+                    glwe_dimension2: Some(GlweDimension(2)),
+                    polynomial_size2: Some(PolynomialSize(1<<10)),
+                    lwe_dimension2: Some (LweDimension(744)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(15)),
+                    relin_base_log: Some(DecompositionBaseLog(24)),
+                    ks_base_log2: Some(DecompositionBaseLog(8)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.0000000001836219008544628)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.000008712651093493494)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_3_carry_3_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(8)),
+                    pbs_level: Some(DecompositionLevelCount(3)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(4)),
+                    glwe_dimension1: Some(GlweDimension(5)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1491)),
+                    glwe_dimension2: Some(GlweDimension(1)),
+                    polynomial_size2: Some(PolynomialSize(1<<12)),
+                    lwe_dimension2: Some (LweDimension(805)),
+                    packing_base_log: Some(DecompositionBaseLog(28)),
+                    ks_base_log1: Some(DecompositionBaseLog(2)),
+                    pbs_base_log: Some(DecompositionBaseLog(11)),
+                    relin_base_log: Some(DecompositionBaseLog(15)),
+                    ks_base_log2: Some(DecompositionBaseLog(7)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000000000009093791767801737)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.0000028294949592717335)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002182838986391615)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_4_carry_4_clot21mult".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(3)),
+                    ks_level1: Some(DecompositionLevelCount(19)),
+                    pbs_level: Some(DecompositionLevelCount(7)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(11)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1535)),
+                    glwe_dimension2: Some(GlweDimension(1)),
+                    polynomial_size2: Some(PolynomialSize(1<<14)),
+                    lwe_dimension2: Some (LweDimension(892)),
+                    packing_base_log: Some(DecompositionBaseLog(12)),
+                    ks_base_log1: Some(DecompositionBaseLog(1)),
+                    pbs_base_log: Some(DecompositionBaseLog(6)),
+                    relin_base_log: Some(DecompositionBaseLog(15)),
+                    ks_base_log2: Some(DecompositionBaseLog(3)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00000000000404042100205262)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.0000005689569274588678)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+        ]
+    } else {
+        // For now there are no parameters available to test multi bit PBS on 32 bits.
+        vec![]
+    }
+}
+
+fn mult_circuit_clot21_scenario_c<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
+>(
+    c: &mut Criterion,
+) {
+    //only written for local development benchmarking
+    let bench_name = "mult_circuit_clot21_scenario_c";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+
+    for (name, params) in params_scenario_c::<Scalar>().iter() {
+        // Create the LweSecretKey
+        let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension1.unwrap(),
+            &mut secret_generator,
+        );
+
+        // Create the GlweSecretKey
+        let glwe_secret_key1: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension1.unwrap(),
+                params.polynomial_size1.unwrap(),
+                &mut secret_generator,
+            );
+
+        let equivalent_lwe_sk1 = glwe_secret_key1.clone().into_lwe_secret_key();
+
+        // Create the GlweSecretKey
+        let glwe_secret_key2: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension2.unwrap(),
+                params.polynomial_size2.unwrap(),
+                &mut secret_generator,
+            );
+
+        let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
+
+        //Create packing key switching key
+        let lwe_pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &input_lwe_secret_key1,
+            &glwe_secret_key1,
+            params.packing_base_log.unwrap(), //TODO
+            params.packing_level.unwrap(),    //TODO
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        // Create new LweCiphertext list
+        let mut input_lwe_list1 = LweCiphertextList::new(
+            Scalar::ZERO,
+            input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut input_lwe_list2 = LweCiphertextList::new(
+            Scalar::ZERO,
+            input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut input_plaintext_list = PlaintextList::new(
+            Scalar::ZERO,
+            PlaintextCount(2),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+        );
+
+        //need to change these values if we do not work with u64
+        let modulus = Scalar::cast_from(16u32);
+        let shift = 60usize;
+        input_plaintext_list
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, dst)| *dst.0 = (Scalar::cast_from(idx) % modulus) << shift);
+
+        encrypt_lwe_ciphertext_list(
+            &input_lwe_secret_key1,
+            &mut input_lwe_list1,
+            &input_plaintext_list,
+            params.lwe_modular_std_dev1.unwrap(),
+            &mut encryption_generator,
+        );
+
+        encrypt_lwe_ciphertext_list(
+            &input_lwe_secret_key1,
+            &mut input_lwe_list2,
+            &input_plaintext_list,
+            params.lwe_modular_std_dev1.unwrap(),
+            &mut encryption_generator,
+        );
+
+        let mut output_pks = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
+        let log_delta1 = 59;
+        let log_delta2 = 60;
+        let log_delta = std::cmp::min(log_delta1, log_delta2);
+        let scale = Scalar::ONE << log_delta;
+
+        let relinearisation_key = allocate_and_generate_glwe_relinearisation_key(
+            &glwe_secret_key1,
+            params.relin_base_log.unwrap(),
+            params.relin_level.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let mut output_relin = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
+        let mut extracted_sample = LweCiphertext::new(
+            Scalar::ZERO,
+            equivalent_lwe_sk1.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+        
+        let input_ks_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            equivalent_lwe_sk1.lwe_dimension(),
+            &mut secret_generator,
+        );
+
+        let lwe_secret_key2 = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension2.unwrap(),
+            &mut secret_generator,
+        );
+
+        //for benchmarking it does not matter what the input/output key is only the dim should be correct
+        let ksk1 = allocate_and_generate_new_lwe_keyswitch_key(
+            &input_ks_lwe_secret_key,
+            &lwe_secret_key2,
+            params.ks_base_log1.unwrap(),
+            params.ks_level1.unwrap(),
+            params.lwe_modular_std_dev2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result1 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension2.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension2.unwrap().to_glwe_size(),
+            params.polynomial_size2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension2.unwrap(),
+            params.glwe_dimension2.unwrap().to_glwe_size(),
+            params.polynomial_size2.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut output_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //for benchmarking it does not matter what the input/output key is
+        let ksk2 = allocate_and_generate_new_lwe_keyswitch_key(
+            &equivalent_lwe_sk2,
+            &input_lwe_secret_key1,
+            params.ks_base_log2.unwrap(),
+            params.ks_level2.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result2 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension1.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs_ks(
+                        &lwe_pksk,
+                        &input_lwe_list1,
+                        &input_lwe_list2,
+                        &mut output_pks,
+                        scale,
+                        &relinearisation_key,
+                        &mut output_relin,
+                        &mut extracted_sample,
+                        &ksk1,
+                        &mut ks_result1,
+                        &accumulator,
+                        &fourier_bsk,
+                        fft,
+                        &mut buffers,
+                        &mut output_pbs_ct,
+                        &ksk2,
+                        &mut ks_result2,
+                    );
+                    black_box(&mut ks_result2);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "circuit clot21 mult scenario c",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+
+
+//benchmarking parts of the functionality
+fn packing_key_switch<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
+>(
+    c: &mut Criterion,
+) {
+    //only written for local development benchmarking
+    let bench_name = "packing key switching";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+
+    for (name, params) in params_scenario_a::<Scalar>().iter() {
+    //for (name, params) in params_scenario_c::<Scalar>().iter() {
+        // Create the LweSecretKey
+        let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension1.unwrap(),
+            &mut secret_generator,
+        );
+
+        // Create the GlweSecretKey
+        let glwe_secret_key1: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension1.unwrap(),
+                params.polynomial_size1.unwrap(),
+                &mut secret_generator,
+            );
+
+        //Create packing key switching key
+        let lwe_pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &input_lwe_secret_key1,
+            &glwe_secret_key1,
+            params.packing_base_log.unwrap(), //TODO
+            params.packing_level.unwrap(),    //TODO
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        // Create new LweCiphertext list
+        let mut input_lwe_list1 = LweCiphertextList::new(
+            Scalar::ZERO,
+            input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut input_plaintext_list = PlaintextList::new(
+            Scalar::ZERO,
+            PlaintextCount(2),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+        );
+
+        //need to change these values if we do not work with u64
+        let modulus = Scalar::cast_from(16u32);
+        let shift = 60usize;
+        input_plaintext_list
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, dst)| *dst.0 = (Scalar::cast_from(idx) % modulus) << shift);
+
+        encrypt_lwe_ciphertext_list(
+            &input_lwe_secret_key1,
+            &mut input_lwe_list1,
+            &input_plaintext_list,
+            params.lwe_modular_std_dev1.unwrap(),
+            &mut encryption_generator,
+        );
+
+        let mut output_pks = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    pack_lwe_list_into_glwe(
+                        &lwe_pksk,
+                        &input_lwe_list1,
+                        &mut output_pks,
+                    );
+                    black_box(&mut output_pks);
+                })
+            });
+        }  
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "packing key switching",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn circuit_clot21_without_packing_scenario_a<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
+>(
+    c: &mut Criterion,
+) {
+    //only written for local development benchmarking
+    let bench_name = "circuit_clot21_without_packing_scenario_a";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+
+    for (name, params) in params_scenario_a::<Scalar>().iter() {
+        
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension1.unwrap(),
+            &mut secret_generator,
+        );
+
+        // Create the GlweSecretKey
+        let glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension1.unwrap(),
+                params.polynomial_size1.unwrap(),
+                &mut secret_generator,
+            );
+
+        let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+
+        // Allocate a new GlweCiphertext and encrypt our plaintext
+        let packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native());
+
+        //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
+        let log_delta1 = 59;
+        let log_delta2 = 60;
+        let log_delta = std::cmp::min(log_delta1, log_delta2);
+        let scale = Scalar::ONE << log_delta;
+
+        let relinearisation_key = allocate_and_generate_glwe_relinearisation_key(
+            &glwe_secret_key,
+            params.relin_base_log.unwrap(),
+            params.relin_level.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let mut output_relin = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
+        let mut extracted_sample = LweCiphertext::new(
+            Scalar::ZERO,
+            equivalent_lwe_sk.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+        
+        let input_ks_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            equivalent_lwe_sk.lwe_dimension(),
+            &mut secret_generator,
+        );
+
+        //for benchmarking it does not matter what the input/output key is only the dim should be correct
+        let ksk = allocate_and_generate_new_lwe_keyswitch_key(
+            &input_ks_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log1.unwrap(),
+            params.ks_level1.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension1.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension1.unwrap(),
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut output_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    glwe_tensor_mult_with_relin_pbs_ks_a(
+                        &packed_glwe1,
+                        &packed_glwe1,
+                        scale,
+                        &relinearisation_key,
+                        &mut output_relin,
+                        &mut extracted_sample,
+                        &ksk,
+                        &mut ks_result,
+                        &accumulator,
+                        &fourier_bsk,
+                        fft,
+                        &mut buffers,
+                        &mut output_pbs_ct,
+                    );
+                    black_box(&mut output_pbs_ct);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "circuit clot21 without packing scenario a",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn circuit_clot21_without_packing_scenario_c<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
+>(
+    c: &mut Criterion,
+) {
+    //only written for local development benchmarking
+    let bench_name = "circuit_clot21_without_packing_scenario_c";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+
+    for (name, params) in params_scenario_c::<Scalar>().iter() {
+        
+        let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension1.unwrap(),
+            &mut secret_generator,
+        );
+
+        // Create the GlweSecretKey
+        let glwe_secret_key1: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension1.unwrap(),
+                params.polynomial_size1.unwrap(),
+                &mut secret_generator,
+            );
+
+        let equivalent_lwe_sk1 = glwe_secret_key1.clone().into_lwe_secret_key();
+
+        // Create the GlweSecretKey
+        let glwe_secret_key2: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension2.unwrap(),
+                params.polynomial_size2.unwrap(),
+                &mut secret_generator,
+            );
+
+        let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
+
+        // Allocate a new GlweCiphertext and encrypt our plaintext
+        let packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native());
+
+        //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
+        let log_delta1 = 59;
+        let log_delta2 = 60;
+        let log_delta = std::cmp::min(log_delta1, log_delta2);
+        let scale = Scalar::ONE << log_delta;
+
+        let relinearisation_key = allocate_and_generate_glwe_relinearisation_key(
+            &glwe_secret_key1,
+            params.relin_base_log.unwrap(),
+            params.relin_level.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let mut output_relin = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension1.unwrap().to_glwe_size(),
+            params.polynomial_size1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
+        let mut extracted_sample = LweCiphertext::new(
+            Scalar::ZERO,
+            equivalent_lwe_sk1.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+        
+        let input_ks_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            equivalent_lwe_sk1.lwe_dimension(),
+            &mut secret_generator,
+        );
+
+        let lwe_secret_key2 = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension2.unwrap(),
+            &mut secret_generator,
+        );
+
+        //for benchmarking it does not matter what the input/output key is only the dim should be correct
+        let ksk1 = allocate_and_generate_new_lwe_keyswitch_key(
+            &input_ks_lwe_secret_key,
+            &lwe_secret_key2,
+            params.ks_base_log1.unwrap(),
+            params.ks_level1.unwrap(),
+            params.lwe_modular_std_dev2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result1 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension2.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension2.unwrap().to_glwe_size(),
+            params.polynomial_size2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension2.unwrap(),
+            params.glwe_dimension2.unwrap().to_glwe_size(),
+            params.polynomial_size2.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut output_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        //for benchmarking it does not matter what the input/output key is
+        let ksk2 = allocate_and_generate_new_lwe_keyswitch_key(
+            &equivalent_lwe_sk2,
+            &input_lwe_secret_key1,
+            params.ks_base_log2.unwrap(),
+            params.ks_level2.unwrap(),
+            params.lwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+        
+        let mut ks_result2 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension1.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    glwe_tensor_mult_with_relin_pbs_ks_c(
+                        &packed_glwe1,
+                        &packed_glwe1,
+                        scale,
+                        &relinearisation_key,
+                        &mut output_relin,
+                        &mut extracted_sample,
+                        &ksk1,
+                        &mut ks_result1,
+                        &accumulator,
+                        &fourier_bsk,
+                        fft,
+                        &mut buffers,
+                        &mut output_pbs_ct,
+                        &ksk2,
+                        &mut ks_result2,
+                    );
+                    black_box(&mut ks_result2);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "circuit clot21 without packing scenario c",
             &OperatorType::Atomic,
             bit_size,
             vec![bit_size],
@@ -1283,11 +2245,11 @@ fn square_trick_benchmark_parameters<Scalar: UnsignedInteger + Default + Seriali
                     pbs_level: Some(DecompositionLevelCount(1)),
                     ks_base_log: Some(DecompositionBaseLog(4)),
                     ks_level: Some(DecompositionLevelCount(3)),
-                    lwe_dimension: Some(LweDimension(670)),
+                    lwe_dimension: Some(LweDimension(683)),
                     glwe_dimension: Some(GlweDimension(5)),
                     polynomial_size: Some(PolynomialSize(1 << 8)),
-                    glwe_modular_std_dev: Some(StandardDev(0.000000000444909632492578)), //actual value matters only for correctness not for benches
-                    lwe_modular_std_dev: Some(StandardDev(0.0000340946148770733)),
+                    glwe_modular_std_dev: Some(StandardDev(0.0000000004449096324925789)), //actual value matters only for correctness not for benches
+                    lwe_modular_std_dev: Some(StandardDev(0.00002682821145455988)),
                     ..Default::default()
                 }),
             ),
@@ -1301,8 +2263,8 @@ fn square_trick_benchmark_parameters<Scalar: UnsignedInteger + Default + Seriali
                     lwe_dimension: Some(LweDimension(784)),
                     glwe_dimension: Some(GlweDimension(2)),
                     polynomial_size: Some(PolynomialSize(1 << 10)),
-                    glwe_modular_std_dev: Some(StandardDev(0.000000000000000315293223915005)), //actual value matters only for correctness not for benches
-                    lwe_modular_std_dev: Some(StandardDev(0.00000416735867973491)),
+                    glwe_modular_std_dev: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    lwe_modular_std_dev: Some(StandardDev(0.000004167358679734916)),
                     ..Default::default()
                 }),
             ),
@@ -1313,11 +2275,11 @@ fn square_trick_benchmark_parameters<Scalar: UnsignedInteger + Default + Seriali
                     pbs_level: Some(DecompositionLevelCount(1)),
                     ks_base_log: Some(DecompositionBaseLog(4)),
                     ks_level: Some(DecompositionLevelCount(4)),
-                    lwe_dimension: Some(LweDimension(860)),
+                    lwe_dimension: Some(LweDimension(861)),
                     glwe_dimension: Some(GlweDimension(1)),
                     polynomial_size: Some(PolynomialSize(1 << 12)),
-                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971)), //actual value matters only for correctness not for benches
-                    lwe_modular_std_dev: Some(StandardDev(0.00000102638652733045)),
+                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    lwe_modular_std_dev: Some(StandardDev(0.0000010076360729975834)),
                     ..Default::default()
                 }),
             ),
@@ -1331,8 +2293,8 @@ fn square_trick_benchmark_parameters<Scalar: UnsignedInteger + Default + Seriali
                     lwe_dimension: Some(LweDimension(982)),
                     glwe_dimension: Some(GlweDimension(1)),
                     polynomial_size: Some(PolynomialSize(1 << 14)),
-                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971)), //actual value matters only for correctness not for benches
-                    lwe_modular_std_dev: Some(StandardDev(0.000000108250060212356)),
+                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    lwe_modular_std_dev: Some(StandardDev(0.00000010825006021235635)),
                     ..Default::default()
                 }),
             ),
@@ -1365,14 +2327,6 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             params.lwe_dimension.unwrap(),
             &mut secret_generator,
         );
-
-        //let glwe_secret_key = GlweSecretKey::new_empty_key(
-        //    Scalar::ZERO,
-        //    params.glwe_dimension.unwrap(),
-        //    params.polynomial_size.unwrap(),
-        //);
-        //let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
-        //let big_lwe_dimension = big_lwe_sk.lwe_dimension();
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in_lhs: LweCiphertextOwned<Scalar> =
@@ -1426,19 +2380,24 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
 
         let mut sq_sum = LweCiphertext::new(
             Scalar::ZERO,
-            params.lwe_dimension.unwrap().to_lwe_size(),
+            fourier_bsk1.output_lwe_dimension().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut sq_subtraction = LweCiphertext::new(
             Scalar::ZERO,
-            params.lwe_dimension.unwrap().to_lwe_size(),
+            fourier_bsk2.output_lwe_dimension().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let input_ks_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            fourier_bsk2.output_lwe_dimension(),
+            &mut secret_generator,
         );
 
         //for benchmarking it does not matter what the input/output key is
         let ksk = allocate_and_generate_new_lwe_keyswitch_key(
-            &input_lwe_secret_key,
+            &input_ks_lwe_secret_key,
             &input_lwe_secret_key,
             params.ks_base_log.unwrap(),
             params.ks_level.unwrap(),
@@ -1447,20 +2406,11 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             &mut encryption_generator,
         );
 
-        let mut ks_result_mult = LweCiphertext::new(
+        let mut ks_result = LweCiphertext::new(
             Scalar::ZERO,
             params.lwe_dimension.unwrap().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
-
-        let mut extracted_sample: LweCiphertextOwned<Scalar> =
-            allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
-                Plaintext(Scalar::ZERO),
-                params.lwe_modular_std_dev.unwrap(),
-                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-                &mut encryption_generator,
-            );
 
         let accumulator = GlweCiphertext::new(
             Scalar::ZERO,
@@ -1496,7 +2446,7 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
         // Allocate the LweCiphertext to store the result of the PBS
         let mut out_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            fourier_bsk.output_lwe_dimension().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
@@ -1514,8 +2464,7 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
                         &mut sq_sum,
                         &mut sq_subtraction,
                         &ksk,
-                        &mut ks_result_mult,
-                        &mut extracted_sample,
+                        &mut ks_result,
                         &accumulator,
                         &fourier_bsk,
                         fft,
@@ -1540,137 +2489,6 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
     }
 }
 
-// fn mult_through_pbs_benchmark_parameters<Scalar: UnsignedInteger + Default + Serialize>(
-// ) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
-//     if Scalar::BITS == 64 {
-//         vec![
-//             (
-//                 "2_bits_prec".to_string(),
-//                 (
-//                     CryptoParametersRecord {
-//                         lwe_dimension: Some(LweDimension(642)),
-//                         ks_base_log: Some(DecompositionBaseLog(8)),
-//                         ks_level: Some(DecompositionLevelCount(4)),
-//                         relin_base_log: Some(DecompositionBaseLog(8)),
-//                         relin_level: Some(DecompositionLevelCount(4)),
-//                         glwe_dimension: Some(GlweDimension(6)),
-//                         glwe_modular_std_dev: Some(StandardDev(0.0000000000039666089171633006)),
-//                         polynomial_size: Some(PolynomialSize(1 << 8)),
-//                         message_modulus: Some(2),
-//                         ..Default::default()
-//                     }
-//                 ),
-//             ),
-//             ]
-//         } else {
-//             // For now there are no parameters available to test multi bit PBS on 32 bits.
-//             vec![]
-//         }
-//     }
-
-// fn mult_through_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
-// {
-//     //only written for local development benchmarking
-//     let bench_name = "mult_through_pbs";
-//     let mut bench_group = c.benchmark_group(bench_name);
-
-//     // Create the PRNG
-//     let mut seeder = new_seeder();
-//     let seeder = seeder.as_mut();
-//     let mut encryption_generator =
-//         EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-//     let mut secret_generator =
-//         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-//     let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
-
-//     for (name, params) in mult_through_pbs_benchmark_parameters::<Scalar>().iter()
-//     {
-//         // Create the GlweSecretKey
-//         let glwe_secret_key: GlweSecretKeyOwned<Scalar>  = allocate_and_generate_new_binary_glwe_secret_key(
-//             params.glwe_dimension.unwrap(),
-//             params.polynomial_size.unwrap(),
-//             &mut secret_generator,
-//         );
-
-//         // Create the lweSecretKey
-//         let lwe_secret_key: LweSecretKeyOwned<Scalar>  = allocate_and_generate_new_binary_lwe_secret_key(
-//             params.lwe_dimension.unwrap(),
-//             &mut secret_generator,
-//         );
-
-//         let ksk_glwe_to_lwe = allocate_and_generate_new_lwe_keyswitch_key(
-//             &glwe_secret_key,
-//             &lwe_secret_key,
-//             params.ks_base_log.unwrap(),
-//             params.ks_level.unwrap(),
-//             params.lwe_modular_std_dev.unwrap(),
-//             ciphertext_modulus,
-//             &mut encryption_generator,
-//         );
-
-//         let glwe_relin_key = allocate_and_generate_glwe_relinearisation_key(
-//             &glwe_secret_key,
-//             params.relin_base_log.unwrap(),
-//             params.relin_level.unwrap(),
-//             params.glwe_modular_std_dev.unwrap(),
-//             ciphertext_modulus,
-//             &mut encryption_generator,
-//         );
-
-//         // Allocate a new GlweCiphertext and encrypt our plaintext
-//         let mut glwe_1 = GlweCiphertext::new(Scalar::ZERO,
-//             params.glwe_dimension.unwrap().to_glwe_size(),
-//             params.polynomial_size.unwrap(),
-//             ciphertext_modulus);
-//         encrypt_glwe_ciphertext_assign(&glwe_secret_key,
-//             & mut glwe_1,params.glwe_modular_std_dev.unwrap(),
-//             &mut encryption_generator,);
-//         let mut glwe_2 = GlweCiphertext::new(Scalar::ZERO,
-//             params.glwe_dimension.unwrap().to_glwe_size(),
-//             params.polynomial_size.unwrap(),
-//             ciphertext_modulus);
-//         encrypt_glwe_ciphertext_assign(&glwe_secret_key,
-//             & mut glwe_2,params.glwe_modular_std_dev.unwrap(),
-//             &mut encryption_generator,);
-
-//         // Perform the tensor product
-//         let scale = Scalar::ONE;
-//         //let tensor_output = glwe_tensor_product(&glwe_1, &glwe_2, scale);
-
-//         let mut output_glwe_ciphertext =
-//             GlweCiphertext::new(Scalar::ZERO, params.glwe_dimension.unwrap().to_glwe_size(), params.polynomial_size.unwrap(), ciphertext_modulus);
-
-//         //glwe_relinearisation(&tensor_output, &glwe_relin_key, &mut output_glwe_ciphertext);
-
-//         let id = format!("{bench_name}_{name}");
-//         {
-//             bench_group.bench_function(&id, |b| {
-//                 b.iter(|| {
-//                     tensor_mult_with_relin(
-//                         &glwe_1,
-//                         &glwe_2,
-//                         scale,
-//                         &glwe_relin_key,
-//                         & mut output_glwe_ciphertext,
-//                     );
-//                     black_box(&mut output_glwe_ciphertext);
-//                 })
-//             });
-//         }
-
-//         let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
-//         write_to_json(
-//             &id,
-//             *params,
-//             name,
-//             "lev mult",
-//             &OperatorType::Atomic,
-//             bit_size,
-//             vec![bit_size],
-//         );
-//     }
-// }
 
 criterion_group!(
     name = pbs_group;
@@ -1700,9 +2518,15 @@ criterion_group!(
 );
 
 criterion_group!(
-    name = clot21_mult_circuit_group;
+    name = scenario_a;
     config = Criterion::default().sample_size(2000);
-    targets = mult_circuit_clot21::<u64>
+    targets = mult_circuit_clot21_scenario_a::<u64>
+);
+
+criterion_group!(
+    name = scenario_c;
+    config = Criterion::default().sample_size(2000);
+    targets = mult_circuit_clot21_scenario_c::<u64>
 );
 
 criterion_group!(
@@ -1711,9 +2535,31 @@ criterion_group!(
     targets = square_trick_circuit::<u64>
 );
 
+criterion_group!(
+    name = packing_key_switch_group;
+    config = Criterion::default().sample_size(2000);
+    targets = packing_key_switch::<u64>
+);
+
+criterion_group!(
+    name = clot21_mult_circuit_without_packing_group_a;
+    config = Criterion::default().sample_size(2000);
+    targets = circuit_clot21_without_packing_scenario_a::<u64>
+);
+
+criterion_group!(
+    name = clot21_mult_circuit_without_packing_group_c;
+    config = Criterion::default().sample_size(2000);
+    targets = circuit_clot21_without_packing_scenario_c::<u64>
+);
+
 // #[cfg(not(feature = "gpu"))]
 // criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 // #[cfg(feature = "gpu")]
 // criterion_main!(cuda_pbs_group, cuda_multi_bit_pbs_group);
+
 //criterion_main!(tensor_prod_with_relin_group);
-criterion_main!(clot21_mult_circuit_group, square_trick_circuit_group);
+//criterion_main!( clot21_mult_circuit_group,square_trick_circuit_group); 
+//criterion_main!(clot21_mult_circuit_without_packing_group);
+//criterion_main!(scenario_c); 
+criterion_main!(packing_key_switch_group, clot21_mult_circuit_without_packing_group_a);
