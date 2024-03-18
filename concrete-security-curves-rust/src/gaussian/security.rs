@@ -67,4 +67,5 @@ mod tests {
         let expected_std_dev = (0.99 * golden_std_dev)..(1.01 * golden_std_dev);
         assert!(expected_std_dev.contains(&actual_std_dev));
     }
+
 }

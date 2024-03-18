@@ -11,6 +11,7 @@
 #![allow(clippy::cast_possible_wrap)]
 #![warn(unused_results)]
 
+pub mod c_api;
 pub mod gaussian_noise;
 
 pub(crate) mod utils {

@@ -1,5 +1,4 @@
-use crate::gaussian_noise::conversion::modular_variance_to_variance;
-use crate::utils::square;
+use crate::{gaussian_noise::conversion::modular_variance_to_variance, utils::square};
 
 pub fn estimate_modulus_switching_noise_with_binary_key(
     internal_ks_output_lwe_dimension: u64,

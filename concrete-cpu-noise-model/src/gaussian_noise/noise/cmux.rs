@@ -7,6 +7,7 @@ pub fn variance_cmux(
     log2_base: u64,
     level: u64,
     ciphertext_modulus_log: u32,
+    fft_precision: u32,
     variance_ggsw: f64,
 ) -> f64 {
     variance_external_product_glwe(
@@ -15,6 +16,7 @@ pub fn variance_cmux(
         log2_base,
         level,
         ciphertext_modulus_log,
+        fft_precision,
         variance_ggsw,
     )
 }

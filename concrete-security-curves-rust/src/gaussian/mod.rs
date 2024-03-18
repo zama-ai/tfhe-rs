@@ -1,3 +1,3 @@
 pub mod curves_gen;
-pub mod security;
 pub mod security_weights;
+pub mod security;

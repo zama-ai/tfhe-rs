@@ -6,7 +6,14 @@ authors = [""]
 edition = "2021"
 
 [dependencies]
-concrete-security-curves = { version = "*", path = "../concrete-security-curves-rust" }
+concrete-security-curves = { path = "../../../tools/parameter-curves/concrete-security-curves-rust" }
+
 
 [dev-dependencies]
 approx = "0.5"
+
+[build-dependencies]
+cbindgen = "0.24"
+
+[lib]
+crate-type = ["lib", "staticlib"]
