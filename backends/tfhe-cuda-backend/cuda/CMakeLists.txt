@@ -62,6 +62,12 @@ else()
   set(CMAKE_CUDA_ARCHITECTURES 70)
 endif()
 
+string(REPLACE "-arch=sm_" "" CUDA_ARCH "${ARCH}")
+set(CUDA_ARCH "${CUDA_ARCH}0")
+message(STATUS "CUDA_ARCH: ${CUDA_ARCH}")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cuda_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda_config.h)
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} -O3 \
