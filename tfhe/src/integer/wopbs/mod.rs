@@ -738,17 +738,24 @@ impl WopbsKey {
         };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
+        let delta: u64 = (1 << 63)
+            / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
+                as u64;
+
         for i in 0..(1 << total_bit) {
-            let mut value = i;
+            let mut decomp_terms = Vec::new();
+            let mut index_copy = i;
+            for (b, block) in basis.iter().zip(ct.blocks.iter()) {
+                let block_bit_count = f64::log2((block.degree.get() + 1) as f64).ceil() as u64;
+                let bits_corresponding_to_block = index_copy % (1 << block_bit_count);
+                let decomp_term = bits_corresponding_to_block % b;
+                index_copy >>= block_bit_count;
+                decomp_terms.push(decomp_term);
+            }
+            let value_corresponding_to_index = i_crt(&basis, &decomp_terms);
+            let f_eval = f(value_corresponding_to_index);
             for (j, block) in ct.blocks.iter().enumerate() {
-                let deg = f64::log2((block.degree.get() + 1) as f64).ceil() as u64;
-                let delta: u64 = (1 << 63)
-                    / (self.wopbs_key.param.message_modulus.0
-                        * self.wopbs_key.param.carry_modulus.0) as u64;
-                lut[j][i as usize] = ((f((value % (1 << deg)) % block.message_modulus.0 as u64))
-                    % block.message_modulus.0 as u64)
-                    * delta;
-                value >>= deg;
+                lut[j][i as usize] = (f_eval % block.message_modulus.0 as u64) * delta;
             }
         }
         lut

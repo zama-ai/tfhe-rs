@@ -49,6 +49,7 @@ macro_rules! create_parametrized_test{    (
 }
 
 create_parametrized_test!(wopbs_crt);
+create_parametrized_test!(wopbs_crt_non_reg);
 create_parametrized_test!(wopbs_bivariate_radix);
 create_parametrized_test!(wopbs_bivariate_crt);
 create_parametrized_test!(wopbs_radix);
@@ -98,6 +99,57 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 
         let res_wop = cks.decrypt_crt(&ct_res);
         if ((res * res) + res) % msg_space != res_wop {
+            tmp += 1;
+        }
+    }
+    if tmp != 0 {
+        println!("failure rate {tmp:?}/{NB_TESTS:?}");
+        panic!()
+    }
+}
+
+// From https://github.com/zama-ai/tfhe-rs/issues/849
+// This checks we do not generate a LUT constant equal to 0, as used to be the case with this
+// threshold-like LUT
+pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
+    let mut rng = rand::thread_rng();
+
+    let basis = make_basis(params.1.message_modulus.0);
+
+    let nb_block = basis.len();
+
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
+    let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
+
+    let mut msg_space = 1;
+    for modulus in basis.iter() {
+        msg_space *= modulus;
+    }
+
+    let threshold = msg_space / 2;
+
+    let f = |x| (x > threshold) as u64;
+
+    let mut tmp = 0;
+    for _ in 0..NB_TESTS {
+        let clear1 = rng.gen::<u64>() % msg_space;
+        let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
+        //artificially modify the degree
+        for ct in ct1.blocks.iter_mut() {
+            let degree = params.0.message_modulus.0
+                * ((rng.gen::<usize>() % (params.0.carry_modulus.0 - 1)) + 1);
+            ct.degree = Degree::new(degree);
+        }
+        let sanity_dec = cks.decrypt_crt(&ct1);
+        assert_eq!(clear1, sanity_dec);
+
+        let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
+        let lut = wopbs_key.generate_lut_crt(&ct1, f);
+        let ct_res = wopbs_key.wopbs(&ct1, &lut);
+        let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
+
+        let res_wop = cks.decrypt_crt(&ct_res);
+        if f(clear1) % msg_space != res_wop {
             tmp += 1;
         }
     }
