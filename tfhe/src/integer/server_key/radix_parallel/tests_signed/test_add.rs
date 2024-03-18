@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };

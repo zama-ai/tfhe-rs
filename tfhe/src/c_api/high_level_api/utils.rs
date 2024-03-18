@@ -62,6 +62,8 @@ macro_rules! impl_destroy_on_type {
     };
 }
 
+pub(crate) use impl_destroy_on_type;
+
 macro_rules! impl_try_encrypt_with_client_key_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {
@@ -83,6 +85,8 @@ macro_rules! impl_try_encrypt_with_client_key_on_type {
         }
     };
 }
+
+pub(crate) use impl_try_encrypt_with_client_key_on_type;
 
 macro_rules! impl_try_encrypt_with_public_key_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
@@ -107,6 +111,8 @@ macro_rules! impl_try_encrypt_with_public_key_on_type {
     };
 }
 
+pub(crate) use impl_try_encrypt_with_public_key_on_type;
+
 macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {
@@ -130,6 +136,8 @@ macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
     };
 }
 
+pub(crate) use impl_try_encrypt_with_compact_public_key_on_type;
+
 macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {
@@ -152,6 +160,8 @@ macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
     };
 }
 
+pub(crate) use impl_try_encrypt_list_with_compact_public_key_on_type;
+
 macro_rules! impl_try_encrypt_trivial_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {
@@ -171,6 +181,8 @@ macro_rules! impl_try_encrypt_trivial_on_type {
         }
     };
 }
+
+pub(crate) use impl_try_encrypt_trivial_on_type;
 
 macro_rules! impl_decrypt_on_type {
     ($wrapper_type:ty, $output_type:ty) => {
@@ -195,6 +207,8 @@ macro_rules! impl_decrypt_on_type {
         }
     };
 }
+
+pub(crate) use impl_decrypt_on_type;
 
 macro_rules! impl_try_decrypt_trivial_on_type {
     ($wrapper_type:ty, $output_type:ty) => {
@@ -228,6 +242,8 @@ macro_rules! impl_try_decrypt_trivial_on_type {
     };
 }
 
+pub(crate) use impl_try_decrypt_trivial_on_type;
+
 macro_rules! impl_clone_on_type {
     ($wrapper_type:ty) => {
         ::paste::paste! {
@@ -249,6 +265,8 @@ macro_rules! impl_clone_on_type {
         }
     };
 }
+
+pub(crate) use impl_clone_on_type;
 
 macro_rules! impl_serialize_deserialize_on_type {
     ($wrapper_type:ty) => {
@@ -294,6 +312,8 @@ macro_rules! impl_serialize_deserialize_on_type {
     };
 }
 
+pub(crate) use impl_serialize_deserialize_on_type;
+
 macro_rules! impl_safe_serialize_on_type {
     ($wrapper_type:ty) => {
         ::paste::paste! {
@@ -319,6 +339,8 @@ macro_rules! impl_safe_serialize_on_type {
         }
     };
 }
+
+pub(crate) use impl_safe_serialize_on_type;
 
 macro_rules! impl_safe_deserialize_conformant_integer {
     ($wrapper_type:ty, $function_name:path) => {
@@ -358,6 +380,8 @@ macro_rules! impl_safe_deserialize_conformant_integer {
         }
     };
 }
+
+pub(crate) use impl_safe_deserialize_conformant_integer;
 
 macro_rules! impl_binary_fn_on_type {
     // More general binary fn case,
@@ -405,6 +429,9 @@ macro_rules! impl_binary_fn_on_type {
         );
     };
 }
+
+pub(crate) use impl_binary_fn_on_type;
+
 // Like binary fn, but an extra output value is needed for the overflow flag
 macro_rules! impl_binary_overflowing_fn_on_type {
     (
@@ -447,6 +474,8 @@ macro_rules! impl_binary_overflowing_fn_on_type {
     };
 }
 
+pub(crate) use impl_binary_overflowing_fn_on_type;
+
 // Comparisons returns FheBool so we use a specialized
 // macro for them
 macro_rules! impl_comparison_fn_on_type {
@@ -479,6 +508,8 @@ macro_rules! impl_comparison_fn_on_type {
     };
 }
 
+pub(crate) use impl_comparison_fn_on_type;
+
 macro_rules! impl_scalar_comparison_fn_on_type {
     (
         lhs_type: $lhs_type:ty,
@@ -510,6 +541,8 @@ macro_rules! impl_scalar_comparison_fn_on_type {
     };
 }
 
+pub(crate) use impl_scalar_comparison_fn_on_type;
+
 macro_rules! impl_unary_fn_on_type {
     ($wrapper_type:ty => $($unary_fn_name:ident),* $(,)?) => {
         $(
@@ -531,6 +564,8 @@ macro_rules! impl_unary_fn_on_type {
         )*
     };
 }
+
+pub(crate) use impl_unary_fn_on_type;
 
 macro_rules! impl_binary_assign_fn_on_type {
     // More general binary fn case,
@@ -571,6 +606,8 @@ macro_rules! impl_binary_assign_fn_on_type {
     };
 }
 
+pub(crate) use impl_binary_assign_fn_on_type;
+
 macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
         $(
@@ -595,6 +632,8 @@ macro_rules! impl_scalar_binary_fn_on_type {
     };
 }
 
+pub(crate) use impl_scalar_binary_fn_on_type;
+
 macro_rules! impl_scalar_binary_assign_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
         $(
@@ -616,6 +655,8 @@ macro_rules! impl_scalar_binary_assign_fn_on_type {
         )*
     };
 }
+
+pub(crate) use impl_scalar_binary_assign_fn_on_type;
 
 // Defines the function to cast `from` a type _into_ the given list of type
 macro_rules! define_casting_operation(
@@ -639,3 +680,5 @@ macro_rules! define_casting_operation(
         )*
     }
 );
+
+pub(crate) use define_casting_operation;

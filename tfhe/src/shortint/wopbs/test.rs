@@ -6,7 +6,6 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{gen_keys, ClassicPBSParameters, WopbsParameters};
-use paste::paste;
 use rand::Rng;
 
 const NB_TESTS: usize = 1;
@@ -14,7 +13,7 @@ const NB_TESTS: usize = 1;
 #[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $wopbs_param:lower>]() {
@@ -37,7 +36,7 @@ macro_rules! create_parametrized_test{
 #[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $wopbs_param:lower>]() {
@@ -61,7 +60,7 @@ macro_rules! create_parametrized_wopbs_only_test{
 #[cfg(tarpaulin)]
 macro_rules! create_parametrized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $wopbs_param:lower>]() {
@@ -81,7 +80,7 @@ macro_rules! create_parametrized_test{
 #[cfg(tarpaulin)]
 macro_rules! create_parametrized_wopbs_only_test{
     ($name:ident { $( $wopbs_param:ident ),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $wopbs_param:lower>]() {

@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
     ExpectedDegrees, ExpectedNoiseLevels,
 };
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]

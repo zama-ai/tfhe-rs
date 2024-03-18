@@ -8,6 +8,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_sum_ciphertexts_vec_test, FunctionExecutor,
 };
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]

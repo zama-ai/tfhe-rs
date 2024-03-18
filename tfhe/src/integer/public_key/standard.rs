@@ -110,6 +110,7 @@ impl From<CompressedPublicKey> for PublicKey {
 #[cfg(test)]
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
+    use crate::integer::tests::create_parametrized_test;
     use crate::integer::IntegerKeyKind;
     use crate::shortint::parameters::*;
 

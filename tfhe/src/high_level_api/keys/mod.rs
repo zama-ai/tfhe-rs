@@ -1,6 +1,4 @@
-#[macro_use]
 mod client;
-#[macro_use]
 mod public;
 mod server;
 

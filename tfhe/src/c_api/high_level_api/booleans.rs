@@ -1,6 +1,6 @@
-use crate::high_level_api::prelude::*;
-
+use super::utils::*;
 use crate::c_api::utils::check_ptr_is_non_null_and_aligned;
+use crate::high_level_api::prelude::*;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 pub struct FheBool(pub(in crate::c_api) crate::high_level_api::FheBool);

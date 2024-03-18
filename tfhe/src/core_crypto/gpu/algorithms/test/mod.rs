@@ -1,6 +1,5 @@
 use crate::core_crypto::algorithms::test::*;
 use crate::core_crypto::prelude::*;
-use paste::paste;
 
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
@@ -10,7 +9,7 @@ mod lwe_programmable_bootstrapping;
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_gpu_ $name _ $param:lower>]() {
@@ -28,7 +27,7 @@ macro_rules! create_gpu_parametrized_test{
 }
 macro_rules! create_gpu_multi_bit_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_gpu_ $name _ $param:lower>]() {

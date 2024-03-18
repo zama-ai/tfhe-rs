@@ -18,7 +18,6 @@ use crate::integer::{
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
 use itertools::iproduct;
-use paste::paste;
 use rand::Rng;
 use std::sync::Arc;
 
@@ -29,7 +28,7 @@ macro_rules! create_parametrized_test{
             $(,)?
         }
     ) => {
-        paste! {
+        ::paste::paste! {
             $(
                 #[test]
                 $(#[$cfg])*

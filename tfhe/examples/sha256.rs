@@ -1,4 +1,3 @@
-#[doc(hidden)]
 use rayon as __rayon_reexport;
 use rayon::prelude::*;
 use std::io::{stdin, Read};
@@ -13,8 +12,6 @@ use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device
 pub fn __requires_sendable_closure<R, F: FnOnce() -> R + Send>(x: F) -> F {
     x
 }
-
-#[macro_export]
 #[doc(hidden)]
 macro_rules! __join_implementation {
     ($len:expr; $($f:ident $r:ident $a:expr),*; $b:expr, $($c:expr,)*) => {
@@ -37,7 +34,8 @@ macro_rules! __join_implementation {
     };
 }
 
-#[macro_export]
+pub(crate) use __join_implementation;
+
 macro_rules! join {
     ($($($a:expr),+$(,)?)?) => {
         $crate::__join_implementation!{0;;$($($a,)+)?}

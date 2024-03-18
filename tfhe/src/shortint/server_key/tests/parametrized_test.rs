@@ -28,10 +28,9 @@ const NB_SUB_TEST_SMART: usize = 5;
 
 // Macro to generate tests for all parameter sets
 #[cfg(not(tarpaulin))]
-#[macro_export]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste::paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {
@@ -83,10 +82,9 @@ macro_rules! create_parametrized_test{
 
 // Test against a small subset of parameters to speed up coverage tests
 #[cfg(tarpaulin)]
-#[macro_export]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {
@@ -104,6 +102,8 @@ macro_rules! create_parametrized_test{
         });
     };
 }
+
+pub(crate) use create_parametrized_test;
 
 //These functions are compatible with all parameter sets.
 create_parametrized_test!(shortint_encrypt_decrypt);

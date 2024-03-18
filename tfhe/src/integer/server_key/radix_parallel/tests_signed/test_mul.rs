@@ -5,6 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_signed::{
 };
 use crate::integer::server_key::radix_parallel::tests_signed::{NB_CTXT, NB_TESTS_SMALLER};
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
 #[cfg(tarpaulin)]

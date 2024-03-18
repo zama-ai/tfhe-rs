@@ -2,6 +2,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_signed::{
     signed_default_neg_test, signed_smart_neg_test, signed_unchecked_neg_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::tests::create_parametrized_test;
 use crate::integer::ServerKey;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;

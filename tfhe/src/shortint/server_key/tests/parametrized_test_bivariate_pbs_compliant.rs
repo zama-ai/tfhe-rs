@@ -1,6 +1,6 @@
-use crate::create_parametrized_test;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
+use crate::shortint::server_key::tests::parametrized_test::create_parametrized_test;
 use rand::Rng;
 
 /// Number of assert in randomized tests
@@ -29,7 +29,7 @@ const NB_SUB_TEST_SMART: usize = 5;
 #[cfg(not(tarpaulin))]
 macro_rules! create_parametrized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {
@@ -71,7 +71,7 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
 #[cfg(tarpaulin)]
 macro_rules! create_parametrized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
-        paste! {
+        ::paste::paste! {
             $(
             #[test]
             fn [<test_ $name _ $param:lower>]() {

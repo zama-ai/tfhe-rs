@@ -14,7 +14,6 @@ use crate::shortint::ciphertext::{Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;
-use paste::paste;
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
@@ -301,7 +300,7 @@ macro_rules! create_parametrized_test {
             $(,)?
         }
     ) => {
-        paste! {
+        ::paste::paste! {
             $(
                 #[test]
                 $(#[$cfg])*
