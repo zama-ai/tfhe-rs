@@ -10,35 +10,6 @@
 //! This module contains structures that wrap unsigned integer parameters like the ciphertext
 //! dimension or the polynomial degree.
 
-#[allow(unused_macros)]
-macro_rules! assert_delta {
-    ($A:expr, $B:expr, $d:expr) => {
-        for (x, y) in $A.iter().zip($B) {
-            assert!((*x as i64 - y as i64).abs() <= $d, "{} != {} ", *x, y);
-        }
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! assert_delta_scalar {
-    ($A:expr, $B:expr, $d:expr) => {
-        assert!(
-            ($A as i64 - $B as i64).abs() <= $d,
-            "{} != {} +- {}",
-            $A,
-            $B,
-            $d
-        );
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! assert_delta_scalar_float {
-    ($A:expr, $B:expr, $d:expr) => {
-        assert!(($A - $B).abs() <= $d, "{} != {} +- {}", $A, $B, $d);
-    };
-}
-
 pub mod ciphertext_modulus;
 pub mod computation_buffers;
 pub mod dispersion;
