@@ -83,10 +83,10 @@ public:
         stream, &seed, &lwe_sk_in_array, &lwe_sk_out_array, &d_bsk, &plaintexts,
         &d_lut_pbs_identity, &d_lut_pbs_indexes, &d_lwe_ct_in_array,
         &d_lwe_input_indexes, &d_lwe_ct_out_array, &d_lwe_output_indexes,
-        &buffer, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, lwe_modular_variance, glwe_modular_variance,
-        pbs_base_log, pbs_level, message_modulus, carry_modulus,
-        &payload_modulus, &delta, input_lwe_ciphertext_count, 1, 1);
+        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+        lwe_modular_variance, glwe_modular_variance, pbs_base_log, pbs_level,
+        message_modulus, carry_modulus, &payload_modulus, &delta,
+        input_lwe_ciphertext_count, 1, 1);
   }
 
   void TearDown(const ::benchmark::State &state) {
