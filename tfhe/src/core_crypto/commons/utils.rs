@@ -26,7 +26,6 @@ pub trait ZipChecked: IntoIterator + Sized {
 impl<A: IntoIterator> ZipChecked for A {}
 
 // https://docs.rs/itertools/0.7.8/src/itertools/lib.rs.html#247-269
-#[allow(unused_macros)]
 macro_rules! izip {
     (@ __closure @ ($a:expr)) => { |a| (a,) };
     (@ __closure @ ($a:expr, $b:expr)) => { |(a, b)| (a, b) };
@@ -62,32 +61,4 @@ macro_rules! izip {
     };
 }
 
-#[allow(unused_macros)]
-macro_rules! dbgx {
-    // NOTE: We cannot use `concat!` to make a static string as a format argument
-    // of `eprintln!` because `file!` could contain a `{` or
-    // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
-    // will be malformed.
-    () => {
-        ::std::eprintln!("[{}:{}]", $crate::file!(), $crate::line!())
-    };
-    ($val:expr $(,)?) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                ::std::eprintln!("[{}:{}] {} = {:#x?}",
-                    ::std::file!(), ::std::line!(), ::std::stringify!($val), &tmp);
-                tmp
-            }
-        }
-    };
-    ($($val:expr),+ $(,)?) => {
-        ($($crate::core_crypto::commons::utils::dbgx!($val)),+,)
-    };
-}
-
-#[allow(unused_imports)]
-pub(crate) use dbgx;
-#[allow(unused_imports)]
 pub(crate) use izip;

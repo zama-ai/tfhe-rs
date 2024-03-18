@@ -1,10 +1,7 @@
-#[macro_use]
-extern crate lazy_static;
 use clap::{Arg, Command};
+use lazy_static::lazy_static;
 use log::LevelFilter;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -16,26 +13,6 @@ mod utils;
 // -------------------------------------------------------------------------------------------------
 lazy_static! {
     static ref DRY_RUN: AtomicBool = AtomicBool::new(false);
-    static ref ROOT_DIR: PathBuf = utils::project_root();
-    static ref ENV_TARGET_NATIVE: utils::Environment = {
-        let mut env = HashMap::new();
-        env.insert("RUSTFLAGS", "-Ctarget-cpu=native");
-        env
-    };
-}
-
-// -------------------------------------------------------------------------------------------------
-// MACROS
-// -------------------------------------------------------------------------------------------------
-
-#[macro_export]
-macro_rules! cmd {
-    (<$env: ident> $cmd: expr) => {
-        $crate::utils::execute($cmd, Some(&*$env), Some(&*$crate::ROOT_DIR))
-    };
-    ($cmd: expr) => {
-        $crate::utils::execute($cmd, None, Some(&*$crate::ROOT_DIR))
-    };
 }
 
 // -------------------------------------------------------------------------------------------------
