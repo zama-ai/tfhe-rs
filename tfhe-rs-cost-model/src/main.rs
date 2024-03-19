@@ -1,3 +1,4 @@
+mod ks_pbs_timing;
 mod noise_estimation;
 mod operators;
 
@@ -39,10 +40,10 @@ pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: Unsigne
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Total number of threads.
-    #[clap(long, short)]
+    #[clap(long, short, default_value_t = 0)]
     tot: usize,
     /// Current Thread ID
-    #[clap(long, short)]
+    #[clap(long, short, default_value_t = 0)]
     id: usize,
     /// Number of time a test is repeated for a single set of parameter.
     /// This indicates the number of different keys since, at each repetition, we re-sample
@@ -70,6 +71,8 @@ struct Args {
     modulus_log2: Option<u32>,
     #[clap(long, short = 'd', default_value = ".")]
     dir: String,
+    #[clap(long, default_value_t = false)]
+    timing_only: bool,
 }
 
 fn variance_to_stddev(var: Variance) -> StandardDev {
@@ -210,6 +213,46 @@ fn filter_b_l(bases: &[usize], levels: &[usize], preserved_mantissa: usize) -> V
     bases_levels
 }
 
+fn ggsw_scalar_size(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize) -> usize {
+    let (k, l, n) = (k.0, l.0, n.0);
+    (k + 1).pow(2) * l * n
+}
+
+fn scalar_muls_per_ext_prod(
+    k: GlweDimension,
+    l: DecompositionLevelCount,
+    n: PolynomialSize,
+) -> usize {
+    // Each coefficient of the ggsw is involved once in an fmadd operation
+    ggsw_scalar_size(k, l, n)
+}
+
+fn ext_prod_cost(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize) -> usize {
+    // Conversions going from integer to float and from float to integer
+    let conversion_cost = 2 * k.to_glwe_size().0 * n.0;
+    // Fwd and back
+    let fft_cost = 2 * l.0 * k.to_glwe_size().0 * n.0 * n.0.ilog2() as usize;
+    scalar_muls_per_ext_prod(k, l, n) + conversion_cost + fft_cost
+}
+
+fn ks_cost(
+    input_lwe_dimenion: LweDimension,
+    output_lwe_dimension: LweDimension,
+    ks_level_count: DecompositionLevelCount,
+) -> usize {
+    // times 2 as it's multiply and add
+    2 * input_lwe_dimenion.0 * ks_level_count.0 * output_lwe_dimension.0
+}
+
+fn pbs_cost(
+    w: LweDimension,
+    k: GlweDimension,
+    l: DecompositionLevelCount,
+    n: PolynomialSize,
+) -> usize {
+    w.0 * ext_prod_cost(k, l, n)
+}
+
 fn main() {
     let args = Args::parse();
     let tot = args.tot;
@@ -218,6 +261,7 @@ fn main() {
     let base_sample_size = args.sample_size;
     let algo = args.algorithm;
     let dir = &args.dir;
+    let timing_only = args.timing_only;
 
     if algo.is_empty() {
         panic!("No algorithm provided")
@@ -260,6 +304,16 @@ fn main() {
         None => 0,
     };
 
+    // TODO manage moduli < 2^53
+    let (stepped_levels_cutoff, max_base_log_inclusive, preserved_mantissa) = match algo.as_str() {
+        EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => (41, 128, 106),
+        _ => (21, 64, 53),
+    };
+
+    if timing_only {
+        return ks_pbs_timing::timing_experiment(&algo, preserved_mantissa, modulus);
+    }
+
     // Parameter Grid
     let polynomial_sizes = vec![
         PolynomialSize(1 << 8),
@@ -279,14 +333,6 @@ fn main() {
         GlweDimension(5),
     ];
 
-    // TODO manage moduli < 2^53
-    let (stepped_levels_cutoff, max_base_log_inclusive, preserved_mantissa) = match algo.as_str() {
-        EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => (41, 128, 106),
-        _ => (21, 64, 53),
-    };
-
-    let preserved_mantissa = preserved_mantissa.min(modulus.ilog2()) as usize;
-
     let base_logs: Vec<_> = (1..=max_base_log_inclusive).collect();
     let mut levels = (1..stepped_levels_cutoff).collect::<Vec<_>>();
     let mut stepped_levels = (stepped_levels_cutoff..=max_base_log_inclusive)
@@ -305,28 +351,6 @@ fn main() {
             },
         )
         .collect();
-
-    fn ggsw_scalar_size(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize) -> usize {
-        let (k, l, n) = (k.0, l.0, n.0);
-        (k + 1).pow(2) * l * n
-    }
-
-    fn scalar_muls_per_ext_prod(
-        k: GlweDimension,
-        l: DecompositionLevelCount,
-        n: PolynomialSize,
-    ) -> usize {
-        // Each coefficient of the ggsw is involved once in an fmadd operation
-        ggsw_scalar_size(k, l, n)
-    }
-
-    fn ext_prod_cost(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize) -> usize {
-        // Conversions going from integer to float and from float to integer
-        let conversion_cost = 2 * k.to_glwe_size().0 * n.0;
-        // Fwd and back
-        let fft_cost = 2 * k.to_glwe_size().0 * n.0 * n.0.ilog2() as usize;
-        scalar_muls_per_ext_prod(k, l, n) + conversion_cost + fft_cost
-    }
 
     hypercube.sort_by(|a, b| {
         let k_a = a.glwe_dimension;
