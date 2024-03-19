@@ -81,19 +81,19 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
         max_shared_memory, lwe_chunk_size);
     break;
-  case 16384:
-    host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
-                                             AmortizedDegree<16384>>(
-        stream, lwe_array_out, lwe_output_indexes, lut_vector,
-        lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
-        max_shared_memory, lwe_chunk_size);
-    break;
+//  case 16384:
+//    host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
+//                                             AmortizedDegree<16384>>(
+//        stream, lwe_array_out, lwe_output_indexes, lut_vector,
+//        lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+//        pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size,
+//        grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
+//        max_shared_memory, lwe_chunk_size);
+//    break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -166,19 +166,19 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
         max_shared_memory, lwe_chunk_size);
     break;
-  case 16384:
-    host_multi_bit_programmable_bootstrap<Torus, int64_t,
-                                          AmortizedDegree<16384>>(
-        stream, lwe_array_out, lwe_output_indexes, lut_vector,
-        lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
-        max_shared_memory, lwe_chunk_size);
-    break;
+//  case 16384:
+//    host_multi_bit_programmable_bootstrap<Torus, int64_t,
+//                                          AmortizedDegree<16384>>(
+//        stream, lwe_array_out, lwe_output_indexes, lut_vector,
+//        lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+//        pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size,
+//        grouping_factor, base_log, level_count, num_samples, num_luts, lwe_idx,
+//        max_shared_memory, lwe_chunk_size);
+//    break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -270,17 +270,17 @@ void scratch_cuda_cg_multi_bit_programmable_bootstrap(
         level_count, input_lwe_ciphertext_count, grouping_factor,
         max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
     break;
-  case 16384:
-    scratch_cg_multi_bit_programmable_bootstrap<Torus, STorus,
-                                                AmortizedDegree<16384>>(
-        stream, buffer, lwe_dimension, glwe_dimension, polynomial_size,
-        level_count, input_lwe_ciphertext_count, grouping_factor,
-        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
-    break;
+//  case 16384:
+//    scratch_cg_multi_bit_programmable_bootstrap<Torus, STorus,
+//                                                AmortizedDegree<16384>>(
+//        stream, buffer, lwe_dimension, glwe_dimension, polynomial_size,
+//        level_count, input_lwe_ciphertext_count, grouping_factor,
+//        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+//    break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
@@ -335,17 +335,17 @@ void scratch_cuda_multi_bit_programmable_bootstrap(
         level_count, input_lwe_ciphertext_count, grouping_factor,
         max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
     break;
-  case 16384:
-    scratch_multi_bit_programmable_bootstrap<Torus, STorus,
-                                             AmortizedDegree<16384>>(
-        stream, buffer, lwe_dimension, glwe_dimension, polynomial_size,
-        level_count, input_lwe_ciphertext_count, grouping_factor,
-        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
-    break;
+//  case 16384:
+//    scratch_multi_bit_programmable_bootstrap<Torus, STorus,
+//                                             AmortizedDegree<16384>>(
+//        stream, buffer, lwe_dimension, glwe_dimension, polynomial_size,
+//        level_count, input_lwe_ciphertext_count, grouping_factor,
+//        max_shared_memory, allocate_gpu_memory, lwe_chunk_size);
+//    break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 

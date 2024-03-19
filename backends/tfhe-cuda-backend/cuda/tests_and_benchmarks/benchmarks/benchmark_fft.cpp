@@ -60,7 +60,6 @@ static void FFTBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
       (FourierTransformTestParams){2048, 100},
       (FourierTransformTestParams){4096, 100},
       (FourierTransformTestParams){8192, 100},
-      (FourierTransformTestParams){16384, 100},
   };
 
   // Add to the list of parameters to benchmark

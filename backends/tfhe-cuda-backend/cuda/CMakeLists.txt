@@ -50,6 +50,7 @@ endif()
 
 # Add OpenMP support
 find_package(OpenMP REQUIRED)
+find_package(mathdx REQUIRED COMPONENTS cufftdx CONFIG PATHS "/usr/include/nvidia/mathdx/24.01/")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
@@ -61,6 +62,10 @@ if(${CUDA_SUCCESS})
 else()
   set(CMAKE_CUDA_ARCHITECTURES 70)
 endif()
+
+string(REPLACE "-arch=sm_" "" CUDA_ARCH "${ARCH}")
+set(CUDA_ARCH "${CUDA_ARCH}0")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cuda_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda_config.h)
 
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
 set(CMAKE_CUDA_FLAGS

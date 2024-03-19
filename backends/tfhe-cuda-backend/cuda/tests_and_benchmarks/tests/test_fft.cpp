@@ -112,8 +112,7 @@ TEST_P(FourierTransformTestPrimitives_u64, cuda_fft_mult) {
                       (FourierTransformTestParams){1024, 100},
                       (FourierTransformTestParams){2048, 100},
                       (FourierTransformTestParams){4096, 100},
-                      (FourierTransformTestParams){8192, 50},
-                      (FourierTransformTestParams){16384, 10});
+                      (FourierTransformTestParams){8192, 50});
 
 std::string
 printParamName(::testing::TestParamInfo<FourierTransformTestParams> p) {

@@ -1,6 +1,8 @@
 #ifndef CUDA_PARAMETERS_CUH
 #define CUDA_PARAMETERS_CUH
 
+#include "cuda_config.h"
+#include <cufftdx.hpp>
 constexpr int log2(int n) { return (n <= 2) ? 1 : 1 + log2(n / 2); }
 
 constexpr int choose_opt_amortized(int degree) {
@@ -35,6 +37,20 @@ public:
   constexpr static int degree = params::degree / 2;
   constexpr static int opt = params::opt / 2;
   constexpr static int log2_degree = params::log2_degree - 1;
+  constexpr static int warp = 32;
+
+  using FFT = decltype(cufftdx::Block() + cufftdx::Size<degree>() +
+                       cufftdx::Type<cufftdx::fft_type::c2c>() +
+                       cufftdx::Direction<cufftdx::fft_direction::forward>() +
+                       cufftdx::Precision<double>() +
+                       cufftdx::ElementsPerThread<opt>() +
+                       cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
+  using IFFT = decltype(cufftdx::Block() + cufftdx::Size<degree>() +
+                        cufftdx::Type<cufftdx::fft_type::c2c>() +
+                        cufftdx::Direction<cufftdx::fft_direction::inverse>() +
+                        cufftdx::Precision<double>() +
+                        cufftdx::ElementsPerThread<opt>() +
+                        cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
 };
 
 template <int N> class Degree {
@@ -42,6 +58,20 @@ public:
   constexpr static int degree = N;
   constexpr static int opt = choose_opt(N);
   constexpr static int log2_degree = log2(N);
+  constexpr static int warp = 32;
+
+  using FFT = decltype(cufftdx::Block() + cufftdx::Size<N / 2>() +
+                       cufftdx::Type<cufftdx::fft_type::c2c>() +
+                       cufftdx::Direction<cufftdx::fft_direction::forward>() +
+                       cufftdx::Precision<double>() +
+                       cufftdx::ElementsPerThread<opt / 2>() +
+                       cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
+  using IFFT = decltype(cufftdx::Block() + cufftdx::Size<N / 2>() +
+                        cufftdx::Type<cufftdx::fft_type::c2c>() +
+                        cufftdx::Direction<cufftdx::fft_direction::inverse>() +
+                        cufftdx::Precision<double>() +
+                        cufftdx::ElementsPerThread<opt / 2>() +
+                        cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
 };
 
 template <int N> class AmortizedDegree {
@@ -49,6 +79,19 @@ public:
   constexpr static int degree = N;
   constexpr static int opt = choose_opt_amortized(N);
   constexpr static int log2_degree = log2(N);
+  constexpr static int warp = 32;
+  using FFT = decltype(cufftdx::Block() + cufftdx::Size<N / 2>() +
+                       cufftdx::Type<cufftdx::fft_type::c2c>() +
+                       cufftdx::Direction<cufftdx::fft_direction::forward>() +
+                       cufftdx::Precision<double>() +
+                       cufftdx::ElementsPerThread<opt / 2>() +
+                       cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
+  using IFFT = decltype(cufftdx::Block() + cufftdx::Size<N / 2>() +
+                        cufftdx::Type<cufftdx::fft_type::c2c>() +
+                        cufftdx::Direction<cufftdx::fft_direction::inverse>() +
+                        cufftdx::Precision<double>() +
+                        cufftdx::ElementsPerThread<opt / 2>() +
+                        cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUDA_ARCH>());
 };
 enum sharedMemDegree {
   NOSM = 0,

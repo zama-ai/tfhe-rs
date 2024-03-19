@@ -51,17 +51,17 @@ void cuda_full_propagation_64_inplace(
         bsk, lwe_dimension, glwe_dimension, polynomial_size, ks_base_log,
         ks_level, pbs_base_log, pbs_level, grouping_factor, num_blocks);
     break;
-  case 16384:
-    host_full_propagate_inplace<uint64_t, int64_t, AmortizedDegree<16384>>(
-        stream, static_cast<uint64_t *>(input_blocks),
-        (int_fullprop_buffer<uint64_t> *)mem_ptr, static_cast<uint64_t *>(ksk),
-        bsk, lwe_dimension, glwe_dimension, polynomial_size, ks_base_log,
-        ks_level, pbs_base_log, pbs_level, grouping_factor, num_blocks);
-    break;
+//  case 16384:
+//    host_full_propagate_inplace<uint64_t, int64_t, AmortizedDegree<16384>>(
+//        stream, static_cast<uint64_t *>(input_blocks),
+//        (int_fullprop_buffer<uint64_t> *)mem_ptr, static_cast<uint64_t *>(ksk),
+//        bsk, lwe_dimension, glwe_dimension, polynomial_size, ks_base_log,
+//        ks_level, pbs_base_log, pbs_level, grouping_factor, num_blocks);
+//    break;
   default:
     PANIC("Cuda error (full propagation inplace): unsupported polynomial size. "
           "Supported N's are powers of two"
-          " in the interval [256..16384].")
+          " in the interval [256..8192].")
   }
 }
 
