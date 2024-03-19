@@ -7,6 +7,7 @@ mod bitwise_op;
 mod bivariate_pbs;
 mod comp_op;
 mod div_mod;
+mod modulus_switched_compression;
 mod mul;
 mod neg;
 mod scalar_add;
