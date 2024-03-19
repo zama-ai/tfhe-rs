@@ -16,36 +16,51 @@ use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
 
+// TODO BENCHER CES PARAMS pour FHE.org
 const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    // TODO Ajouter les params bivariate en version PBS_KS
+];
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 8] = [
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+    PARAM_SMALL_MESSAGE_2_CARRY_2,
+    PARAM_SMALL_MESSAGE_3_CARRY_3,
+    PARAM_SMALL_MESSAGE_4_CARRY_4,
+    // TODO Ajouter les params bivariate en version PBS_KS
 ];
 
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
-];
+// const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
+//     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+//     PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+//     // TODO Créer issue pour revision des paramètres à bencher (X_0 non pertinents ?)
+// ];
 
 const SERVER_KEY_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 2] = [
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 ];
 
+// TODO BENCHER CES PARAMS pour FHE.org
 const SERVER_KEY_MULTI_BIT_BENCH_PARAMS_EXTENDED: [MultiBitPBSParameters; 6] = [
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
@@ -303,6 +318,9 @@ fn carry_extract_bench(c: &mut Criterion, params_set: BenchParamsSet) {
 
 fn programmable_bootstrapping_bench(c: &mut Criterion, params_set: BenchParamsSet) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     for param in benchmark_parameters(params_set).iter() {
         let keys = KEY_CACHE.get_from_param(*param);
@@ -738,7 +756,7 @@ define_custom_bench_fn!(function_name: carry_extract, BenchParamsSet::Standard);
 
 define_custom_bench_fn!(
     function_name: programmable_bootstrapping,
-    BenchParamsSet::Standard
+    BenchParamsSet::Extended
 );
 
 criterion_group!(
@@ -779,20 +797,20 @@ criterion_group!(
 
 criterion_group!(
     default_ops,
-    neg,
-    bitand,
-    bitor,
-    bitxor,
-    add,
-    sub,
-    div,
-    mul,
-    greater,
-    greater_or_equal,
-    less,
-    less_or_equal,
-    equal,
-    not_equal
+    programmable_bootstrapping /* neg,
+                                * bitand,
+                                * bitor,
+                                * bitxor,
+                                * add,
+                                * sub,
+                                * div,
+                                * mul,
+                                * greater,
+                                * greater_or_equal,
+                                * less,
+                                * less_or_equal,
+                                * equal,
+                                * not_equal */
 );
 
 criterion_group!(
@@ -824,10 +842,10 @@ criterion_group!(
 
 fn main() {
     fn default_bench() {
-        casting();
+        // casting();
         default_ops();
-        default_scalar_ops();
-        misc();
+        // default_scalar_ops();
+        // misc();
     }
 
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
