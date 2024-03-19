@@ -1,10 +1,10 @@
 #ifndef SETUP_AND_TEARDOWN_H
 #define SETUP_AND_TEARDOWN_H
 
-#include <programmable_bootstrap.h>
-#include <programmable_bootstrap_multibit.h>
 #include <device.h>
 #include <keyswitch.h>
+#include <programmable_bootstrap.h>
+#include <programmable_bootstrap_multibit.h>
 #include <utils.h>
 
 void programmable_bootstrap_classical_setup(
@@ -31,9 +31,8 @@ void programmable_bootstrap_multibit_setup(
     uint64_t **d_lut_pbs_identity, uint64_t **d_lut_pbs_indexes,
     uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
     uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
-   int lwe_dimension, int glwe_dimension,
-    int polynomial_size, int grouping_factor,
-    DynamicDistribution lwe_noise_distribution,
+    int lwe_dimension, int glwe_dimension, int polynomial_size,
+    int grouping_factor, DynamicDistribution lwe_noise_distribution,
     DynamicDistribution glwe_noise_distribution, int pbs_base_log,
     int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
     uint64_t *delta, int number_of_inputs, int repetitions, int samples,

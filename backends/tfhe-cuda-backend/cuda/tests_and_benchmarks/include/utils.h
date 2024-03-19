@@ -29,14 +29,12 @@ void generate_glwe_secret_keys(uint64_t **glwe_sk_array, int glwe_dimension,
                                int polynomial_size, Seed *seed,
                                const unsigned repetitions);
 
-void generate_lwe_programmable_bootstrap_keys(cuda_stream_t *stream,
-                                 double **d_fourier_bsk_array,
-                                 uint64_t *lwe_sk_in_array,
-                                 uint64_t *lwe_sk_out_array, int lwe_dimension,
-                                 int glwe_dimension, int polynomial_size,
-                                 int pbs_level, int pbs_base_log, Seed *seed,
-                                 DynamicDistribution noise_distribution,
-                                 const unsigned repetitions);
+void generate_lwe_programmable_bootstrap_keys(
+    cuda_stream_t *stream, double **d_fourier_bsk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions);
 
 void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
