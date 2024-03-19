@@ -532,7 +532,6 @@ macro_rules! impl_unary_fn_on_type {
     };
 }
 
-#[cfg(feature = "integer")]
 macro_rules! impl_binary_assign_fn_on_type {
     // More general binary fn case,
     // where the type of the left-hand side can be different
@@ -572,7 +571,6 @@ macro_rules! impl_binary_assign_fn_on_type {
     };
 }
 
-#[cfg(feature = "integer")]
 macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
         $(
@@ -597,7 +595,6 @@ macro_rules! impl_scalar_binary_fn_on_type {
     };
 }
 
-#[cfg(feature = "integer")]
 macro_rules! impl_scalar_binary_assign_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
         $(
