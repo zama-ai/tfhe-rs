@@ -93,7 +93,7 @@ pub unsafe extern "C" fn tfhe_threading_context_run(
     unsafe impl Send for TheUserEnsuresTheFuncIsThreadSafe {}
 
     impl TheUserEnsuresTheFuncIsThreadSafe {
-        fn execute(&mut self, data: TheUserEnsuresDataIsThreadSafe) -> c_int {
+        fn execute(&mut self, data: &TheUserEnsuresDataIsThreadSafe) -> c_int {
             (self.0)(data.0)
         }
     }
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn tfhe_threading_context_run(
     let panic_result = catch_panic(|| {
         let context = get_mut_checked(context).unwrap();
 
-        result = context.pool.install(move || func.execute(data));
+        result = context.pool.install(move || func.execute(&data));
     });
 
     if panic_result != 0 {
