@@ -371,7 +371,8 @@ where
     let mut rng = rand::thread_rng();
 
     let full_modulus =
-        cks.parameters.message_modulus().0 as u64 + cks.parameters.carry_modulus().0 as u64;
+        (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
+
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TESTS {
@@ -400,13 +401,13 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus_sup =
+    let full_modulus =
         (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    let modulus = cks.parameters.message_modulus().0 as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus_sup;
+        let clear = rng.gen::<u64>() % full_modulus;
 
         let ctxt = cks.unchecked_encrypt(clear);
 
@@ -414,7 +415,7 @@ where
 
         let dec = cks.decrypt(&ct_msg);
 
-        assert_eq!(clear % modulus, dec);
+        assert_eq!(clear % msg_modulus, dec);
     }
 }
 
