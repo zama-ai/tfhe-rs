@@ -216,6 +216,12 @@ create_parametrized_test!(shortint_default_scalar_bitor);
 create_parametrized_test!(shortint_default_scalar_bitxor);
 create_parametrized_test!(shortint_trivial_pbs);
 create_parametrized_test!(shortint_trivial_pbs_many_lut);
+create_parametrized_test!(
+    shortint_encrypt_with_message_modulus_unchecked_mul_lsb_small_carry_and_add
+);
+create_parametrized_test!(
+    shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry_and_add
+);
 
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
@@ -278,12 +284,6 @@ create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_mul_msb);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_default_mul_msb);
 create_parametrized_test_bivariate_pbs_compliant!(
     shortint_keyswitch_bivariate_programmable_bootstrap
-);
-create_parametrized_test_bivariate_pbs_compliant!(
-    shortint_encrypt_with_message_modulus_smart_add_and_mul
-);
-create_parametrized_test_bivariate_pbs_compliant!(
-    shortint_encrypt_with_message_and_carry_modulus_smart_add_and_mul
 );
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
@@ -3190,7 +3190,7 @@ where
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_smart_add_and_mul<P>(param: P)
+fn shortint_encrypt_with_message_modulus_unchecked_mul_lsb_small_carry_and_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -3198,13 +3198,10 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
-    let full_mod = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) / 3;
+    let full_mod = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TESTS {
-        let mut modulus = rng.gen::<u64>() % full_mod as u64;
-        while modulus == 0 {
-            modulus = rng.gen::<u64>() % full_mod as u64;
-        }
+        let modulus = rng.gen_range(1..full_mod / 2);
 
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
@@ -3226,8 +3223,9 @@ where
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_and_carry_modulus_smart_add_and_mul<P>(param: P)
-where
+fn shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry_and_add<P>(
+    param: P,
+) where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
@@ -3239,8 +3237,8 @@ where
     let param_carry_mod = cks.parameters.carry_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let msg_modulus = rng.gen_range(2u64..param_msg_mod as u64);
-        let carry_modulus = rng.gen_range(2u64..param_carry_mod as u64);
+        let msg_modulus = rng.gen_range(2u64..=param_msg_mod as u64);
+        let carry_modulus = rng.gen_range(2u64..=param_carry_mod as u64);
 
         let modulus = msg_modulus * carry_modulus;
 
