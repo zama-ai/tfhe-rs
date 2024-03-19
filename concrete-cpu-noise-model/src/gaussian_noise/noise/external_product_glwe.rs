@@ -27,7 +27,7 @@ pub fn variance_external_product_glwe(
     )
 }
 
-fn theoretical_variance_external_product_glwe(
+pub fn theoretical_variance_external_product_glwe(
     glwe_dimension: u64,
     polynomial_size: u64,
     log2_base: u64,

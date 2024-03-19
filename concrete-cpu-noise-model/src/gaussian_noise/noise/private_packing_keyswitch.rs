@@ -1,4 +1,5 @@
-use crate::{gaussian_noise::conversion::modular_variance_to_variance, utils::square};
+use crate::gaussian_noise::conversion::modular_variance_to_variance;
+use crate::utils::square;
 
 // packing private keyswitch for WoP-PBS, described in algorithm 3 of https://eprint.iacr.org/2018/421.pdf (TFHE paper)
 pub fn estimate_packing_private_keyswitch(

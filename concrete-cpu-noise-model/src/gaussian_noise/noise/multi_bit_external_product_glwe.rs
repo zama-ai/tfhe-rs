@@ -33,7 +33,7 @@ pub fn variance_multi_bit_external_product_glwe(
     )
 }
 
-fn theoretical_variance_multi_bit_external_product_glwe(
+pub fn theoretical_variance_multi_bit_external_product_glwe(
     glwe_dimension: u64,
     polynomial_size: u64,
     log2_base: u64,
