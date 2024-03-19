@@ -24,16 +24,36 @@ const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
     // TODO Ajouter les params bivariate en version PBS_KS
 ];
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 8] = [
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_SMALL_MESSAGE_2_CARRY_2,
-    PARAM_SMALL_MESSAGE_3_CARRY_3,
-    PARAM_SMALL_MESSAGE_4_CARRY_4,
-    // TODO Ajouter les params bivariate en version PBS_KS
+// const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 8] = [
+//     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+//     PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+//     PARAM_SMALL_MESSAGE_2_CARRY_2,
+//     PARAM_SMALL_MESSAGE_3_CARRY_3,
+//     PARAM_SMALL_MESSAGE_4_CARRY_4,
+//     // TODO Ajouter les params bivariate en version PBS_KS
+// ];
+
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 17] = [
+    SAM_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_67,
+    SAM_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_162,
+    SAM_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_64,
+    SAM_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_80,
+    SAM_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_128,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_64,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_80,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_128,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_64,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_80,
+    NPS_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_128,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_64,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_80,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_PBS_KS_128,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_64,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_80,
+    NPS2_PARAM_2_CARRY_2_COMPACT_PK_KS_PBS_128,
 ];
 
 // const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
@@ -317,7 +337,7 @@ fn carry_extract_bench(c: &mut Criterion, params_set: BenchParamsSet) {
 }
 
 fn programmable_bootstrapping_bench(c: &mut Criterion, params_set: BenchParamsSet) {
-    let mut bench_group = c.benchmark_group("programmable_bootstrap");
+    let mut bench_group = c.benchmark_group("pbs");
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
