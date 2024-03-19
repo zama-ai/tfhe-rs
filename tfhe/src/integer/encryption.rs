@@ -97,7 +97,6 @@ where
 
     // Put each decomposition into a new ciphertext
     for modulus in base_vec.iter().copied() {
-        // encryption
         let ct = encrypt_block(encrypting_key, message, MessageModulus(modulus as usize));
 
         ctxt_vect.push(ct);

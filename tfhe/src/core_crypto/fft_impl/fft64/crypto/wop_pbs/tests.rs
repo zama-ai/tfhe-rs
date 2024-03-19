@@ -328,7 +328,6 @@ fn test_circuit_bootstrapping_binary() {
     for _ in 0..NB_TESTS {
         // value is 0 or 1 as CBS works on messages expected to contain 1 bit of information
         let value: u64 = test_tools::random_uint_between(0..2u64);
-        // Encryption of an LWE with the value 'message'
         let message = Plaintext((value) << delta_log.0);
         let mut lwe_in =
             LweCiphertextOwned::new(0u64, small_lwe_dimension.to_lwe_size(), ciphertext_modulus);

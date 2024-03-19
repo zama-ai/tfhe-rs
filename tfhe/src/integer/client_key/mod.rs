@@ -197,7 +197,6 @@ impl ClientKey {
     /// // 2 * 4 = 8 bits of message
     /// let ct = cks.encrypt_radix(msg, num_block);
     ///
-    /// // Decryption
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
@@ -224,7 +223,6 @@ impl ClientKey {
     /// // 2 * 4 = 8 bits of message
     /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
     ///
-    /// // Decryption
     /// let dec = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
@@ -297,10 +295,8 @@ impl ClientKey {
     ///
     /// let msg = 191_u64;
     ///
-    /// // Encryption
     /// let ct = cks.encrypt_radix(msg, num_block);
     ///
-    /// // Decryption
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
@@ -327,10 +323,8 @@ impl ClientKey {
     ///
     /// let msg = 191_u64;
     ///
-    /// // Encryption
     /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
     ///
-    /// // Decryption
     /// let dec = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
@@ -476,10 +470,8 @@ impl ClientKey {
     ///
     /// let msg = 2_u64;
     ///
-    /// // Encryption
     /// let ct = cks.encrypt_one_block(msg);
     ///
-    /// // Decryption
     /// let dec = cks.decrypt_one_block(&ct);
     /// assert_eq!(msg, dec);
     /// ```

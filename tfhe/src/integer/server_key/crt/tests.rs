@@ -61,16 +61,13 @@ fn integer_unchecked_crt_add_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_add(&ct_zero, &ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((clear_0 + clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -92,16 +89,13 @@ fn integer_unchecked_crt_mul_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_mul(&ct_zero, &ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((clear_0 * clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -122,15 +116,12 @@ fn integer_unchecked_crt_neg_32_bits() {
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_neg(&ct_zero);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!((modulus - clear_0) as u64, dec_res % modulus as u64);
     }
 }
@@ -149,16 +140,13 @@ fn integer_unchecked_crt_sub_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_sub(&ct_zero, &ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((modulus + clear_0 - clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -180,15 +168,12 @@ fn integer_unchecked_crt_scalar_add_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_scalar_add(&ct_zero, clear_1 as u64);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((clear_0 + clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -210,15 +195,12 @@ fn integer_unchecked_crt_scalar_mul_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_scalar_mul(&ct_zero, clear_1 as u64);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((clear_0 * clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -240,15 +222,12 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
-        // encryption of an integer
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
         let ct_res = sks.unchecked_crt_scalar_sub(&ct_zero, clear_1 as u64);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_res);
 
-        // assert
         assert_eq!(
             ((modulus + clear_0 - clear_1) % modulus) as u64,
             dec_res % modulus as u64
@@ -260,7 +239,6 @@ fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // Define CRT basis, and global modulus
@@ -271,17 +249,14 @@ fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
         let ct_one = cks.encrypt_crt(clear_1, basis.clone());
 
         // add the two ciphertexts
         sks.unchecked_crt_mul_assign(&mut ct_zero, &ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
-        // assert
         assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
     }
 }
@@ -293,13 +268,11 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let mut clear_0 = rng.gen::<u64>() % modulus;
     let clear_1 = rng.gen::<u64>() % modulus;
 
-    // encryption of an integer
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);
 
@@ -307,10 +280,8 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
         // add the two ciphertexts
         sks.smart_crt_add_assign(&mut ct_zero, &mut ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
-        // assert
         clear_0 += clear_1;
         assert_eq!(clear_0 % modulus, dec_res % modulus);
     }
@@ -326,13 +297,11 @@ fn integer_smart_crt_mul(param: ClassicPBSParameters) {
 
     println!("BASIS = {basis:?}");
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let mut clear_0 = rng.gen::<u64>() % modulus;
     let clear_1 = rng.gen::<u64>() % modulus;
 
-    // encryption of an integer
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);
 
@@ -340,7 +309,6 @@ fn integer_smart_crt_mul(param: ClassicPBSParameters) {
         // mul the two ciphertexts
         sks.smart_crt_mul_assign(&mut ct_zero, &mut ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
         clear_0 = (clear_0 * clear_1) % modulus;
@@ -355,25 +323,21 @@ fn integer_smart_crt_neg(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let mut clear_0 = rng.gen::<u64>() % modulus;
 
-    // encryption of an integer
     let mut ct_zero = cks.encrypt_crt(clear_0, basis);
 
     for _ in 0..NB_TESTS {
         // add the two ciphertexts
         sks.smart_crt_neg_assign(&mut ct_zero);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
         clear_0 = (modulus - clear_0) % modulus;
 
         // println!("clear = {}", clear_0);
-        // assert
         assert_eq!(clear_0, dec_res);
     }
 }
@@ -385,23 +349,19 @@ fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
 
         // add the two ciphertexts
         sks.smart_crt_scalar_add_assign(&mut ct_zero, clear_1);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
-        // assert
         assert_eq!((clear_0 + clear_1) % modulus, dec_res % modulus);
     }
 }
@@ -413,23 +373,19 @@ fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
 
         // add the two ciphertexts
         sks.smart_crt_scalar_mul_assign(&mut ct_zero, clear_1);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
-        // assert
         assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
     }
 }
@@ -441,25 +397,21 @@ fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let mut clear_0 = rng.gen::<u64>() % modulus;
     let clear_1 = rng.gen::<u64>() % modulus;
 
-    // encryption of an integer
     let mut ct_zero = cks.encrypt_crt(clear_0, basis);
 
     for _ in 0..NB_TESTS {
         // add the two ciphertexts
         sks.smart_crt_scalar_sub_assign(&mut ct_zero, clear_1);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
         // println!("clear_0 = {}, clear_1 = {}, modulus = {}", clear_0, clear_1, modulus);
 
-        // assert
         clear_0 = (clear_0 + modulus - clear_1) % modulus;
         assert_eq!(clear_0, dec_res % modulus);
     }
@@ -472,13 +424,11 @@ fn integer_smart_crt_sub(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let mut clear_0 = rng.gen::<u64>() % modulus;
     let clear_1 = rng.gen::<u64>() % modulus;
 
-    // encryption of an integer
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);
 
@@ -486,12 +436,10 @@ fn integer_smart_crt_sub(param: ClassicPBSParameters) {
         // sub the two ciphertexts
         sks.smart_crt_sub_assign(&mut ct_zero, &mut ct_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt_crt(&ct_zero);
 
         // println!("clear_0 = {}, clear_1 = {}, modulus = {}", clear_0, clear_1, modulus);
 
-        // assert
         clear_0 = (clear_0 + modulus - clear_1) % modulus;
         assert_eq!(clear_0, dec_res);
     }

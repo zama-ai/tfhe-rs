@@ -152,10 +152,8 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
             sks.smart_add_assign(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear % modulus, dec_res);
         }
     }

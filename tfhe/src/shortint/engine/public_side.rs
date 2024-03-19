@@ -213,7 +213,6 @@ impl ShortintEngine {
             public_key.lwe_public_key.ciphertext_modulus(),
         );
 
-        // encryption
         encrypt_lwe_ciphertext_with_seeded_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
@@ -253,7 +252,6 @@ impl ShortintEngine {
             public_key.lwe_public_key.ciphertext_modulus(),
         );
 
-        // encryption
         encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
@@ -293,7 +291,6 @@ impl ShortintEngine {
             public_key.lwe_public_key.ciphertext_modulus(),
         );
 
-        // encryption
         encrypt_lwe_ciphertext_with_seeded_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,

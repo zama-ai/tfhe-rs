@@ -62,19 +62,15 @@ fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = PublicKey::new(&cks);
 
-    // RNG
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let clear = rng.gen::<u128>();
 
-    //encryption
     let ct = public_key.encrypt_radix(clear, num_block);
 
-    // decryption
     let dec: u128 = cks.decrypt_radix(&ct);
 
-    // assert
     assert_eq!(clear, dec);
 }
 
@@ -82,19 +78,15 @@ fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = CompressedPublicKey::new(&cks);
 
-    // RNG
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let clear = rng.gen::<u128>();
 
-    //encryption
     let ct = public_key.encrypt_radix(clear, num_block);
 
-    // decryption
     let dec: u128 = cks.decrypt_radix(&ct);
 
-    // assert
     assert_eq!(clear, dec);
 }
 

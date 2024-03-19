@@ -27,7 +27,6 @@ use serde::{Deserialize, Serialize};
 ///
 /// let ct = cks.encrypt(msg);
 ///
-/// // Decryption
 /// let dec = cks.decrypt(&ct);
 /// assert_eq!(msg, dec);
 /// ```
