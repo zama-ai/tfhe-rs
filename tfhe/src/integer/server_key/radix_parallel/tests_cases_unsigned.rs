@@ -1440,7 +1440,6 @@ where
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1452,7 +1451,6 @@ where
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
-            // encryption of integers
             let ctxts = clears
                 .iter()
                 .copied()
@@ -1498,7 +1496,6 @@ where
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
-            // encryption of integers
             let ctxts = clears
                 .iter()
                 .copied()
@@ -1735,7 +1732,6 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1768,7 +1764,6 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1813,7 +1808,6 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1857,7 +1851,6 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -2378,7 +2371,6 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
         let mut ct_res = executor.execute((&ctxt_0, clear_1));
@@ -2822,7 +2814,6 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -2913,7 +2904,6 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
         // Do with a small clear to check the way we avoid
@@ -3651,7 +3641,6 @@ where
     ));
     let sks = Arc::new(sks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -3670,7 +3659,6 @@ where
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
-            // encryption of integers
             let ctxts = clears
                 .iter()
                 .copied()

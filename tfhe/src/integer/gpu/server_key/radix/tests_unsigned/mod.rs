@@ -341,7 +341,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -392,7 +391,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -442,7 +440,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -483,7 +480,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -524,7 +520,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -564,7 +559,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -605,7 +599,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -651,7 +644,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -697,7 +689,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -755,7 +746,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -814,7 +804,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -873,7 +862,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -932,7 +920,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -973,7 +960,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1014,7 +1000,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1094,7 +1079,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1172,7 +1156,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1223,7 +1206,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1274,7 +1256,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1325,7 +1306,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1366,7 +1346,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1407,7 +1386,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1447,7 +1425,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1488,7 +1465,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1534,7 +1510,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1580,7 +1555,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1619,7 +1593,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1658,7 +1631,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1697,7 +1669,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1784,7 +1755,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1827,7 +1797,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1868,7 +1837,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1909,7 +1877,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -1948,7 +1915,6 @@ where
 
     let (cks, sks) = gen_keys_gpu(param, &stream);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length

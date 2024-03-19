@@ -253,7 +253,6 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             ),
         };
 
-        // encryption
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &lwe_sk,
             plain,
@@ -284,7 +283,6 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             ),
         };
 
-        // encryption
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
             &lwe_sk,
             plain,
@@ -310,7 +308,6 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             CiphertextModulus::new_native(),
         );
 
-        // encryption
         encrypt_lwe_ciphertext_with_public_key(
             &pks.lwe_public_key,
             &mut output,
@@ -356,7 +353,6 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
                     EncryptionKeyChoice::Small => cks.lwe_secret_key.as_view(),
                 };
 
-                // decryption
                 let decrypted = decrypt_lwe_ciphertext(&lwe_sk, ciphertext);
 
                 // cast as a u32

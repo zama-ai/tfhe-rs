@@ -180,7 +180,6 @@ fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
     shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 }
 
-/// test encryption and decryption with the LWE client key
 fn shortint_encrypt_decrypt<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -197,15 +196,12 @@ where
 
         let ct = cks.encrypt(clear);
 
-        // decryption of ct
         let dec = cks.decrypt(&ct);
 
-        // assert
         assert_eq!(clear, dec);
     }
 }
 
-/// test encryption and decryption with the LWE client key
 fn shortint_encrypt_with_message_modulus_decrypt<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -225,10 +221,8 @@ where
 
         let ct = cks.encrypt_with_message_modulus(clear, MessageModulus(modulus as usize));
 
-        // decryption of ct_zero
         let dec = cks.decrypt(&ct);
 
-        // assert
         assert_eq!(clear, dec);
     }
 }
@@ -250,10 +244,8 @@ where
 
         let ct = cks.encrypt_without_padding(clear);
 
-        // decryption of ct_zero
         let dec = cks.decrypt_message_and_carry_without_padding(&ct);
 
-        // assert
         assert_eq!(clear, dec);
     }
 }
@@ -265,7 +257,6 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -274,20 +265,15 @@ where
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // keyswitch and bootstrap
         let ct_res = sks.message_extract(&ctxt_0);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
         if clear_0 != dec_res {
             failures += 1;
         }
-        // assert
-        // assert_eq!(clear_0, dec_res);
     }
 
     println!("fail_rate = {failures}/{NB_TESTS}");
@@ -300,7 +286,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -308,18 +294,14 @@ where
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        //define the lookup_table as identity
         let acc = sks.generate_msg_lookup_table(|n| n, cks.parameters.message_modulus());
-        // add the two ciphertexts
+
         let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_0, dec_res);
     }
 }
@@ -330,7 +312,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
@@ -361,10 +343,8 @@ where
         for _ in 0..per_fn_tests {
             let clear_0 = rng.gen::<u64>() % effective_msg_modulus;
 
-            // encryption of an integer
             let ctxt_0 = cks.encrypt(clear_0);
 
-            // Apply the many luts
             let vec_res = sks.apply_many_lookup_table(&ctxt_0, &acc);
 
             for (fn_idx, (res, function)) in vec_res.iter().zip(functions).enumerate() {
@@ -381,14 +361,13 @@ where
     }
 }
 
-/// test extraction of a carry
 fn shortint_carry_extract<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let full_modulus =
@@ -396,19 +375,14 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TESTS {
-        // shift to the carry bits
         let clear = rng.gen::<u64>() % full_modulus;
 
-        // unchecked encryption of the message to have a larger message encrypted.
         let ctxt = cks.unchecked_encrypt(clear);
 
-        // extract the carry
         let ct_carry = sks.carry_extract(&ctxt);
 
-        // decryption of message and carry
         let dec = cks.decrypt_message_and_carry(&ct_carry);
 
-        // assert
         println!(
             "msg = {clear}, modulus = {msg_modulus}, msg/modulus = {}",
             clear / msg_modulus
@@ -417,14 +391,13 @@ where
     }
 }
 
-/// test extraction of a message
 fn shortint_message_extract<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus_sup =
@@ -435,21 +408,16 @@ where
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus_sup;
 
-        // encryption of an integer
         let ctxt = cks.unchecked_encrypt(clear);
 
-        // message extraction
         let ct_msg = sks.message_extract(&ctxt);
 
-        // decryption of ct_msg
         let dec = cks.decrypt(&ct_msg);
 
-        // assert
         assert_eq!(clear % modulus, dec);
     }
 }
 
-/// test multiplication with the LWE server key
 fn shortint_generate_lookup_table<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -459,7 +427,6 @@ where
     let double = |x| (2 * x) % sks.message_modulus.0 as u64;
     let acc = sks.generate_lookup_table(double);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -467,27 +434,23 @@ where
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ct = cks.encrypt(clear);
 
         let ct_res = sks.apply_lookup_table(&ct, &acc);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear * 2) % modulus, dec_res);
     }
 }
 
-/// test addition with the LWE server key
 fn shortint_unchecked_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -496,19 +459,14 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         println!(
             "The parameters set is CARRY_{}_MESSAGE_{}",
             cks.parameters.carry_modulus().0,
@@ -518,7 +476,6 @@ where
     }
 }
 
-/// test addition with the LWE server key
 fn shortint_smart_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -526,7 +483,6 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -536,32 +492,25 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        // add multiple times to raise the degree and test the smart operation
         for _ in 0..NB_SUB_TEST_SMART {
             println!("SUB TEST");
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear % modulus, dec_res);
         }
     }
 }
 
-/// test default addition with the LWE server key
 fn shortint_default_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -569,7 +518,6 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -579,24 +527,19 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let ct_res = sks.add(&ctxt_0, &ctxt_1);
         let clear_res = clear_0 + clear_1;
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!(clear_res % modulus, dec_res);
     }
 }
 
-/// test addition with the LWE server key using the a public key for encryption
 fn shortint_compressed_public_key_smart_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -605,7 +548,6 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKey::new(cks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -615,31 +557,24 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = pk.encrypt(clear_0);
 
-        // encryption of an integer
         let mut ctxt_1 = pk.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        // add multiple times to raise the degree and test the smart operation
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear % modulus, dec_res);
         }
     }
 }
 
-/// test addition with the LWE server key using the a public key for encryption
 fn shortint_public_key_smart_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -648,7 +583,6 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKey::new(cks);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -658,31 +592,24 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = pk.encrypt(clear_0);
 
-        // encryption of an integer
         let mut ctxt_1 = pk.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        // add multiple times to raise the degree and test the smart operation
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear % modulus, dec_res);
         }
     }
 }
 
-/// test scalar bitwise 'xor' with the LWE server key
 fn shortint_unchecked_scalar_bitxor<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -711,7 +638,6 @@ where
     }
 }
 
-/// test scalar bitwise 'or' with the LWE server key
 fn shortint_unchecked_scalar_bitor<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -740,14 +666,13 @@ where
     }
 }
 
-/// test scalar bitwise 'and' with the LWE server key
 fn shortint_unchecked_scalar_bitand<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -776,7 +701,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -793,13 +718,10 @@ where
 
         clear_0 *= scalar as u64;
 
-        // add the two ciphertexts
         let ct_res = sks.smart_scalar_bitand(&mut ctxt_0, clear_1 as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_0 & clear_1, dec_res);
     }
 }
@@ -820,7 +742,6 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
         sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
@@ -841,7 +762,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -858,13 +779,10 @@ where
 
         clear_0 *= scalar as u64;
 
-        // add the two ciphertexts
         let ct_res = sks.smart_scalar_bitor(&mut ctxt_0, clear_1 as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear_0 | clear_1) % modulus, dec_res);
     }
 }
@@ -885,7 +803,6 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
         sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
@@ -906,7 +823,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -923,13 +840,10 @@ where
 
         clear_0 *= scalar as u64;
 
-        // add the two ciphertexts
         let ct_res = sks.smart_scalar_bitxor(&mut ctxt_0, clear_1 as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear_0 ^ clear_1) % modulus, dec_res);
     }
 }
@@ -950,7 +864,6 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
         sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
@@ -965,14 +878,13 @@ where
     }
 }
 
-/// test LSB multiplication with the LWE server key
 fn shortint_smart_mul_lsb<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -982,13 +894,10 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_mul_lsb(&mut ctxt_0, &mut ctxt_1);
 
         let mut clear = clear_0 * clear_1;
@@ -997,28 +906,24 @@ where
 
         assert_eq!(clear % modulus, dec_res);
 
-        // multiply several times to raise the degree
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_mul_lsb(&mut ct_res, &mut ctxt_0);
             clear = (clear * clear_0) % modulus;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear, dec_res);
         }
     }
 }
 
-/// test default LSB multiplication with the LWE server key
 fn shortint_default_mul_lsb<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1028,13 +933,10 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let ct_res = sks.mul_lsb(&ctxt_0, &ctxt_1);
 
         let clear = clear_0 * clear_1;
@@ -1045,46 +947,39 @@ where
     }
 }
 
-/// test unchecked negation
 fn shortint_unchecked_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TESTS {
-        // Define the cleartexts
         let clear = rng.gen::<u64>() % modulus;
 
-        // Encrypt the integers
         let ctxt = cks.encrypt(clear);
 
-        // Negates the ctxt
         let ct_tmp = sks.unchecked_neg(&ctxt);
 
-        // Decrypt the result
         let dec = cks.decrypt(&ct_tmp);
 
-        // Check the correctness
         let clear_result = clear.wrapping_neg() % modulus;
 
         assert_eq!(clear_result, dec);
     }
 }
 
-/// test smart negation
 fn shortint_smart_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1099,28 +994,24 @@ where
         let mut clear_result = clear1.wrapping_neg() % modulus;
 
         for _ in 0..NB_SUB_TEST_SMART {
-            // scalar multiplication
             ct_res = sks.smart_neg(&mut ct_res);
 
             clear_result = clear_result.wrapping_neg() % modulus;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // assert
             assert_eq!(clear_result, dec_res);
         }
     }
 }
 
-/// test default negation
 fn shortint_default_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1134,15 +1025,12 @@ where
 
         let clear_result = clear1.wrapping_neg() % modulus;
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_result, dec_res);
     }
 }
 
-/// test scalar add
 fn shortint_unchecked_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1159,28 +1047,23 @@ where
 
         let scalar = rng.gen::<u8>() % message_modulus;
 
-        // encryption of an integer
         let ct = cks.encrypt(clear as u64);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_add(&ct, scalar);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear + scalar) % message_modulus, dec_res as u8);
     }
 }
 
-/// test smart scalar add
 fn shortint_smart_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1190,20 +1073,16 @@ where
 
         let clear_1 = rng.gen::<u8>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0 as u64);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_scalar_add(&mut ctxt_0, clear_1);
 
         let mut clear = (clear_0 + clear_1) % modulus;
 
-        // add multiple times to raise the degree
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_scalar_add(&mut ct_res, clear_1);
             clear = (clear + clear_1) % modulus;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
             assert_eq!(clear, dec_res as u8);
@@ -1211,14 +1090,13 @@ where
     }
 }
 
-/// test default smart scalar add
 fn shortint_default_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1228,10 +1106,8 @@ where
 
         let clear_1 = rng.gen::<u8>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_add(&ctxt_0, clear_1);
 
         let clear = (clear_0 + clear_1) % modulus;
@@ -1242,7 +1118,6 @@ where
     }
 }
 
-/// test unchecked scalar sub
 fn shortint_unchecked_scalar_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1259,16 +1134,12 @@ where
 
         let scalar = rng.gen::<u8>() % message_modulus;
 
-        // encryption of an integer
         let ct = cks.encrypt(clear as u64);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_sub(&ct, scalar);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear - scalar) % message_modulus, dec_res as u8);
     }
 }
@@ -1279,7 +1150,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1289,28 +1160,18 @@ where
 
         let clear_1 = rng.gen::<u8>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0 as u64);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_scalar_sub(&mut ctxt_0, clear_1);
 
         let mut clear = (clear_0 - clear_1) % modulus;
 
-        // let dec_res = cks.decrypt(&ct_res);
-        // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
-        // clear);
-
-        // subtract multiple times to raise the degree
         for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
             clear = (clear - clear_1) % modulus;
 
-            // decryption of ct_res
             let dec_res = cks.decrypt(&ct_res);
 
-            // println!("clear_1 = {}, dec = {}, clear = {}", clear_1, dec_res, clear);
-            // assert
             assert_eq!(clear, dec_res as u8);
         }
     }
@@ -1322,7 +1183,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1332,10 +1193,8 @@ where
 
         let clear_1 = rng.gen::<u8>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_sub(&ctxt_0, clear_1);
 
         let clear = (clear_0.wrapping_sub(clear_1)) % modulus;
@@ -1346,7 +1205,6 @@ where
     }
 }
 
-/// test scalar multiplication with the LWE server key
 fn shortint_unchecked_scalar_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1364,28 +1222,23 @@ where
 
         let scalar = rng.gen::<u8>() % carry_modulus;
 
-        // encryption of an integer
         let ct = cks.encrypt(clear as u64);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_mul(&ct, scalar);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear * scalar) % message_modulus, dec_res as u8);
     }
 }
 
-/// test default smart scalar multiplication with the LWE server key
 fn shortint_smart_scalar_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1397,34 +1250,29 @@ where
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
 
-        // encryption of an integer
         let mut ct = cks.encrypt(clear as u64);
 
         let mut ct_res = sks.smart_scalar_mul(&mut ct, scalar);
 
         let mut clear_res = clear * scalar;
         for _ in 0..NB_SUB_TEST_SMART {
-            // scalar multiplication
             ct_res = sks.smart_scalar_mul(&mut ct_res, scalar);
             clear_res = (clear_res * scalar) % modulus;
         }
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_res, dec_res as u8);
     }
 }
 
-/// test default scalar multiplication with the LWE server key
 fn shortint_default_scalar_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
@@ -1436,29 +1284,25 @@ where
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
 
-        // encryption of an integer
         let ct = cks.encrypt(clear as u64);
 
         let ct_res = sks.scalar_mul(&ct, scalar);
 
         let clear_res = (clear * scalar) % modulus;
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_res, dec_res as u8);
     }
 }
 
-/// test unchecked '>>' operation
 fn shortint_unchecked_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1467,28 +1311,23 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_right_shift(&ctxt_0, shift as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_0 >> shift, dec_res);
     }
 }
 
-/// test default unchecked '>>' operation
 fn shortint_default_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1497,28 +1336,23 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_right_shift(&ctxt_0, shift as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_0 >> shift, dec_res);
     }
 }
 
-/// test '<<' operation
 fn shortint_unchecked_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1527,28 +1361,23 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_left_shift(&ctxt_0, shift as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear_0 << shift) % modulus, dec_res);
     }
 }
 
-/// test default '<<' operation
 fn shortint_default_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1557,47 +1386,37 @@ where
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_left_shift(&ctxt_0, shift as u8);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear_0 << shift) % modulus, dec_res);
     }
 }
 
-/// test unchecked subtraction
 fn shortint_unchecked_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
     for _ in 0..NB_TESTS {
-        // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
-        // Encrypt the integers
         let ctxt_1 = cks.encrypt(clear1);
         let ctxt_2 = cks.encrypt(clear2);
 
-        // Add the ciphertext 1 and 2
         let ct_tmp = sks.unchecked_sub(&ctxt_1, &ctxt_2);
 
-        // Decrypt the result
         let dec = cks.decrypt(&ct_tmp);
 
-        // Check the correctness
         let clear_result = (clear1 - clear2) % modulus;
         assert_eq!(clear_result, dec % modulus);
     }
@@ -1609,7 +1428,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1625,14 +1444,12 @@ where
 
         let mut clear_res = (clear1 - clear2) % modulus;
         for _ in 0..NB_SUB_TEST_SMART {
-            // scalar multiplication
             ct_res = sks.smart_sub(&mut ct_res, &mut ct2);
             clear_res = (clear_res - clear2) % modulus;
         }
-        // decryption of ct_res
+
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_res, dec_res);
     }
 }
@@ -1643,7 +1460,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1659,22 +1476,19 @@ where
 
         let clear_res = (clear1.wrapping_sub(clear2)) % modulus;
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!(clear_res, dec_res);
     }
 }
 
-/// test multiplication
 fn shortint_mul_small_carry<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    //RNG
+
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
@@ -1684,24 +1498,18 @@ where
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_zero = cks.encrypt(clear_0);
 
-        // encryption of an integer
         let ctxt_one = cks.encrypt(clear_1);
 
-        // multiply together the two ciphertexts
         let ct_res = sks.unchecked_mul_lsb_small_carry(&ctxt_zero, &ctxt_one);
 
-        // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
-        // assert
         assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
     }
 }
 
-/// test encryption and decryption with the LWE client key
 fn shortint_encrypt_with_message_modulus_unchecked_mul_lsb_small_carry_and_add<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1734,7 +1542,6 @@ where
     }
 }
 
-/// test encryption and decryption with the LWE client key
 fn shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry_and_add<P>(
     param: P,
 ) where
@@ -1784,7 +1591,6 @@ fn shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry
     }
 }
 
-/// test simulating a MUX
 fn shortint_mux<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -1847,10 +1653,9 @@ where
         Box::new(|x| x / sks.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
     ];
 
-    // Test will be too expensive
     if full_modulus >= 64 {
         let mut rng = rand::thread_rng();
-        // at least do one test
+
         for _ in 0..(NB_TESTS / functions.len()).max(1) {
             for f in &functions {
                 let lut = sks.generate_lookup_table(f);
@@ -1866,12 +1671,10 @@ where
         for f in functions {
             let lut = sks.generate_lookup_table(f);
 
-            // Test 'normal' behaviour (i.e. padding bit set to 0)
             for clear_with_clean_padding_bit in 0..full_modulus {
                 check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
             }
 
-            // Test behaviour when padding bit set to 1
             for clear_with_dirty_padding_bit in full_modulus..(full_modulus * 2) {
                 check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
             }
@@ -1927,10 +1730,9 @@ where
     let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2, &f3, &f4, &f5, &f6, &f7, &f8];
     let max_fn_count = functions.len().min(full_modulus as usize / 2);
 
-    // Test will be too expensive
     if full_modulus >= 64 {
         let mut rng = rand::thread_rng();
-        // at least do one test
+
         for _ in 0..(NB_TESTS / max_fn_count).max(1) {
             for fn_count in 1..=max_fn_count {
                 let functions = &functions[..fn_count];
@@ -1948,12 +1750,10 @@ where
             let functions = &functions[..fn_count];
             let lut = sks.generate_many_lookup_table(functions);
 
-            // Test 'normal' behaviour (i.e. padding bit set to 0)
             for clear_with_clean_padding_bit in 0..full_modulus {
                 check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
             }
 
-            // Test behaviour when padding bit set to 1
             for clear_with_dirty_padding_bit in full_modulus..(full_modulus * 2) {
                 check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
             }
