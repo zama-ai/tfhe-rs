@@ -2,6 +2,9 @@
 mod utilities;
 use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 use rayon::prelude::*;
+use rand::thread_rng;
+use rand::prelude::*;
+use rand::distributions::Standard;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde::Serialize;
@@ -1160,7 +1163,9 @@ fn mult_circuit_clot21_scenario_a<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
     c: &mut Criterion,
-) {
+) 
+where Standard: rand::distributions::Distribution<Scalar>
+{
     //only written for local development benchmarking
     let bench_name = "mult_circuit_clot21_scenario_a";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -1304,20 +1309,42 @@ fn mult_circuit_clot21_scenario_a<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator = GlweCiphertext::new(
+        let mut rng = thread_rng();
+
+        let mut accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
+        accumulator.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &glwe_secret_key,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension1.unwrap(),
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut fourier_bsk,
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -1500,7 +1527,9 @@ fn mult_circuit_clot21_scenario_c<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
     c: &mut Criterion,
-) {
+) 
+where Standard: rand::distributions::Distribution<Scalar>
+{
     //only written for local development benchmarking
     let bench_name = "mult_circuit_clot21_scenario_c";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -1659,20 +1688,41 @@ fn mult_circuit_clot21_scenario_c<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator = GlweCiphertext::new(
+        let mut rng = thread_rng();
+
+        let mut accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension2.unwrap().to_glwe_size(),
             params.polynomial_size2.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
+        accumulator.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &lwe_secret_key2,
+            &glwe_secret_key2,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension2.unwrap(),
             params.glwe_dimension2.unwrap().to_glwe_size(),
             params.polynomial_size2.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut fourier_bsk,
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -1776,7 +1826,7 @@ fn packing_key_switch<
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    for (name, params) in params_scenario_a::<Scalar>().iter() {
+    for (name, params) in params_scenario_c::<Scalar>().iter() {
     //for (name, params) in params_scenario_c::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1870,7 +1920,9 @@ fn circuit_clot21_without_packing_scenario_a<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
     c: &mut Criterion,
-) {
+) 
+where Standard: rand::distributions::Distribution<Scalar>
+{
     //only written for local development benchmarking
     let bench_name = "circuit_clot21_without_packing_scenario_a";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -1901,11 +1953,15 @@ fn circuit_clot21_without_packing_scenario_a<
 
         let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
 
+        let mut rng = thread_rng();
+
         // Allocate a new GlweCiphertext and encrypt our plaintext
-        let packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
+        let mut packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native());
+
+        packed_glwe1.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
 
         //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
         let log_delta1 = 59;
@@ -1958,20 +2014,39 @@ fn circuit_clot21_without_packing_scenario_a<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator = GlweCiphertext::new(
+        let mut accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
+        accumulator.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &glwe_secret_key,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev1.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension1.unwrap(),
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut fourier_bsk,
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -2037,7 +2112,9 @@ fn circuit_clot21_without_packing_scenario_c<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
     c: &mut Criterion,
-) {
+)
+where Standard: rand::distributions::Distribution<Scalar>
+{
     //only written for local development benchmarking
     let bench_name = "circuit_clot21_without_packing_scenario_c";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -2078,11 +2155,15 @@ fn circuit_clot21_without_packing_scenario_c<
 
         let equivalent_lwe_sk2 = glwe_secret_key2.clone().into_lwe_secret_key();
 
+        let mut rng = thread_rng();
+
         // Allocate a new GlweCiphertext and encrypt our plaintext
-        let packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
+        let mut packed_glwe1 = GlweCiphertext::new(Scalar::ZERO,
             params.glwe_dimension1.unwrap().to_glwe_size(),
             params.polynomial_size1.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native());
+
+        packed_glwe1.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
 
         //the actual value does not matter for benchmarking we only need to know how expensive the operation is, it does not necessarily needs to be correct
         let log_delta1 = 59;
@@ -2140,20 +2221,39 @@ fn circuit_clot21_without_packing_scenario_c<
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator = GlweCiphertext::new(
+        let mut accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension2.unwrap().to_glwe_size(),
             params.polynomial_size2.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
+        accumulator.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &lwe_secret_key2,
+            &glwe_secret_key2,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev2.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension2.unwrap(),
             params.glwe_dimension2.unwrap().to_glwe_size(),
             params.polynomial_size2.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut fourier_bsk,
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -2307,7 +2407,9 @@ fn square_trick_benchmark_parameters<Scalar: UnsignedInteger + Default + Seriali
 
 fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Serialize>(
     c: &mut Criterion,
-) {
+) 
+where Standard: rand::distributions::Distribution<Scalar>
+{
     //only written for local development benchmarking
     let bench_name = "square_trick_mult";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -2328,8 +2430,18 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             &mut secret_generator,
         );
 
+        // Create the GlweSecretKey
+        let glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+        allocate_and_generate_new_binary_glwe_secret_key(
+            params.glwe_dimension.unwrap(),
+            params.polynomial_size.unwrap(),
+            &mut secret_generator,
+        );
+        
+        let mut rng = thread_rng();
+
         // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in_lhs: LweCiphertextOwned<Scalar> =
+        let mut lwe_ciphertext_in_lhs: LweCiphertextOwned<Scalar> =
             allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 Plaintext(Scalar::ZERO),
@@ -2338,7 +2450,9 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
                 &mut encryption_generator,
             );
 
-        let lwe_ciphertext_in_rhs: LweCiphertextOwned<Scalar> =
+        lwe_ciphertext_in_lhs.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let mut lwe_ciphertext_in_rhs: LweCiphertextOwned<Scalar> =
             allocate_and_encrypt_new_lwe_ciphertext(
                 &input_lwe_secret_key,
                 Plaintext(Scalar::ZERO),
@@ -2347,22 +2461,39 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
                 &mut encryption_generator,
             );
 
-        let accumulator1 = GlweCiphertext::new(
+        lwe_ciphertext_in_rhs.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let mut accumulator1 = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator2 = GlweCiphertext::new(
+        accumulator1.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let mut accumulator2 = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        accumulator2.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key1: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &glwe_secret_key,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
         );
 
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk1 = FourierLweBootstrapKey::new(
+        let mut fourier_bsk1 = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
@@ -2370,12 +2501,35 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             params.pbs_level.unwrap(),
         );
 
-        let fourier_bsk2 = FourierLweBootstrapKey::new(
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key1,
+            &mut fourier_bsk1,
+        );
+
+        let standard_bootstrapping_key2: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &glwe_secret_key,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
+
+        let mut fourier_bsk2 = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key2,
+            &mut fourier_bsk2,
         );
 
         let mut sq_sum = LweCiphertext::new(
@@ -2412,20 +2566,39 @@ fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Seri
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
-        let accumulator = GlweCiphertext::new(
+        let mut accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
+        
+        accumulator.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<Scalar> =
+        par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &glwe_secret_key,
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.glwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator
+        );
 
         // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut fourier_bsk,
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -2558,8 +2731,7 @@ criterion_group!(
 // #[cfg(feature = "gpu")]
 // criterion_main!(cuda_pbs_group, cuda_multi_bit_pbs_group);
 
-//criterion_main!(tensor_prod_with_relin_group);
-//criterion_main!( clot21_mult_circuit_group,square_trick_circuit_group); 
-//criterion_main!(clot21_mult_circuit_without_packing_group);
-//criterion_main!(scenario_c); 
-criterion_main!(packing_key_switch_group, clot21_mult_circuit_without_packing_group_a);
+
+criterion_main!(scenario_a,scenario_c);
+//criterion_main!(square_trick_circuit_group); 
+//criterion_main!(packing_key_switch_group, clot21_mult_circuit_without_packing_group_c); //if you change from a to c change the parameter set for the packing_key_switch_group
