@@ -25,9 +25,13 @@ mod scalar_comparison;
 mod scalar_mul;
 mod scalar_shift;
 mod scalar_sub;
+mod shift;
 mod sub;
 
 mod scalar_rotate;
+
+mod rotate;
+
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]

@@ -89,7 +89,7 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_left_rotate<T>(
+    pub fn unchecked_scalar_rotate_left<T>(
         &self,
         ct: &CudaUnsignedRadixCiphertext,
         n: T,
@@ -188,7 +188,7 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_right_rotate<T>(
+    pub fn unchecked_scalar_rotate_right<T>(
         &self,
         ct: &CudaUnsignedRadixCiphertext,
         n: T,

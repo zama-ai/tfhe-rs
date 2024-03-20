@@ -427,7 +427,7 @@ impl CudaRadixCiphertext {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
+    pub(crate) unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
 

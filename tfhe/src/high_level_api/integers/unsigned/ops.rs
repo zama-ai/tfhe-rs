@@ -1143,8 +1143,12 @@ generic_integer_impl_shift_rotate!(
                         FheUint::new(ciphertext)
                     }
                     #[cfg(feature = "gpu")]
-                    InternalServerKey::Cuda(_) => {
-                        panic!("Shl '<<' is not yet supported by Cuda devices")
+                    InternalServerKey::Cuda(cuda_key) => {
+                         with_thread_local_cuda_stream(|stream| {
+                            let inner_result = cuda_key.key
+                                .left_shift(&*lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            FheUint::new(inner_result)
+                        })
                     }
                 }
             })
@@ -1183,8 +1187,12 @@ generic_integer_impl_shift_rotate!(
                         FheUint::new(ciphertext)
                     }
                     #[cfg(feature = "gpu")]
-                    InternalServerKey::Cuda(_) => {
-                        panic!("Shr '>>' is not yet supported by Cuda devices")
+                    InternalServerKey::Cuda(cuda_key) => {
+                         with_thread_local_cuda_stream(|stream| {
+                            let inner_result = cuda_key.key
+                                .right_shift(&*lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            FheUint::new(inner_result)
+                        })
                     }
                 }
             })
@@ -1223,8 +1231,12 @@ generic_integer_impl_shift_rotate!(
                         FheUint::new(ciphertext)
                     }
                     #[cfg(feature = "gpu")]
-                    InternalServerKey::Cuda(_) => {
-                       panic!("RotateLeft is not yet supported by Cuda devices")
+                    InternalServerKey::Cuda(cuda_key) => {
+                         with_thread_local_cuda_stream(|stream| {
+                            let inner_result = cuda_key.key
+                                .rotate_left(&*lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            FheUint::new(inner_result)
+                        })
                     }
                 }
             })
@@ -1263,8 +1275,12 @@ generic_integer_impl_shift_rotate!(
                         FheUint::new(ciphertext)
                     }
                     #[cfg(feature = "gpu")]
-                    InternalServerKey::Cuda(_) => {
-                        panic!("RotateRight is not yet supported by Cuda devices")
+                    InternalServerKey::Cuda(cuda_key) => {
+                         with_thread_local_cuda_stream(|stream| {
+                            let inner_result = cuda_key.key
+                                .rotate_right(&*lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                            FheUint::new(inner_result)
+                        })
                     }
                 }
             })
@@ -1674,8 +1690,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support left shift with encrypted value");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_stream(|stream| {
+                    cuda_key.key.left_shift_assign(
+                        self.ciphertext.as_gpu_mut(),
+                        &rhs.ciphertext.on_gpu(),
+                        stream,
+                    );
+                });
             }
         })
     }
@@ -1727,8 +1749,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support right shift with encrypted value");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_stream(|stream| {
+                    cuda_key.key.right_shift_assign(
+                        self.ciphertext.as_gpu_mut(),
+                        &rhs.ciphertext.on_gpu(),
+                        stream,
+                    );
+                });
             }
         })
     }
@@ -1781,8 +1809,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support rotate left with encrypted value");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_stream(|stream| {
+                    cuda_key.key.rotate_left_assign(
+                        self.ciphertext.as_gpu_mut(),
+                        &rhs.ciphertext.on_gpu(),
+                        stream,
+                    );
+                });
             }
         })
     }
@@ -1835,8 +1869,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support rotate right with encrypted value");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_stream(|stream| {
+                    cuda_key.key.rotate_right_assign(
+                        self.ciphertext.as_gpu_mut(),
+                        &rhs.ciphertext.on_gpu(),
+                        stream,
+                    );
+                });
             }
         })
     }
