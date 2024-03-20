@@ -39,15 +39,6 @@ __global__ void smart_copy(Torus *dst, Torus *src, int32_t *id_out,
   }
 }
 
-void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
-                                 size_t *h_lwe_idx_out,
-                                 int32_t *h_smart_copy_in,
-                                 int32_t *h_smart_copy_out, size_t ch_amount,
-                                 uint32_t num_radix, uint32_t num_blocks,
-                                 size_t chunk_size, size_t message_max,
-                                 size_t &total_count, size_t &message_count,
-                                 size_t &carry_count, size_t &sm_copy_count);
-
 template <typename Torus, class params>
 __global__ void
 all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
@@ -444,42 +435,6 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
 
   *mem_ptr = new int_mul_memory<Torus>(stream, params, num_radix_blocks,
                                        allocate_gpu_memory);
-}
-
-template <typename T>
-__global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
-                                                         T *input_lwe_array,
-                                                         T scalar,
-                                                         uint32_t lwe_dimension,
-                                                         uint32_t num_blocks) {
-  int index = blockIdx.x * blockDim.x + threadIdx.x;
-  int lwe_size = lwe_dimension + 1;
-  if (index < num_blocks * lwe_size) {
-    // Here we take advantage of the wrapping behaviour of uint
-    output_lwe_array[index] = input_lwe_array[index] * scalar;
-  }
-}
-
-template <typename T>
-__host__ void host_integer_small_scalar_mult_radix(
-    cuda_stream_t *stream, T *output_lwe_array, T *input_lwe_array, T scalar,
-    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
-
-  cudaSetDevice(stream->gpu_index);
-  // lwe_size includes the presence of the body
-  // whereas lwe_dimension is the number of elements in the mask
-  int lwe_size = input_lwe_dimension + 1;
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count * lwe_size;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  device_small_scalar_radix_multiplication<<<grid, thds, 0, stream->stream>>>(
-      output_lwe_array, input_lwe_array, scalar, input_lwe_dimension,
-      input_lwe_ciphertext_count);
-  check_cuda_error(cudaGetLastError());
 }
 
 #endif

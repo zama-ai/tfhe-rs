@@ -72,6 +72,7 @@ void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
 void cleanup_cuda_integer_radix_logical_scalar_shift(cuda_stream_t *stream,
                                                      int8_t **mem_ptr_void) {
 
+  cudaSetDevice(stream->gpu_index);
   int_logical_scalar_shift_buffer<uint64_t> *mem_ptr =
       (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 
@@ -81,6 +82,7 @@ void cleanup_cuda_integer_radix_logical_scalar_shift(cuda_stream_t *stream,
 void cleanup_cuda_integer_radix_arithmetic_scalar_shift(cuda_stream_t *stream,
                                                         int8_t **mem_ptr_void) {
 
+  cudaSetDevice(stream->gpu_index);
   int_arithmetic_scalar_shift_buffer<uint64_t> *mem_ptr =
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 

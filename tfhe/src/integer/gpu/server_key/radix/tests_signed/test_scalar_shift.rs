@@ -2,7 +2,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parametrized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_signed::{
+use crate::integer::server_key::radix_parallel::tests_signed::test_scalar_shift::{
     signed_default_scalar_left_shift_test, signed_default_scalar_right_shift_test,
     signed_unchecked_scalar_left_shift_test, signed_unchecked_scalar_right_shift_test,
 };

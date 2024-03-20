@@ -5,6 +5,7 @@ pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
+pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
@@ -82,7 +83,6 @@ impl<F> GpuFunctionExecutor<F> {
 }
 
 // Unchecked operations
-create_gpu_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_gpu_parametrized_test!(integer_unchecked_eq);
 create_gpu_parametrized_test!(integer_unchecked_ne);
 create_gpu_parametrized_test!(integer_unchecked_gt);
@@ -104,7 +104,6 @@ create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_left);
 create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 
 // Default operations
-create_gpu_parametrized_test!(integer_small_scalar_mul);
 create_gpu_parametrized_test!(integer_eq);
 create_gpu_parametrized_test!(integer_ne);
 create_gpu_parametrized_test!(integer_gt);
@@ -359,14 +358,6 @@ where
             d_res.1.to_boolean_block(&context.stream),
         )
     }
-}
-
-fn integer_unchecked_small_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_small_scalar_mul);
-    unchecked_small_scalar_mul_test(param, executor);
 }
 
 fn integer_unchecked_eq<P>(param: P)
@@ -1224,14 +1215,6 @@ where
         // Check the correctness
         assert_eq!(dec_res, if clear_condition == 1 { clear1 } else { clear2 });
     }
-}
-
-fn integer_small_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::small_scalar_mul);
-    default_small_scalar_mul_test(param, executor);
 }
 
 fn integer_eq<P>(param: P)

@@ -6,6 +6,7 @@ pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
+pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
@@ -41,6 +42,12 @@ pub(crate) const NB_TESTS_SMALLER: usize = 1;
 pub(crate) const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
 pub(crate) const NB_CTXT: usize = 2;
+
+#[cfg(not(tarpaulin))]
+pub(crate) const NB_TESTS_UNCHECKED: usize = NB_TESTS;
+/// Unchecked test cases needs a minimum number of tests of 4 in order to provide guarantees.
+#[cfg(tarpaulin)]
+pub(crate) const NB_TESTS_UNCHECKED: usize = 4;
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
@@ -414,33 +421,6 @@ create_parametrized_test!(
 );
 create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
 create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
-create_parametrized_test!(integer_unchecked_small_scalar_mul);
-create_parametrized_test!(integer_smart_small_scalar_mul);
-create_parametrized_test!(integer_default_small_scalar_mul);
-create_parametrized_test!(
-    integer_smart_scalar_mul_u128_fix_non_reg_test {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        },
-        no_coverage => {
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        }
-    }
-);
-create_parametrized_test!(integer_unchecked_scalar_mul_corner_cases);
-create_parametrized_test!(
-    integer_default_scalar_mul_u128_fix_non_reg_test {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        },
-        no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        }
-    }
-);
-create_parametrized_test!(integer_smart_scalar_mul);
-create_parametrized_test!(integer_default_scalar_mul);
 // left/right shifts
 create_parametrized_test!(
     integer_unchecked_left_shift {
@@ -729,22 +709,6 @@ where
 // Unchecked Scalar Tests
 //=============================================================================
 
-fn integer_unchecked_small_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_small_scalar_mul_parallelized);
-    unchecked_small_scalar_mul_test(param, executor);
-}
-
-fn integer_unchecked_scalar_mul_corner_cases<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
-    unchecked_scalar_mul_corner_cases_test(param, executor);
-}
-
 fn integer_unchecked_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -842,30 +806,6 @@ where
 // Smart Scalar Tests
 //=============================================================================
 
-fn integer_smart_small_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_small_scalar_mul_parallelized);
-    smart_small_scalar_mul_test(param, executor);
-}
-
-fn integer_smart_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_mul_parallelized);
-    smart_scalar_mul_test(param, executor);
-}
-
-fn integer_smart_scalar_mul_u128_fix_non_reg_test<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_mul_parallelized);
-    smart_scalar_mul_u128_fix_non_reg_test(param, executor);
-}
-
 //=============================================================================
 // Default Tests
 //=============================================================================
@@ -948,30 +888,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
     default_checked_ilog2_test(param, executor);
-}
-
-fn integer_default_small_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::small_scalar_mul_parallelized);
-    default_small_scalar_mul_test(param, executor);
-}
-
-fn integer_default_scalar_mul_u128_fix_non_reg_test<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
-    default_scalar_mul_u128_fix_non_reg_test(param, executor);
-}
-
-fn integer_default_scalar_mul<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
-    default_scalar_mul_test(param, executor);
 }
 
 fn integer_default_scalar_rotate_right<P>(param: P)

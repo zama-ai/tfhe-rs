@@ -1609,6 +1609,12 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_mul,
+        display_name: mul,
+        rng_func: mul_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_sub,
         display_name: sub,
         rng_func: default_scalar
@@ -1803,6 +1809,12 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_mul,
+        display_name: mul,
+        rng_func: mul_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_left_shift,
         display_name: left_shift,
         rng_func: shift_scalar
@@ -1904,6 +1916,7 @@ mod cuda {
         cuda_unchecked_scalar_bitor,
         cuda_unchecked_scalar_bitxor,
         cuda_unchecked_scalar_add,
+        cuda_unchecked_scalar_mul,
         cuda_unchecked_scalar_sub,
         cuda_unchecked_scalar_left_shift,
         cuda_unchecked_scalar_right_shift,
@@ -1946,6 +1959,7 @@ mod cuda {
         default_scalar_cuda_ops,
         cuda_scalar_sub,
         cuda_scalar_add,
+        cuda_scalar_mul,
         cuda_scalar_left_shift,
         cuda_scalar_right_shift,
         cuda_scalar_bitand,

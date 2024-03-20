@@ -687,38 +687,6 @@ where
         );
     }
 }
-pub(crate) fn unchecked_small_scalar_mul_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u64>() % scalar_modulus;
-
-        let ct = cks.encrypt(clear);
-
-        let encrypted_result = executor.execute((&ct, scalar));
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-
-        let expected_result = clear.wrapping_mul(scalar) % modulus;
-
-        assert_eq!(decrypted_result, expected_result);
-    }
-}
-
 pub(crate) fn unchecked_scalar_mul_corner_cases_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -1609,45 +1577,6 @@ where
 
     let dec_res: u128 = cks.decrypt(&ct_res);
     assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
-}
-
-pub(crate) fn smart_small_scalar_mul_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
-
-    executor.setup(&cks, sks);
-
-    let mut clear_res;
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u64>() % scalar_modulus;
-
-        let mut ct = cks.encrypt(clear);
-
-        let mut ct_res = executor.execute((&mut ct, scalar));
-
-        clear_res = clear * scalar;
-        for _ in 0..NB_TESTS_SMALLER {
-            // scalar multiplication
-            ct_res = executor.execute((&mut ct_res, scalar));
-            clear_res *= scalar;
-        }
-
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear_res % modulus, dec_res);
-    }
 }
 
 //=============================================================================
@@ -2931,51 +2860,6 @@ where
         assert!(decrypted_overflowed); // Actually we know its an overflow case
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
-    }
-}
-
-pub(crate) fn default_small_scalar_mul_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
-
-    executor.setup(&cks, sks);
-
-    let mut clear_res;
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u64>() % scalar_modulus;
-
-        let ct = cks.encrypt(clear);
-
-        let mut ct_res = executor.execute((&ct, scalar));
-        assert!(ct_res.block_carries_are_empty());
-
-        clear_res = clear * scalar;
-        for _ in 0..NB_TESTS_SMALLER {
-            // scalar multiplication
-            let tmp = executor.execute((&ct_res, scalar));
-            ct_res = executor.execute((&ct_res, scalar));
-            assert!(ct_res.block_carries_are_empty());
-            assert_eq!(tmp, ct_res);
-            clear_res = clear_res.wrapping_mul(scalar);
-        }
-
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear_res % modulus, dec_res);
     }
 }
 

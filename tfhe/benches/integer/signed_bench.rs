@@ -1562,6 +1562,18 @@ mod cuda {
         tfhe::integer::I256::from((clearlow, clearhigh))
     }
 
+    fn mul_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+        loop {
+            let clearlow = rng.gen::<u128>();
+            let clearhigh = rng.gen::<u128>();
+            let scalar = tfhe::integer::I256::from((clearlow, clearhigh));
+            // If scalar is power of two, it is just a shit, which is a happy path.
+            if !scalar.is_power_of_two() {
+                return scalar;
+            }
+        }
+    }
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_add,
         display_name: add
@@ -1626,6 +1638,12 @@ mod cuda {
         method_name: unchecked_scalar_add,
         display_name: add,
         rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_mul,
+        display_name: mul,
+        rng_func: mul_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
@@ -1735,6 +1753,12 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_mul,
+        display_name: mul,
+        rng_func: mul_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_sub,
         display_name: sub,
         rng_func: default_signed_scalar
@@ -1789,6 +1813,7 @@ mod cuda {
     criterion_group!(
         unchecked_scalar_cuda_ops,
         cuda_unchecked_scalar_add,
+        cuda_unchecked_scalar_mul,
         cuda_unchecked_scalar_sub,
         cuda_unchecked_scalar_bitand,
         cuda_unchecked_scalar_bitor,
@@ -1816,6 +1841,7 @@ mod cuda {
     criterion_group!(
         default_scalar_cuda_ops,
         cuda_scalar_add,
+        cuda_scalar_mul,
         cuda_scalar_sub,
         cuda_scalar_bitand,
         cuda_scalar_bitor,
