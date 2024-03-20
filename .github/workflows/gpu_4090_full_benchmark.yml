@@ -192,7 +192,7 @@ jobs:
 
   remove_github_label:
     name: Remove 4090 bench label
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ always() && github.event_name == 'pull_request' }}
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
     runs-on: ["self-hosted", "4090-desktop"]
     steps:
