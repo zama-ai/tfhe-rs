@@ -39,19 +39,6 @@ __global__ void smart_copy(Torus *dst, Torus *src, int32_t *id_out,
   }
 }
 
-/*
- * when adding chunk_size times terms together, there might be some blocks
- * where addition have not happened or degree is zero, in that case we don't
- * need to apply lookup table, so we find the indexes of the blocks where
- * addition happened and store them inside h_lwe_idx_in, from same block
- * might be extracted message and carry(if it is not the last block), so
- * one block id might have two output id and we store them in h_lwe_idx_out
- * blocks that do not require applying lookup table might be copied on both
- * message and carry side or be replaced with zero ciphertexts, indexes of such
- * blocks are stored inside h_smart_copy_in as input ids and h_smart_copy_out
- * as output ids, -1 value as an input id means that zero ciphertext will be
- * copied on output index.
- */
 void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
                                  size_t *h_lwe_idx_out,
                                  int32_t *h_smart_copy_in,
@@ -59,47 +46,7 @@ void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
                                  uint32_t num_radix, uint32_t num_blocks,
                                  size_t chunk_size, size_t message_max,
                                  size_t &total_count, size_t &message_count,
-                                 size_t &carry_count, size_t &sm_copy_count) {
-  for (size_t c_id = 0; c_id < ch_amount; c_id++) {
-    auto cur_chunk = &terms_degree[c_id * chunk_size * num_blocks];
-    for (size_t r_id = 0; r_id < num_blocks; r_id++) {
-      size_t new_degree = 0;
-      for (size_t chunk_id = 0; chunk_id < chunk_size; chunk_id++) {
-        new_degree += cur_chunk[chunk_id * num_blocks + r_id];
-      }
-
-      if (new_degree > message_max) {
-        h_lwe_idx_in[message_count] = c_id * num_blocks + r_id;
-        h_lwe_idx_out[message_count] = c_id * num_blocks + r_id;
-        message_count++;
-      } else {
-        h_smart_copy_in[sm_copy_count] = c_id * num_blocks + r_id;
-        h_smart_copy_out[sm_copy_count] = c_id * num_blocks + r_id;
-        sm_copy_count++;
-      }
-    }
-  }
-  for (size_t i = 0; i < sm_copy_count; i++) {
-    h_smart_copy_in[i] = -1;
-    h_smart_copy_out[i] = h_smart_copy_out[i] + ch_amount * num_blocks + 1;
-  }
-
-  for (size_t i = 0; i < message_count; i++) {
-    if (h_lwe_idx_in[i] % num_blocks != num_blocks - 1) {
-      h_lwe_idx_in[message_count + carry_count] = h_lwe_idx_in[i];
-      h_lwe_idx_out[message_count + carry_count] =
-          ch_amount * num_blocks + h_lwe_idx_in[i] + 1;
-      carry_count++;
-    } else {
-      h_smart_copy_in[sm_copy_count] = -1;
-      h_smart_copy_out[sm_copy_count] =
-          h_lwe_idx_in[i] - (num_blocks - 1) + ch_amount * num_blocks;
-      sm_copy_count++;
-    }
-  }
-
-  total_count = message_count + carry_count;
-}
+                                 size_t &carry_count, size_t &sm_copy_count);
 
 template <typename Torus, class params>
 __global__ void

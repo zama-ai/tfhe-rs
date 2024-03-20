@@ -33,9 +33,11 @@ enum PBSType {
 }
 
 #[repr(u32)]
-enum ShiftType {
-    Left = 0,
-    Right = 1,
+enum ShiftRotateType {
+    LeftShift = 0,
+    RightShift = 1,
+    LeftRotate = 2,
+    RightRotate = 3,
 }
 
 #[repr(u32)]
@@ -1442,7 +1444,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            ShiftType::Left as u32,
+            ShiftRotateType::LeftShift as u32,
             true,
         );
         cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
@@ -1503,7 +1505,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            ShiftType::Left as u32,
+            ShiftRotateType::LeftShift as u32,
             true,
         );
         cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
@@ -1563,7 +1565,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
@@ -1624,7 +1626,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
@@ -1684,7 +1686,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
@@ -1745,7 +1747,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
@@ -1758,6 +1760,504 @@ impl CudaStream {
             num_blocks,
         );
         cleanup_cuda_integer_radix_arithmetic_scalar_shift(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_shift_right_integer_radix_classic_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            ShiftRotateType::RightShift as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_shift_right_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            ShiftRotateType::RightShift as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_shift_left_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            ShiftRotateType::LeftShift as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_shift_left_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            ShiftRotateType::LeftShift as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_rotate_right_integer_radix_classic_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            ShiftRotateType::RightRotate as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_rotate_right_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            ShiftRotateType::RightRotate as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_rotate_left_integer_radix_classic_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            ShiftRotateType::LeftRotate as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_rotate_left_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        radix_lwe_left: &mut CudaVec<T>,
+        radix_shift: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+        is_signed: bool,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            ShiftRotateType::LeftRotate as u32,
+            is_signed,
+            true,
+        );
+        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+            self.as_c_ptr(),
+            radix_lwe_left.as_mut_c_ptr(),
+            radix_shift.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_shift_and_rotate(
             self.as_c_ptr(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
@@ -1922,7 +2422,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            ShiftType::Left as u32,
+            ShiftRotateType::LeftShift as u32,
             true,
         );
         cuda_integer_radix_scalar_rotate_kb_64_inplace(
@@ -1980,7 +2480,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            ShiftType::Left as u32,
+            ShiftRotateType::LeftShift as u32,
             true,
         );
         cuda_integer_radix_scalar_rotate_kb_64_inplace(
@@ -2037,7 +2537,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_scalar_rotate_kb_64_inplace(
@@ -2095,7 +2595,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            ShiftType::Right as u32,
+            ShiftRotateType::RightShift as u32,
             true,
         );
         cuda_integer_radix_scalar_rotate_kb_64_inplace(

@@ -1564,6 +1564,26 @@ mod cuda {
         display_name: not_equal
     );
 
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_left_shift,
+        display_name: left_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_right_shift,
+        display_name: right_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_rotate_left,
+        display_name: rotate_left
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_rotate_right,
+        display_name: rotate_right
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_bitand,
         display_name: bitand,
@@ -1607,14 +1627,14 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
-        method_name: unchecked_scalar_left_rotate,
-        display_name: left_rotate,
+        method_name: unchecked_scalar_rotate_left,
+        display_name: rotate_left,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
-        method_name: unchecked_scalar_right_rotate,
-        display_name: right_rotate,
+        method_name: unchecked_scalar_rotate_right,
+        display_name: rotate_right,
         rng_func: shift_scalar
     );
 
@@ -1750,6 +1770,26 @@ mod cuda {
         display_name: min
     );
 
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: left_shift,
+        display_name: left_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: right_shift,
+        display_name: right_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: rotate_left,
+        display_name: rotate_left
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: rotate_right,
+        display_name: rotate_right
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_sub,
         display_name: sub,
@@ -1852,6 +1892,10 @@ mod cuda {
         cuda_unchecked_add,
         cuda_unchecked_eq,
         cuda_unchecked_ne,
+        cuda_unchecked_left_shift,
+        cuda_unchecked_right_shift,
+        cuda_unchecked_rotate_left,
+        cuda_unchecked_rotate_right,
     );
 
     criterion_group!(
@@ -1863,8 +1907,8 @@ mod cuda {
         cuda_unchecked_scalar_sub,
         cuda_unchecked_scalar_left_shift,
         cuda_unchecked_scalar_right_shift,
-        cuda_unchecked_scalar_left_rotate,
-        cuda_unchecked_scalar_right_rotate,
+        cuda_unchecked_scalar_rotate_left,
+        cuda_unchecked_scalar_rotate_right,
         cuda_unchecked_scalar_ge,
         cuda_unchecked_scalar_gt,
         cuda_unchecked_scalar_le,
@@ -1892,6 +1936,10 @@ mod cuda {
         cuda_bitor,
         cuda_bitxor,
         cuda_default_if_then_else,
+        cuda_left_shift,
+        cuda_right_shift,
+        cuda_rotate_left,
+        cuda_rotate_right,
     );
 
     criterion_group!(

@@ -1,5 +1,5 @@
-#ifndef CUDA_INTEGER_SHIFT_OPS_CUH
-#define CUDA_INTEGER_SHIFT_OPS_CUH
+#ifndef CUDA_INTEGER_SCALAR_SHIFT_OPS_CUH
+#define CUDA_INTEGER_SCALAR_SHIFT_OPS_CUH
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
@@ -15,8 +15,8 @@
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_logical_scalar_shift_kb(
     cuda_stream_t *stream, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, SHIFT_TYPE shift_type,
-    bool allocate_gpu_memory) {
+    uint32_t num_radix_blocks, int_radix_params params,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
@@ -112,8 +112,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
     cuda_stream_t *stream, int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, SHIFT_TYPE shift_type,
-    bool allocate_gpu_memory) {
+    uint32_t num_radix_blocks, int_radix_params params,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus>(

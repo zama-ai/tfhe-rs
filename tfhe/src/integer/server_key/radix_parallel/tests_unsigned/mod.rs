@@ -3,10 +3,12 @@ pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
+pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 
 use super::tests_cases_unsigned::*;
