@@ -10,6 +10,7 @@
 #include "types/complex/operations.cuh"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include <omp.h>
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_logical_scalar_shift_kb(
@@ -146,6 +147,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
 
   Torus *rotated_buffer = mem->tmp_rotated;
   Torus *padding_block = &rotated_buffer[num_blocks * big_lwe_size];
+  Torus *last_block_copy = &padding_block[big_lwe_size];
 
   auto lut_univariate_shift_last_block =
       mem->lut_buffers_univariate[shift_within_block - 1];
@@ -158,7 +160,6 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, stream);
-    cuda_synchronize_stream(stream);
 
     if (num_bits_in_block == 1) {
       // if there is only 1 bit in the msg part, it means shift_within block is
@@ -184,33 +185,47 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     // bit. This creates the need for a different shifting lut than in the
     // logical shift case. We also need another PBS to create the padding block.
     Torus *last_block = lwe_array + (num_blocks - rotations - 1) * big_lwe_size;
-    integer_radix_apply_univariate_lookup_table_kb(
-        stream, padding_block, last_block, bsk, ksk, 1,
-        lut_univariate_padding_block);
-    // Replace blocks 'pulled' from the left with the correct padding block
-    for (uint i = 0; i < rotations; i++) {
-      cuda_memcpy_async_gpu_to_gpu(lwe_array + (num_blocks - rotations + i) *
-                                                   big_lwe_size,
-                                   padding_block, big_lwe_size_bytes, stream);
-    }
-
-    if (shift_within_block == 0 || rotations == num_blocks) {
-      return;
-    }
-
+    cuda_memcpy_async_gpu_to_gpu(last_block_copy,
+                                 rotated_buffer + (num_blocks - rotations - 1) *
+                                                      big_lwe_size,
+                                 big_lwe_size_bytes, stream);
     auto partial_current_blocks = lwe_array;
     auto partial_next_blocks = &rotated_buffer[big_lwe_size];
     size_t partial_block_count = num_blocks - rotations;
-
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        stream, partial_current_blocks, partial_current_blocks,
-        partial_next_blocks, bsk, ksk, partial_block_count, lut_bivariate);
-    Torus *last_block_out =
-        rotated_buffer + (num_blocks - rotations - 1) * big_lwe_size;
-
-    integer_radix_apply_univariate_lookup_table_kb(
-        stream, last_block, last_block_out, bsk, ksk, 1,
-        lut_univariate_shift_last_block);
+    if (shift_within_block != 0 && rotations != num_blocks) {
+      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+          stream, partial_current_blocks, partial_current_blocks,
+          partial_next_blocks, bsk, ksk, partial_block_count, lut_bivariate);
+    }
+    // Since our CPU threads will be working on different streams we shall
+    // assert the work in the main stream is completed
+    stream->synchronize();
+#pragma omp parallel sections
+    {
+      // All sections may be executed in parallel
+#pragma omp section
+      {
+        integer_radix_apply_univariate_lookup_table_kb(
+            mem->local_stream_1, padding_block, last_block_copy, bsk, ksk, 1,
+            lut_univariate_padding_block);
+        // Replace blocks 'pulled' from the left with the correct padding block
+        for (uint i = 0; i < rotations; i++) {
+          cuda_memcpy_async_gpu_to_gpu(
+              lwe_array + (num_blocks - rotations + i) * big_lwe_size,
+              padding_block, big_lwe_size_bytes, mem->local_stream_1);
+        }
+      }
+#pragma omp section
+      {
+        if (shift_within_block != 0 && rotations != num_blocks) {
+          integer_radix_apply_univariate_lookup_table_kb(
+              mem->local_stream_2, last_block, last_block_copy, bsk, ksk, 1,
+              lut_univariate_shift_last_block);
+        }
+      }
+    }
+    cuda_synchronize_stream(mem->local_stream_1);
+    cuda_synchronize_stream(mem->local_stream_2);
 
   } else {
     PANIC("Cuda error (scalar shift): left scalar shift is never of the "
