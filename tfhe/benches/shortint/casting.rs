@@ -1,10 +1,7 @@
 use crate::utilities::{write_to_json, OperatorType};
-
-use tfhe::shortint::prelude::*;
-
-use rayon::prelude::*;
-
 use criterion::Criterion;
+use rayon::prelude::*;
+use tfhe::shortint::prelude::*;
 
 pub fn pack_cast_64(c: &mut Criterion) {
     let bench_name = "pack_cast_64";

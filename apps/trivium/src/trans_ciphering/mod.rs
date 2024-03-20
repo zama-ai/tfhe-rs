@@ -2,12 +2,10 @@
 //! when trans ciphering is available to them.
 
 use crate::{KreyviumStreamByte, KreyviumStreamShortint, TriviumStreamByte, TriviumStreamShortint};
-use tfhe::shortint::Ciphertext;
-
-use tfhe::prelude::*;
-use tfhe::{set_server_key, unset_server_key, FheUint64, FheUint8, ServerKey};
-
 use rayon::prelude::*;
+use tfhe::prelude::*;
+use tfhe::shortint::Ciphertext;
+use tfhe::{set_server_key, unset_server_key, FheUint64, FheUint8, ServerKey};
 
 /// Triat specifying the interface for trans ciphering a FheUint64 object. Since it is meant
 /// to be used with stream ciphers, encryption and decryption are by default the same.

@@ -1,8 +1,7 @@
-use crate::shortint::{PBSParameters, WopbsParameters};
-use lazy_static::lazy_static;
-
 use crate::integer::wopbs::WopbsKey;
 use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
+use crate::shortint::{PBSParameters, WopbsParameters};
+use lazy_static::lazy_static;
 
 #[derive(Default)]
 pub struct IntegerKeyCache;

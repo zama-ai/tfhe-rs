@@ -6,6 +6,7 @@ use clap::{value_parser, Arg, Command};
 use concrete_csprng::generators::AesniRandomGenerator as ActivatedRandomGenerator;
 #[cfg(feature = "generator_aarch64_aes")]
 use concrete_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenerator;
+use concrete_csprng::generators::RandomGenerator;
 #[cfg(all(
     not(feature = "generator_x86_64_aesni"),
     not(feature = "generator_aarch64_aes"),
@@ -13,21 +14,17 @@ use concrete_csprng::generators::NeonAesRandomGenerator as ActivatedRandomGenera
 ))]
 use concrete_csprng::generators::SoftwareRandomGenerator as ActivatedRandomGenerator;
 
-use concrete_csprng::generators::RandomGenerator;
-
 #[cfg(target_os = "macos")]
 use concrete_csprng::seeders::AppleSecureEnclaveSeeder as ActivatedSeeder;
 #[cfg(all(not(target_os = "macos"), feature = "seeder_x86_64_rdseed"))]
 use concrete_csprng::seeders::RdseedSeeder as ActivatedSeeder;
+use concrete_csprng::seeders::Seeder;
 #[cfg(all(
     not(target_os = "macos"),
     not(feature = "seeder_x86_64_rdseed"),
     feature = "seeder_unix"
 ))]
 use concrete_csprng::seeders::UnixSeeder as ActivatedSeeder;
-
-use concrete_csprng::seeders::Seeder;
-
 use std::io::prelude::*;
 use std::io::{stdout, StdoutLock};
 

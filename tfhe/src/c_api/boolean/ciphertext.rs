@@ -1,8 +1,7 @@
+use crate::boolean;
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use crate::boolean;
 
 pub struct BooleanCiphertext(pub(in crate::c_api) boolean::ciphertext::Ciphertext);
 

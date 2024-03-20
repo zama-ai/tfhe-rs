@@ -2,16 +2,14 @@
 mod utilities;
 
 use crate::utilities::{write_to_json, EnvConfig, OperatorType};
-use std::env;
-
 use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
 use rand::prelude::*;
+use std::env;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
-
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 #[cfg(not(feature = "gpu"))]
 use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;

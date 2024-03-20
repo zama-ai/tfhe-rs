@@ -2,12 +2,10 @@
 //!
 //! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a cleitn key to another.
 
+use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::{Ciphertext, ClientKey, ServerKey};
-
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
-
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]

@@ -1,7 +1,6 @@
+use super::shift::BarrelShifterOperation;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::ServerKey;
-
-use super::shift::BarrelShifterOperation;
 
 impl ServerKey {
     //======================================================================

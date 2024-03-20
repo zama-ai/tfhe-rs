@@ -1,8 +1,5 @@
 #![allow(clippy::excessive_precision)]
 use crate::conformance::ListSizeConstraint;
-use crate::shortint::PBSParameters;
-pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
-
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextListConformanceParams,
     EncryptionKeyChoice, MessageModulus,
@@ -11,6 +8,8 @@ pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
 };
+use crate::shortint::PBSParameters;
+pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
     PARAM_MESSAGE_4_CARRY_4_KS_PBS_16_BITS,

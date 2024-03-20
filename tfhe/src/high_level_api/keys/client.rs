@@ -2,13 +2,11 @@
 //!
 //! - [ClientKey] aggregates the keys used to encrypt/decrypt between normal and homomorphic types.
 
-use concrete_csprng::seeders::Seed;
-
+use super::{CompressedServerKey, ServerKey};
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::IntegerClientKey;
 use crate::shortint::MessageModulus;
-
-use super::{CompressedServerKey, ServerKey};
+use concrete_csprng::seeders::Seed;
 
 /// Key of the client
 ///

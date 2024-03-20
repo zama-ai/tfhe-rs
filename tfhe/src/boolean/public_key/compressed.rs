@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::prelude::{BooleanParameters, Ciphertext, ClientKey};
 use crate::core_crypto::prelude::SeededLwePublicKeyOwned;
+use serde::{Deserialize, Serialize};
 
 /// A structure containing a compressed public key.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

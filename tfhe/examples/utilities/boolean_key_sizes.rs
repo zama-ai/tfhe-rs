@@ -1,7 +1,7 @@
 #[path = "../../benches/utilities.rs"]
 mod utilities;
-use crate::utilities::{write_to_json, OperatorType};
 
+use crate::utilities::{write_to_json, OperatorType};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;

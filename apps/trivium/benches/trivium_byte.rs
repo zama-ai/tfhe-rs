@@ -1,9 +1,7 @@
+use criterion::Criterion;
 use tfhe::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64, FheUint8};
-
 use tfhe_trivium::{TransCiphering, TriviumStreamByte};
-
-use criterion::Criterion;
 
 pub fn trivium_byte_gen(c: &mut Criterion) {
     let config = ConfigBuilder::default().build();

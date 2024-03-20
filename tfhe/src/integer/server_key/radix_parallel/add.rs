@@ -1,14 +1,13 @@
+use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::integer::{
     BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext,
 };
-use crate::shortint::Ciphertext;
-use std::ops::RangeInclusive;
-
-use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::Ciphertext;
 use rayon::prelude::*;
+use std::ops::RangeInclusive;
 
 #[repr(u64)]
 #[derive(PartialEq, Eq)]

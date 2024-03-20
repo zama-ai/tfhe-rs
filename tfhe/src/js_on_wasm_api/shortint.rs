@@ -3,9 +3,8 @@ use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::*;
-use wasm_bindgen::prelude::*;
-
 use std::panic::set_hook;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct ShortintCiphertext(pub(crate) crate::shortint::Ciphertext);

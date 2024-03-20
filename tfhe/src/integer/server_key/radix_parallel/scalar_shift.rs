@@ -2,7 +2,6 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
-
 use rayon::prelude::*;
 
 impl ServerKey {

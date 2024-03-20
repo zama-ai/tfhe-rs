@@ -9,15 +9,13 @@
 //!
 //! more dispatch options may be added in the future
 
+use super::super::super::c64;
+use super::TwistiesView;
+use crate::core_crypto::commons::utils::izip;
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
-
-use super::super::super::c64;
-use super::TwistiesView;
-use crate::core_crypto::commons::utils::izip;
-
 use pulp::x86::V3;
 #[cfg(feature = "nightly-avx512")]
 use pulp::x86::V4;

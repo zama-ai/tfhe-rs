@@ -2,17 +2,14 @@
 mod utilities;
 
 use crate::utilities::{write_to_json, OperatorType};
-use std::env;
-
 use criterion::{criterion_group, Criterion};
+use rand::Rng;
+use std::env;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
+use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
-
-use rand::Rng;
-use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
-
-use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
 
 const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,

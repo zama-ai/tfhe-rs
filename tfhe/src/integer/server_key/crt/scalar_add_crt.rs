@@ -1,5 +1,4 @@
 use crate::integer::server_key::CheckError;
-
 use crate::integer::{CrtCiphertext, ServerKey};
 
 impl ServerKey {

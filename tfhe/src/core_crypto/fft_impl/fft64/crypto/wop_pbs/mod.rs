@@ -1,8 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 
-use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
-
 use super::super::math::fft::FftView;
 use super::bootstrap::{bootstrap_scratch, FourierLweBootstrapKeyView};
 use super::ggsw::{
@@ -17,8 +14,9 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-
+use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::c64;
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 pub fn extract_bits_scratch<Scalar>(
     input_lwe_dimension: LweDimension,

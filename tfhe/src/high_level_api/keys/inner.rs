@@ -1,12 +1,11 @@
-use concrete_csprng::seeders::Seed;
-use serde::{Deserialize, Serialize};
-
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
+use concrete_csprng::seeders::Seed;
+use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {

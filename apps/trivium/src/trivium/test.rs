@@ -1,7 +1,6 @@
+use crate::{TransCiphering, TriviumStream, TriviumStreamByte, TriviumStreamShortint};
 use tfhe::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheBool, FheUint64, FheUint8};
-
-use crate::{TransCiphering, TriviumStream, TriviumStreamByte, TriviumStreamShortint};
 
 // Values for these tests come from the github repo cantora/avr-crypto-lib, commit 2a5b018,
 // file testvectors/trivium-80.80.test-vectors

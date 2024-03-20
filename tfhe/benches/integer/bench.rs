@@ -4,24 +4,15 @@
 mod utilities;
 
 use crate::utilities::{write_to_json, EnvConfig, OperatorType};
-use std::env;
-
 use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
 use rand::prelude::*;
+use std::env;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use tfhe::keycache::NamedParam;
-
-use tfhe::integer::U256;
-
-#[allow(unused_imports)]
-use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS, PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-};
+use tfhe::shortint::parameters::*;
 
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested

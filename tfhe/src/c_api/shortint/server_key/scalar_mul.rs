@@ -1,7 +1,6 @@
+use super::{ShortintCiphertext, ShortintServerKey};
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(

@@ -6,9 +6,8 @@ pub mod public_key;
 pub mod server_key;
 
 use crate::c_api::utils::*;
-use std::os::raw::c_int;
-
 use crate::shortint;
+use std::os::raw::c_int;
 
 pub use ciphertext::{ShortintCiphertext, ShortintCompressedCiphertext};
 pub use client_key::ShortintClientKey;

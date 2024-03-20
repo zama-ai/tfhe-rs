@@ -1,8 +1,7 @@
-use wasm_bindgen::prelude::*;
-
 use crate::high_level_api::prelude::*;
 use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
+use wasm_bindgen::prelude::*;
 
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
 

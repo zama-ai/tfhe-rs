@@ -1,5 +1,3 @@
-use rayon::prelude::*;
-
 use super::ServerKey;
 use crate::core_crypto::prelude::Plaintext;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
@@ -7,6 +5,7 @@ use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::Ciphertext;
+use rayon::prelude::*;
 
 /// Used for compare_blocks_with_zero
 #[derive(Clone, Copy)]

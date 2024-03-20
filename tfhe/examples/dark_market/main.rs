@@ -1,5 +1,4 @@
 use std::time::Instant;
-
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::keycache::IntegerKeyCache;
 use tfhe::integer::{IntegerKeyKind, ServerKey};

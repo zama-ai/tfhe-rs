@@ -2,11 +2,9 @@
 //! for the representation of the inner bits.
 
 use crate::static_deque::{StaticByteDeque, StaticByteDequeInput};
-
+use rayon::prelude::*;
 use tfhe::prelude::*;
 use tfhe::{set_server_key, unset_server_key, FheUint8, ServerKey};
-
-use rayon::prelude::*;
 
 /// Internal trait specifying which operations are necessary for KreyviumStreamByte generic type
 pub trait KreyviumByteInput<OpOutput>:

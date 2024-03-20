@@ -1,10 +1,8 @@
+use super::{ShortintCiphertext, ShortintCompressedCiphertext};
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
-use std::os::raw::c_int;
-
 use crate::shortint;
-
-use super::{ShortintCiphertext, ShortintCompressedCiphertext};
+use std::os::raw::c_int;
 pub struct ShortintClientKey(pub(in crate::c_api) shortint::client_key::ClientKey);
 
 #[no_mangle]

@@ -1,10 +1,9 @@
-use crate::c_api::utils::*;
-use std::os::raw::c_int;
-
 use super::{
     BooleanCiphertext, BooleanClientKey, BooleanCompressedCiphertext, BooleanCompressedServerKey,
     BooleanPublicKey, BooleanServerKey,
 };
+use crate::c_api::utils::*;
+use std::os::raw::c_int;
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_destroy_client_key(client_key: *mut BooleanClientKey) -> c_int {

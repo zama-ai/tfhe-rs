@@ -1,10 +1,8 @@
-use crate::core_crypto::commons::math::random::Seed;
-use wasm_bindgen::prelude::*;
-
 use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
-
 use std::panic::set_hook;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct BooleanCiphertext(pub(crate) crate::boolean::ciphertext::Ciphertext);

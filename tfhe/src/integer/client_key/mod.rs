@@ -7,28 +7,26 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
-use crate::core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
-use crate::integer::block_decomposition::BlockRecomposer;
-use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
-use crate::integer::client_key::utils::i_crt;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
-use crate::shortint::parameters::MessageModulus;
-use crate::shortint::{
-    Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
-};
-use serde::{Deserialize, Serialize};
-
-use crate::integer::bigint::static_signed::StaticSignedBigInt;
-use crate::integer::ciphertext::boolean_value::BooleanBlock;
-use crate::shortint::ciphertext::Degree;
-pub use crt::CrtClientKey;
-pub use radix::RadixClientKey;
-
 use super::block_decomposition::{DecomposableInto, RecomposableFrom};
 use super::ciphertext::{
     CompressedRadixCiphertext, CompressedSignedRadixCiphertext, RadixCiphertext,
     SignedRadixCiphertext,
 };
+use crate::core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
+use crate::integer::bigint::static_signed::StaticSignedBigInt;
+use crate::integer::block_decomposition::BlockRecomposer;
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
+use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
+use crate::integer::client_key::utils::i_crt;
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::parameters::MessageModulus;
+use crate::shortint::{
+    Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
+};
+pub use crt::CrtClientKey;
+pub use radix::RadixClientKey;
+use serde::{Deserialize, Serialize};
 
 pub trait RecomposableSignedInteger:
     RecomposableFrom<u64>

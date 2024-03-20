@@ -1,8 +1,6 @@
-use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
-
-use std::sync::Arc;
-
 use super::ClientKey;
+use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use std::sync::Arc;
 
 /// Key of the server
 ///

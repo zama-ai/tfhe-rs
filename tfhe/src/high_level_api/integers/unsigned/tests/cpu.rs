@@ -1,5 +1,3 @@
-use rand::Rng;
-
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
@@ -9,6 +7,7 @@ use crate::{
     CompressedFheUint256, CompressedPublicKey, Config, FheInt16, FheInt32, FheInt8, FheUint128,
     FheUint16, FheUint256, FheUint32,
 };
+use rand::Rng;
 
 fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params

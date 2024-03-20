@@ -83,7 +83,6 @@ If we redo this same circuit with the `checked` flavor, a panic will occur:
 
 ```rust
 use tfhe::shortint::prelude::*;
-
 use std::error::Error;
 
 fn main() {
