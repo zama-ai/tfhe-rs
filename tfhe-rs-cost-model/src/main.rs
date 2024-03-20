@@ -40,10 +40,10 @@ pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: Unsigne
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Total number of threads.
-    #[clap(long, short, default_value_t = 0)]
+    #[clap(long, short)]
     tot: usize,
     /// Current Thread ID
-    #[clap(long, short, default_value_t = 0)]
+    #[clap(long, short)]
     id: usize,
     /// Number of time a test is repeated for a single set of parameter.
     /// This indicates the number of different keys since, at each repetition, we re-sample
@@ -235,6 +235,7 @@ fn ext_prod_cost(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize
     scalar_muls_per_ext_prod(k, l, n) + conversion_cost + fft_cost
 }
 
+#[allow(dead_code)]
 fn ks_cost(
     input_lwe_dimenion: LweDimension,
     output_lwe_dimension: LweDimension,
@@ -244,6 +245,7 @@ fn ks_cost(
     2 * input_lwe_dimenion.0 * ks_level_count.0 * output_lwe_dimension.0
 }
 
+#[allow(dead_code)]
 fn pbs_cost(
     w: LweDimension,
     k: GlweDimension,
@@ -313,6 +315,11 @@ fn main() {
     if timing_only {
         return ks_pbs_timing::timing_experiment(&algo, preserved_mantissa, modulus);
     }
+
+    assert_ne!(
+        tot, 0,
+        "Got tot = 0 for noise sampling experiment, unsupported"
+    );
 
     // Parameter Grid
     let polynomial_sizes = vec![
