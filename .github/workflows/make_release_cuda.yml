@@ -1,0 +1,90 @@
+# Publish new release of tfhe-cuda-backend on crates.io.
+name: Publish CUDA release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+      push_to_crates:
+        description: "Push to crate"
+        type: boolean
+        default: true
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  setup-ec2:
+    name: Setup EC2 instance (publish-cuda-release)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+      instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
+      aws-region: ${{ steps.start-instance.outputs.aws-region }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: gpu-test
+
+  publish-cuda-release:
+    name: Publish CUDA Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
+        with:
+          fetch-depth: 0
+
+      - name: Publish crate.io package
+        if: ${{ inputs.push_to_crates }}
+        env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          cargo publish -p tfhe-cuda-backend --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "tfhe-cuda-backend release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-ec2:
+    name: Teardown EC2 instance (publish-release)
+    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
+    needs: [ setup-ec2, publish-cuda-release ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          region: ${{ needs.setup-ec2.outputs.aws-region }}
+          label: ${{ needs.setup-ec2.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@b24d75fe0e728a4bf9fc42ee217caa686d141ee8
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "EC2 teardown (publish-cuda-release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
