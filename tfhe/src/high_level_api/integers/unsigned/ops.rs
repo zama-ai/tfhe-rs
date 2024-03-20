@@ -1,8 +1,6 @@
 // Ask clippy not to worry about this
 // this is the pattern we use for the macros
 #![allow(clippy::redundant_closure_call)]
-use std::borrow::Borrow;
-
 use super::inner::RadixCiphertext;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
@@ -16,6 +14,7 @@ use crate::high_level_api::traits::{
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::{FheBool, FheUint};
+use std::borrow::Borrow;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,

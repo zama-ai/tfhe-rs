@@ -23,14 +23,13 @@ pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub(crate) mod parameters_wopbs_prime_moduli;
 
+use super::ciphertext::{Degree, NoiseLevel};
+use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
 pub use parameters_compact_pk::*;
 pub use parameters_wopbs::WopbsParameters;
-
-use super::ciphertext::{Degree, NoiseLevel};
-use super::PBSOrder;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
 /// $m = p\bmod{MessageModulus}$ and so $0 <= m < MessageModulus$.

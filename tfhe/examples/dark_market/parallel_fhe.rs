@@ -1,11 +1,8 @@
-use std::time::Instant;
-
+use crate::NUMBER_OF_BLOCKS;
 use rayon::prelude::*;
-
+use std::time::Instant;
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::ServerKey;
-
-use crate::NUMBER_OF_BLOCKS;
 
 // Calculate the element sum of the given vector in parallel
 fn vector_sum(server_key: &ServerKey, orders: Vec<RadixCiphertext>) -> RadixCiphertext {

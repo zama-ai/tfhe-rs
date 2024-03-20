@@ -1,7 +1,6 @@
 use combine::parser::byte;
 use combine::parser::byte::byte;
 use combine::*;
-
 use std::fmt;
 
 #[derive(Clone, PartialEq, Eq, Hash)]

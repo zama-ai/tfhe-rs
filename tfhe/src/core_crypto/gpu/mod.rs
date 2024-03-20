@@ -2,15 +2,14 @@ pub mod algorithms;
 pub mod entities;
 pub mod vec;
 
-pub use algorithms::*;
-pub use entities::*;
-
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
     GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweCiphertextIndex, LweDimension,
     PolynomialSize, UnsignedInteger,
 };
+pub use algorithms::*;
+pub use entities::*;
 use std::ffi::c_void;
 use tfhe_cuda_backend::cuda_bind::*;
 

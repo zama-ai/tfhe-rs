@@ -1,6 +1,5 @@
-use wasm_bindgen::prelude::*;
-
 use crate::high_level_api as hlapi;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct TfheConfig(pub(crate) hlapi::Config);

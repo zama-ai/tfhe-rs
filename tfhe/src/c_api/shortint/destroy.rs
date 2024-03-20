@@ -1,11 +1,10 @@
-use crate::c_api::utils::*;
-use std::os::raw::c_int;
-
 use super::{
     ShortintBivariatePBSLookupTable, ShortintCiphertext, ShortintClientKey,
     ShortintCompressedCiphertext, ShortintCompressedPublicKey, ShortintCompressedServerKey,
     ShortintPBSLookupTable, ShortintPublicKey, ShortintServerKey,
 };
+use crate::c_api::utils::*;
+use std::os::raw::c_int;
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_destroy_client_key(client_key: *mut ShortintClientKey) -> c_int {

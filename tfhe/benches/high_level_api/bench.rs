@@ -1,9 +1,7 @@
-use std::ops::*;
-
 use criterion::{black_box, Criterion};
-
 use rand::prelude::*;
 use std::fmt::Write;
+use std::ops::*;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{

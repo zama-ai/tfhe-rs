@@ -1,6 +1,5 @@
 use super::ClientKey;
 use crate::integer::CrtCiphertext;
-
 use serde::{Deserialize, Serialize};
 
 /// Client key "specialized" for CRT decomposition.

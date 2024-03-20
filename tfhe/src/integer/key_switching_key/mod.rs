@@ -1,8 +1,6 @@
 use super::{ClientKey, ServerKey};
-
 use crate::integer::IntegerCiphertext;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
-
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 

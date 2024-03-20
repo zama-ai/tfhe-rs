@@ -13,11 +13,10 @@
 //! transfer sizes.
 //! - [CompressedPublicKey]
 //! - [CompressedCompactPublicKey]
+use super::ClientKey;
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::shortint::MessageModulus;
-
-use super::ClientKey;
 
 /// Classical public key.
 ///

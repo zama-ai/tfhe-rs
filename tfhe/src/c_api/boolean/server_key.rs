@@ -1,11 +1,9 @@
+use super::BooleanCiphertext;
+use crate::boolean;
+use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign};
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use crate::boolean;
-use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign};
-
-use super::BooleanCiphertext;
 
 pub struct BooleanServerKey(pub(in crate::c_api) boolean::server_key::ServerKey);
 pub struct BooleanCompressedServerKey(

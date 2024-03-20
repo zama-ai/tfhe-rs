@@ -1,12 +1,10 @@
 use super::ServerKey;
-
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::{Comparator, ZeroComparisonType};
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::Ciphertext;
-
-use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use rayon::prelude::*;
 
 impl ServerKey {

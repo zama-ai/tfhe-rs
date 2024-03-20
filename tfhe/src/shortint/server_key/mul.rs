@@ -2,7 +2,6 @@ use super::add::unchecked_add_assign;
 use super::{CiphertextNoiseDegree, ServerKey};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-
 use crate::shortint::Ciphertext;
 
 impl ServerKey {

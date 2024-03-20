@@ -19,9 +19,7 @@ bincode = "1.3.3"
 // main.rs
 
 use bincode;
-
 use std::io::Cursor;
-
 use tfhe::{ConfigBuilder, ServerKey, generate_keys, set_server_key, FheUint8};
 use tfhe::prelude::*;
 

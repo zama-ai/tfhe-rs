@@ -297,7 +297,6 @@ Here is a complete example that uses this function for both clear and FHE values
 ```rust
 use tfhe::{FheBool, ConfigBuilder, generate_keys, set_server_key};
 use tfhe::prelude::*;
-
 use std::ops::{Not, BitXor};
 
 #[derive(Copy, Clone, Debug)]

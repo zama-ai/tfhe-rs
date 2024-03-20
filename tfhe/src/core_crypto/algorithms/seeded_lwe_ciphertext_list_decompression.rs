@@ -5,7 +5,6 @@ use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-
 use rayon::prelude::*;
 
 /// Convenience function to share the core logic of the decompression algorithm for

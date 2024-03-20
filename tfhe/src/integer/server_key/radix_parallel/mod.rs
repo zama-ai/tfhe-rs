@@ -31,12 +31,10 @@ pub(crate) mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
 
-use crate::integer::ciphertext::IntegerRadixCiphertext;
-
 use super::ServerKey;
-pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
-
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use rayon::prelude::*;
+pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 
 // parallelized versions
 impl ServerKey {

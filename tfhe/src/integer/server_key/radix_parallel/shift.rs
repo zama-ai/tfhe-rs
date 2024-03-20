@@ -1,7 +1,6 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::ServerKey;
-
 use rayon::prelude::*;
 
 #[derive(Clone, Copy)]

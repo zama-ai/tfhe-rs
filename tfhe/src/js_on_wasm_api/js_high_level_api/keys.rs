@@ -1,9 +1,7 @@
-use wasm_bindgen::prelude::*;
-
 use crate::high_level_api as hlapi;
-
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn init_panic_hook() {

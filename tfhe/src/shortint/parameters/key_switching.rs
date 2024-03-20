@@ -1,5 +1,4 @@
 use crate::shortint::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Shortint key switching.

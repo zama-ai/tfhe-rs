@@ -10,7 +10,6 @@ mod shift;
 mod sub;
 
 use super::ServerKey;
-
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;

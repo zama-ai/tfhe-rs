@@ -1,6 +1,4 @@
-use std::borrow::Borrow;
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
-
+use super::inner::InnerBoolean;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::booleans::compressed::CompressedFheBool;
 use crate::high_level_api::global_state;
@@ -15,8 +13,8 @@ use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::{CompactFheBool, Device};
 use serde::{Deserialize, Serialize};
-
-use super::inner::InnerBoolean;
+use std::borrow::Borrow;
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 
 /// The FHE boolean data type.
 ///

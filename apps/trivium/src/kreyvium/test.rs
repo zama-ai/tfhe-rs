@@ -1,7 +1,6 @@
+use crate::{KreyviumStream, KreyviumStreamByte, KreyviumStreamShortint, TransCiphering};
 use tfhe::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheBool, FheUint64, FheUint8};
-
-use crate::{KreyviumStream, KreyviumStreamByte, KreyviumStreamShortint, TransCiphering};
 
 // Values for these tests come from the github repo renaud1239/Kreyvium,
 // commit fd6828f68711276c25f55e605935028f5e843f43

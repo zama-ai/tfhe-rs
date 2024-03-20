@@ -1,11 +1,8 @@
-use std::time::Instant;
-
+use crate::NUMBER_OF_BLOCKS;
 use rayon::prelude::*;
-
+use std::time::Instant;
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::{IntegerCiphertext, ServerKey};
-
-use crate::NUMBER_OF_BLOCKS;
 
 fn compute_prefix_sum(server_key: &ServerKey, arr: &[RadixCiphertext]) -> Vec<RadixCiphertext> {
     if arr.is_empty() {

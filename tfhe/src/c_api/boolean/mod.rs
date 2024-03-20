@@ -5,10 +5,9 @@ pub mod parameters;
 pub mod public_key;
 pub mod server_key;
 
+use crate::boolean;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use crate::boolean;
 
 pub use ciphertext::{BooleanCiphertext, BooleanCompressedCiphertext};
 pub use client_key::BooleanClientKey;

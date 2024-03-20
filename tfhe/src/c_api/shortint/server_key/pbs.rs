@@ -1,7 +1,6 @@
+use super::{ShortintCiphertext, ShortintServerKey};
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use super::{ShortintCiphertext, ShortintServerKey};
 
 // This is the accepted way to declare a pointer to a C function/callback in cbindgen
 pub type LookupTableCallback = Option<extern "C" fn(u64) -> u64>;

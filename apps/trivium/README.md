@@ -15,7 +15,6 @@ Example of a Rust main below:
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, FheBool};
 use tfhe::prelude::*;
-
 use tfhe_trivium::TriviumStream;
 
 fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
@@ -139,10 +138,8 @@ Example code:
 ```rust
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::CastingKey;
-
 use tfhe::{ConfigBuilder, generate_keys, FheUint64};
 use tfhe::prelude::*;
-
 use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {

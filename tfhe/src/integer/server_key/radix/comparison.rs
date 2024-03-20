@@ -1,6 +1,5 @@
 use super::ServerKey;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
-
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
 

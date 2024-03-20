@@ -1,5 +1,6 @@
 //! Module with the definition of the ClientKey.
 
+use super::PBSOrder;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
@@ -8,8 +9,6 @@ use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::CarryModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-
-use super::PBSOrder;
 
 /// A structure containing the client key, which must be kept secret.
 ///

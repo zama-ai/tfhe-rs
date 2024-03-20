@@ -1,19 +1,14 @@
-use std::iter::once;
-
-use serde::{Deserialize, Serialize};
-
 use crate::core_crypto::prelude::{
-    allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
+    allocate_and_generate_new_seeded_lwe_compact_public_key,
+    encrypt_lwe_ciphertext_with_compact_public_key, generate_lwe_compact_public_key,
     LweCiphertextCount, LweCiphertextOwned, LweCompactCiphertextListOwned,
     LweCompactPublicKeyOwned, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
-
-use crate::core_crypto::prelude::encrypt_lwe_ciphertext_with_compact_public_key;
-
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
-use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
-
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
+use serde::{Deserialize, Serialize};
+use std::iter::once;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompactPublicKey {

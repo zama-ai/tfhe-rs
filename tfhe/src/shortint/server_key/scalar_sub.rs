@@ -1,5 +1,4 @@
 use super::CiphertextNoiseDegree;
-
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;

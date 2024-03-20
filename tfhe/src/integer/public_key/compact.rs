@@ -1,6 +1,4 @@
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
-use serde::{Deserialize, Serialize};
-
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
 use crate::integer::encryption::{create_clear_radix_block_iterator, encrypt_words_radix_impl};
@@ -9,6 +7,7 @@ use crate::shortint::{
     CompactPublicKey as ShortintCompactPublicKey,
     CompressedCompactPublicKey as ShortintCompressedCompactPublicKey,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompactPublicKey {

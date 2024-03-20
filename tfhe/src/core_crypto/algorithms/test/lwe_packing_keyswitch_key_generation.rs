@@ -1,5 +1,4 @@
 use super::*;
-
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 
 #[cfg(not(tarpaulin))]

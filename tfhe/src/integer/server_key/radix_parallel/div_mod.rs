@@ -1,7 +1,6 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::comparator::ZeroComparisonType;
 use crate::integer::{BooleanBlock, IntegerCiphertext, ServerKey};
-
 use crate::shortint::MessageModulus;
 use rayon::prelude::*;
 

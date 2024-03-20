@@ -1,14 +1,13 @@
 #[path = "../utilities.rs"]
 mod utilities;
-use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
-use rayon::prelude::*;
 
+use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::boolean::parameters::{
     BooleanParameters, DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
 };
-
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;

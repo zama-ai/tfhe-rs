@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::integer::{gen_keys, IntegerKeyKind};
@@ -7,11 +8,9 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::*;
+use paste::paste;
 use rand::Rng;
 use std::cmp::max;
-
-use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
-use paste::paste;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;

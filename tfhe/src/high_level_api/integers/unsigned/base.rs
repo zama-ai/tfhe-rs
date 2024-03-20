@@ -1,12 +1,9 @@
-use crate::conformance::ParameterSetConformant;
-
 use super::inner::RadixCiphertext;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
-
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
-
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::RecomposableFrom;
 use crate::integer::parameters::RadixCiphertextConformanceParams;

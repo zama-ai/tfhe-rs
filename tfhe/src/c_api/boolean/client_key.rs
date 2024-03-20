@@ -1,10 +1,9 @@
+use super::{BooleanCiphertext, BooleanCompressedCiphertext};
+use crate::boolean;
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
-use crate::boolean;
-
-use super::{BooleanCiphertext, BooleanCompressedCiphertext};
 pub struct BooleanClientKey(pub(in crate::c_api) boolean::client_key::ClientKey);
 
 #[no_mangle]

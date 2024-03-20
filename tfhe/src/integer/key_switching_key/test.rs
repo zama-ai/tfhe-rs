@@ -1,9 +1,8 @@
-use crate::shortint::parameters::ShortintKeySwitchingParameters;
-use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
-
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{CrtClientKey, IntegerKeyKind, RadixClientKey};
+use crate::shortint::parameters::ShortintKeySwitchingParameters;
+use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {

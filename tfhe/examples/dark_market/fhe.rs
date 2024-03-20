@@ -1,8 +1,7 @@
+use crate::NUMBER_OF_BLOCKS;
 use std::time::Instant;
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::{ClientKey, ServerKey};
-
-use crate::NUMBER_OF_BLOCKS;
 
 fn vector_sum(server_key: &ServerKey, orders: &mut [RadixCiphertext]) -> RadixCiphertext {
     let mut total_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);

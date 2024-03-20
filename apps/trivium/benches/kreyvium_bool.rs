@@ -1,9 +1,7 @@
+use criterion::Criterion;
 use tfhe::prelude::*;
 use tfhe::{generate_keys, ConfigBuilder, FheBool};
-
 use tfhe_trivium::KreyviumStream;
-
-use criterion::Criterion;
 
 pub fn kreyvium_bool_gen(c: &mut Criterion) {
     let config = ConfigBuilder::default().build();

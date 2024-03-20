@@ -1,10 +1,8 @@
+use super::ShortintCiphertext;
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
-use std::os::raw::c_int;
-
 use crate::shortint;
-
-use super::ShortintCiphertext;
+use std::os::raw::c_int;
 
 pub mod add;
 pub mod bitwise_op;

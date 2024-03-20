@@ -1,10 +1,8 @@
+use super::{BooleanCiphertext, BooleanClientKey};
+use crate::boolean;
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
-
-use crate::boolean;
-
-use super::{BooleanCiphertext, BooleanClientKey};
 
 pub struct BooleanPublicKey(pub(in crate::c_api) boolean::public_key::PublicKey);
 

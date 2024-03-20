@@ -1,5 +1,3 @@
-use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
-
 use super::super::super::{fft128, fft128_u128};
 use super::super::math::fft::Fft128View;
 use crate::core_crypto::fft_impl::common::tests::{
@@ -8,6 +6,7 @@ use crate::core_crypto::fft_impl::common::tests::{
 use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
+use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 #[test]
 fn test_split_external_product() {

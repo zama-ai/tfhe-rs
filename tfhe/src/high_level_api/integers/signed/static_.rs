@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-
 use super::{CompactFheInt, CompactFheIntList, CompressedFheInt, FheInt};
 use crate::high_level_api::integers::signed::FheIntId;
 use crate::high_level_api::integers::IntegerId;
+use serde::{Deserialize, Serialize};
 
 macro_rules! static_int_type {
     // Defines a static integer type that uses

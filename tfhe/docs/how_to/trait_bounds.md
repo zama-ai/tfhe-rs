@@ -31,7 +31,6 @@ only allowing easier debugging.
 
 ```rust
 use std::ops::{Add, Mul};
-
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint64};
 

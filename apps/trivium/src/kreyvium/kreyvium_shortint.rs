@@ -1,8 +1,6 @@
 use crate::static_deque::StaticDeque;
-
-use tfhe::shortint::prelude::*;
-
 use rayon::prelude::*;
+use tfhe::shortint::prelude::*;
 
 /// KreyviumStreamShortint: a struct implementing the Kreyvium stream cipher, using a generic
 /// Ciphertext for the internal representation of bits (intended to represent a single bit). To be

@@ -1,9 +1,8 @@
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
+use crate::shortint;
 use crate::shortint::ciphertext::Degree;
 use std::os::raw::c_int;
-
-use crate::shortint;
 
 pub struct ShortintCiphertext(pub(in crate::c_api) shortint::Ciphertext);
 pub struct ShortintCompressedCiphertext(pub(in crate::c_api) shortint::CompressedCiphertext);

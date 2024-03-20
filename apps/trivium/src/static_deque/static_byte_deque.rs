@@ -4,7 +4,6 @@
 //! This is pretending to store bits, and allows accessing bits in chunks of 8 consecutive.
 
 use crate::static_deque::StaticDeque;
-
 use tfhe::FheUint8;
 
 /// Internal trait specifying which operations are needed by StaticByteDeque
