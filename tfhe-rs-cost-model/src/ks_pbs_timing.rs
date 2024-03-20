@@ -325,6 +325,17 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
     let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
     hypercube.shuffle(&mut rng);
 
+    // After the shuffle make the small levels pop first
+    hypercube.sort_by(|a, b| {
+        let a = a.0;
+        let b = b.0;
+
+        let a_level_prod = a.ks_level.0 * a.pbs_level.0;
+        let b_level_prod = b.ks_level.0 * b.pbs_level.0;
+
+        a_level_prod.cmp(&b_level_prod)
+    });
+
     // {
     //     let mut out = std::fs::File::options()
     //         .create(true)
@@ -335,6 +346,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
     //     for (param, _) in &hypercube {
     //         writeln!(&mut out, "{param:?}").unwrap();
     //     }
+    //     panic!("lol");
     // }
 
     let start_time = std::time::Instant::now();
