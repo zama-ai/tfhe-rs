@@ -187,13 +187,24 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_small_scalar_mul(&self, scalar: u8) -> Self {
+    pub(crate) fn after_scalar_mul<T>(&self, scalar: T) -> Self
+    where
+        T: DecomposableInto<u8>,
+    {
+        let message_modulus = self.blocks.first().unwrap().message_modulus;
+        let bits_in_message = message_modulus.0.ilog2();
+        let decomposer =
+            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
+        let mut scalar_composed = decomposer.collect_vec();
+        scalar_composed.resize(self.blocks.len(), 0);
+
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .map(|left| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() * scalar as usize),
+                .zip(scalar_composed)
+                .map(|(left, scalar_block)| CudaBlockInfo {
+                    degree: Degree::new(left.degree.get() * scalar_block as usize),
                     message_modulus: left.message_modulus,
                     carry_modulus: left.carry_modulus,
                     pbs_order: left.pbs_order,
