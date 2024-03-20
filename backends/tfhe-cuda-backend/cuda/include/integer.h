@@ -1069,11 +1069,19 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   Torus *tmp_rotated;
 
+  cuda_stream_t *local_stream_1;
+  cuda_stream_t *local_stream_2;
+
   int_arithmetic_scalar_shift_buffer(cuda_stream_t *stream,
                                      SHIFT_TYPE shift_type,
                                      int_radix_params params,
                                      uint32_t num_radix_blocks,
                                      bool allocate_gpu_memory) {
+    // In the arithmetic shift, a PBS has to be applied to the last rotated
+    // block twice: once to shift it, once to compute the padding block to be
+    // copied onto all blocks to the left of the last rotated block
+    local_stream_1 = new cuda_stream_t(stream->gpu_index);
+    local_stream_2 = new cuda_stream_t(stream->gpu_index);
     this->shift_type = shift_type;
     this->params = params;
 
@@ -1082,20 +1090,21 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
       tmp_rotated = (Torus *)cuda_malloc_async(
-          (num_radix_blocks + 1) * big_lwe_size_bytes, stream);
+          (num_radix_blocks + 2) * big_lwe_size_bytes, stream);
 
       cuda_memset_async(tmp_rotated, 0,
-                        (num_radix_blocks + 1) * big_lwe_size_bytes, stream);
+                        (num_radix_blocks + 2) * big_lwe_size_bytes, stream);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
       // LUT
-      // pregenerate lut vector and indexes lut for right shift
+      // pregenerate lut vector and indexes lut
 
       // lut to shift the last block
       // calculate lut for each 'shift_within_block'
       // so that in case an application calls scratches only once for a whole
       // circuit it can reuse memory for different shift values
+      // With two bits of message this is actually only one LUT.
       for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
         auto shift_last_block_lut_univariate =
             new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
@@ -1152,6 +1161,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       // calculate lut for each 'shift_within_block'
       // so that in case an application calls scratches only once for a whole
       // circuit it can reuse memory for different shift values
+      // NB: with two bits of message, this is actually only one LUT.
       for (int s_w_b = 1; s_w_b < num_bits_in_block; s_w_b++) {
         auto shift_blocks_lut_bivariate = new int_radix_lut<Torus>(
             stream, params, 1, num_radix_blocks, allocate_gpu_memory);
@@ -1188,6 +1198,8 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
   }
 
   void release(cuda_stream_t *stream) {
+    local_stream_1->release();
+    local_stream_2->release();
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(stream);
       delete buffer;
