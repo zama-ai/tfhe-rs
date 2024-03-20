@@ -31,6 +31,7 @@ struct ParamsHash {
     polynomial_size: PolynomialSize,
     pbs_level: DecompositionLevelCount,
     ks_level: DecompositionLevelCount,
+    ks_base_log_smaller_than_5: bool,
 }
 
 impl std::hash::Hash for ParamsHash {
@@ -40,6 +41,7 @@ impl std::hash::Hash for ParamsHash {
         self.polynomial_size.0.hash(state);
         self.pbs_level.0.hash(state);
         self.ks_level.0.hash(state);
+        self.ks_base_log_smaller_than_5.hash(state);
     }
 }
 
@@ -51,6 +53,7 @@ impl From<Params> for ParamsHash {
             polynomial_size: value.polynomial_size,
             pbs_level: value.pbs_level,
             ks_level: value.ks_level,
+            ks_base_log_smaller_than_5: value.ks_base_log.0 <= 5,
         }
     }
 }
@@ -147,12 +150,14 @@ fn write_results_to_file(
     out_dir: &Path,
 ) {
     let exp_name = format!(
-        "n={}_k={}_N={}_brl={}_ksl={}",
+        "n={}_k={}_N={}_brl={}_brb={}_ksl={}_ksb={}",
         params.lwe_dimension.0,
         params.glwe_dimension.0,
         params.polynomial_size.0,
         params.pbs_level.0,
-        params.ks_level.0
+        params.pbs_base_log.0,
+        params.ks_level.0,
+        params.ks_base_log.0,
     );
 
     let out_file_name = PathBuf::from(format!("{exp_name}.csv"));
@@ -198,6 +203,32 @@ fn write_results_to_file(
     }
 }
 
+fn filter_b_l_limited(
+    bases: &[usize],
+    levels: &[usize],
+    preserved_mantissa: usize,
+) -> Vec<BaseLevel> {
+    let mut bases_levels = vec![];
+    for (b, l) in iproduct!(bases, levels) {
+        if b * l <= preserved_mantissa {
+            if *b == 1 {
+                if (b * l) % 5 == 0 {
+                    bases_levels.push(BaseLevel {
+                        base: DecompositionBaseLog(*b),
+                        level: DecompositionLevelCount(*l),
+                    });
+                }
+            } else {
+                bases_levels.push(BaseLevel {
+                    base: DecompositionBaseLog(*b),
+                    level: DecompositionLevelCount(*l),
+                });
+            }
+        }
+    }
+    bases_levels
+}
+
 // preserved_mantissa = number of bits that are in the mantissa of the floating point numbers used
 pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u128) {
     assert_eq!(algorithm, EXT_PROD_ALGO);
@@ -216,7 +247,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
 
     let lwe_dimension_search_space = (512..=1024).step_by(64).map(LweDimension);
     let glwe_dimension_search_space = (1..=5).map(GlweDimension);
-    let polynomial_size_search_space = (8..=16).map(|poly_log2| PolynomialSize(1 << poly_log2));
+    let polynomial_size_search_space = (8..=14).map(|poly_log2| PolynomialSize(1 << poly_log2));
 
     let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
         64usize
@@ -238,7 +269,13 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
         .min(modulus_log2)
         .min(max_base_level_product);
 
-    let base_log_level_pbs = filter_b_l(
+    // let base_log_level_pbs = filter_b_l(
+    //     &potential_base_logs,
+    //     &potential_levels,
+    //     max_base_log_level_prod,
+    // );
+
+    let base_log_level_pbs = filter_b_l_limited(
         &potential_base_logs,
         &potential_levels,
         max_base_log_level_prod,
@@ -280,7 +317,19 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
                 (params, variances)
             },
         )
-        .filter(|(_, variances)| variances.all_noises_are_not_uniformly_random())
+        .filter(|(_params, variances)| {
+            let noise_ok = variances.all_noises_are_not_uniformly_random();
+            // let base_logs_not_too_small = params.pbs_base_log.0 != 1 && params.ks_base_log.0 != 1;
+
+            // noise_ok && base_logs_not_too_small
+
+            // let glwe_poly_not_too_big = params.polynomial_size.0 < 2048
+            //     || (params.polynomial_size.0 >= 2048 && params.glwe_dimension.0 == 1);
+
+            // noise_ok && glwe_poly_not_too_big
+
+            noise_ok
+        })
         .collect();
 
     println!("candidates {}", hypercube.len());
@@ -325,20 +374,45 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
     let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
     hypercube.shuffle(&mut rng);
 
-    // After the shuffle make the small levels pop first
-    hypercube.sort_by(|a, b| {
-        let a = a.0;
-        let b = b.0;
+    // // After the shuffle make the small levels pop first
+    // hypercube.sort_by(|a, b| {
+    //     let a = a.0;
+    //     let b = b.0;
 
-        let a_level_prod = a.ks_level.0 * a.pbs_level.0;
-        let b_level_prod = b.ks_level.0 * b.pbs_level.0;
+    //     let a_level_prod = a.ks_level.0 * a.pbs_level.0;
+    //     let b_level_prod = b.ks_level.0 * b.pbs_level.0;
 
-        a_level_prod.cmp(&b_level_prod)
-    });
+    //     a_level_prod.cmp(&b_level_prod)
+
+    //     // let a_size = a
+    //     //     .glwe_dimension
+    //     //     .to_equivalent_lwe_dimension(a.polynomial_size)
+    //     //     .0
+    //     //     * a.ks_level.0
+    //     //     * a.lwe_dimension.to_lwe_size().0
+    //     //     + a.lwe_dimension.0
+    //     //         * (a.glwe_dimension.to_glwe_size().0.pow(2))
+    //     //         * a.pbs_level.0
+    //     //         * a.polynomial_size.0;
+
+    //     // let b_size = b
+    //     //     .glwe_dimension
+    //     //     .to_equivalent_lwe_dimension(b.polynomial_size)
+    //     //     .0
+    //     //     * b.ks_level.0
+    //     //     * b.lwe_dimension.to_lwe_size().0
+    //     //     + b.lwe_dimension.0
+    //     //         * (b.glwe_dimension.to_glwe_size().0.pow(2))
+    //     //         * b.pbs_level.0
+    //     //         * b.polynomial_size.0;
+
+    //     // a_size.cmp(&b_size)
+    // });
 
     // {
     //     let mut out = std::fs::File::options()
     //         .create(true)
+    //         .truncate(true)
     //         .write(true)
     //         .open(&out_dir.join(&"params.log"))
     //         .unwrap();
