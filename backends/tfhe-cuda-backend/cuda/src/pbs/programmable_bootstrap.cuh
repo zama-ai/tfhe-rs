@@ -37,6 +37,8 @@ void execute_pbs(cuda_stream_t *stream, Torus *lwe_array_out,
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
+      if (grouping_factor == 0)
+        PANIC("Multi-bit PBS error: grouping factor should be > 0.")
       cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
           stream, lwe_array_out, lwe_output_indexes, lut_vector,
           lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -89,6 +91,8 @@ void execute_scratch_pbs(cuda_stream_t *stream, int8_t **pbs_buffer,
     // 64 bits
     switch (pbs_type) {
     case MULTI_BIT:
+      if (grouping_factor == 0)
+        PANIC("Multi-bit PBS error: grouping factor should be > 0.")
       scratch_cuda_multi_bit_programmable_bootstrap_64(
           stream, pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
           level_count, grouping_factor, input_lwe_ciphertext_count,

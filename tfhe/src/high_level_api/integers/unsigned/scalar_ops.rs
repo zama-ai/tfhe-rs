@@ -538,8 +538,13 @@ generic_integer_impl_scalar_operation!(
                     RadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("Mul '*' with clear value is not yet supported by Cuda devices")
+                InternalServerKey::Cuda(cuda_key) => {
+                    let inner_result = with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key.scalar_mul(
+                            &*lhs.ciphertext.on_gpu(), rhs, stream
+                        )
+                    });
+                    RadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1371,8 +1376,11 @@ generic_integer_impl_scalar_operation_assign!(
                         .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("MulAssign '*=' with clear value is not yet supported by Cuda devices")
+                InternalServerKey::Cuda(cuda_key) => {
+                    with_thread_local_cuda_stream(|stream| {
+                        cuda_key.key
+                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(), rhs, stream);
+                    })
                 }
             })
         }

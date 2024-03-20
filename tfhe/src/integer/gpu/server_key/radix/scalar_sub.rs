@@ -4,6 +4,7 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::TwosComplementNegation;
+use crate::prelude::CastInto;
 
 impl CudaServerKey {
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
@@ -45,7 +46,7 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
@@ -63,7 +64,7 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let negated_scalar = scalar.twos_complement_negation();
@@ -77,7 +78,7 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
@@ -125,7 +126,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_sub<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
@@ -143,7 +144,7 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -156,7 +157,7 @@ impl CudaServerKey {
 
     pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStream)
     where
-        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation,
+        Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
