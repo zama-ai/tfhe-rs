@@ -170,24 +170,127 @@ impl CudaStream {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     /// # Safety
     ///
     /// - [CudaStream::synchronize] __must__ be called after this function
     /// as soon as synchronization is required
-    pub unsafe fn small_scalar_mult_integer_radix_assign_async<T: UnsignedInteger>(
+    pub unsafe fn unchecked_scalar_mul_integer_radix_classic_kb_async<T: UnsignedInteger>(
         &self,
         lwe_array: &mut CudaVec<T>,
-        scalar: u64,
+        decomposed_scalar: &[T],
+        has_at_least_one_set: &[T],
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
         lwe_dimension: LweDimension,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        ks_level: DecompositionLevelCount,
         num_blocks: u32,
+        num_scalars: u32,
     ) {
-        cuda_small_scalar_multiplication_integer_radix_ciphertext_64_inplace(
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_scalar_mul_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            true,
+        );
+
+        cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
             self.as_c_ptr(),
             lwe_array.as_mut_c_ptr(),
-            scalar,
-            lwe_dimension.0 as u32,
+            decomposed_scalar.as_ptr().cast::<u64>(),
+            has_at_least_one_set.as_ptr().cast::<u64>(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            (glwe_dimension.0 * polynomial_size.0) as u32,
+            polynomial_size.0 as u32,
+            message_modulus.0 as u32,
             num_blocks,
+            num_scalars,
         );
+
+        cleanup_cuda_integer_radix_scalar_mul(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_scalar_mul_integer_radix_multibit_kb_async<T: UnsignedInteger>(
+        &self,
+        lwe_array: &mut CudaVec<T>,
+        decomposed_scalar: &[T],
+        has_at_least_one_set: &[T],
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        lwe_dimension: LweDimension,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        ks_level: DecompositionLevelCount,
+        grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+        num_scalars: u32,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_scalar_mul_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            true,
+        );
+
+        cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
+            self.as_c_ptr(),
+            lwe_array.as_mut_c_ptr(),
+            decomposed_scalar.as_ptr().cast::<u64>(),
+            has_at_least_one_set.as_ptr().cast::<u64>(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            (glwe_dimension.0 * polynomial_size.0) as u32,
+            polynomial_size.0 as u32,
+            message_modulus.0 as u32,
+            num_blocks,
+            num_scalars,
+        );
+
+        cleanup_cuda_integer_radix_scalar_mul(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
     }
 
     #[allow(clippy::too_many_arguments)]

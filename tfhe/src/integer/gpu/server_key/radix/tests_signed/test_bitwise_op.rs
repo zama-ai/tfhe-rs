@@ -2,7 +2,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parametrized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_signed::{
+use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
     signed_default_bitand_test, signed_default_bitnot_test, signed_default_bitor_test,
     signed_default_bitxor_test, signed_unchecked_bitand_test, signed_unchecked_bitor_test,
     signed_unchecked_bitxor_test,
