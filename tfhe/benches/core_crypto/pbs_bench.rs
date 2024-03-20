@@ -2769,6 +2769,6 @@ criterion_group!(
 // criterion_main!(cuda_pbs_group, cuda_multi_bit_pbs_group);
 
 
-criterion_main!(scenario_a,scenario_c);
+criterion_main!(scenario_a,scenario_c,square_trick_circuit_group);
 //criterion_main!(square_trick_circuit_group); 
 //criterion_main!(packing_key_switch_group, clot21_mult_circuit_without_packing_group_c); //if you change from a to c change the parameter set for the packing_key_switch_group
