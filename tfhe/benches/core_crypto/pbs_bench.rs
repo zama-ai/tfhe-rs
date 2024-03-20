@@ -2440,10 +2440,12 @@ where Standard: rand::distributions::Distribution<Scalar>
         
         let mut rng = thread_rng();
 
+        let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+
         // Allocate a new LweCiphertext and encrypt our plaintext
         let mut lwe_ciphertext_in_lhs: LweCiphertextOwned<Scalar> =
             allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
+                &equivalent_lwe_sk,
                 Plaintext(Scalar::ZERO),
                 params.lwe_modular_std_dev.unwrap(),
                 tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -2454,7 +2456,7 @@ where Standard: rand::distributions::Distribution<Scalar>
 
         let mut lwe_ciphertext_in_rhs: LweCiphertextOwned<Scalar> =
             allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
+                &equivalent_lwe_sk,
                 Plaintext(Scalar::ZERO),
                 params.lwe_modular_std_dev.unwrap(),
                 tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -2462,6 +2464,38 @@ where Standard: rand::distributions::Distribution<Scalar>
             );
 
         lwe_ciphertext_in_rhs.as_mut().iter_mut().for_each(|x| *x = rng.gen::<Scalar>());
+
+        let ksk1 = allocate_and_generate_new_lwe_keyswitch_key(
+            &equivalent_lwe_sk,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let mut ks_result1 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let ksk2 = allocate_and_generate_new_lwe_keyswitch_key(
+            &equivalent_lwe_sk,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let mut ks_result2 = LweCiphertext::new(
+            Scalar::ZERO,
+            params.lwe_dimension.unwrap().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
 
         let mut accumulator1 = GlweCiphertext::new(
             Scalar::ZERO,
@@ -2630,6 +2664,10 @@ where Standard: rand::distributions::Distribution<Scalar>
                     square_trick(
                         &lwe_ciphertext_in_lhs,
                         &lwe_ciphertext_in_rhs,
+                        &ksk1,
+                        &mut ks_result1,
+                        &ksk2,
+                        &mut ks_result2,
                         &accumulator1,
                         &accumulator2,
                         &fourier_bsk1,
@@ -2661,7 +2699,6 @@ where Standard: rand::distributions::Distribution<Scalar>
         );
     }
 }
-
 
 criterion_group!(
     name = pbs_group;

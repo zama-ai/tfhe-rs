@@ -673,21 +673,21 @@ pub fn pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs<InputCont, KeyCont1, K
     OutputCont: Clone,
     AccCont: Container<Element = Scalar>,
 {
-    //let mut packed_glwe1 = output_relin.clone();
+    let mut packed_glwe1 = output_pks.clone();
     keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
         &lwe_pksk,
         &input_lwe_ciphertext_list1,
-        output_pks ,
+        &mut packed_glwe1 ,
     );
 
-    /*let mut packed_glwe2 = output_relin.clone();
+    let mut packed_glwe2 = output_relin.clone();
     keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
         &lwe_pksk,
         &input_lwe_ciphertext_list2,
         &mut packed_glwe2,
-    );*/
+    );
 
-    tensor_mult_with_relin(&output_pks, &output_pks, scale,relinearisation_key,output_relin);
+    tensor_mult_with_relin(&packed_glwe1, &packed_glwe2, scale,relinearisation_key,output_relin);
             
     // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
     extract_lwe_sample_from_glwe_ciphertext(&output_relin, extracted_sample, MonomialDegree(42));
@@ -732,21 +732,21 @@ pub fn pack_lwe_list_into_glwe_tensor_mult_with_relin_pbs_ks<InputCont, KeyCont1
     OutputCont: Clone,
     AccCont: Container<Element = Scalar>,
 {
-    //let mut packed_glwe1 = output_relin.clone();
+    let mut packed_glwe1 = output_pks.clone();
     keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
         &lwe_pksk,
         &input_lwe_ciphertext_list1,
-        output_pks ,
+        &mut packed_glwe1 ,
     );
 
-    /*let mut packed_glwe2 = output_relin.clone();
+    let mut packed_glwe2 = output_pks.clone();
     keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
         &lwe_pksk,
         &input_lwe_ciphertext_list2,
         &mut packed_glwe2,
-    );*/
+    );
 
-    tensor_mult_with_relin(&output_pks, &output_pks, scale,relinearisation_key,output_relin);
+    tensor_mult_with_relin(&packed_glwe1, &packed_glwe1, scale,relinearisation_key,output_relin);
             
     // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
     extract_lwe_sample_from_glwe_ciphertext(&output_relin, extracted_sample, MonomialDegree(42));
@@ -856,6 +856,10 @@ pub fn glwe_tensor_mult_with_relin_pbs_ks_c<InputCont, KeyCont1, KeyCont2, Outpu
 pub fn square_trick<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
     lwe_lhs: &LweCiphertext<InputCont>,
     lwe_rhs: &LweCiphertext<InputCont>,
+    ksk1: &LweKeyswitchKeyOwned<Scalar>,
+    ks_result1: &mut LweCiphertext<OutputCont>,
+    ksk2: &LweKeyswitchKeyOwned<Scalar>,
+    ks_result2: &mut LweCiphertext<OutputCont>,
     accumulator1: &GlweCiphertext<AccCont>,
     accumulator2: &GlweCiphertext<AccCont>,
     fourier_bsk1: &FourierLweBootstrapKey<KeyCont>,
@@ -878,11 +882,13 @@ OutputCont: Clone,
 AccCont: Container<Element = Scalar>,
 {
     //let mul_cleartext = Scalar::ONE;
-    let mut sum = ks_result.clone();
+    let mut sum = sq_sum.clone();
     lwe_ciphertext_add(&mut sum, &lwe_lhs, &lwe_rhs);
+    
+    keyswitch_lwe_ciphertext(&ksk1, &mut sum, ks_result1);
 
     programmable_bootstrap_lwe_ciphertext_mem_optimized(
-        &sum,
+        &ks_result1,
         sq_sum,
         &accumulator1.as_view(),
         &fourier_bsk1,
@@ -892,16 +898,19 @@ AccCont: Container<Element = Scalar>,
     //not needed can be done in pbs
     //lwe_ciphertext_cleartext_mul_assign(sq_sum, Cleartext(mul_cleartext));
 
-    let mut subtraction = ks_result.clone();
+    let mut subtraction = sq_subtraction.clone();
     lwe_ciphertext_sub(&mut subtraction, &lwe_lhs, &lwe_rhs);
+    
+    keyswitch_lwe_ciphertext(&ksk2, &mut subtraction, ks_result2);
     programmable_bootstrap_lwe_ciphertext_mem_optimized(
-        &subtraction,
+        &ks_result2,
         sq_subtraction,
         &accumulator2.as_view(),
         &fourier_bsk2,
         fft,
         buffers.stack(),
     );
+
     //not needed can be done in pbs
     //lwe_ciphertext_cleartext_mul_assign(sq_subtraction, Cleartext(mul_cleartext));
     let mut result_sum = sq_sum.to_owned();
@@ -918,6 +927,4 @@ AccCont: Container<Element = Scalar>,
         buffers.stack(),
     );
 }
-
-
 
