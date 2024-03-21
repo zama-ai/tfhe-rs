@@ -9,7 +9,6 @@
 #include <cuda_runtime.h>
 
 #define synchronize_threads_in_block() __syncthreads()
-
 extern "C" {
 
 #define check_cuda_error(ans)                                                  \
@@ -57,6 +56,8 @@ void *cuda_malloc_async(uint64_t size, cuda_stream_t *stream);
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
 bool cuda_check_support_cooperative_groups();
+
+bool cuda_check_support_thread_block_clusters();
 
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cuda_stream_t *stream);

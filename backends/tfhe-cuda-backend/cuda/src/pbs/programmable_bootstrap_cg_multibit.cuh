@@ -1,5 +1,5 @@
-#ifndef CUDA_FAST_MULTIBIT_PBS_CUH
-#define CUDA_FAST_MULTIBIT_PBS_CUH
+#ifndef CUDA_CG_MULTIBIT_PBS_CUH
+#define CUDA_CG_MULTIBIT_PBS_CUH
 
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
@@ -11,6 +11,7 @@
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.cuh"
 #include "programmable_bootstrap.h"
 #include "programmable_bootstrap_multibit.cuh"
 #include "types/complex/operations.cuh"
@@ -106,9 +107,9 @@ __global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, params>(accumulator, accumulator_fft,
-                                 block_join_buffer, keybundle, polynomial_size,
-                                 glwe_dimension, level_count, i, grid);
+    mul_ggsw_glwe<Torus, grid_group, params>(
+        accumulator, accumulator_fft, block_join_buffer, keybundle,
+        polynomial_size, glwe_dimension, level_count, i, grid);
 
     synchronize_threads_in_block();
   }
@@ -248,7 +249,7 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
 }
 
 template <typename Torus, class params>
-__host__ void execute_external_product_loop(
+__host__ void execute_cg_external_product_loop(
     cuda_stream_t *stream, Torus *lut_vector, Torus *lut_vector_indexes,
     Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *lwe_array_out,
     Torus *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
@@ -349,7 +350,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
         lwe_chunk_size, lwe_offset);
 
     // Accumulate
-    execute_external_product_loop<Torus, params>(
+    execute_cg_external_product_loop<Torus, params>(
         stream, lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
         lwe_array_out, lwe_output_indexes, buffer, num_samples, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,

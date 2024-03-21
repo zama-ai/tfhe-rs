@@ -205,7 +205,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
         uint64_t decrypted = 0;
         core_crypto_lwe_decrypt(&decrypted, result, lwe_sk_out,
                                 glwe_dimension * polynomial_size);
-        EXPECT_NE(decrypted, plaintext);
+        ASSERT_NE(decrypted, plaintext);
         // let err = (decrypted >= plaintext) ? decrypted - plaintext :
         // plaintext
         // - decrypted;
@@ -216,7 +216,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
         // Compute the rounding bit
         uint64_t rounding = (decrypted & rounding_bit) << 1;
         uint64_t decoded = (decrypted + rounding) / delta;
-        EXPECT_EQ(decoded, plaintext / delta);
+        ASSERT_EQ(decoded, plaintext / delta);
       }
     }
   }

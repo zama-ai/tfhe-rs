@@ -1,5 +1,5 @@
-#ifndef CUDA_CG_PBS_CUH
-#define CUDA_CG_PBS_CUH
+#ifndef CUDA_TBC_PBS_CUH
+#define CUDA_TBC_PBS_CUH
 
 #ifdef __CDT_PARSER__
 #undef __CUDA_RUNTIME_H__
@@ -35,14 +35,15 @@ namespace cg = cooperative_groups;
  * Each y-block computes one element of the lwe_array_out.
  */
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_programmable_bootstrap_cg(
+__global__ void device_programmable_bootstrap_tbc(
     Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     double2 *bootstrapping_key, double2 *join_buffer, uint32_t lwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    int8_t *device_mem, uint64_t device_memory_size_per_block) {
+    int8_t *device_mem, uint64_t device_memory_size_per_block,
+    bool support_dsm) {
 
-  grid_group grid = this_grid();
+  cluster_group cluster = this_cluster();
 
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -53,23 +54,26 @@ __global__ void device_programmable_bootstrap_cg(
 
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
+    if (support_dsm)
+      selected_memory += sizeof(Torus) * polynomial_size;
   } else {
     int block_index = blockIdx.x + blockIdx.y * gridDim.x +
                       blockIdx.z * gridDim.x * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
-  // We always compute the pointer with most restrictive alignment to avoid
-  // alignment issues
-  double2 *accumulator_fft = (double2 *)selected_memory;
-  Torus *accumulator =
-      (Torus *)accumulator_fft +
-      (ptrdiff_t)(sizeof(double2) * polynomial_size / 2 / sizeof(Torus));
+  Torus *accumulator = (Torus *)selected_memory;
   Torus *accumulator_rotated =
       (Torus *)accumulator + (ptrdiff_t)polynomial_size;
+  double2 *accumulator_fft =
+      (double2 *)accumulator_rotated +
+      (ptrdiff_t)(sizeof(Torus) * polynomial_size / sizeof(double2));
 
-  if constexpr (SMD == PARTIALSM)
+  if constexpr (SMD == PARTIALSM) {
     accumulator_fft = (double2 *)sharedmem;
+    if (support_dsm)
+      accumulator_fft += (ptrdiff_t)(polynomial_size / 2);
+  }
 
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
@@ -130,9 +134,9 @@ __global__ void device_programmable_bootstrap_cg(
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe<Torus, grid_group, params>(
+    mul_ggsw_glwe<Torus, cluster_group, params>(
         accumulator, accumulator_fft, block_join_buffer, bootstrapping_key,
-        polynomial_size, glwe_dimension, level_count, i, grid);
+        polynomial_size, glwe_dimension, level_count, i, cluster, support_dsm);
 
     synchronize_threads_in_block();
   }
@@ -153,46 +157,65 @@ __global__ void device_programmable_bootstrap_cg(
 }
 
 template <typename Torus, typename STorus, typename params>
-__host__ void scratch_programmable_bootstrap_cg(
+__host__ void scratch_programmable_bootstrap_tbc(
     cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
 
-  uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
+  bool supports_dsm =
+      supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+          Torus>(polynomial_size, max_shared_memory);
+
+  uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
+      polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
           polynomial_size);
-  if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
+  uint64_t minimum_sm_tbc = 0;
+  if (supports_dsm)
+    minimum_sm_tbc =
+        get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
+            polynomial_size);
+
+  if (max_shared_memory >= full_sm + minimum_sm_tbc) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm + minimum_sm_tbc));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
-  } else if (max_shared_memory >= partial_sm) {
+  } else if (max_shared_memory >= partial_sm + minimum_sm_tbc) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize,
+        partial_sm + minimum_sm_tbc));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, minimum_sm_tbc));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
 
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, PBS_VARIANT::CG, allocate_gpu_memory);
+      input_lwe_ciphertext_count, PBS_VARIANT::TBC, allocate_gpu_memory);
 }
 
 /*
  * Host wrapper
  */
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_cg(
+__host__ void host_programmable_bootstrap_tbc(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
     Torus *lwe_input_indexes, double2 *bootstrapping_key,
@@ -202,14 +225,22 @@ __host__ void host_programmable_bootstrap_cg(
     uint32_t num_luts, uint32_t max_shared_memory) {
   cudaSetDevice(stream->gpu_index);
 
+  auto supports_dsm =
+      supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+          Torus>(polynomial_size, max_shared_memory);
+
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
-  uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
-
+  uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
+      polynomial_size);
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
           polynomial_size);
+  uint64_t minimum_sm_tbc = 0;
+  if (supports_dsm)
+    minimum_sm_tbc =
+        get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
+            polynomial_size);
 
   uint64_t full_dm = full_sm;
 
@@ -221,45 +252,55 @@ __host__ void host_programmable_bootstrap_cg(
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
 
-  void *kernel_args[14];
-  kernel_args[0] = &lwe_array_out;
-  kernel_args[1] = &lwe_output_indexes;
-  kernel_args[2] = &lut_vector;
-  kernel_args[3] = &lut_vector_indexes;
-  kernel_args[4] = &lwe_array_in;
-  kernel_args[5] = &lwe_input_indexes;
-  kernel_args[6] = &bootstrapping_key;
-  kernel_args[7] = &buffer_fft;
-  kernel_args[8] = &lwe_dimension;
-  kernel_args[9] = &polynomial_size;
-  kernel_args[10] = &base_log;
-  kernel_args[11] = &level_count;
-  kernel_args[12] = &d_mem;
+  cudaLaunchConfig_t config = {0};
+  // The grid dimension is not affected by cluster launch, and is still
+  // enumerated using number of blocks. The grid dimension should be a multiple
+  // of cluster size.
+  config.gridDim = grid;
+  config.blockDim = thds;
 
-  if (max_shared_memory < partial_sm) {
-    kernel_args[13] = &full_dm;
-    check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, grid,
-        thds, (void **)kernel_args, 0, stream->stream));
-  } else if (max_shared_memory < full_sm) {
-    kernel_args[13] = &partial_dm;
-    check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
-        grid, thds, (void **)kernel_args, partial_sm, stream->stream));
+  cudaLaunchAttribute attribute[1];
+  attribute[0].id = cudaLaunchAttributeClusterDimension;
+  attribute[0].val.clusterDim.x = level_count; // Cluster size in X-dimension
+  attribute[0].val.clusterDim.y = (glwe_dimension + 1);
+  attribute[0].val.clusterDim.z = 1;
+  config.attrs = attribute;
+  config.numAttrs = 1;
+  config.stream = stream->stream;
+
+  if (max_shared_memory < partial_sm + minimum_sm_tbc) {
+    config.dynamicSmemBytes = minimum_sm_tbc;
+
+    check_cuda_error(cudaLaunchKernelEx(
+        &config, device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+        lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
+        lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
+        supports_dsm));
+  } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
+    config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
+
+    check_cuda_error(cudaLaunchKernelEx(
+        &config, device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+        lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
+        lwe_dimension, polynomial_size, base_log, level_count, d_mem,
+        partial_dm, supports_dsm));
   } else {
-    int no_dm = 0;
-    kernel_args[13] = &no_dm;
-    check_cuda_error(cudaLaunchCooperativeKernel(
-        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, grid,
-        thds, (void **)kernel_args, full_sm, stream->stream));
-  }
+    config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
-  check_cuda_error(cudaGetLastError());
+    check_cuda_error(cudaLaunchKernelEx(
+        &config, device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+        lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
+        lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
+        supports_dsm));
+  }
 }
 
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
-__host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
+__host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
     int glwe_dimension, int level_count, int num_samples,
     uint32_t max_shared_memory) {
 
@@ -269,10 +310,10 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 
   // Calculate the dimension of the kernel
   uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(params::degree);
+      get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(params::degree);
 
   uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
+      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
           params::degree);
 
   int thds = params::degree / params::opt;
@@ -284,16 +325,17 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
   if (max_shared_memory < partial_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, thds, 0);
+        (void *)device_programmable_bootstrap_tbc<Torus, params, NOSM>, thds,
+        0);
   } else if (max_shared_memory < full_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        (void *)device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
         thds, partial_sm);
   } else {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
-        (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, thds,
+        (void *)device_programmable_bootstrap_tbc<Torus, params, FULLSM>, thds,
         full_sm);
   }
 
@@ -303,45 +345,80 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
-// Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus>
-__host__ bool supports_cooperative_groups_on_programmable_bootstrap(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
-  switch (polynomial_size) {
-  case 256:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
-  case 512:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
-  case 1024:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
-  case 2048:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
-  case 4096:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
-  case 8192:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
-  case 16384:
-    return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
-                                       max_shared_memory);
-  default:
-    PANIC("Cuda error (classical PBS): unsupported polynomial size. "
-          "Supported N's are powers of two"
-          " in the interval [256..16384].")
+__host__ bool
+supports_distributed_shared_memory_on_classic_programmable_bootstrap(
+    uint32_t polynomial_size, uint32_t max_shared_memory) {
+  uint64_t minimum_sm =
+      get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
+          polynomial_size);
+
+  if (max_shared_memory < minimum_sm) {
+    // If we cannot store a single polynomial in a block shared memory we cannot
+    // use TBC
+    return false;
+  } else {
+    return cuda_check_support_thread_block_clusters();
   }
+}
+
+template <typename Torus, class params>
+__host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory) {
+
+  if (!cuda_check_support_thread_block_clusters() || num_samples > 128)
+    return false;
+
+  uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
+      polynomial_size);
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_tbc<Torus>(
+          polynomial_size);
+  uint64_t minimum_sm_tbc = 0;
+  if (supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+          Torus>(polynomial_size, max_shared_memory))
+    minimum_sm_tbc =
+        get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
+            polynomial_size);
+
+  int cluster_size;
+
+  dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  cudaLaunchConfig_t config = {0};
+  // The grid dimension is not affected by cluster launch, and is still
+  // enumerated using number of blocks. The grid dimension should be a multiple
+  // of cluster size.
+  config.gridDim = grid_accumulate;
+  config.blockDim = thds;
+  config.numAttrs = 0;
+
+  if (max_shared_memory < partial_sm + minimum_sm_tbc) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size, device_programmable_bootstrap_tbc<Torus, params, NOSM>,
+        &config));
+  } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size,
+        device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>, &config));
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+    check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
+        &cluster_size, device_programmable_bootstrap_tbc<Torus, params, FULLSM>,
+        &config));
+  }
+
+  return cluster_size >= level_count * (glwe_dimension + 1);
 }
 
 #endif // CG_PBS_H
