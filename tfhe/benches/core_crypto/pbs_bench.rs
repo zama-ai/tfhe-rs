@@ -2729,19 +2729,19 @@ criterion_group!(
 
 criterion_group!(
     name = scenario_a;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(200);
     targets = mult_circuit_clot21_scenario_a::<u64>
 );
 
 criterion_group!(
     name = scenario_c;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(200);
     targets = mult_circuit_clot21_scenario_c::<u64>
 );
 
 criterion_group!(
     name = square_trick_circuit_group;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(200);
     targets = square_trick_circuit::<u64>
 );
 
