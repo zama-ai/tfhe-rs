@@ -667,10 +667,6 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         .unwrap()
     ));
     debug_assert!(
-        lwe_list_in.lwe_ciphertext_count().0 != 0,
-        "Got empty `lwe_list_in`"
-    );
-    debug_assert!(
         lwe_list_out.lwe_size().to_lwe_dimension() == fourier_bsk.output_lwe_dimension(),
         "Output LWE ciphertext needs to have an LweDimension of {}, got {}",
         lwe_list_out.lwe_size().to_lwe_dimension().0,

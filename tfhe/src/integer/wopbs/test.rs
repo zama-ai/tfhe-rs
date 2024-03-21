@@ -274,3 +274,31 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         assert_eq!(res, ((clear1 * clear2) + clear2) % msg_space);
     }
 }
+
+// Previously failing case from https://github.com/zama-ai/tfhe-rs/issues/1010
+#[test]
+pub fn test_wopbs_non_reg_trivial_0() {
+    use crate::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
+
+    fn generate_keys() -> (RadixClientKey, ServerKey, WopbsKey) {
+        let (ck, sk) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 16);
+        let wopbs_key = WopbsKey::new_wopbs_key(&ck, &sk, &WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        (ck, sk, wopbs_key)
+    }
+
+    let (ck, sk, wopbs_key) = generate_keys();
+    let ct_max_arg: RadixCiphertext = sk.create_trivial_radix(8u64, 4);
+    let f = |x: u64| -> u64 { 5 + x };
+    let lut = wopbs_key.generate_lut_radix(&ct_max_arg, f);
+    let apply_lut = |encrypted_id: &RadixCiphertext| -> RadixCiphertext {
+        let ct = wopbs_key.keyswitch_to_wopbs_params(&sk, encrypted_id);
+        let ct_res = wopbs_key.wopbs(&ct, &lut);
+        wopbs_key.keyswitch_to_pbs_params(&ct_res)
+    };
+    let lut_at_2 = apply_lut(&sk.create_trivial_radix(2u64, 4)); // succeeds
+    assert_eq!(ck.decrypt::<u64>(&lut_at_2), 7);
+    let lut_at_1 = apply_lut(&sk.create_trivial_radix(1u64, 4)); // succeeds
+    assert_eq!(ck.decrypt::<u64>(&lut_at_1), 6);
+    let lut_at_0 = apply_lut(&sk.create_trivial_radix(0u64, 4)); // used to fail, now fixed
+    assert_eq!(ck.decrypt::<u64>(&lut_at_0), 5);
+}
