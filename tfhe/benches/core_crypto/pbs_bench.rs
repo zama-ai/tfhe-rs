@@ -1179,7 +1179,7 @@ where Standard: rand::distributions::Distribution<Scalar>
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    let nb_mults = 1;
+    let nb_mults = 2;
 
     for (name, params) in params_scenario_a::<Scalar>().iter() {
         // Create the LweSecretKey
@@ -1545,7 +1545,7 @@ where Standard: rand::distributions::Distribution<Scalar>
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    let nb_mults = 1;
+    let nb_mults = 2;
 
     for (name, params) in params_scenario_c::<Scalar>().iter() {
         // Create the LweSecretKey
@@ -2426,7 +2426,7 @@ where Standard: rand::distributions::Distribution<Scalar>
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    let nb_mults = 1;
+    let nb_mults = 2;
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
     for (name, params) in square_trick_benchmark_parameters::<Scalar>().iter() {
