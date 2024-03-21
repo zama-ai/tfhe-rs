@@ -340,6 +340,20 @@ macro_rules! create_integer_wrapper_type {
                     *result = Box::into_raw(Box::new($name(decompressed_inner)));
                 })
             }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$name:snake _compress>](
+                sself: *const $name,
+                result: *mut *mut [<Compressed $name>],
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let ct = $crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+                    let compressed_inner = ct.0.compress();
+
+                    *result = Box::into_raw(Box::new([<Compressed $name>](compressed_inner)));
+                })
+            }
         }
 
 

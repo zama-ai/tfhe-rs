@@ -502,6 +502,19 @@ fn test_abs() {
 }
 
 #[test]
+fn test_integer_compress_decompress() {
+    let config = ConfigBuilder::default().build();
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
+
+    let a = FheInt8::try_encrypt(-83i8, &client_key).unwrap();
+
+    let clear: i8 = a.compress().decompress().decrypt(&client_key);
+
+    assert_eq!(clear, -83i8);
+}
+
+#[test]
 fn test_trivial_fhe_int8() {
     let config = ConfigBuilder::default().build();
     let (client_key, sks) = generate_keys(config);
