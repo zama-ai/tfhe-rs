@@ -2,6 +2,21 @@ use std::env;
 use std::process::Command;
 
 fn main() {
+    match env::var("DOCS_RS") {
+        Ok(val) => {
+            let val = val.parse::<u32>();
+            match val {
+                Ok(val) => {
+                    if val == 1 {
+                        return;
+                    }
+                }
+                Err(_) => (),
+            }
+        }
+        Err(_) => (),
+    }
+
     println!("Build tfhe-cuda-backend");
     if env::consts::OS == "linux" {
         let output = Command::new("./get_os_name.sh").output().unwrap();

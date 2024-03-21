@@ -144,7 +144,7 @@ aarch64-unix = ["aarch64", "seeder_unix"]
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint", "integer"]
+features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
