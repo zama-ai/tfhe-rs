@@ -7,7 +7,6 @@ use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
-#[cfg(not(feature = "gpu"))]
 use tfhe::shortint::parameters::{
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
@@ -15,11 +14,6 @@ use tfhe::shortint::parameters::{
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-};
-#[cfg(feature = "gpu")]
-use tfhe::shortint::parameters::{
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 };
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
@@ -31,7 +25,6 @@ const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 ];
 
-#[cfg(not(feature = "gpu"))]
 const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
@@ -39,12 +32,6 @@ const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
     PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-];
-
-#[cfg(feature = "gpu")]
-const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 2] = [
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
