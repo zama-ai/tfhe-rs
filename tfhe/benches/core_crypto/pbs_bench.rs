@@ -1211,20 +1211,20 @@ where Standard: rand::distributions::Distribution<Scalar>
         let mut input_lwe_list1 = LweCiphertextList::new(
             Scalar::ZERO,
             equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_lwe_list2 = LweCiphertextList::new(
             Scalar::ZERO,
             equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
-            PlaintextCount(2),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+            PlaintextCount(10),//PlaintextCount(glwe_secret_key.polynomial_size().0),
         );
 
         //need to change these values if we do not work with u64
@@ -1585,20 +1585,20 @@ where Standard: rand::distributions::Distribution<Scalar>
         let mut input_lwe_list1 = LweCiphertextList::new(
             Scalar::ZERO,
             input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_lwe_list2 = LweCiphertextList::new(
             Scalar::ZERO,
             input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(2), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
-            PlaintextCount(2),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+            PlaintextCount(10),//PlaintextCount(glwe_secret_key.polynomial_size().0),
         );
 
         //need to change these values if we do not work with u64
