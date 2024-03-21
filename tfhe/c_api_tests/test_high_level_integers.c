@@ -502,6 +502,35 @@ int uint8_compressed(const ClientKey *client_key) {
   return ok;
 }
 
+int uint8_compressed_after_encryption(const ClientKey *client_key) {
+  int ok;
+  FheUint8 *lhs = NULL;
+  FheUint8 *result = NULL;
+  CompressedFheUint8 *clhs = NULL;
+
+  uint8_t lhs_clear = 123;
+
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
+
+  ok = fhe_uint8_compress(lhs, &clhs);
+  assert(ok == 0);
+
+  ok = compressed_fhe_uint8_decompress(clhs, &lhs);
+  assert(ok == 0);
+
+  uint8_t clear;
+  ok = fhe_uint8_decrypt(lhs, client_key, &clear);
+  assert(ok == 0);
+
+  assert(clear == lhs_clear);
+
+  fhe_uint8_destroy(lhs);
+  compressed_fhe_uint8_destroy(clhs);
+  fhe_uint8_destroy(result);
+  return ok;
+}
+
 void test_try_decrypt_trivial(const ClientKey *client_key) {
   const uint16_t clear = UINT16_MAX - 2;
 
@@ -602,6 +631,9 @@ int main(void) {
     assert(ok == 0);
 
     ok = set_server_key(server_key);
+    assert(ok == 0);
+
+    ok = uint8_compressed_after_encryption(client_key);
     assert(ok == 0);
 
     ok = uint8_client_key(client_key);

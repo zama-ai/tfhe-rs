@@ -268,6 +268,19 @@ fn test_compact_public_key_small() {
 }
 
 #[test]
+fn test_integer_compress_decompress() {
+    let config = ConfigBuilder::default().build();
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
+
+    let a = FheUint8::try_encrypt(213u8, &client_key).unwrap();
+
+    let clear: u8 = a.compress().decompress().decrypt(&client_key);
+
+    assert_eq!(clear, 213u8);
+}
+
+#[test]
 fn test_trivial_uint8() {
     let client_key = setup_default_cpu();
     super::test_case_uint8_trivial(&client_key);
