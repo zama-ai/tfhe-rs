@@ -1179,6 +1179,8 @@ where Standard: rand::distributions::Distribution<Scalar>
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
+    let nb_mults = 1;
+
     for (name, params) in params_scenario_a::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1211,20 +1213,20 @@ where Standard: rand::distributions::Distribution<Scalar>
         let mut input_lwe_list1 = LweCiphertextList::new(
             Scalar::ZERO,
             equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(nb_mults), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_lwe_list2 = LweCiphertextList::new(
             Scalar::ZERO,
             equivalent_lwe_sk.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(nb_mults), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
-            PlaintextCount(10),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+            PlaintextCount(nb_mults),//PlaintextCount(glwe_secret_key.polynomial_size().0),
         );
 
         //need to change these values if we do not work with u64
@@ -1543,6 +1545,8 @@ where Standard: rand::distributions::Distribution<Scalar>
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
+    let nb_mults = 1;
+
     for (name, params) in params_scenario_c::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1585,20 +1589,20 @@ where Standard: rand::distributions::Distribution<Scalar>
         let mut input_lwe_list1 = LweCiphertextList::new(
             Scalar::ZERO,
             input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(nb_mults), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_lwe_list2 = LweCiphertextList::new(
             Scalar::ZERO,
             input_lwe_secret_key1.lwe_dimension().to_lwe_size(),//input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            LweCiphertextCount(10), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
+            LweCiphertextCount(nb_mults), //LweCiphertextCount(glwe_secret_key.polynomial_size().0),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut input_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
-            PlaintextCount(10),//PlaintextCount(glwe_secret_key.polynomial_size().0),
+            PlaintextCount(nb_mults),//PlaintextCount(glwe_secret_key.polynomial_size().0),
         );
 
         //need to change these values if we do not work with u64
@@ -2422,7 +2426,7 @@ where Standard: rand::distributions::Distribution<Scalar>
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    let nb_mults = 10;
+    let nb_mults = 1;
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
     for (name, params) in square_trick_benchmark_parameters::<Scalar>().iter() {

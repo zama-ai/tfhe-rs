@@ -293,7 +293,7 @@ use cuda::cuda_keyswitch_group;
 //    config = Criterion::default().sample_size(2000);
 //    targets = keyswitch::<u64>, keyswitch::<u32>
 //);
-#[cfg(not(feature = "gpu"))]
+//#[cfg(not(feature = "gpu"))]
 //criterion_main!(keyswitch_group);
-#[cfg(feature = "gpu")]
+//#[cfg(feature = "gpu")]
 //criterion_main!(cuda_keyswitch_group);
