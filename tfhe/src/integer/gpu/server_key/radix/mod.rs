@@ -254,8 +254,9 @@ impl CudaServerKey {
     }
 
     /// Prepend trivial zero LSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or
-    /// [`CudaSignedRadixCiphertext`] and returns the result as a new ciphertext on GPU.
-    /// This can be useful for casting operations.
+    /// [`CudaSignedRadixCiphertext`](`crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext`)
+    /// and returns the result as a new ciphertext on GPU. This can be useful for casting
+    /// operations.
     ///
     /// # Example
     ///
@@ -327,8 +328,9 @@ impl CudaServerKey {
     }
 
     /// Append trivial zero MSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or
-    /// [`CudaSignedRadixCiphertext`] and returns the result as a new ciphertext on GPU.
-    /// This can be useful for casting operations.
+    /// [`CudaSignedRadixCiphertext`](`crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext`)
+    /// and returns the result as a new ciphertext on GPU. This can be useful for casting
+    /// operations.
     ///
     /// # Example
     ///
@@ -390,8 +392,9 @@ impl CudaServerKey {
     }
 
     /// Remove LSB blocks from an existing [`CudaUnsignedRadixCiphertext`] or
-    /// [`CudaSignedRadixCiphertext`] and returns the result as a new ciphertext on GPU.
-    /// This can be useful for casting operations.
+    /// [`CudaSignedRadixCiphertext`](`crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext`)
+    /// and returns the result as a new ciphertext on GPU. This can be useful for casting
+    /// operations.
     ///
     /// # Example
     ///
@@ -453,8 +456,9 @@ impl CudaServerKey {
     }
 
     /// Remove MSB blocks from an existing [`CudaUnsignedRadixCiphertext`] or
-    /// [`CudaSignedRadixCiphertext`] and returns the result as a new ciphertext on GPU.
-    /// This can be useful for casting operations.
+    /// [`CudaSignedRadixCiphertext`](`crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext`)
+    /// and returns the result as a new ciphertext on GPU. This can be useful for casting
+    /// operations.
     ///
     /// # Example
     ///

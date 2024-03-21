@@ -115,7 +115,7 @@ where
 
 /// Generate a couple of client and server keys with given parameters
 ///
-/// Contrary to [gen_keys], this returns a [RadixClientKey]
+/// Contrary to [gen_keys_gpu], this returns a [RadixClientKey]
 ///
 /// ```rust
 /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
