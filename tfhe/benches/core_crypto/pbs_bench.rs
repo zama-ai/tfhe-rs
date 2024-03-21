@@ -2422,6 +2422,7 @@ where Standard: rand::distributions::Distribution<Scalar>
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
+    let nb_mults = 10;
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
     for (name, params) in square_trick_benchmark_parameters::<Scalar>().iter() {
@@ -2664,6 +2665,7 @@ where Standard: rand::distributions::Distribution<Scalar>
                     square_trick(
                         &lwe_ciphertext_in_lhs,
                         &lwe_ciphertext_in_rhs,
+                        nb_mults,
                         &ksk1,
                         &mut ks_result1,
                         &ksk2,

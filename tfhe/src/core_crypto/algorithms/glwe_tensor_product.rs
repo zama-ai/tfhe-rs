@@ -856,6 +856,7 @@ pub fn glwe_tensor_mult_with_relin_pbs_ks_c<InputCont, KeyCont1, KeyCont2, Outpu
 pub fn square_trick<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
     lwe_lhs: &LweCiphertext<InputCont>,
     lwe_rhs: &LweCiphertext<InputCont>,
+    nb_mults: i8,
     ksk1: &LweKeyswitchKeyOwned<Scalar>,
     ks_result1: &mut LweCiphertext<OutputCont>,
     ksk2: &LweKeyswitchKeyOwned<Scalar>,
@@ -881,40 +882,44 @@ OutputCont: ContainerMut<Element = Scalar>,
 OutputCont: Clone,
 AccCont: Container<Element = Scalar>,
 {
-    //let mul_cleartext = Scalar::ONE;
-    let mut sum = sq_sum.clone();
-    lwe_ciphertext_add(&mut sum, &lwe_lhs, &lwe_rhs);
-    
-    keyswitch_lwe_ciphertext(&ksk1, &mut sum, ks_result1);
-
-    programmable_bootstrap_lwe_ciphertext_mem_optimized(
-        &ks_result1,
-        sq_sum,
-        &accumulator1.as_view(),
-        &fourier_bsk1,
-        fft,
-        buffers.stack(),
-    );
-    //not needed can be done in pbs
-    //lwe_ciphertext_cleartext_mul_assign(sq_sum, Cleartext(mul_cleartext));
-
-    let mut subtraction = sq_subtraction.clone();
-    lwe_ciphertext_sub(&mut subtraction, &lwe_lhs, &lwe_rhs);
-    
-    keyswitch_lwe_ciphertext(&ksk2, &mut subtraction, ks_result2);
-    programmable_bootstrap_lwe_ciphertext_mem_optimized(
-        &ks_result2,
-        sq_subtraction,
-        &accumulator2.as_view(),
-        &fourier_bsk2,
-        fft,
-        buffers.stack(),
-    );
-
-    //not needed can be done in pbs
-    //lwe_ciphertext_cleartext_mul_assign(sq_subtraction, Cleartext(mul_cleartext));
     let mut result_sum = sq_sum.to_owned();
-    lwe_ciphertext_add(&mut result_sum, &sq_sum, &sq_subtraction);
+    for _ in 0..nb_mults
+    {
+        //let mul_cleartext = Scalar::ONE;
+        let mut sum = sq_sum.clone();
+        lwe_ciphertext_add(&mut sum, &lwe_lhs, &lwe_rhs);
+    
+        keyswitch_lwe_ciphertext(&ksk1, &mut sum, ks_result1);
+
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+            &ks_result1,
+            sq_sum,
+            &accumulator1.as_view(),
+            &fourier_bsk1,
+            fft,
+            buffers.stack(),
+        );
+        //not needed can be done in pbs
+        //lwe_ciphertext_cleartext_mul_assign(sq_sum, Cleartext(mul_cleartext));
+
+        let mut subtraction = sq_subtraction.clone();
+        lwe_ciphertext_sub(&mut subtraction, &lwe_lhs, &lwe_rhs);
+    
+        keyswitch_lwe_ciphertext(&ksk2, &mut subtraction, ks_result2);
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+            &ks_result2,
+            sq_subtraction,
+            &accumulator2.as_view(),
+            &fourier_bsk2,
+            fft,
+            buffers.stack(),
+        );
+        //not needed can be done in pbs
+        //lwe_ciphertext_cleartext_mul_assign(sq_subtraction, Cleartext(mul_cleartext));
+    
+        lwe_ciphertext_add(&mut result_sum, &sq_sum, &sq_subtraction);
+    }
+    
     let mut result =result_sum.clone();
     keyswitch_lwe_ciphertext(&ksk, &mut result, ks_result);
 

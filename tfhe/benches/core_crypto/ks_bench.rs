@@ -294,6 +294,6 @@ use cuda::cuda_keyswitch_group;
 //    targets = keyswitch::<u64>, keyswitch::<u32>
 //);
 #[cfg(not(feature = "gpu"))]
-criterion_main!(keyswitch_group);
+//criterion_main!(keyswitch_group);
 #[cfg(feature = "gpu")]
-criterion_main!(cuda_keyswitch_group);
+//criterion_main!(cuda_keyswitch_group);
