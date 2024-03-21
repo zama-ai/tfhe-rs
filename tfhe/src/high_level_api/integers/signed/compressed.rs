@@ -69,7 +69,7 @@ where
     ///
     /// See [CompressedFheInt] example.
     pub fn decompress(self) -> FheInt<Id> {
-        let inner = self.ciphertext.into();
+        let inner = (&self.ciphertext).into();
         FheInt::new(inner)
     }
 }

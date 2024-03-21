@@ -21,15 +21,9 @@ impl ParameterSetConformant for CompressedRadixCiphertext {
     }
 }
 
-impl From<CompressedRadixCiphertext> for RadixCiphertext {
-    fn from(compressed: CompressedRadixCiphertext) -> Self {
-        Self::from(
-            compressed
-                .blocks
-                .into_iter()
-                .map(From::from)
-                .collect::<Vec<_>>(),
-        )
+impl From<&CompressedRadixCiphertext> for RadixCiphertext {
+    fn from(compressed: &CompressedRadixCiphertext) -> Self {
+        Self::from(compressed.blocks.iter().map(From::from).collect::<Vec<_>>())
     }
 }
 
@@ -49,15 +43,9 @@ impl ParameterSetConformant for CompressedSignedRadixCiphertext {
     }
 }
 
-impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
-    fn from(compressed: CompressedSignedRadixCiphertext) -> Self {
-        Self::from(
-            compressed
-                .blocks
-                .into_iter()
-                .map(From::from)
-                .collect::<Vec<_>>(),
-        )
+impl From<&CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
+    fn from(compressed: &CompressedSignedRadixCiphertext) -> Self {
+        Self::from(compressed.blocks.iter().map(From::from).collect::<Vec<_>>())
     }
 }
 
@@ -66,11 +54,7 @@ pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
 
 impl From<CompressedCrtCiphertext> for CrtCiphertext {
     fn from(compressed: CompressedCrtCiphertext) -> Self {
-        let blocks = compressed
-            .blocks
-            .into_iter()
-            .map(From::from)
-            .collect::<Vec<_>>();
+        let blocks = compressed.blocks.iter().map(From::from).collect::<Vec<_>>();
         let moduli = compressed.moduli;
         Self::from((blocks, moduli))
     }
