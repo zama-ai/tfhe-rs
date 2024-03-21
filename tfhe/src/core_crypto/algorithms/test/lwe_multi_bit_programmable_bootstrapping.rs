@@ -535,11 +535,13 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 #[test]
 pub fn test_lwe_encrypt_multi_bit_pbs_decrypt_factor_2_thread_5_native_mod() {
     lwe_encrypt_multi_bit_pbs_decrypt_custom_mod::<u64>(MULTI_BIT_2_2_2_PARAMS);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod::<u64>(MULTI_BIT_3_3_2_PARAMS);
 }
 
 #[test]
 pub fn test_lwe_encrypt_multi_bit_pbs_decrypt_factor_3_thread_12_native_mod() {
     lwe_encrypt_multi_bit_pbs_decrypt_custom_mod::<u64>(MULTI_BIT_2_2_3_PARAMS);
+    lwe_encrypt_multi_bit_pbs_decrypt_custom_mod::<u64>(MULTI_BIT_3_3_3_PARAMS);
 }
 
 #[test]
