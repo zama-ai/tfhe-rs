@@ -270,9 +270,6 @@ impl CudaServerKey {
                     d_bsk.glwe_dimension,
                     d_bsk.polynomial_size,
                     self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
                         .output_key_lwe_size()
                         .to_lwe_dimension(),
                     self.key_switching_key.decomposition_level_count(),
@@ -293,9 +290,6 @@ impl CudaServerKey {
                     self.carry_modulus,
                     d_multibit_bsk.glwe_dimension,
                     d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
                     self.key_switching_key
                         .output_key_lwe_size()
                         .to_lwe_dimension(),

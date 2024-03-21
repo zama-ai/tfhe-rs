@@ -201,12 +201,11 @@ void cleanup_cuda_propagate_single_carry(cuda_stream_t *stream,
 
 void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
+    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_blocks_in_radix,
+    uint32_t max_num_radix_in_vec, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
 void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
     cuda_stream_t *stream, void *radix_lwe_out, void *radix_lwe_vec,
