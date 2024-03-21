@@ -13,9 +13,9 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          polynomial_size, lwe_dimension, ks_level, ks_base_log,
-                          pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus);
+                          polynomial_size * glwe_dimension, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus);
 
   switch (polynomial_size) {
   case 2048:
@@ -110,17 +110,16 @@ void cuda_small_scalar_multiplication_integer_radix_ciphertext_64(
 
 void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory) {
+    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_blocks_in_radix,
+    uint32_t max_num_radix_in_vec, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus);
+                          glwe_dimension * polynomial_size, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus);
   scratch_cuda_integer_sum_ciphertexts_vec_kb<uint64_t>(
       stream, (int_sum_ciphertexts_vec_memory<uint64_t> **)mem_ptr,
       num_blocks_in_radix, max_num_radix_in_vec, params, allocate_gpu_memory);
