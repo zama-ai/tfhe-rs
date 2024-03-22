@@ -237,6 +237,13 @@ impl CompressedServerKey {
         Self { key }
     }
 
+    /// Decompress a [`CompressedServerKey`] into a [`ServerKey`].
+    pub fn decompress(&self) -> ServerKey {
+        ServerKey {
+            key: self.key.decompress(),
+        }
+    }
+
     /// Deconstruct a [`CompressedServerKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::CompressedServerKey {
         self.key
@@ -250,8 +257,7 @@ impl CompressedServerKey {
 
 impl From<CompressedServerKey> for ServerKey {
     fn from(compressed: CompressedServerKey) -> Self {
-        let key = compressed.key.into();
-        Self { key }
+        compressed.decompress()
     }
 }
 

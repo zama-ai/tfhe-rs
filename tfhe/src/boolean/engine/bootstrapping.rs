@@ -190,6 +190,67 @@ pub struct CompressedServerKey {
 }
 
 impl CompressedServerKey {
+    /// Decompress a [`CompressedServerKey`] into a [`ServerKey`].
+    pub fn decompress(&self) -> ServerKey {
+        let Self {
+            key_switching_key: compressed_key_switching_key,
+            bootstrapping_key: compressed_bootstrapping_key,
+            pbs_order,
+        } = self;
+
+        let (key_switching_key, bootstrapping_key) = rayon::join(
+            || {
+                let mut decompressed_key_switching_key = LweKeyswitchKey::new(
+                    0,
+                    compressed_key_switching_key.decomposition_base_log(),
+                    compressed_key_switching_key.decomposition_level_count(),
+                    compressed_key_switching_key.input_key_lwe_dimension(),
+                    compressed_key_switching_key.output_key_lwe_dimension(),
+                    compressed_key_switching_key.ciphertext_modulus(),
+                );
+                par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+                    &mut decompressed_key_switching_key,
+                    compressed_key_switching_key,
+                );
+                decompressed_key_switching_key
+            },
+            || {
+                let mut decompressed_bootstrapping_key = LweBootstrapKey::new(
+                    0,
+                    compressed_bootstrapping_key.glwe_size(),
+                    compressed_bootstrapping_key.polynomial_size(),
+                    compressed_bootstrapping_key.decomposition_base_log(),
+                    compressed_bootstrapping_key.decomposition_level_count(),
+                    compressed_bootstrapping_key.input_lwe_dimension(),
+                    compressed_bootstrapping_key.ciphertext_modulus(),
+                );
+                par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+                    &mut decompressed_bootstrapping_key,
+                    compressed_bootstrapping_key,
+                );
+
+                let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
+                    decompressed_bootstrapping_key.input_lwe_dimension(),
+                    decompressed_bootstrapping_key.glwe_size(),
+                    decompressed_bootstrapping_key.polynomial_size(),
+                    decompressed_bootstrapping_key.decomposition_base_log(),
+                    decompressed_bootstrapping_key.decomposition_level_count(),
+                );
+                par_convert_standard_lwe_bootstrap_key_to_fourier(
+                    &decompressed_bootstrapping_key,
+                    &mut bootstrapping_key,
+                );
+                bootstrapping_key
+            },
+        );
+
+        ServerKey {
+            bootstrapping_key,
+            key_switching_key,
+            pbs_order: *pbs_order,
+        }
+    }
+
     /// Deconstruct a [`CompressedServerKey`] into its constituents.
     pub fn into_raw_parts(
         self,
@@ -542,37 +603,6 @@ impl ServerKey {
 
 impl From<CompressedServerKey> for ServerKey {
     fn from(compressed_server_key: CompressedServerKey) -> Self {
-        let CompressedServerKey {
-            key_switching_key,
-            bootstrapping_key,
-            pbs_order,
-        } = compressed_server_key;
-
-        let (key_switching_key, bootstrapping_key) = rayon::join(
-            || key_switching_key.par_decompress_into_lwe_keyswitch_key(),
-            || {
-                let standard_bootstrapping_key =
-                    bootstrapping_key.par_decompress_into_lwe_bootstrap_key();
-
-                let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
-                    standard_bootstrapping_key.input_lwe_dimension(),
-                    standard_bootstrapping_key.glwe_size(),
-                    standard_bootstrapping_key.polynomial_size(),
-                    standard_bootstrapping_key.decomposition_base_log(),
-                    standard_bootstrapping_key.decomposition_level_count(),
-                );
-                par_convert_standard_lwe_bootstrap_key_to_fourier(
-                    &standard_bootstrapping_key,
-                    &mut bootstrapping_key,
-                );
-                bootstrapping_key
-            },
-        );
-
-        Self {
-            bootstrapping_key,
-            key_switching_key,
-            pbs_order,
-        }
+        compressed_server_key.decompress()
     }
 }
