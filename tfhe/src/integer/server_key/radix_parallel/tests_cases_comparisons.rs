@@ -1998,6 +1998,7 @@ mod no_coverage {
 #[cfg(tarpaulin)]
 mod coverage {
     use super::*;
+    use crate::integer::tests::create_parametrized_test_classical_params;
 
     //=============================================================
     // Unsigned comparison tests
@@ -2047,12 +2048,12 @@ mod coverage {
         test_default_function(params, 1, ServerKey::max_parallelized, std::cmp::max::<u8>);
     }
 
-    create_parametrized_test!(integer_unchecked_min_parallelized_u8);
-    create_parametrized_test!(integer_unchecked_max_parallelized_u8);
-    create_parametrized_test!(integer_smart_min_parallelized_u8);
-    create_parametrized_test!(integer_smart_max_parallelized_u8);
-    create_parametrized_test!(integer_min_parallelized_u8);
-    create_parametrized_test!(integer_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_unchecked_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_unchecked_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_smart_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_smart_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_max_parallelized_u8);
 
     define_comparison_test_functions!(eq, u8);
     define_comparison_test_functions!(ne, u8);
@@ -2113,12 +2114,12 @@ mod coverage {
         test_signed_default_function(params, 1, ServerKey::max_parallelized, std::cmp::max::<i8>)
     }
 
-    create_parametrized_test!(integer_signed_unchecked_max_parallelized_8_bits);
-    create_parametrized_test!(integer_signed_unchecked_min_parallelized_8_bits);
-    create_parametrized_test!(integer_signed_smart_max_parallelized_8_bits);
-    create_parametrized_test!(integer_signed_smart_min_parallelized_8_bits);
-    create_parametrized_test!(integer_signed_max_parallelized_8_bits);
-    create_parametrized_test!(integer_signed_min_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_unchecked_max_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_unchecked_min_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_smart_max_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_smart_min_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_max_parallelized_8_bits);
+    create_parametrized_test_classical_params!(integer_signed_min_parallelized_8_bits);
 
     define_signed_comparison_test_functions!(eq, i8);
     define_signed_comparison_test_functions!(ne, i8);
@@ -2184,12 +2185,12 @@ mod coverage {
         );
     }
 
-    create_parametrized_test!(integer_unchecked_scalar_min_parallelized_u8);
-    create_parametrized_test!(integer_unchecked_scalar_max_parallelized_u8);
-    create_parametrized_test!(integer_smart_scalar_min_parallelized_u8);
-    create_parametrized_test!(integer_smart_scalar_max_parallelized_u8);
-    create_parametrized_test!(integer_scalar_min_parallelized_u8);
-    create_parametrized_test!(integer_scalar_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_unchecked_scalar_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_unchecked_scalar_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_smart_scalar_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_smart_scalar_max_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_scalar_min_parallelized_u8);
+    create_parametrized_test_classical_params!(integer_scalar_max_parallelized_u8);
 
     define_scalar_comparison_test_functions!(eq, u8);
     define_scalar_comparison_test_functions!(ne, u8);
@@ -2198,9 +2199,9 @@ mod coverage {
     define_scalar_comparison_test_functions!(gt, u8);
     define_scalar_comparison_test_functions!(ge, u8);
 
-    create_parametrized_test!(integer_unchecked_scalar_comparisons_edge);
+    create_parametrized_test_classical_params!(integer_unchecked_scalar_comparisons_edge);
 
-    create_parametrized_test!(integer_is_scalar_out_of_bounds);
+    create_parametrized_test_classical_params!(integer_is_scalar_out_of_bounds);
 
     //=============================================================
     // Scalar signed comparison tests
@@ -2267,12 +2268,12 @@ mod coverage {
         );
     }
 
-    create_parametrized_test!(integer_signed_unchecked_scalar_min_parallelized_i8);
-    create_parametrized_test!(integer_signed_unchecked_scalar_max_parallelized_i8);
-    create_parametrized_test!(integer_signed_smart_scalar_min_parallelized_i8);
-    create_parametrized_test!(integer_signed_smart_scalar_max_parallelized_i8);
-    create_parametrized_test!(integer_signed_scalar_min_parallelized_i8);
-    create_parametrized_test!(integer_signed_scalar_max_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_unchecked_scalar_min_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_unchecked_scalar_max_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_smart_scalar_min_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_smart_scalar_max_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_scalar_min_parallelized_i8);
+    create_parametrized_test_classical_params!(integer_signed_scalar_max_parallelized_i8);
 
     define_signed_scalar_comparison_test_functions!(eq, i8);
     define_signed_scalar_comparison_test_functions!(ne, i8);
@@ -2281,5 +2282,5 @@ mod coverage {
     define_signed_scalar_comparison_test_functions!(gt, i8);
     define_signed_scalar_comparison_test_functions!(ge, i8);
 
-    create_parametrized_test!(integer_signed_is_scalar_out_of_bounds);
+    create_parametrized_test_classical_params!(integer_signed_is_scalar_out_of_bounds);
 }

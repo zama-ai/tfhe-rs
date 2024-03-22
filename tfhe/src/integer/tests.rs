@@ -1,4 +1,4 @@
-macro_rules! create_parametrized_test{
+macro_rules! create_parametrized_test {
     (
         $name:ident {
             $($(#[$cfg:meta])* $param:ident),*
@@ -26,8 +26,22 @@ macro_rules! create_parametrized_test{
             PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             #[cfg(not(tarpaulin))]
             PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
             #[cfg(tarpaulin)]
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            #[cfg(tarpaulin)]
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
         });
     };
 
@@ -50,5 +64,22 @@ macro_rules! create_parametrized_test{
         }
     };
 }
-
-pub(crate) use create_parametrized_test;
+macro_rules! create_parametrized_test_classical_params {
+    (
+        $name:ident
+    ) => {
+        $crate::integer::tests::create_parametrized_test!($name {
+            #[cfg(not(tarpaulin))]
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            #[cfg(not(tarpaulin))]
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            #[cfg(tarpaulin)]
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
+        });
+    };
+}
+pub(crate) use {create_parametrized_test, create_parametrized_test_classical_params};
