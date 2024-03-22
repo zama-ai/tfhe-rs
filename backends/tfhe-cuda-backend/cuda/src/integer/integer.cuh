@@ -9,6 +9,7 @@
 #include "linearalgebra/addition.cuh"
 #include "polynomial/functions.cuh"
 #include "programmable_bootstrap.h"
+#include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <functional>
 
@@ -334,6 +335,65 @@ void host_propagate_single_carry(cuda_stream_t *stream, Torus *lwe_array,
 
   host_addition(stream, lwe_array, lwe_array, step_output,
                 glwe_dimension * polynomial_size, num_blocks);
+
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      stream, lwe_array, lwe_array, bsk, ksk, num_blocks, message_acc);
+}
+
+template <typename Torus>
+void host_propagate_single_sub_borrow(cuda_stream_t *stream, Torus *overflowed,
+                                      Torus *lwe_array,
+                                      int_single_borrow_prop_memory<Torus> *mem,
+                                      void *bsk, Torus *ksk,
+                                      uint32_t num_blocks) {
+  auto params = mem->params;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto big_lwe_size = glwe_dimension * polynomial_size + 1;
+  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+  auto generates_or_propagates = mem->generates_or_propagates;
+  auto step_output = mem->step_output;
+
+  auto luts_array = mem->luts_array;
+  auto luts_carry_propagation_sum = mem->luts_borrow_propagation_sum;
+  auto message_acc = mem->message_acc;
+
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      stream, generates_or_propagates, lwe_array, bsk, ksk, num_blocks,
+      luts_array);
+
+  // compute prefix sum with hillis&steele
+  int num_steps = ceil(log2((double)num_blocks));
+  int space = 1;
+  cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
+                               big_lwe_size_bytes * num_blocks, stream);
+
+  for (int step = 0; step < num_steps; step++) {
+    auto cur_blocks = &step_output[space * big_lwe_size];
+    auto prev_blocks = generates_or_propagates;
+    int cur_total_blocks = num_blocks - space;
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        stream, cur_blocks, cur_blocks, prev_blocks, bsk, ksk, cur_total_blocks,
+        luts_carry_propagation_sum);
+
+    cuda_memcpy_async_gpu_to_gpu(&generates_or_propagates[space * big_lwe_size],
+                                 cur_blocks,
+                                 big_lwe_size_bytes * cur_total_blocks, stream);
+    space *= 2;
+  }
+
+  cuda_memcpy_async_gpu_to_gpu(
+      overflowed, &generates_or_propagates[big_lwe_size * (num_blocks - 1)],
+      big_lwe_size_bytes, stream);
+
+  radix_blocks_rotate_right<<<num_blocks, 256, 0, stream->stream>>>(
+      step_output, generates_or_propagates, 1, num_blocks, big_lwe_size);
+  cuda_memset_async(step_output, 0, big_lwe_size_bytes, stream);
+
+  host_subtraction(stream, lwe_array, lwe_array, step_output,
+                   glwe_dimension * polynomial_size, num_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       stream, lwe_array, lwe_array, bsk, ksk, num_blocks, message_acc);

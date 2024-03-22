@@ -183,7 +183,7 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
         num_radix_in_vec);
     break;
   default:
-    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+    PANIC("Cuda error (integer sum ciphertexts): unsupported polynomial size. "
           "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
   }
 

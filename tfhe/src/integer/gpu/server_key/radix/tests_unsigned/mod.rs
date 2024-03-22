@@ -10,7 +10,7 @@ pub(crate) mod test_sub;
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
-use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::cmp::{max, min};
@@ -39,6 +39,7 @@ macro_rules! create_gpu_parametrized_test{
         });
     };
 }
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 pub(crate) use create_gpu_parametrized_test;
 
 pub(crate) struct GpuContext {
@@ -320,6 +321,44 @@ where
         let d_res = (self.func)(&context.sks, d_ctxt_1);
 
         Some(d_res.unwrap().to_radix_ciphertext(&context.stream))
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStream,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a RadixCiphertext),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
+        let d_ctxt_2: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.stream),
+            d_res.1.to_boolean_block(&context.stream),
+        )
     }
 }
 

@@ -214,7 +214,23 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
 
 void cleanup_cuda_integer_radix_sum_ciphertexts_vec(cuda_stream_t *stream,
                                                     int8_t **mem_ptr_void);
-}
+
+void scratch_cuda_integer_radix_overflowing_sub_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, bool allocate_gpu_memory);
+
+void cuda_integer_radix_overflowing_sub_kb_64(
+    cuda_stream_t *stream, void *radix_lwe_out, void *radix_lwe_overflowed,
+    void *radix_lwe_left, void *radix_lwe_right, int8_t *mem_ptr, void *bsk,
+    void *ksk, uint32_t num_blocks_in_radix);
+
+void cleanup_cuda_integer_radix_overflowing_sub(cuda_stream_t *stream,
+                                                int8_t **mem_ptr_void);
+} // extern "C"
 
 /*
  *  generate bivariate accumulator (lut) for device pointer
@@ -548,6 +564,108 @@ template <typename Torus> struct int_sc_prop_memory {
   }
 };
 
+template <typename Torus> struct int_single_borrow_prop_memory {
+  Torus *generates_or_propagates;
+  Torus *step_output;
+
+  // luts_array[2] = {lut_does_block_generate_carry,
+  // lut_does_block_generate_or_propagate}
+  int_radix_lut<Torus> *luts_array;
+  int_radix_lut<Torus> *luts_borrow_propagation_sum;
+  int_radix_lut<Torus> *message_acc;
+
+  int_radix_params params;
+
+  int_single_borrow_prop_memory(cuda_stream_t *stream, int_radix_params params,
+                                uint32_t num_radix_blocks,
+                                bool allocate_gpu_memory) {
+    this->params = params;
+    auto glwe_dimension = params.glwe_dimension;
+    auto polynomial_size = params.polynomial_size;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+    auto big_lwe_size = (polynomial_size * glwe_dimension + 1);
+    auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+    // allocate memory for intermediate calculations
+    generates_or_propagates = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, stream);
+    step_output = (Torus *)cuda_malloc_async(
+        num_radix_blocks * big_lwe_size_bytes, stream);
+
+    // declare functions for lut generation
+    auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {
+      if (x < message_modulus)
+        return OUTPUT_CARRY::GENERATED;
+      return OUTPUT_CARRY::NONE;
+    };
+
+    auto f_lut_does_block_generate_or_propagate =
+        [message_modulus](Torus x) -> Torus {
+      if (x < message_modulus)
+        return OUTPUT_CARRY::GENERATED;
+      else if (x == message_modulus)
+        return OUTPUT_CARRY::PROPAGATED;
+      return OUTPUT_CARRY::NONE;
+    };
+
+    auto f_luts_borrow_propagation_sum = [](Torus msb, Torus lsb) -> Torus {
+      if (msb == OUTPUT_CARRY::PROPAGATED)
+        return lsb;
+      return msb;
+    };
+
+    auto f_message_acc = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+
+    // create lut objects
+    luts_array = new int_radix_lut<Torus>(stream, params, 2, num_radix_blocks,
+                                          allocate_gpu_memory);
+    luts_borrow_propagation_sum = new int_radix_lut<Torus>(
+        stream, params, 1, num_radix_blocks, luts_array);
+    message_acc = new int_radix_lut<Torus>(stream, params, 1, num_radix_blocks,
+                                           luts_array);
+
+    auto lut_does_block_generate_carry = luts_array->get_lut(0);
+    auto lut_does_block_generate_or_propagate = luts_array->get_lut(1);
+
+    // generate luts (aka accumulators)
+    generate_device_accumulator<Torus>(
+        stream, lut_does_block_generate_carry, glwe_dimension, polynomial_size,
+        message_modulus, carry_modulus, f_lut_does_block_generate_carry);
+    generate_device_accumulator<Torus>(
+        stream, lut_does_block_generate_or_propagate, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        f_lut_does_block_generate_or_propagate);
+    cuda_set_value_async<Torus>(&(stream->stream),
+                                luts_array->get_lut_indexes(1), 1,
+                                num_radix_blocks - 1);
+
+    generate_device_accumulator_bivariate<Torus>(
+        stream, luts_borrow_propagation_sum->lut, glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        f_luts_borrow_propagation_sum);
+
+    generate_device_accumulator<Torus>(stream, message_acc->lut, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, f_message_acc);
+  }
+
+  void release(cuda_stream_t *stream) {
+    cuda_drop_async(generates_or_propagates, stream);
+    cuda_drop_async(step_output, stream);
+
+    luts_array->release(stream);
+    luts_borrow_propagation_sum->release(stream);
+    message_acc->release(stream);
+
+    delete luts_array;
+    delete luts_borrow_propagation_sum;
+    delete message_acc;
+  }
+};
+
 template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   Torus *new_blocks;
   Torus *old_blocks;
@@ -681,6 +799,54 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
     delete scp_mem;
     delete luts_message_carry;
+  }
+};
+
+template <typename Torus> struct int_overflowing_sub_memory {
+  int_radix_params params;
+  bool mem_reuse = false;
+  int_radix_lut<Torus> *luts_message_carry;
+  int_single_borrow_prop_memory<Torus> *borrow_prop_mem;
+  int_overflowing_sub_memory(cuda_stream_t *stream, int_radix_params params,
+                             uint32_t num_blocks, bool allocate_gpu_memory) {
+    this->params = params;
+    auto message_modulus = params.message_modulus;
+    auto carry_modulus = params.carry_modulus;
+
+    borrow_prop_mem = new int_single_borrow_prop_memory<Torus>(
+        stream, params, num_blocks, allocate_gpu_memory);
+
+    int max_pbs_count = num_blocks * 2;
+
+    // create lut object for message and carry
+    luts_message_carry = new int_radix_lut<Torus>(
+        stream, params, 2, max_pbs_count, allocate_gpu_memory);
+
+    auto message_acc = luts_message_carry->get_lut(0);
+    auto carry_acc = luts_message_carry->get_lut(1);
+
+    // define functions for each accumulator
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
+    };
+
+    // generate accumulators
+    generate_device_accumulator<Torus>(
+        stream, message_acc, params.glwe_dimension, params.polynomial_size,
+        message_modulus, carry_modulus, lut_f_message);
+    generate_device_accumulator<Torus>(stream, carry_acc, params.glwe_dimension,
+                                       params.polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_carry);
+  }
+  void release(cuda_stream_t *stream) {
+    luts_message_carry->release(stream);
+    borrow_prop_mem->release(stream);
+
+    delete luts_message_carry;
+    delete borrow_prop_mem;
   }
 };
 
