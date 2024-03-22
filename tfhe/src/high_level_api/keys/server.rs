@@ -129,7 +129,7 @@ impl CompressedServerKey {
         }
     }
 
-    pub fn decompress(self) -> ServerKey {
+    pub fn decompress(&self) -> ServerKey {
         ServerKey {
             key: Arc::new(self.integer_key.decompress()),
         }

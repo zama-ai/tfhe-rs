@@ -190,9 +190,9 @@ impl IntegerCompressedServerKey {
         Self { key }
     }
 
-    pub(in crate::high_level_api) fn decompress(self) -> IntegerServerKey {
+    pub(in crate::high_level_api) fn decompress(&self) -> IntegerServerKey {
         IntegerServerKey {
-            key: crate::integer::ServerKey::from(self.key),
+            key: self.key.decompress(),
             wopbs_key: None,
         }
     }

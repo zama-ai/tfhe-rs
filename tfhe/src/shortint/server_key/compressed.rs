@@ -2,9 +2,11 @@
 
 use super::MaxDegree;
 use crate::core_crypto::prelude::*;
+use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
-use crate::shortint::ClientKey;
+use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::{ClientKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +136,142 @@ impl CompressedServerKey {
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_server_key(client_key))
+    }
+
+    /// Decompress a [`CompressedServerKey`] into a [`ServerKey`].
+    pub fn decompress(&self) -> ServerKey {
+        let Self {
+            key_switching_key: compressed_key_switching_key,
+            bootstrapping_key: compressed_bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        } = self;
+
+        let (key_switching_key, bootstrapping_key) = rayon::join(
+            || {
+                let mut decompressed_key_switching_key = LweKeyswitchKey::new(
+                    0,
+                    compressed_key_switching_key.decomposition_base_log(),
+                    compressed_key_switching_key.decomposition_level_count(),
+                    compressed_key_switching_key.input_key_lwe_dimension(),
+                    compressed_key_switching_key.output_key_lwe_dimension(),
+                    compressed_key_switching_key.ciphertext_modulus(),
+                );
+                par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+                    &mut decompressed_key_switching_key,
+                    compressed_key_switching_key,
+                );
+                decompressed_key_switching_key
+            },
+            || match compressed_bootstrapping_key {
+                ShortintCompressedBootstrappingKey::Classic(compressed_bootstrapping_key) => {
+                    let mut decompressed_bootstrapping_key = LweBootstrapKey::new(
+                        0,
+                        compressed_bootstrapping_key.glwe_size(),
+                        compressed_bootstrapping_key.polynomial_size(),
+                        compressed_bootstrapping_key.decomposition_base_log(),
+                        compressed_bootstrapping_key.decomposition_level_count(),
+                        compressed_bootstrapping_key.input_lwe_dimension(),
+                        compressed_bootstrapping_key.ciphertext_modulus(),
+                    );
+                    par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+                        &mut decompressed_bootstrapping_key,
+                        compressed_bootstrapping_key,
+                    );
+
+                    let mut fourier_bsk = FourierLweBootstrapKeyOwned::new(
+                        decompressed_bootstrapping_key.input_lwe_dimension(),
+                        decompressed_bootstrapping_key.glwe_size(),
+                        decompressed_bootstrapping_key.polynomial_size(),
+                        decompressed_bootstrapping_key.decomposition_base_log(),
+                        decompressed_bootstrapping_key.decomposition_level_count(),
+                    );
+
+                    par_convert_standard_lwe_bootstrap_key_to_fourier(
+                        &decompressed_bootstrapping_key,
+                        &mut fourier_bsk,
+                    );
+
+                    ShortintBootstrappingKey::Classic(fourier_bsk)
+                }
+                ShortintCompressedBootstrappingKey::MultiBit {
+                    seeded_bsk: compressed_bootstrapping_key,
+                    deterministic_execution,
+                } => {
+                    let mut decompressed_bootstrapping_key = LweMultiBitBootstrapKeyOwned::new(
+                        0,
+                        compressed_bootstrapping_key.glwe_size(),
+                        compressed_bootstrapping_key.polynomial_size(),
+                        compressed_bootstrapping_key.decomposition_base_log(),
+                        compressed_bootstrapping_key.decomposition_level_count(),
+                        compressed_bootstrapping_key.input_lwe_dimension(),
+                        compressed_bootstrapping_key.grouping_factor(),
+                        compressed_bootstrapping_key.ciphertext_modulus(),
+                    );
+                    par_decompress_seeded_lwe_multi_bit_bootstrap_key::<
+                        _,
+                        _,
+                        _,
+                        ActivatedRandomGenerator,
+                    >(
+                        &mut decompressed_bootstrapping_key,
+                        compressed_bootstrapping_key,
+                    );
+
+                    let mut fourier_bsk = FourierLweMultiBitBootstrapKeyOwned::new(
+                        decompressed_bootstrapping_key.input_lwe_dimension(),
+                        decompressed_bootstrapping_key.glwe_size(),
+                        decompressed_bootstrapping_key.polynomial_size(),
+                        decompressed_bootstrapping_key.decomposition_base_log(),
+                        decompressed_bootstrapping_key.decomposition_level_count(),
+                        decompressed_bootstrapping_key.grouping_factor(),
+                    );
+
+                    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+                        &decompressed_bootstrapping_key,
+                        &mut fourier_bsk,
+                    );
+
+                    let thread_count = ShortintEngine::with_thread_local_mut(|engine| {
+                        engine.get_thread_count_for_multi_bit_pbs(
+                            fourier_bsk.input_lwe_dimension(),
+                            fourier_bsk.glwe_size().to_glwe_dimension(),
+                            fourier_bsk.polynomial_size(),
+                            fourier_bsk.decomposition_base_log(),
+                            fourier_bsk.decomposition_level_count(),
+                            fourier_bsk.grouping_factor(),
+                        )
+                    });
+
+                    ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk,
+                        thread_count,
+                        deterministic_execution: *deterministic_execution,
+                    }
+                }
+            },
+        );
+
+        let message_modulus = *message_modulus;
+        let carry_modulus = *carry_modulus;
+        let max_degree = *max_degree;
+        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
+        let ciphertext_modulus = *ciphertext_modulus;
+        let pbs_order = *pbs_order;
+
+        ServerKey {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+            pbs_order,
+        }
     }
 
     /// Deconstruct a [`CompressedServerKey`] into its constituents.
