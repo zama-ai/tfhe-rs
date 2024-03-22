@@ -1,6 +1,8 @@
-use super::ClientKey;
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+
 use std::sync::Arc;
+
+use super::ClientKey;
 
 /// Key of the server
 ///
@@ -135,62 +137,10 @@ impl CompressedServerKey {
 
     #[cfg(feature = "gpu")]
     pub fn decompress_to_gpu(&self) -> CudaServerKey {
-        // TODO Maybe all this implementation should be its own function in the integer module
-        let crate::shortint::CompressedServerKey {
-            key_switching_key,
-            bootstrapping_key,
-            message_modulus,
-            carry_modulus,
-            max_degree,
-            ciphertext_modulus,
-            pbs_order,
-        } = self.integer_key.key.key.clone();
-
-        use crate::core_crypto::gpu::{CudaDevice, CudaStream};
-        let device = CudaDevice::new(0);
-        let stream = CudaStream::new_unchecked(device);
-
-        let h_key_switching_key = key_switching_key.par_decompress_into_lwe_keyswitch_key();
-        let key_switching_key =
-            crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey::from_lwe_keyswitch_key(
-                &h_key_switching_key,
-                &stream,
-            );
-        let bootstrapping_key =  match bootstrapping_key {
-                crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic(h_bootstrap_key) => {
-                    let standard_bootstrapping_key =
-                        h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
-
-                    let d_bootstrap_key =
-                        crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, &stream);
-
-                    crate::integer::gpu::server_key::CudaBootstrappingKey::Classic(d_bootstrap_key)
-                }
-                crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::MultiBit {
-                    seeded_bsk: bootstrapping_key,
-                    deterministic_execution: _,
-                } => {
-                    let standard_bootstrapping_key =
-                        bootstrapping_key.par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                    let d_bootstrap_key =
-                        crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                            &standard_bootstrapping_key, &stream);
-
-                    crate::integer::gpu::server_key::CudaBootstrappingKey::MultiBit(d_bootstrap_key)
-                }
-            };
-
+        let cuda_key =
+            crate::integer::gpu::CudaServerKey::decompress_from_cpu(&self.integer_key.key);
         CudaServerKey {
-            key: Arc::new(crate::integer::gpu::CudaServerKey {
-                key_switching_key,
-                bootstrapping_key,
-                message_modulus,
-                carry_modulus,
-                max_degree,
-                ciphertext_modulus,
-                pbs_order,
-            }),
+            key: Arc::new(cuda_key),
         }
     }
 }

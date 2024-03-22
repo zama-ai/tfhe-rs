@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::{CudaDevice, CudaStream};
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
     par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned,
@@ -152,23 +152,95 @@ impl CudaServerKey {
         }
     }
 
-    // pub(crate) fn from_server_key(key: ServerKey, cks: &ClientKey, stream: &CudaStream) ->
-    // Self {
-    //
-    //     let bootstrapping_key = key.bootstrapping_key;
-    //
-    //     let bootstrapping_key = match bootstrapping_key {
-    //         ShortintBootstrappingKey::Classic(fourier_key) => {
-    //             // Handle the Classic variant
-    //
-    // CudaBootstrappingKey::Classic(CudaLweBootstrapKey::from_lwe_bootstrap_key(fourier_key,
-    // stream));         }
-    //         ShortintBootstrappingKey::MultiBit { fourier_bsk, thread_count,
-    // deterministic_execution } => {             // Handle the MultiBit variant
-    //             CudaBootstrappingKey::MultiBit
-    //                 (CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key
-    //                     (fourier_bsk, stream));
-    //         }
-    //     };
-    // }
+    /// Decompress a CompressedServerKey to a CudaServerKey
+    ///
+    /// This is useful in particular for debugging purposes, as it allows to compare the result of
+    /// CPU & GPU computations. When using trivial encryption it is then possible to track
+    /// intermediate and final result values easily between CPU and GPU.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::CudaServerKey;
+    /// use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let gpu_index = 0;
+    /// let device = CudaDevice::new(gpu_index);
+    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let size = 4;
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let compressed_sks = CompressedServerKey::new_radix_compressed_server_key(&cks);
+    /// let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_sks);
+    /// let cpu_sks = ServerKey::from(compressed_sks);
+    /// let msg = 1;
+    /// let scalar = 3;
+    /// let ct = cpu_sks.create_trivial_radix(msg, size);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// // Compute homomorphically a scalar multiplication:
+    /// let d_ct_res = cuda_sks.unchecked_scalar_add(&d_ct, scalar, &mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res_cpu = cpu_sks.unchecked_scalar_add(&ct, scalar);
+    /// let clear: u64 = cks.decrypt_radix(&ct_res);
+    /// let clear_cpu: u64 = cks.decrypt_radix(&ct_res_cpu);
+    /// assert_eq!((scalar + msg) % (4_u64.pow(size as u32)), clear_cpu);
+    /// assert_eq!((scalar + msg) % (4_u64.pow(size as u32)), clear);
+    /// ```
+    pub fn decompress_from_cpu(cpu_key: &crate::integer::CompressedServerKey) -> Self {
+        let crate::shortint::CompressedServerKey {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        } = cpu_key.key.clone();
+
+        let device = CudaDevice::new(0);
+        let stream = CudaStream::new_unchecked(device);
+
+        let h_key_switching_key = key_switching_key.par_decompress_into_lwe_keyswitch_key();
+        let key_switching_key =
+            crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey::from_lwe_keyswitch_key(
+                &h_key_switching_key,
+                &stream,
+            );
+        let bootstrapping_key = match bootstrapping_key {
+            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic(h_bootstrap_key) => {
+                let standard_bootstrapping_key =
+                    h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
+
+                let d_bootstrap_key =
+                    crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, &stream);
+
+                crate::integer::gpu::server_key::CudaBootstrappingKey::Classic(d_bootstrap_key)
+            }
+            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::MultiBit {
+                seeded_bsk: bootstrapping_key,
+                deterministic_execution: _,
+            } => {
+                let standard_bootstrapping_key =
+                    bootstrapping_key.par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                let d_bootstrap_key =
+                    crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
+                        &standard_bootstrapping_key, &stream);
+
+                crate::integer::gpu::server_key::CudaBootstrappingKey::MultiBit(d_bootstrap_key)
+            }
+        };
+
+        Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            ciphertext_modulus,
+            pbs_order,
+        }
+    }
 }
