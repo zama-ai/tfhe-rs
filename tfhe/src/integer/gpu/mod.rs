@@ -2102,4 +2102,131 @@ impl CudaStream {
             std::ptr::addr_of_mut!(mem_ptr),
         );
     }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_classic_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        ct_res: &mut CudaVec<T>,
+        ct_overflowed: &mut CudaVec<T>,
+        lhs: &CudaVec<T>,
+        rhs: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<f64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        num_blocks: u32,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_overflowing_sub_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            0,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::ClassicalLowLat as u32,
+            true,
+        );
+        cuda_integer_radix_overflowing_sub_kb_64(
+            self.as_c_ptr(),
+            ct_res.as_mut_c_ptr(),
+            ct_overflowed.as_mut_c_ptr(),
+            lhs.as_c_ptr(),
+            rhs.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_overflowing_sub(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// # Safety
+    ///
+    /// - [CudaStream::synchronize] __must__ be called after this function
+    /// as soon as synchronization is required
+    pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
+        &self,
+        ct_res: &mut CudaVec<T>,
+        ct_overflowed: &mut CudaVec<T>,
+        lhs: &CudaVec<T>,
+        rhs: &CudaVec<T>,
+        bootstrapping_key: &CudaVec<u64>,
+        keyswitch_key: &CudaVec<u64>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        big_lwe_dimension: LweDimension,
+        small_lwe_dimension: LweDimension,
+        ks_level: DecompositionLevelCount,
+        ks_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_grouping_factor: LweBskGroupingFactor,
+        num_blocks: u32,
+    ) {
+        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_integer_radix_overflowing_sub_kb_64(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            pbs_grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::MultiBit as u32,
+            true,
+        );
+        cuda_integer_radix_overflowing_sub_kb_64(
+            self.as_c_ptr(),
+            ct_res.as_mut_c_ptr(),
+            ct_overflowed.as_mut_c_ptr(),
+            lhs.as_c_ptr(),
+            rhs.as_c_ptr(),
+            mem_ptr,
+            bootstrapping_key.as_c_ptr(),
+            keyswitch_key.as_c_ptr(),
+            num_blocks,
+        );
+        cleanup_cuda_integer_radix_overflowing_sub(
+            self.as_c_ptr(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 }

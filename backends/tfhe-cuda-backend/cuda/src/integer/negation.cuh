@@ -6,9 +6,20 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "integer.h"
+#include "integer/integer.cuh"
+#include "linear_algebra.h"
+#include "programmable_bootstrap.h"
+#include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include <fstream>
+#include <iostream>
+#include <omp.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
 template <typename Torus>
 __global__ void
@@ -74,6 +85,35 @@ __host__ void host_integer_radix_negation(cuda_stream_t *stream, Torus *output,
       output, input, input_lwe_ciphertext_count, lwe_dimension, message_modulus,
       carry_modulus, delta);
   check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus>
+__host__ void scratch_cuda_integer_overflowing_sub_kb(
+    cuda_stream_t *stream, int_overflowing_sub_memory<Torus> **mem_ptr,
+    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
+
+  cudaSetDevice(stream->gpu_index);
+  *mem_ptr = new int_overflowing_sub_memory<Torus>(stream, params, num_blocks,
+                                                   allocate_gpu_memory);
+}
+
+template <typename Torus, class params>
+__host__ void host_integer_overflowing_sub_kb(
+    cuda_stream_t *stream, Torus *radix_lwe_out, Torus *radix_lwe_overflowed,
+    Torus *radix_lwe_left, Torus *radix_lwe_right, void *bsk, uint64_t *ksk,
+    int_overflowing_sub_memory<uint64_t> *mem_ptr, uint32_t num_blocks) {
+
+  auto radix_params = mem_ptr->params;
+  auto big_lwe_size = radix_params.big_lwe_dimension + 1;
+
+  host_unchecked_sub_with_correcting_term(
+      stream, radix_lwe_out, radix_lwe_left, radix_lwe_right,
+      radix_params.big_lwe_dimension, num_blocks, radix_params.message_modulus,
+      radix_params.carry_modulus, radix_params.message_modulus - 1);
+
+  host_propagate_single_sub_borrow<Torus>(
+      stream, radix_lwe_overflowed, radix_lwe_out, mem_ptr->borrow_prop_mem,
+      bsk, ksk, num_blocks);
 }
 
 #endif
