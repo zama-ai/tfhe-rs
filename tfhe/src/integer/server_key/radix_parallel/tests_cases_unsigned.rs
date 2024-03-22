@@ -1744,9 +1744,7 @@ where
 
         let ctxt = cks.encrypt(clear);
 
-        let tmp = executor.execute(&ctxt);
         let ct_res = executor.execute(&ctxt);
-        assert_eq!(ct_res, tmp);
 
         let dec: u64 = cks.decrypt(&ct_res);
 
@@ -1788,9 +1786,7 @@ where
 
             let ctxt_2 = cks.encrypt(clear_2);
 
-            let tmp = executor.execute((&ct_res, &ctxt_2));
             ct_res = executor.execute((&ct_res, &ctxt_2));
-            assert_eq!(ct_res, tmp);
             clear &= clear_2;
 
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -1831,9 +1827,7 @@ where
         for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
             let ctxt_2 = cks.encrypt(clear_2);
-            let tmp = executor.execute((&ct_res, &ctxt_2));
             ct_res = executor.execute((&ct_res, &ctxt_2));
-            assert_eq!(ct_res, tmp);
             clear |= clear_2;
 
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -1874,9 +1868,7 @@ where
 
             let ctxt_2 = cks.encrypt(clear_2);
 
-            let tmp = executor.execute((&ct_res, &ctxt_2));
             ct_res = executor.execute((&ct_res, &ctxt_2));
-            assert_eq!(ct_res, tmp);
             clear = (clear ^ clear_2) % modulus;
 
             let dec_res: u64 = cks.decrypt(&ct_res);

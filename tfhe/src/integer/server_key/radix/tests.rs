@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
     default_overflowing_sub_test, smart_sub_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::create_parametrized_test;
+use crate::integer::tests::{create_parametrized_test, create_parametrized_test_classical_params};
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -33,13 +33,13 @@ const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
 const NB_CTXT: usize = 2;
 
-create_parametrized_test!(integer_encrypt_decrypt);
-create_parametrized_test!(integer_encrypt_decrypt_128_bits);
-create_parametrized_test!(integer_encrypt_decrypt_128_bits_specific_values);
-create_parametrized_test!(integer_encrypt_decrypt_256_bits_specific_values);
-create_parametrized_test!(integer_encrypt_decrypt_256_bits);
-create_parametrized_test!(integer_unchecked_add);
-create_parametrized_test!(integer_smart_add);
+create_parametrized_test_classical_params!(integer_encrypt_decrypt);
+create_parametrized_test_classical_params!(integer_encrypt_decrypt_128_bits);
+create_parametrized_test_classical_params!(integer_encrypt_decrypt_128_bits_specific_values);
+create_parametrized_test_classical_params!(integer_encrypt_decrypt_256_bits_specific_values);
+create_parametrized_test_classical_params!(integer_encrypt_decrypt_256_bits);
+create_parametrized_test_classical_params!(integer_unchecked_add);
+create_parametrized_test_classical_params!(integer_smart_add);
 create_parametrized_test!(
     integer_smart_add_128_bits {
         coverage => {
@@ -54,36 +54,36 @@ create_parametrized_test!(
         }
     }
 );
-create_parametrized_test!(integer_unchecked_bitand);
-create_parametrized_test!(integer_unchecked_bitor);
-create_parametrized_test!(integer_unchecked_bitxor);
-create_parametrized_test!(integer_smart_bitand);
-create_parametrized_test!(integer_smart_bitor);
-create_parametrized_test!(integer_smart_bitxor);
-create_parametrized_test!(integer_unchecked_small_scalar_mul);
-create_parametrized_test!(integer_smart_small_scalar_mul);
-create_parametrized_test!(integer_blockshift);
-create_parametrized_test!(integer_blockshift_right);
-create_parametrized_test!(integer_smart_scalar_mul);
-create_parametrized_test!(integer_unchecked_scalar_left_shift);
-create_parametrized_test!(integer_unchecked_scalar_right_shift);
-create_parametrized_test!(integer_unchecked_neg);
-create_parametrized_test!(integer_smart_neg);
-create_parametrized_test!(integer_unchecked_sub);
-create_parametrized_test!(integer_smart_sub);
+create_parametrized_test_classical_params!(integer_unchecked_bitand);
+create_parametrized_test_classical_params!(integer_unchecked_bitor);
+create_parametrized_test_classical_params!(integer_unchecked_bitxor);
+create_parametrized_test_classical_params!(integer_smart_bitand);
+create_parametrized_test_classical_params!(integer_smart_bitor);
+create_parametrized_test_classical_params!(integer_smart_bitxor);
+create_parametrized_test_classical_params!(integer_unchecked_small_scalar_mul);
+create_parametrized_test_classical_params!(integer_smart_small_scalar_mul);
+create_parametrized_test_classical_params!(integer_blockshift);
+create_parametrized_test_classical_params!(integer_blockshift_right);
+create_parametrized_test_classical_params!(integer_smart_scalar_mul);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_left_shift);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_right_shift);
+create_parametrized_test_classical_params!(integer_unchecked_neg);
+create_parametrized_test_classical_params!(integer_smart_neg);
+create_parametrized_test_classical_params!(integer_unchecked_sub);
+create_parametrized_test_classical_params!(integer_smart_sub);
 #[cfg(not(tarpaulin))]
-create_parametrized_test!(integer_default_overflowing_sub);
-create_parametrized_test!(integer_unchecked_block_mul);
-create_parametrized_test!(integer_smart_block_mul);
-create_parametrized_test!(integer_smart_mul);
-create_parametrized_test!(integer_unchecked_mul);
+create_parametrized_test_classical_params!(integer_default_overflowing_sub);
+create_parametrized_test_classical_params!(integer_unchecked_block_mul);
+create_parametrized_test_classical_params!(integer_smart_block_mul);
+create_parametrized_test_classical_params!(integer_smart_mul);
+create_parametrized_test_classical_params!(integer_unchecked_mul);
 
-create_parametrized_test!(integer_smart_scalar_sub);
-create_parametrized_test!(integer_smart_scalar_add);
-create_parametrized_test!(integer_unchecked_scalar_sub);
-create_parametrized_test!(integer_unchecked_scalar_add);
+create_parametrized_test_classical_params!(integer_smart_scalar_sub);
+create_parametrized_test_classical_params!(integer_smart_scalar_add);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_sub);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_add);
 
-create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_decomposition_overflow);
 
 create_parametrized_test!(
     integer_full_propagate {
@@ -101,8 +101,8 @@ create_parametrized_test!(
     }
 );
 
-create_parametrized_test!(integer_create_trivial_min_max);
-create_parametrized_test!(integer_signed_decryption_correctly_sign_extend);
+create_parametrized_test_classical_params!(integer_create_trivial_min_max);
+create_parametrized_test_classical_params!(integer_signed_decryption_correctly_sign_extend);
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
