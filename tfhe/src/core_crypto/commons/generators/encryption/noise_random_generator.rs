@@ -227,6 +227,16 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         self.try_fork(lwe_size.0, noise_bytes)
     }
 
+    pub(crate) fn fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let noise_bytes = noise_elements_per_lwe_list(LweCiphertextCount(level_count.0))
+            .to_noise_byte_count(noise_bytes_per_coef());
+        self.try_fork(input_lwe_dimension.0, noise_bytes)
+    }
+
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
     pub(crate) fn fork_lwe_list_to_lwe(
         &mut self,
@@ -375,6 +385,16 @@ impl<G: ParallelByteRandomGenerator> NoiseRandomGenerator<G> {
         self.par_try_fork(lwe_size.0, noise_bytes)
     }
 
+    pub(crate) fn par_fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let noise_bytes = noise_elements_per_lwe_list(LweCiphertextCount(level_count.0))
+            .to_noise_byte_count(noise_bytes_per_coef());
+        self.try_fork(input_lwe_dimension.0, noise_bytes)
+    }
+
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
     pub(crate) fn par_fork_lwe_list_to_lwe(
         &mut self,
@@ -480,6 +500,10 @@ fn noise_elements_per_lwe() -> NoiseElementCount {
     // determinism if ever an encryption needed the last few bytes to generate noise. Only a major
     // update would be ok to change this value.
     NoiseElementCount(3)
+}
+
+fn noise_elements_per_lwe_list(ciphertext_count: LweCiphertextCount) -> NoiseElementCount {
+    NoiseElementCount(noise_elements_per_lwe().0 * ciphertext_count.0)
 }
 
 fn noise_elements_per_gsw_level(lwe_size: LweSize) -> NoiseElementCount {

@@ -151,6 +151,20 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         self.try_fork(lwe_size.0, mask_bytes)
     }
 
+    pub(crate) fn fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+        output_lwe_size: LweSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_bytes = mask_elements_per_lwe_list(
+            output_lwe_size.to_lwe_dimension(),
+            LweCiphertextCount(level_count.0),
+        )
+        .to_mask_byte_count(mask_bytes_per_coef::<T>());
+        self.try_fork(input_lwe_dimension.0, mask_bytes)
+    }
+
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
     pub(crate) fn fork_lwe_list_to_lwe<T: UnsignedInteger>(
         &mut self,
@@ -304,6 +318,20 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         self.par_try_fork(lwe_size.0, mask_bytes)
     }
 
+    pub(crate) fn par_fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+        output_lwe_size: LweSize,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let mask_bytes = mask_elements_per_lwe_list(
+            output_lwe_size.to_lwe_dimension(),
+            LweCiphertextCount(level_count.0),
+        )
+        .to_mask_byte_count(mask_bytes_per_coef::<T>());
+        self.par_try_fork(input_lwe_dimension.0, mask_bytes)
+    }
+
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
     pub(crate) fn par_fork_lwe_list_to_lwe<T: UnsignedInteger>(
         &mut self,
@@ -406,6 +434,13 @@ fn mask_elements_per_ggsw_level(
 
 fn mask_elements_per_lwe(lwe_dimension: LweDimension) -> MaskElementCount {
     MaskElementCount(lwe_dimension.0)
+}
+
+fn mask_elements_per_lwe_list(
+    lwe_dimension: LweDimension,
+    lwe_ciphertext_count: LweCiphertextCount,
+) -> MaskElementCount {
+    MaskElementCount(lwe_dimension.0 * lwe_ciphertext_count.0)
 }
 
 fn mask_elements_per_gsw_level(lwe_size: LweSize) -> MaskElementCount {

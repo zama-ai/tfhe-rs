@@ -162,6 +162,23 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
+    pub(crate) fn fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+        output_lwe_size: LweSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_iter = self.mask.fork_ksk_to_lwe_lists::<T>(
+            input_lwe_dimension,
+            level_count,
+            output_lwe_size,
+        )?;
+        let noise_iter = self
+            .noise
+            .fork_ksk_to_lwe_lists(input_lwe_dimension, level_count);
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
+    }
+
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
     pub(crate) fn fork_lwe_list_to_lwe<T: UnsignedInteger>(
         &mut self,
@@ -470,6 +487,23 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.par_fork_gsw_level_to_lwe::<T>(lwe_size)?;
         let noise_iter = self.noise.par_fork_gsw_level_to_lwe(lwe_size)?;
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
+    }
+
+    pub(crate) fn par_fork_ksk_to_lwe_lists<T: UnsignedInteger>(
+        &mut self,
+        input_lwe_dimension: LweDimension,
+        level_count: DecompositionLevelCount,
+        output_lwe_size: LweSize,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let mask_iter = self.mask.par_fork_ksk_to_lwe_lists::<T>(
+            input_lwe_dimension,
+            level_count,
+            output_lwe_size,
+        )?;
+        let noise_iter = self
+            .noise
+            .par_fork_ksk_to_lwe_lists(input_lwe_dimension, level_count);
         Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
