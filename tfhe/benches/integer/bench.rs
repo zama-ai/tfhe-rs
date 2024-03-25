@@ -1058,12 +1058,12 @@ define_server_key_bench_unary_fn!(method_name: smart_abs_parallelized, display_n
 
 define_server_key_bench_unary_default_fn!(method_name: neg_parallelized, display_name: negation);
 define_server_key_bench_unary_default_fn!(method_name: abs_parallelized, display_name: abs);
-define_server_key_bench_unary_default_fn!(method_name: leading_zeros, display_name: leading_zeros);
-define_server_key_bench_unary_default_fn!(method_name: leading_ones, display_name: leading_ones);
-define_server_key_bench_unary_default_fn!(method_name: trailing_zeros, display_name: trailing_zeros);
-define_server_key_bench_unary_default_fn!(method_name: trailing_ones, display_name: trailing_ones);
-define_server_key_bench_unary_default_fn!(method_name: ilog2, display_name: ilog2);
-define_server_key_bench_unary_default_fn!(method_name: checked_ilog2, display_name: checked_ilog2);
+define_server_key_bench_unary_default_fn!(method_name: leading_zeros_parallelized, display_name: leading_zeros);
+define_server_key_bench_unary_default_fn!(method_name: leading_ones_parallelized, display_name: leading_ones);
+define_server_key_bench_unary_default_fn!(method_name: trailing_zeros_parallelized, display_name: trailing_zeros);
+define_server_key_bench_unary_default_fn!(method_name: trailing_ones_parallelized, display_name: trailing_ones);
+define_server_key_bench_unary_default_fn!(method_name: ilog2_parallelized, display_name: ilog2);
+define_server_key_bench_unary_default_fn!(method_name: checked_ilog2_parallelized, display_name: checked_ilog2);
 
 define_server_key_bench_unary_default_fn!(method_name: unchecked_abs_parallelized, display_name: abs);
 
@@ -2082,12 +2082,12 @@ criterion_group!(
     rotate_left_parallelized,
     rotate_right_parallelized,
     ciphertexts_sum_parallelized,
-    leading_zeros,
-    leading_ones,
-    trailing_zeros,
-    trailing_ones,
-    ilog2,
-    checked_ilog2,
+    leading_zeros_parallelized,
+    leading_ones_parallelized,
+    trailing_zeros_parallelized,
+    trailing_ones_parallelized,
+    ilog2_parallelized,
+    checked_ilog2_parallelized,
 );
 
 criterion_group!(
