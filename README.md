@@ -127,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clear equivalent computations: 1344 * 5 = 6720
     let encrypted_res_mul = &encrypted_a * &encrypted_b;
 
-    // Clear equivalent computations: 1344 >> 5 = 42
+    // Clear equivalent computations: 6720 >> 5 = 210
     encrypted_a = &encrypted_res_mul >> &encrypted_b;
 
     // Clear equivalent computations: let casted_a = a as u8;
