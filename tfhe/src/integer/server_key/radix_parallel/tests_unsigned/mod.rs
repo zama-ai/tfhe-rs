@@ -903,7 +903,7 @@ fn integer_default_trailing_zeros<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros);
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros_parallelized);
     default_trailing_zeros_test(param, executor);
 }
 
@@ -911,7 +911,7 @@ fn integer_default_trailing_ones<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones);
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones_parallelized);
     default_trailing_ones_test(param, executor);
 }
 
@@ -919,7 +919,7 @@ fn integer_default_leading_zeros<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros);
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros_parallelized);
     default_leading_zeros_test(param, executor);
 }
 
@@ -927,7 +927,7 @@ fn integer_default_leading_ones<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones);
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones_parallelized);
     default_leading_ones_test(param, executor);
 }
 
@@ -935,7 +935,7 @@ fn integer_default_ilog2<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::ilog2);
+    let executor = CpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
     default_ilog2_test(param, executor);
 }
 
@@ -943,7 +943,7 @@ fn integer_default_checked_ilog2<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2);
+    let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
     default_checked_ilog2_test(param, executor);
 }
 

@@ -173,40 +173,40 @@ impl ServerKey {
     //  Unchecked
     //==============================================================================================
 
-    /// See [Self::trailing_zeros]
+    /// See [Self::trailing_zeros_parallelized]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_trailing_zeros<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn unchecked_trailing_zeros_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
         self.count_consecutive_bits(ct, Direction::Trailing, BitValue::Zero)
     }
 
-    /// See [Self::trailing_ones]
+    /// See [Self::trailing_ones_parallelized]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_trailing_ones<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn unchecked_trailing_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
         self.count_consecutive_bits(ct, Direction::Trailing, BitValue::One)
     }
 
-    /// See [Self::leading_zeros]
+    /// See [Self::leading_zeros_parallelized]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_leading_zeros<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn unchecked_leading_zeros_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
         self.count_consecutive_bits(ct, Direction::Leading, BitValue::Zero)
     }
 
-    /// See [Self::leading_ones]
+    /// See [Self::leading_ones_parallelized]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_leading_ones<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn unchecked_leading_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -215,10 +215,10 @@ impl ServerKey {
 
     /// Returns the base 2 logarithm of the number, rounded down.
     ///
-    /// See [Self::ilog2] for an example
+    /// See [Self::ilog2_parallelized] for an example
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_ilog2<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn unchecked_ilog2_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -346,8 +346,8 @@ impl ServerKey {
     //  Smart
     //==============================================================================================
 
-    /// See [Self::trailing_zeros]
-    pub fn smart_trailing_zeros<T>(&self, ct: &mut T) -> RadixCiphertext
+    /// See [Self::trailing_zeros_parallelized]
+    pub fn smart_trailing_zeros_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -355,11 +355,11 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        self.unchecked_trailing_zeros(ct)
+        self.unchecked_trailing_zeros_parallelized(ct)
     }
 
-    /// See [Self::trailing_ones]
-    pub fn smart_trailing_ones<T>(&self, ct: &mut T) -> RadixCiphertext
+    /// See [Self::trailing_ones_parallelized]
+    pub fn smart_trailing_ones_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -367,11 +367,11 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        self.unchecked_trailing_ones(ct)
+        self.unchecked_trailing_ones_parallelized(ct)
     }
 
-    /// See [Self::leading_zeros]
-    pub fn smart_leading_zeros<T>(&self, ct: &mut T) -> RadixCiphertext
+    /// See [Self::leading_zeros_parallelized]
+    pub fn smart_leading_zeros_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -379,11 +379,11 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        self.unchecked_leading_zeros(ct)
+        self.unchecked_leading_zeros_parallelized(ct)
     }
 
-    /// See [Self::leading_ones]
-    pub fn smart_leading_ones<T>(&self, ct: &mut T) -> RadixCiphertext
+    /// See [Self::leading_ones_parallelized]
+    pub fn smart_leading_ones_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -391,30 +391,30 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        self.unchecked_leading_ones(ct)
-    }
-
-    /// Returns the base 2 logarithm of the number, rounded down.
-    ///
-    /// See [Self::ilog2] for an example
-    pub fn smart_ilog2<T>(&self, ct: &mut T) -> RadixCiphertext
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-
-        self.unchecked_ilog2(ct)
+        self.unchecked_leading_ones_parallelized(ct)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
     ///
-    /// See [Self::checked_ilog2] for an example
+    /// See [Self::ilog2_parallelized] for an example
+    pub fn smart_ilog2_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        self.unchecked_ilog2_parallelized(ct)
+    }
+
+    /// Returns the base 2 logarithm of the number, rounded down.
+    ///
+    /// See [Self::checked_ilog2_parallelized] for an example
     ///
     /// Also returns a BooleanBlock, encrypting true (1) if the result is
     /// valid (input is > 0), otherwise 0.
-    pub fn smart_checked_ilog2<T>(&self, ct: &mut T) -> (RadixCiphertext, BooleanBlock)
+    pub fn smart_checked_ilog2_parallelized<T>(&self, ct: &mut T) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
     {
@@ -422,7 +422,10 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        rayon::join(|| self.ilog2(ct), || self.scalar_gt_parallelized(ct, 0))
+        rayon::join(
+            || self.ilog2_parallelized(ct),
+            || self.scalar_gt_parallelized(ct, 0),
+        )
     }
 
     //==============================================================================================
@@ -452,13 +455,13 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let n = sks.trailing_zeros(&ct1);
+    /// let n = sks.trailing_zeros_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
     /// assert_eq!(n, msg.trailing_zeros());
     /// ```
-    pub fn trailing_zeros<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn trailing_zeros_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -470,7 +473,7 @@ impl ServerKey {
             self.full_propagate_parallelized(&mut tmp);
             &tmp
         };
-        self.unchecked_trailing_zeros(ct)
+        self.unchecked_trailing_zeros_parallelized(ct)
     }
 
     /// Returns the number of trailing ones in the binary representation of `ct`
@@ -496,13 +499,13 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let n = sks.trailing_ones(&ct1);
+    /// let n = sks.trailing_ones_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
     /// assert_eq!(n, msg.trailing_ones());
     /// ```
-    pub fn trailing_ones<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn trailing_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -514,7 +517,7 @@ impl ServerKey {
             self.full_propagate_parallelized(&mut tmp);
             &tmp
         };
-        self.unchecked_trailing_ones(ct)
+        self.unchecked_trailing_ones_parallelized(ct)
     }
 
     /// Returns the number of leading zeros in the binary representation of `ct`
@@ -540,13 +543,13 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let n = sks.leading_zeros(&ct1);
+    /// let n = sks.leading_zeros_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
     /// assert_eq!(n, msg.leading_zeros());
     /// ```
-    pub fn leading_zeros<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn leading_zeros_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -558,7 +561,7 @@ impl ServerKey {
             self.full_propagate_parallelized(&mut tmp);
             &tmp
         };
-        self.unchecked_leading_zeros(ct)
+        self.unchecked_leading_zeros_parallelized(ct)
     }
 
     /// Returns the number of leading ones in the binary representation of `ct`
@@ -584,13 +587,13 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let n = sks.leading_ones(&ct1);
+    /// let n = sks.leading_ones_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
     /// assert_eq!(n, msg.leading_ones());
     /// ```
-    pub fn leading_ones<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn leading_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -602,7 +605,7 @@ impl ServerKey {
             self.full_propagate_parallelized(&mut tmp);
             &tmp
         };
-        self.unchecked_leading_ones(ct)
+        self.unchecked_leading_ones_parallelized(ct)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -621,13 +624,13 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let n = sks.ilog2(&ct1);
+    /// let n = sks.ilog2_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
     /// assert_eq!(n, msg.ilog2());
     /// ```
-    pub fn ilog2<T>(&self, ct: &T) -> RadixCiphertext
+    pub fn ilog2_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -640,7 +643,7 @@ impl ServerKey {
             &tmp
         };
 
-        self.unchecked_ilog2(ct)
+        self.unchecked_ilog2_parallelized(ct)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -662,7 +665,7 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt_signed(msg);
     ///
-    /// let (n, is_oks) = sks.checked_ilog2(&ct1);
+    /// let (n, is_oks) = sks.checked_ilog2_parallelized(&ct1);
     ///
     /// // Decrypt:
     /// let n: u32 = cks.decrypt(&n);
@@ -670,7 +673,7 @@ impl ServerKey {
     /// let is_ok = cks.decrypt_bool(&is_oks);
     /// assert!(is_ok);
     /// ```
-    pub fn checked_ilog2<T>(&self, ct: &T) -> (RadixCiphertext, BooleanBlock)
+    pub fn checked_ilog2_parallelized<T>(&self, ct: &T) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
     {
@@ -683,7 +686,10 @@ impl ServerKey {
             &tmp
         };
 
-        rayon::join(|| self.ilog2(ct), || self.scalar_gt_parallelized(ct, 0))
+        rayon::join(
+            || self.ilog2_parallelized(ct),
+            || self.scalar_gt_parallelized(ct, 0),
+        )
     }
 }
 
@@ -1238,7 +1244,7 @@ pub(crate) mod tests_signed {
             Direction::Trailing,
             BitValue::Zero,
             param,
-            ServerKey::trailing_zeros,
+            ServerKey::trailing_zeros_parallelized,
         );
     }
 
@@ -1250,7 +1256,7 @@ pub(crate) mod tests_signed {
             Direction::Trailing,
             BitValue::One,
             param,
-            ServerKey::trailing_ones,
+            ServerKey::trailing_ones_parallelized,
         );
     }
 
@@ -1262,7 +1268,7 @@ pub(crate) mod tests_signed {
             Direction::Leading,
             BitValue::Zero,
             param,
-            ServerKey::leading_zeros,
+            ServerKey::leading_zeros_parallelized,
         );
     }
 
@@ -1274,7 +1280,7 @@ pub(crate) mod tests_signed {
             Direction::Leading,
             BitValue::One,
             param,
-            ServerKey::leading_ones,
+            ServerKey::leading_ones_parallelized,
         );
     }
 
@@ -1299,7 +1305,7 @@ pub(crate) mod tests_signed {
             for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
                 let ctxt = cks.encrypt_signed(clear);
 
-                let ct_res = sks.ilog2(&ctxt);
+                let ct_res = sks.ilog2_parallelized(&ctxt);
                 assert!(ct_res.block_carries_are_empty());
 
                 let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -1333,8 +1339,8 @@ pub(crate) mod tests_signed {
         for clear in input_values {
             let ctxt = cks.encrypt_signed(clear);
 
-            let ct_res = sks.ilog2(&ctxt);
-            let tmp = sks.ilog2(&ctxt);
+            let ct_res = sks.ilog2_parallelized(&ctxt);
+            let tmp = sks.ilog2_parallelized(&ctxt);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
 
@@ -1363,7 +1369,7 @@ pub(crate) mod tests_signed {
                 let d0: i64 = cks.decrypt_signed(&ctxt);
                 assert_eq!(d0, clear, "Failed sanity decryption check");
 
-                let ct_res = sks.ilog2(&ctxt);
+                let ct_res = sks.ilog2_parallelized(&ctxt);
                 assert!(ct_res.block_carries_are_empty());
 
                 let expected_result = clear.ilog2();
@@ -1388,8 +1394,8 @@ pub(crate) mod tests_signed {
         for clear in input_values {
             let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
-            let ct_res = sks.ilog2(&ctxt);
-            let tmp = sks.ilog2(&ctxt);
+            let ct_res = sks.ilog2_parallelized(&ctxt);
+            let tmp = sks.ilog2_parallelized(&ctxt);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
 
@@ -1425,7 +1431,7 @@ pub(crate) mod tests_signed {
             for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
                 let ctxt = cks.encrypt_signed(clear);
 
-                let (ct_res, is_ok) = sks.checked_ilog2(&ctxt);
+                let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
                 assert!(ct_res.block_carries_are_empty());
 
                 let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -1461,8 +1467,8 @@ pub(crate) mod tests_signed {
         for clear in input_values {
             let ctxt = cks.encrypt_signed(clear);
 
-            let (ct_res, is_ok) = sks.checked_ilog2(&ctxt);
-            let (tmp, tmp_is_ok) = sks.checked_ilog2(&ctxt);
+            let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
+            let (tmp, tmp_is_ok) = sks.checked_ilog2_parallelized(&ctxt);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             assert_eq!(is_ok, tmp_is_ok);
@@ -1494,7 +1500,7 @@ pub(crate) mod tests_signed {
                 let d0: i64 = cks.decrypt_signed(&ctxt);
                 assert_eq!(d0, clear, "Failed sanity decryption check");
 
-                let (ct_res, is_ok) = sks.checked_ilog2(&ctxt);
+                let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
                 assert!(ct_res.block_carries_are_empty());
                 assert_eq!(is_ok.as_ref().degree.get(), 1);
 
@@ -1522,7 +1528,7 @@ pub(crate) mod tests_signed {
         for clear in input_values {
             let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
-            let (ct_res, is_ok) = sks.checked_ilog2(&ctxt);
+            let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
