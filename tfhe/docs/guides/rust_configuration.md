@@ -16,11 +16,11 @@ Then, you can either:
 
 ```shell
 # By default the +stable should not be needed, but we add it here for completeness
-cargo +stable build
-cargo +stable test
+cargo +stable build --release
+cargo +stable test --release
 # Or
-cargo +nightly build
-cargo +nightly test
+cargo +nightly build --release
+cargo +nightly test --release
 ```
 
 * Or override the toolchain to use for the current project:
@@ -30,11 +30,11 @@ cargo +nightly test
 # correct you can still set the overridden toolchain to stable
 rustup override set stable
 # cargo will use the `stable` toolchain.
-cargo build
+cargo build --release
 # Or
 rustup override set nightly
 # cargo will use the `nightly` toolchain.
-cargo build
+cargo build --release
 ```
 
 To check the toolchain that Cargo will use by default, you can use the following command:
@@ -64,5 +64,5 @@ This crate exposes two kinds of data types. Each kind is enabled by activating i
 In general, the library automatically chooses the best instruction sets available by the host. However, in the case of 'AVX-512', this has to be explicitly chosen as a feature. This requires to use a [nightly toolchain](#using-tfhe-rs-with-nightly-toolchain) along with the feature `nightly-avx512`.
 
 ```shell
-cargo +nightly build --features=nightly-avx512
+cargo +nightly build --release --features=nightly-avx512
 ```

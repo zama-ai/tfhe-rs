@@ -121,7 +121,7 @@ fn main() {
     let ct_2 = client_key.encrypt(msg2);
 
     // We use the server public key to execute an integer circuit:
-    let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
+    let ct_3 = server_key.add(&ct_1, &ct_2);
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);
@@ -140,7 +140,7 @@ use tfhe::integer::gen_keys_radix;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
 fn main() {
-    // We create keys for radix representation to create 16 bits integers
+    // We generate keys to encrypt 16 bits radix-encoded integers
     // using 8 blocks of 2 bits
     let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, 8);
 

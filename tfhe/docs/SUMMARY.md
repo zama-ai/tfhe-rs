@@ -13,18 +13,20 @@
 
 ## Fundamentals
 
-* [Configure and create keys](fundamentals/configure-and-create-keys.md)
+* [Configure and generate keys](fundamentals/configure-and-generate-keys.md)
 * [Set the server key](fundamentals/set-the-server-key.md)
 * [Encrypt data](fundamentals/encrypt-data.md)
-* [Compute and decrypt](fundamentals/compute-and-decrypt.md)
+* [Compute on encrypted data](fundamentals/compute.md)
+* [Generate encrypted pseudo random values](fundamentals/encrypted-prf.md)
+* [Decrypt data](fundamentals/decrypt-data.md)
 * [Serialize/Deserialize](fundamentals/serialization.md)
 * [Compress ciphertexts/Keys](fundamentals/compress.md)
 * [Simulator mode](fundamentals/trivial\_ciphertext.md)
 
 ## Guides
 
-* [Run on GPU](guides/run\_on\_gpu.md)
 * [Configure Rust](guides/rust\_configuration.md)
+* [Run on GPU](guides/run\_on\_gpu.md)
 * [Detect overflow](guides/overflow\_operations.md)
 * [Migrate data to newer versions of TFHE-rs](guides/migrate\_data.md)
 * [Use public key encryption](guides/public\_key.md)
@@ -34,6 +36,7 @@
 * [Use the JS on WASM API](guides/js\_on\_wasm\_api.md)
 * [Use multi-threading using the rayon crate](guides/rayon\_crate.md)
 * [Debug](guides/debug.md)
+* [PBS statistics](guides/pbs-stats.md)
 
 ## Tutorials
 
@@ -59,9 +62,9 @@
     * [Operations](references/fine-grained-apis/integer/operations.md)
     * [Cryptographic parameters](references/fine-grained-apis/integer/parameters.md)
     * [Serialization/Deserialization](references/fine-grained-apis/integer/serialization.md)
-* [Crypto core API](references/crypto-core-api/README.md)
-  * [Quick start](references/crypto-core-api/presentation.md)
-  * [Tutorial](references/crypto-core-api/tutorial.md)
+* [Core crypto API](references/core-crypto-api/README.md)
+  * [Quick start](references/core-crypto-api/presentation.md)
+  * [Tutorial](references/core-crypto-api/tutorial.md)
 
 ## Explanations
 
