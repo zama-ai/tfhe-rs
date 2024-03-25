@@ -127,13 +127,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clear equivalent computations: 1344 * 5 = 6720
     let encrypted_res_mul = &encrypted_a * &encrypted_b;
 
-    // Clear equivalent computations: 1344 >> 5 = 42
+    // Clear equivalent computations: 6720 >> 5 = 210
     encrypted_a = &encrypted_res_mul >> &encrypted_b;
 
     // Clear equivalent computations: let casted_a = a as u8;
     let casted_a: FheUint8 = encrypted_a.cast_into();
 
-    // Clear equivalent computations: min(42, 7) = 7
+    // Clear equivalent computations: min(210, 7) = 7
     let encrypted_res_min = &casted_a.min(&encrypted_c);
 
     // Operation between clear and encrypted data:
