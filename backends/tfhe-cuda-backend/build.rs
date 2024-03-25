@@ -2,19 +2,10 @@ use std::env;
 use std::process::Command;
 
 fn main() {
-    match env::var("DOCS_RS") {
-        Ok(val) => {
-            let val = val.parse::<u32>();
-            match val {
-                Ok(val) => {
-                    if val == 1 {
-                        return;
-                    }
-                }
-                Err(_) => (),
-            }
+    if let Ok(val) = env::var("DOCS_RS") {
+        if val.parse::<u32>() == Ok(1) {
+            return;
         }
-        Err(_) => (),
     }
 
     println!("Build tfhe-cuda-backend");
