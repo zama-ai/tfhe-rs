@@ -25,6 +25,7 @@ pub use uniform::*;
 pub use uniform_binary::*;
 pub use uniform_ternary::*;
 
+#[cfg(not(tarpaulin))]
 #[cfg(test)]
 mod tests;
 

@@ -206,7 +206,10 @@ where
 mod test {
     use super::*;
 
+    #[cfg(not(tarpaulin))]
     const NB_TESTS: usize = 1_000_000_000;
+    #[cfg(tarpaulin)]
+    const NB_TESTS: usize = 1;
 
     #[test]
     fn test_divide_funcs() {
@@ -295,7 +298,7 @@ mod test {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
-            for _ in 0..1_000_000_000 {
+            for _ in 0..NB_TESTS {
                 let value: u64 = rng.gen();
                 // This is an easy case where we expect the values to match exactly, to cover other
                 // cases we would be re coding the algorithms here.

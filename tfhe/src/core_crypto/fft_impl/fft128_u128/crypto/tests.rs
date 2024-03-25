@@ -3,14 +3,20 @@ use super::super::math::fft::Fft128View;
 use crate::core_crypto::fft_impl::common::tests::{
     gen_keys_or_get_from_cache_if_enabled, generate_keys,
 };
+#[cfg(tarpaulin)]
+use crate::core_crypto::prelude::test::COVERAGE_FFT128_U128_PARAMS;
 use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
+
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 #[test]
 fn test_split_external_product() {
+    #[cfg(not(tarpaulin))]
     let params = FFT128_U128_PARAMS;
+    #[cfg(tarpaulin)]
+    let params = COVERAGE_FFT128_U128_PARAMS;
 
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
@@ -135,7 +141,10 @@ fn test_split_external_product() {
 
 #[test]
 fn test_split_pbs() {
+    #[cfg(not(tarpaulin))]
     let params = FFT128_U128_PARAMS;
+    #[cfg(tarpaulin)]
+    let params = COVERAGE_FFT128_U128_PARAMS;
 
     let small_lwe_dimension = params.lwe_dimension;
     let glwe_dimension = params.glwe_dimension;
