@@ -1,3 +1,0 @@
-#pragma once
-
-#define CUDA_ARCH @CUDA_ARCH@
