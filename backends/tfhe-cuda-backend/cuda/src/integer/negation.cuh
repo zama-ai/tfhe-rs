@@ -104,7 +104,6 @@ __host__ void host_integer_overflowing_sub_kb(
     int_overflowing_sub_memory<uint64_t> *mem_ptr, uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;
-  auto big_lwe_size = radix_params.big_lwe_dimension + 1;
 
   host_unchecked_sub_with_correcting_term(
       stream, radix_lwe_out, radix_lwe_left, radix_lwe_right,
