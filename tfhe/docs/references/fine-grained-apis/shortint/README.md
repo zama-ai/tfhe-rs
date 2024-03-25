@@ -89,7 +89,7 @@ fn main() {
     let ct_2 = client_key.encrypt(msg2);
 
     // We use the server public key to execute an integer circuit:
-    let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
+    let ct_3 = server_key.add(&ct_1, &ct_2);
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_3);

@@ -1,8 +1,6 @@
-# Encrypt data
+# Decrypt data
 
-Encrypting data is achieved via the `encrypt` associated function of the FheEncrypt trait.
-
-Types exposed by this crate implement at least one of FheEncrypt or FheTryEncrypt to allow encryption.
+Decrypting data is achieved by using the `decrypt` method, which comes from the FheDecrypt trait.
 
 ```rust
 use tfhe::prelude::*;
@@ -18,5 +16,11 @@ fn main() {
 
     let a = FheUint8::encrypt(clear_a, &client_key);
     let b = FheUint8::encrypt(clear_b, &client_key);
+
+    let decrypted_a: u8 = a.decrypt(&client_key);
+    let decrypted_b: u8 = b.decrypt(&client_key);
+
+    assert_eq!(decrypted_a, clear_a);
+    assert_eq!(decrypted_b, clear_b);
 }
 ```

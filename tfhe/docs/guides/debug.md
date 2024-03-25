@@ -51,14 +51,14 @@ fn main() {
 
 This example is going to print.
 
-```
+```console
 a: Ok(1234), b: Ok(4567), c: Ok(89101112)
 a * b = Ok(5635678)
 ```
 
 If any input to `mul_all` is not a trivial ciphertexts, the computations would be done 100% in FHE, and the program would output:
 
-```
+```console
 a: Err(NotTrivialCiphertextError), b: Err(NotTrivialCiphertextError), c: Err(NotTrivialCiphertextError)
 a * b = Err(NotTrivialCiphertextError)
 ```
