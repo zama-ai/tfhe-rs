@@ -4,6 +4,7 @@ use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::block_decomposition::{BlockRecomposer, RecomposableFrom};
 use crate::integer::client_key::{sign_extend_partial_number, RecomposableSignedInteger};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
+use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +25,9 @@ impl<Block> From<Vec<Block>> for BaseRadixCiphertext<Block> {
 // Type alias to save some typing in implementation parts
 pub type RadixCiphertext = BaseRadixCiphertext<Ciphertext>;
 
-impl ParameterSetConformant for RadixCiphertext {
+impl<T: ParameterSetConformant<ParameterSet = CiphertextConformanceParams>> ParameterSetConformant
+    for BaseRadixCiphertext<T>
+{
     type ParameterSet = RadixCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
@@ -122,7 +125,9 @@ impl<Block> From<Vec<Block>> for BaseSignedRadixCiphertext<Block> {
 // Type alias to save some typing in implementation parts
 pub type SignedRadixCiphertext = BaseSignedRadixCiphertext<Ciphertext>;
 
-impl ParameterSetConformant for SignedRadixCiphertext {
+impl<T: ParameterSetConformant<ParameterSet = CiphertextConformanceParams>> ParameterSetConformant
+    for BaseSignedRadixCiphertext<T>
+{
     type ParameterSet = RadixCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
