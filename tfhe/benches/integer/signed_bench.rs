@@ -1521,6 +1521,16 @@ mod cuda {
         display_name: bitnot
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_ne,
+        display_name: ne
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
@@ -1613,6 +1623,16 @@ mod cuda {
         display_name: bitxor
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: ne,
+        display_name: ne
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -1671,6 +1691,8 @@ mod cuda {
         cuda_unchecked_bitnot,
         cuda_unchecked_bitor,
         cuda_unchecked_bitxor,
+        cuda_unchecked_eq,
+        cuda_unchecked_ne,
     );
 
     criterion_group!(
@@ -1695,6 +1717,8 @@ mod cuda {
         cuda_bitnot,
         cuda_bitor,
         cuda_bitxor,
+        cuda_eq,
+        cuda_ne,
     );
 
     criterion_group!(

@@ -298,8 +298,8 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .eq(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                        .eq(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -336,8 +336,8 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .ne(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                        .ne(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -401,7 +401,7 @@ where
                     cuda_key
                         .key
                         .lt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -439,7 +439,7 @@ where
                     cuda_key
                         .key
                         .le(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -477,7 +477,7 @@ where
                     cuda_key
                         .key
                         .gt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -515,7 +515,7 @@ where
                     cuda_key
                         .key
                         .ge(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }

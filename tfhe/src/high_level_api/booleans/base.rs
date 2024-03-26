@@ -242,11 +242,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.eq(
-                    &self.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
                     &other.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner)
+                InnerBoolean::Cuda(inner.to_cuda_unsigned_radix_ciphertext())
             }),
         });
         Self::new(ciphertext)
@@ -283,11 +283,11 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.ne(
-                    &self.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
                     &other.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner)
+                InnerBoolean::Cuda(inner.to_cuda_unsigned_radix_ciphertext())
             }),
         });
         Self::new(ciphertext)
