@@ -1268,8 +1268,8 @@ where Standard: rand::distributions::Distribution<Scalar>
 
     let nb_mults = 2;
 
-    //for (name, params) in params_scenario_a_packing_1::<Scalar>().iter() {
-    for (name, params) in params_scenario_a_packing_2::<Scalar>().iter() {
+    for (name, params) in params_scenario_a_packing_1::<Scalar>().iter() {
+    //for (name, params) in params_scenario_a_packing_2::<Scalar>().iter() {
     //for (name, params) in params_scenario_a_packing_10::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1751,8 +1751,8 @@ where Standard: rand::distributions::Distribution<Scalar>
 
     let nb_mults = 2;
 
-    //for (name, params) in params_scenario_c_packing_1::<Scalar>().iter() {
-    for (name, params) in params_scenario_c_packing_2::<Scalar>().iter() {
+    for (name, params) in params_scenario_c_packing_1::<Scalar>().iter() {
+    //for (name, params) in params_scenario_c_packing_2::<Scalar>().iter() {
     //for (name, params) in params_scenario_c_packing_10::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
@@ -2706,8 +2706,8 @@ where Standard: rand::distributions::Distribution<Scalar>
     let nb_mults = 2;
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    //for (name, params) in square_trick_benchmark_parameters_packing_1::<Scalar>().iter() {
-    for (name, params) in square_trick_benchmark_parameters_packing_2::<Scalar>().iter() {
+    for (name, params) in square_trick_benchmark_parameters_packing_1::<Scalar>().iter() {
+    //for (name, params) in square_trick_benchmark_parameters_packing_2::<Scalar>().iter() {
     //for (name, params) in square_trick_benchmark_parameters_packing_10::<Scalar>().iter() {
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension.unwrap(),
