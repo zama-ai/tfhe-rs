@@ -22,3 +22,7 @@ pub mod fft_impl;
 pub mod gpu;
 #[cfg(test)]
 pub mod keycache;
+
+// Experimental section
+#[cfg(feature = "experimental")]
+pub mod experimental;
