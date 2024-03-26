@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 
@@ -55,7 +56,7 @@ use crate::core_crypto::prelude::*;
 /// );
 /// ```
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedTorus> {
+pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedInteger> {
     packed_coeffs: Vec<Scalar>,
     lwe_dimension: LweDimension,
     log_modulus: CiphertextModulusLog,
@@ -164,9 +165,22 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
     }
 
     /// Converts back a compressed ciphertext to its initial modulus
-    /// The noise added during the compression says int the output
+    /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> LweCiphertextOwned<Scalar> {
+        let lwe_size = self.lwe_dimension.to_lwe_size().0;
+
+        let number_bits_to_pack = lwe_size * self.log_modulus.0;
+
+        let len = number_bits_to_pack.div_ceil(Scalar::BITS);
+
+        assert_eq!(
+            self.packed_coeffs.len(),
+            len,
+            "Mismatch between actual(={}) and expected(={len}) CompressedModulusSwitchedLweCiphertext packed_coeffs size",
+            self.packed_coeffs.len(),
+        );
+
         let log_modulus = self.log_modulus.0;
 
         let container = (0..(self.lwe_dimension.to_lwe_size().0))
@@ -247,6 +261,25 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
             .collect();
 
         LweCiphertextOwned::from_container(container, self.uncompressed_ciphertext_modulus)
+    }
+}
+
+impl<Scalar: UnsignedInteger> ParameterSetConformant
+    for CompressedModulusSwitchedLweCiphertext<Scalar>
+{
+    type ParameterSet = LweCiphertextParameters<Scalar>;
+
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
+        let lwe_size = self.lwe_dimension.to_lwe_size().0;
+
+        let number_bits_to_pack = lwe_size * self.log_modulus.0;
+
+        let len = number_bits_to_pack.div_ceil(Scalar::BITS);
+
+        self.packed_coeffs.len() == len
+            && self.lwe_dimension == lwe_ct_parameters.lwe_dim
+            && lwe_ct_parameters.ct_modulus.is_power_of_two()
+            && self.uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
     }
 }
 

@@ -1,5 +1,7 @@
 use super::common::*;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
 /// An object to store a ciphertext in little memory.
@@ -35,4 +37,17 @@ pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
     pub(crate) pbs_order: PBSOrder,
+}
+
+impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
+    type ParameterSet = CiphertextConformanceParams;
+
+    fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
+        self.compressed_modulus_switched_lwe_ciphertext
+            .is_conformant(&param.ct_params)
+            && self.message_modulus == param.message_modulus
+            && self.carry_modulus == param.carry_modulus
+            && self.pbs_order == param.pbs_order
+            && self.degree == param.degree
+    }
 }
