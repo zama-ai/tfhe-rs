@@ -633,7 +633,7 @@ doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,gpu,internal-keycache --no-deps -p $(TFHE_SPEC)
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,gpu,internal-keycache,experimental --no-deps -p $(TFHE_SPEC)
 
 .PHONY: docs # Build rust doc alias for doc
 docs: doc
@@ -644,7 +644,7 @@ lint_doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,gpu,internal-keycache -p $(TFHE_SPEC) --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,gpu,internal-keycache,experimental -p $(TFHE_SPEC) --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
