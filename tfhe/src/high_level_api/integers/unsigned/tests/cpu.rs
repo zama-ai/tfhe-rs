@@ -403,3 +403,15 @@ fn test_scalar_shift_when_clear_type_is_small() {
     a.rotate_left_assign(clear);
     a.rotate_right_assign(clear);
 }
+
+#[test]
+fn test_ilog2() {
+    let client_key = setup_default_cpu();
+    super::test_case_ilog2(&client_key);
+}
+
+#[test]
+fn test_leading_trailing_zeros_ones() {
+    let client_key = setup_default_cpu();
+    super::test_case_leading_trailing_zeros_ones(&client_key);
+}
