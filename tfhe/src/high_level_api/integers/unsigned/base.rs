@@ -236,6 +236,230 @@ where
     {
         collection.as_ref().iter().copied().sum()
     }
+
+    /// Returns the number of leading zeros in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(0b00111111_11111111u16, &client_key);
+    ///
+    /// let result = a.leading_zeros();
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 2);
+    /// ```
+    pub fn leading_zeros(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .leading_zeros_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support leading_zeros yet");
+            }
+        })
+    }
+
+    /// Returns the number of leading ones in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(0b11000000_00000000u16, &client_key);
+    ///
+    /// let result = a.leading_ones();
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 2);
+    /// ```
+    pub fn leading_ones(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .leading_ones_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support leading_ones yet");
+            }
+        })
+    }
+
+    /// Returns the number of trailing zeros in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(0b0000000_0101000u16, &client_key);
+    ///
+    /// let result = a.trailing_zeros();
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 3);
+    /// ```
+    pub fn trailing_zeros(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .trailing_zeros_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support trailing_zeros yet");
+            }
+        })
+    }
+
+    /// Returns the number of trailing ones in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(0b0000000_0110111u16, &client_key);
+    ///
+    /// let result = a.trailing_ones();
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 3);
+    /// ```
+    pub fn trailing_ones(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .trailing_ones_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support trailing_ones yet");
+            }
+        })
+    }
+
+    /// Returns the base 2 logarithm of the number, rounded down.
+    ///
+    /// Result has no meaning if self encrypts 0. See [Self::checked_ilog2]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(2u16, &client_key);
+    ///
+    /// let result = a.ilog2();
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 1);
+    /// ```
+    pub fn ilog2(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .ilog2_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support ilog2 yet");
+            }
+        })
+    }
+
+    /// Returns the base 2 logarithm of the number, rounded down.
+    ///
+    /// Also returns a boolean flag that is true if the result is valid (i.e self was > 0)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(0u16, &client_key);
+    ///
+    /// let (result, is_ok) = a.checked_ilog2();
+    ///
+    /// let is_ok = is_ok.decrypt(&client_key);
+    /// assert_eq!(is_ok, false);
+    ///
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 63); // result is meaningless
+    /// ```
+    pub fn checked_ilog2(&self) -> (super::FheUint32, FheBool) {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let (result, is_ok) = cpu_key
+                    .pbs_key()
+                    .checked_ilog2_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                (super::FheUint32::new(result), FheBool::new(is_ok))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support checked_ilog2 yet");
+            }
+        })
+    }
 }
 
 impl<Id> TryFrom<crate::integer::RadixCiphertext> for FheUint<Id>

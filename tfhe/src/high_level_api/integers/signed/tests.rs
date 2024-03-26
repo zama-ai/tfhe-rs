@@ -1,9 +1,9 @@
 use crate::integer::I256;
 use crate::prelude::*;
 use crate::{
-    generate_keys, set_server_key, CompactFheInt32, CompactFheInt32List, CompactPublicKey,
-    CompressedFheInt16, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32, FheInt64, FheInt8,
-    FheUint64, FheUint8,
+    generate_keys, set_server_key, ClientKey, CompactFheInt32, CompactFheInt32List,
+    CompactPublicKey, CompressedFheInt16, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
+    FheInt64, FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
 
@@ -619,4 +619,63 @@ fn test_compact_public_key_list(config: Config) {
     let a = compact_single.expand();
     let decrypted: i32 = a.decrypt(&client_key);
     assert_eq!(clear_xs[0], decrypted);
+}
+
+fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
+    let mut rng = thread_rng();
+    for _ in 0..5 {
+        let clear_a = rng.gen::<i32>();
+        let a = FheInt32::try_encrypt(clear_a, cks).unwrap();
+
+        let leading_zeros: u32 = a.leading_zeros().decrypt(cks);
+        assert_eq!(leading_zeros, clear_a.leading_zeros());
+
+        let leading_ones: u32 = a.leading_ones().decrypt(cks);
+        assert_eq!(leading_ones, clear_a.leading_ones());
+
+        let trailing_zeros: u32 = a.trailing_zeros().decrypt(cks);
+        assert_eq!(trailing_zeros, clear_a.trailing_zeros());
+
+        let trailing_ones: u32 = a.trailing_ones().decrypt(cks);
+        assert_eq!(trailing_ones, clear_a.trailing_ones());
+    }
+}
+
+fn test_case_ilog2(cks: &ClientKey) {
+    let mut rng = thread_rng();
+    for _ in 0..5 {
+        let clear_a = rng.gen_range(1..=i32::MAX);
+        let a = FheInt32::try_encrypt(clear_a, cks).unwrap();
+
+        let ilog2: u32 = a.ilog2().decrypt(cks);
+        assert_eq!(ilog2, clear_a.ilog2());
+
+        let (ilog2, is_ok) = a.checked_ilog2();
+        let ilog2: u32 = ilog2.decrypt(cks);
+        let is_ok = is_ok.decrypt(cks);
+        assert!(is_ok);
+        assert_eq!(ilog2, clear_a.ilog2());
+    }
+
+    {
+        let a = FheInt32::try_encrypt(-1i32, cks).unwrap();
+
+        let (_ilog2, is_ok) = a.checked_ilog2();
+        let is_ok = is_ok.decrypt(cks);
+        assert!(!is_ok);
+    }
+}
+
+#[test]
+fn test_ilog2() {
+    let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    set_server_key(server_key);
+    test_case_ilog2(&client_key);
+}
+
+#[test]
+fn test_leading_trailing_zeros_ones() {
+    let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    set_server_key(server_key);
+    test_case_leading_trailing_zeros_ones(&client_key);
 }

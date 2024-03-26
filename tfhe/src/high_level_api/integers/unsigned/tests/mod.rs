@@ -421,3 +421,48 @@ fn test_case_if_then_else(client_key: &ClientKey) {
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
 }
+
+fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..5 {
+        let clear_a = rng.gen::<u32>();
+        let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+        let leading_zeros: u32 = a.leading_zeros().decrypt(cks);
+        assert_eq!(leading_zeros, clear_a.leading_zeros());
+
+        let leading_ones: u32 = a.leading_ones().decrypt(cks);
+        assert_eq!(leading_ones, clear_a.leading_ones());
+
+        let trailing_zeros: u32 = a.trailing_zeros().decrypt(cks);
+        assert_eq!(trailing_zeros, clear_a.trailing_zeros());
+
+        let trailing_ones: u32 = a.trailing_ones().decrypt(cks);
+        assert_eq!(trailing_ones, clear_a.trailing_ones());
+    }
+}
+
+fn test_case_ilog2(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..5 {
+        let clear_a = rng.gen_range(1..=u32::MAX);
+        let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+        let ilog2: u32 = a.ilog2().decrypt(cks);
+        assert_eq!(ilog2, clear_a.ilog2());
+
+        let (ilog2, is_ok) = a.checked_ilog2();
+        let ilog2: u32 = ilog2.decrypt(cks);
+        let is_ok = is_ok.decrypt(cks);
+        assert!(is_ok);
+        assert_eq!(ilog2, clear_a.ilog2());
+    }
+
+    {
+        let a = FheUint32::try_encrypt(0u32, cks).unwrap();
+
+        let (_ilog2, is_ok) = a.checked_ilog2();
+        let is_ok = is_ok.decrypt(cks);
+        assert!(!is_ok);
+    }
+}
