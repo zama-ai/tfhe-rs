@@ -29,8 +29,7 @@ pub enum BitOpType {
 #[repr(u32)]
 enum PBSType {
     MultiBit = 0,
-    ClassicalLowLat = 1,
-    ClassicalAmortized = 2,
+    Classical = 1,
 }
 
 #[repr(u32)]
@@ -249,7 +248,7 @@ impl CudaStream {
             ks_level.0 as u32,
             0,
             num_blocks,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             self.device().get_max_shared_memory() as u32,
             true,
         );
@@ -272,7 +271,7 @@ impl CudaStream {
             ks_level.0 as u32,
             0,
             num_blocks,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             self.device().get_max_shared_memory() as u32,
         );
         cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
@@ -383,7 +382,7 @@ impl CudaStream {
             ks_level.0 as u32,
             0,
             num_blocks,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             self.device().get_max_shared_memory() as u32,
             true,
         );
@@ -406,7 +405,7 @@ impl CudaStream {
             ks_level.0 as u32,
             0,
             num_blocks,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             self.device().get_max_shared_memory() as u32,
         );
         cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
@@ -520,7 +519,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -577,7 +576,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -632,7 +631,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             BitOpType::Not as u32,
             true,
         );
@@ -807,7 +806,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -925,7 +924,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -984,7 +983,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -1102,7 +1101,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             op as u32,
             true,
         );
@@ -1218,7 +1217,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             true,
         );
         cuda_full_propagation_64_inplace(
@@ -1334,7 +1333,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             true,
         );
         cuda_propagate_single_carry_kb_64_inplace(
@@ -1442,7 +1441,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             ShiftType::Left as u32,
             true,
         );
@@ -1563,7 +1562,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             ShiftType::Right as u32,
             true,
         );
@@ -1684,7 +1683,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             ShiftType::Right as u32,
             true,
         );
@@ -1805,7 +1804,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             true,
         );
         cuda_cmux_integer_radix_ciphertext_kb_64(
@@ -1922,7 +1921,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             ShiftType::Left as u32,
             true,
         );
@@ -2037,7 +2036,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             ShiftType::Right as u32,
             true,
         );
@@ -2152,7 +2151,7 @@ impl CudaStream {
             num_radixes,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             true,
         );
         cuda_integer_radix_sum_ciphertexts_vec_kb_64(
@@ -2275,7 +2274,7 @@ impl CudaStream {
             num_blocks,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
-            PBSType::ClassicalLowLat as u32,
+            PBSType::Classical as u32,
             true,
         );
         cuda_integer_radix_overflowing_sub_kb_64(
