@@ -468,13 +468,13 @@ __host__ void host_integer_mult_radix_kb(
   for (int i = 0; i < num_blocks * num_blocks; i++) {
     size_t r_id = i / num_blocks;
     size_t b_id = i % num_blocks;
-    terms_degree[i] = (b_id >= r_id) ? 3 : 0;
+    terms_degree[i] = (b_id >= r_id) ? message_modulus - 1 : 0;
   }
   auto terms_degree_msb = &terms_degree[num_blocks * num_blocks];
   for (int i = 0; i < num_blocks * num_blocks; i++) {
     size_t r_id = i / num_blocks;
     size_t b_id = i % num_blocks;
-    terms_degree_msb[i] = (b_id > r_id) ? 2 : 0;
+    terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
   }
 
   host_integer_sum_ciphertexts_vec_kb<Torus, params>(
