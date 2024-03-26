@@ -882,7 +882,7 @@ OutputCont: ContainerMut<Element = Scalar>,
 OutputCont: Clone,
 AccCont: Container<Element = Scalar>,
 {
-    let mut result_sum = sq_sum.to_owned();
+    let mut result_sum = sq_sum.clone();
     for _ in 0..nb_mults
     {
         //let mul_cleartext = Scalar::ONE;
@@ -917,7 +917,9 @@ AccCont: Container<Element = Scalar>,
         //not needed can be done in pbs
         //lwe_ciphertext_cleartext_mul_assign(sq_subtraction, Cleartext(mul_cleartext));
     
-        lwe_ciphertext_add(&mut result_sum, &sq_sum, &sq_subtraction);
+        //lwe_ciphertext_add(&mut result_sum, &sq_sum, &sq_subtraction);
+        lwe_ciphertext_add_assign(&mut result_sum, &sq_sum);
+        lwe_ciphertext_add_assign(&mut result_sum, &sq_subtraction);
     }
     
     let mut result =result_sum.clone();

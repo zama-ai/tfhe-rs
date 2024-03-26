@@ -1115,7 +1115,7 @@ fn params_scenario_a_packing_1<Scalar: UnsignedInteger + Default + Serialize>(
                 }),
             ),
             (
-                "message_3_carry_3_parcking_1".to_string(),
+                "message_3_carry_3_packing_1".to_string(),
                 (CryptoParametersRecord {
                     packing_level: Some(DecompositionLevelCount(1)),
                     ks_level1: Some(DecompositionLevelCount(5)),
@@ -1159,6 +1159,93 @@ fn params_scenario_a_packing_1<Scalar: UnsignedInteger + Default + Serialize>(
     }
 }
 
+fn params_scenario_a_packing_2<Scalar: UnsignedInteger + Default + Serialize>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            (
+                "message_1_carry_1_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(3)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(663)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(23)),
+                    relin_base_log: Some(DecompositionBaseLog(23)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00003879148821333555)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_2_carry_2_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(2)),
+                    polynomial_size1: Some(PolynomialSize(1 << 10)),
+                    lwe_dimension1: Some(LweDimension(730)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(15)),
+                    relin_base_log: Some(DecompositionBaseLog(23)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000011278507355490732)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_3_carry_3_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(3)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(1)),
+                    polynomial_size1: Some(PolynomialSize(1 << 12)),
+                    lwe_dimension1: Some(LweDimension(847)),
+                    packing_base_log: Some(DecompositionBaseLog(28)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(11)),
+                    relin_base_log: Some(DecompositionBaseLog(20)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.0000013043826430106891)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_4_carry_4_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(2)),
+                    ks_level1: Some(DecompositionLevelCount(10)),
+                    pbs_level: Some(DecompositionLevelCount(7)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension1: Some(GlweDimension(1)),
+                    polynomial_size1: Some(PolynomialSize(1 << 14)),
+                    lwe_dimension1: Some(LweDimension(970)),
+                    packing_base_log: Some(DecompositionBaseLog(18)),
+                    ks_base_log1: Some(DecompositionBaseLog(2)),
+                    pbs_base_log: Some(DecompositionBaseLog(6)),
+                    relin_base_log: Some(DecompositionBaseLog(19)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00000013505634085553605)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+        ]
+    } else {
+        // For now there are no parameters available to test multi bit PBS on 32 bits.
+        vec![]
+    }
+}
+
 fn mult_circuit_clot21_scenario_a<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
@@ -1181,8 +1268,8 @@ where Standard: rand::distributions::Distribution<Scalar>
 
     let nb_mults = 2;
 
-    for (name, params) in params_scenario_a_packing_1::<Scalar>().iter() {
-    //for (name, params) in params_scenario_a_packing_2::<Scalar>().iter() {
+    //for (name, params) in params_scenario_a_packing_1::<Scalar>().iter() {
+    for (name, params) in params_scenario_a_packing_2::<Scalar>().iter() {
     //for (name, params) in params_scenario_a_packing_10::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1527,6 +1614,121 @@ fn params_scenario_c_packing_1<Scalar: UnsignedInteger + Default + Serialize>(
     }
 }
 
+fn params_scenario_c_packing_2<Scalar: UnsignedInteger + Default + Serialize>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            (
+                "message_1_carry_1_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(4)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(2)),
+                    glwe_dimension1: Some(GlweDimension(6)),
+                    polynomial_size1: Some(PolynomialSize(1 << 8)),
+                    lwe_dimension1: Some(LweDimension(1164)),
+                    glwe_dimension2: Some(GlweDimension(4)),
+                    polynomial_size2: Some(PolynomialSize(1<<9)),
+                    lwe_dimension2: Some (LweDimension(659)),
+                    packing_base_log: Some(DecompositionBaseLog(17)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(23)),
+                    relin_base_log: Some(DecompositionBaseLog(18)),
+                    ks_base_log2: Some(DecompositionBaseLog(9)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000000003776688696532587)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.00004176047073613937)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.000000000003966608917163306)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_2_carry_2_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(2)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1407)),
+                    glwe_dimension2: Some(GlweDimension(2)),
+                    polynomial_size2: Some(PolynomialSize(1<<10)),
+                    lwe_dimension2: Some (LweDimension(737)),
+                    packing_base_log: Some(DecompositionBaseLog(23)),
+                    ks_base_log1: Some(DecompositionBaseLog(3)),
+                    pbs_base_log: Some(DecompositionBaseLog(15)),
+                    relin_base_log: Some(DecompositionBaseLog(24)),
+                    ks_base_log2: Some(DecompositionBaseLog(11)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.00000000004279103905942998)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.000009912905701346641)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_3_carry_3_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(1)),
+                    ks_level1: Some(DecompositionLevelCount(8)),
+                    pbs_level: Some(DecompositionLevelCount(3)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(3)),
+                    glwe_dimension1: Some(GlweDimension(5)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1532)),
+                    glwe_dimension2: Some(GlweDimension(1)),
+                    polynomial_size2: Some(PolynomialSize(1<<12)),
+                    lwe_dimension2: Some (LweDimension(796)),
+                    packing_base_log: Some(DecompositionBaseLog(28)),
+                    ks_base_log1: Some(DecompositionBaseLog(2)),
+                    pbs_base_log: Some(DecompositionBaseLog(11)),
+                    relin_base_log: Some(DecompositionBaseLog(24)),
+                    ks_base_log2: Some(DecompositionBaseLog(9)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000000000004270201099166961)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.0000033402121303606967)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.0000000000000000002182838986391615)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_4_carry_4_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    packing_level: Some(DecompositionLevelCount(3)),
+                    ks_level1: Some(DecompositionLevelCount(18)),
+                    pbs_level: Some(DecompositionLevelCount(6)),
+                    relin_level: Some(DecompositionLevelCount(1)),
+                    ks_level2: Some(DecompositionLevelCount(8)),
+                    glwe_dimension1: Some(GlweDimension(4)),
+                    polynomial_size1: Some(PolynomialSize(1 << 9)),
+                    lwe_dimension1: Some(LweDimension(1534)),
+                    glwe_dimension2: Some(GlweDimension(1)),
+                    polynomial_size2: Some(PolynomialSize(1<<14)),
+                    lwe_dimension2: Some (LweDimension(871)),
+                    packing_base_log: Some(DecompositionBaseLog(12)),
+                    ks_base_log1: Some(DecompositionBaseLog(1)),
+                    pbs_base_log: Some(DecompositionBaseLog(6)),
+                    relin_base_log: Some(DecompositionBaseLog(24)),
+                    ks_base_log2: Some(DecompositionBaseLog(4)),
+                    lwe_modular_std_dev1: Some(StandardDev(0.000000000004115606608756009)),
+                    lwe_modular_std_dev2: Some(StandardDev(0.0000008379755483470793)),
+                    glwe_modular_std_dev1: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    glwe_modular_std_dev2: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+        ]
+    } else {
+        // For now there are no parameters available to test multi bit PBS on 32 bits.
+        vec![]
+    }
+}
+
 fn mult_circuit_clot21_scenario_c<
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u32> + CastFrom<usize> + Default + Serialize,
 >(
@@ -1549,8 +1751,8 @@ where Standard: rand::distributions::Distribution<Scalar>
 
     let nb_mults = 2;
 
-    for (name, params) in params_scenario_c_packing_1::<Scalar>().iter() {
-    //for (name, params) in params_scenario_c_packing_2::<Scalar>().iter() {
+    //for (name, params) in params_scenario_c_packing_1::<Scalar>().iter() {
+    for (name, params) in params_scenario_c_packing_2::<Scalar>().iter() {
     //for (name, params) in params_scenario_c_packing_10::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key1 = allocate_and_generate_new_binary_lwe_secret_key(
@@ -2413,6 +2615,77 @@ fn square_trick_benchmark_parameters_packing_1<Scalar: UnsignedInteger + Default
     }
 }
 
+fn square_trick_benchmark_parameters_packing_2<Scalar: UnsignedInteger + Default + Serialize>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            (
+                "message_1_carry_1_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    ks_level: Some(DecompositionLevelCount(3)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension: Some(GlweDimension(6)),
+                    polynomial_size: Some(PolynomialSize(1 << 8)),
+                    lwe_dimension: Some(LweDimension(667)),
+                    ks_base_log: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(18)),
+                    lwe_modular_std_dev: Some(StandardDev(0.000036033587056841296)),
+                    glwe_modular_std_dev: Some(StandardDev(0.000000000003966608917163306)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_2_carry_2_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    ks_level: Some(DecompositionLevelCount(3)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension: Some(GlweDimension(2)),
+                    polynomial_size: Some(PolynomialSize(1 << 10)),
+                    lwe_dimension: Some(LweDimension(784)),
+                    ks_base_log: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(23)),
+                    lwe_modular_std_dev: Some(StandardDev(0.000004167358679734916)),
+                    glwe_modular_std_dev: Some(StandardDev(0.00000000000000031529322391500584)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_3_carry_3_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    ks_level: Some(DecompositionLevelCount(4)),
+                    pbs_level: Some(DecompositionLevelCount(1)),
+                    glwe_dimension: Some(GlweDimension(1)),
+                    polynomial_size: Some(PolynomialSize(1 << 12)),
+                    lwe_dimension: Some(LweDimension(862)),
+                    ks_base_log: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(22)),
+                    lwe_modular_std_dev: Some(StandardDev(0.0000009892281597331368)),
+                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+            (
+                "message_4_carry_4_packing_2".to_string(),
+                (CryptoParametersRecord {
+                    ks_level: Some(DecompositionLevelCount(5)),
+                    pbs_level: Some(DecompositionLevelCount(2)),
+                    glwe_dimension: Some(GlweDimension(1)),
+                    polynomial_size: Some(PolynomialSize(1 << 14)),
+                    lwe_dimension: Some(LweDimension(982)),
+                    ks_base_log: Some(DecompositionBaseLog(4)),
+                    pbs_base_log: Some(DecompositionBaseLog(15)),
+                    lwe_modular_std_dev: Some(StandardDev(0.00000010825006021235635)),
+                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000000002168404344971009)), //actual value matters only for correctness not for benches
+                    ..Default::default()
+                }),
+            ),
+        ]
+    } else {
+        // For now there are no parameters available to test multi bit PBS on 32 bits.
+        vec![]
+    }
+}
+
 fn square_trick_circuit<Scalar: UnsignedTorus + CastInto<usize> + Default + Serialize>(
     c: &mut Criterion,
 ) 
@@ -2433,8 +2706,8 @@ where Standard: rand::distributions::Distribution<Scalar>
     let nb_mults = 2;
     //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    for (name, params) in square_trick_benchmark_parameters_packing_1::<Scalar>().iter() {
-    //for (name, params) in square_trick_benchmark_parameters_packing_2::<Scalar>().iter() {
+    //for (name, params) in square_trick_benchmark_parameters_packing_1::<Scalar>().iter() {
+    for (name, params) in square_trick_benchmark_parameters_packing_2::<Scalar>().iter() {
     //for (name, params) in square_trick_benchmark_parameters_packing_10::<Scalar>().iter() {
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension.unwrap(),
