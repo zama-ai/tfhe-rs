@@ -306,12 +306,12 @@ __host__ void host_integer_radix_equality_check_kb(
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_equality_check_kb(
     cuda_stream_t *stream, int_comparison_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
+    uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op, bool is_signed,
     bool allocate_gpu_memory) {
 
   cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_comparison_buffer<Torus>(
-      stream, op, params, num_radix_blocks, allocate_gpu_memory);
+      stream, op, params, num_radix_blocks, is_signed, allocate_gpu_memory);
 }
 
 template <typename Torus>
@@ -356,6 +356,17 @@ compare_radix_blocks_kb(cuda_stream_t *stream, Torus *lwe_array_out,
   host_integer_radix_add_scalar_one_inplace(stream, lwe_array_out,
                                             big_lwe_dimension, num_radix_blocks,
                                             message_modulus, carry_modulus);
+}
+
+template <typename Torus>
+__host__ void compare_radix_blocks_with_sign_bit_kb(
+    cuda_stream_t *stream, Torus *lwe_out, Torus *lwe_last_left,
+    Torus *lwe_last_right, int_comparison_buffer<Torus> *mem_ptr, void *bsk,
+    Torus *ksk) {
+
+  integer_radix_apply_bivariate_lookup_table_kb(stream, lwe_out, lwe_last_left,
+                                                lwe_last_right, bsk, ksk, 1,
+                                                mem_ptr->signed_lut);
 }
 
 // Reduces a vec containing shortint blocks that encrypts a sign
@@ -452,6 +463,7 @@ __host__ void host_integer_radix_difference_check_kb(
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
+  auto big_lwe_size = big_lwe_dimension + 1;
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
@@ -488,9 +500,23 @@ __host__ void host_integer_radix_difference_check_kb(
   // - 1 if lhs == rhs
   // - 2 if lhs > rhs
   auto comparisons = mem_ptr->tmp_block_comparisons;
-  compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
-                          num_radix_blocks);
+  if (mem_ptr->is_signed) {
+    compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
+                            num_radix_blocks - 1);
 
+    auto lhs_last_block = lhs + (num_radix_blocks - 1) * big_lwe_size;
+    auto rhs_last_block = rhs + (num_radix_blocks - 1) * big_lwe_size;
+    auto comparisons_last_block =
+        comparisons + (num_radix_blocks - 1) * big_lwe_size;
+
+    compare_radix_blocks_with_sign_bit_kb(stream, comparisons_last_block,
+                                          lhs_last_block, rhs_last_block,
+                                          mem_ptr, bsk, ksk);
+
+  } else {
+    compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
+                            num_radix_blocks);
+  }
   // Reduces a vec containing radix blocks that encrypts a sign
   // (inferior, equal, superior) to one single radix block containing the
   // final sign
@@ -499,7 +525,6 @@ __host__ void host_integer_radix_difference_check_kb(
                       ksk, num_radix_blocks);
 
   // The result will be in the first block. Everything else is garbage.
-  size_t big_lwe_size = big_lwe_dimension + 1;
   size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
   cuda_memset_async(lwe_array_out + big_lwe_size, 0,
                     (total_num_radix_blocks - 1) * big_lwe_size_bytes, stream);
@@ -509,10 +534,10 @@ template <typename Torus>
 __host__ void scratch_cuda_integer_radix_difference_check_kb(
     cuda_stream_t *stream, int_comparison_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
-    bool allocate_gpu_memory) {
+    bool is_signed, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_comparison_buffer<Torus>(
-      stream, op, params, num_radix_blocks, allocate_gpu_memory);
+      stream, op, params, num_radix_blocks, is_signed, allocate_gpu_memory);
 }
 
 template <typename Torus>

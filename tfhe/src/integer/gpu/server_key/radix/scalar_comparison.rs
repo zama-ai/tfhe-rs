@@ -84,7 +84,7 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
-                    scalar_blocks.len() as u32,
+                    scalar_blocks.len() as u32,false,
                     op,
                 );
             }
@@ -111,7 +111,7 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
-                    scalar_blocks.len() as u32,
+                    scalar_blocks.len() as u32,false,
                     op,
                 );
             }

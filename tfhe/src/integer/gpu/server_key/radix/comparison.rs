@@ -50,7 +50,7 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     op,
                 );
             }
@@ -76,7 +76,7 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     op,
                 );
             }
@@ -918,7 +918,7 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     ComparisonType::MAX,
                 );
             }
@@ -944,7 +944,7 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     ComparisonType::MAX,
                 );
             }
@@ -1009,7 +1009,7 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     ComparisonType::MIN,
                 );
             }
@@ -1035,7 +1035,7 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
-                    lwe_ciphertext_count.0 as u32,
+                    lwe_ciphertext_count.0 as u32,false,
                     ComparisonType::MIN,
                 );
             }

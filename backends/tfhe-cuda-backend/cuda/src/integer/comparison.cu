@@ -7,7 +7,7 @@ void scratch_cuda_integer_radix_comparison_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, COMPARISON_TYPE op_type,
-    bool allocate_gpu_memory) {
+    bool is_signed, bool allocate_gpu_memory) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
@@ -19,7 +19,7 @@ void scratch_cuda_integer_radix_comparison_kb_64(
   case NE:
     scratch_cuda_integer_radix_equality_check_kb<uint64_t>(
         stream, (int_comparison_buffer<uint64_t> **)mem_ptr,
-        lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
+        lwe_ciphertext_count, params, op_type, is_signed, allocate_gpu_memory);
     break;
   case GT:
   case GE:
@@ -29,7 +29,7 @@ void scratch_cuda_integer_radix_comparison_kb_64(
   case MIN:
     scratch_cuda_integer_radix_difference_check_kb<uint64_t>(
         stream, (int_comparison_buffer<uint64_t> **)mem_ptr,
-        lwe_ciphertext_count, params, op_type, allocate_gpu_memory);
+        lwe_ciphertext_count, params, op_type, is_signed, allocate_gpu_memory);
     break;
   }
 }

@@ -597,6 +597,7 @@ extern "C" {
         carry_modulus: u32,
         pbs_type: u32,
         op_type: u32,
+        is_signed: bool,
         allocate_gpu_memory: bool,
     );
 

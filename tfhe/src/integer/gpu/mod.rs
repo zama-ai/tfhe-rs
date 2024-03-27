@@ -906,6 +906,7 @@ impl CudaStream {
         pbs_level: DecompositionLevelCount,
         pbs_base_log: DecompositionBaseLog,
         num_blocks: u32,
+        is_signed: bool,
         op: ComparisonType,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -926,6 +927,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             op as u32,
+            is_signed,
             true,
         );
 
@@ -965,6 +967,7 @@ impl CudaStream {
         pbs_level: DecompositionLevelCount,
         pbs_base_log: DecompositionBaseLog,
         num_blocks: u32,
+            is_signed:bool,
         op: ComparisonType,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -985,6 +988,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             op as u32,
+            is_signed,
             true,
         );
         cuda_comparison_integer_radix_ciphertext_kb_64(
@@ -1024,6 +1028,7 @@ impl CudaStream {
         pbs_base_log: DecompositionBaseLog,
         pbs_grouping_factor: LweBskGroupingFactor,
         num_blocks: u32,
+            is_signed:bool,
         op: ComparisonType,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1044,6 +1049,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
             op as u32,
+            is_signed,
             true,
         );
         cuda_comparison_integer_radix_ciphertext_kb_64(
@@ -1083,6 +1089,7 @@ impl CudaStream {
         pbs_base_log: DecompositionBaseLog,
         num_blocks: u32,
         num_scalar_blocks: u32,
+            is_signed:bool,
         op: ComparisonType,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1103,6 +1110,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             op as u32,
+            is_signed,
             true,
         );
 
@@ -1148,6 +1156,7 @@ impl CudaStream {
         pbs_grouping_factor: LweBskGroupingFactor,
         num_blocks: u32,
         num_scalar_blocks: u32,
+            is_signed:bool,
         op: ComparisonType,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1167,7 +1176,7 @@ impl CudaStream {
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
-            op as u32,
+            op as u32,is_signed,
             true,
         );
         cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
