@@ -1,10 +1,14 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::CompressedRadixCiphertext;
+use crate::integer::ciphertext::{
+    CompressedModulusSwitchedRadixCiphertext,
+    CompressedRadixCiphertext as IntegerCompressedRadixCiphertext,
+};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 
@@ -67,9 +71,14 @@ where
     /// Decompress to a [FheUint]
     ///
     /// See [CompressedFheUint] example.
-    pub fn decompress(self) -> FheUint<Id> {
-        let inner: crate::integer::RadixCiphertext = self.ciphertext.into();
-        let mut ciphertext = FheUint::new(inner);
+    pub fn decompress(&self) -> FheUint<Id> {
+        let mut ciphertext = FheUint::new(match &self.ciphertext {
+            CompressedRadixCiphertext::Seeded(ct) => ct.into(),
+            CompressedRadixCiphertext::ModulusSwitched(ct) => {
+                with_cpu_internal_keys(|sk| sk.key.decompress_parallelized(ct))
+            }
+        });
+
         ciphertext.move_to_device_of_server_key_if_set();
         ciphertext
     }
@@ -87,7 +96,7 @@ where
             .key
             .key
             .encrypt_radix_compressed(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(inner))
+        Ok(Self::new(CompressedRadixCiphertext::Seeded(inner)))
     }
 }
 
@@ -102,14 +111,62 @@ impl<Id: FheUintId> Named for CompressedFheUint<Id> {
     const NAME: &'static str = "high_level_api::CompressedFheUint";
 }
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub enum CompressedRadixCiphertext {
+    Seeded(IntegerCompressedRadixCiphertext),
+    ModulusSwitched(CompressedModulusSwitchedRadixCiphertext),
+}
+
+impl ParameterSetConformant for CompressedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        match self {
+            Self::Seeded(ct) => ct.is_conformant(params),
+            Self::ModulusSwitched(ct) => ct.is_conformant(params),
+        }
+    }
+}
+
+impl<Id> FheUint<Id>
+where
+    Id: FheUintId,
+{
+    pub fn compress(self) -> CompressedFheUint<Id> {
+        CompressedFheUint::new(CompressedRadixCiphertext::ModulusSwitched(
+            with_cpu_internal_keys(|sk| {
+                sk.key
+                    .switch_modulus_and_compress_parallelized(&self.ciphertext.into_cpu())
+            }),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::core_crypto::prelude::UnsignedInteger;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    use crate::shortint::CiphertextModulus;
+    use crate::shortint::{CiphertextModulus, CompressedCiphertext};
     use crate::{generate_keys, set_server_key, CompressedFheUint8, ConfigBuilder};
     use rand::{thread_rng, Rng};
+
+    impl<Id> CompressedFheUint<Id>
+    where
+        Id: FheUintId,
+    {
+        fn blocks(&self) -> &Vec<CompressedCiphertext> {
+            match &self.ciphertext {
+                CompressedRadixCiphertext::Seeded(ciphertext) => &ciphertext.blocks,
+                CompressedRadixCiphertext::ModulusSwitched(_) => panic!(),
+            }
+        }
+        fn blocks_mut(&mut self) -> &mut Vec<CompressedCiphertext> {
+            match &mut self.ciphertext {
+                CompressedRadixCiphertext::Seeded(ciphertext) => &mut ciphertext.blocks,
+                CompressedRadixCiphertext::ModulusSwitched(_) => panic!(),
+            }
+        }
+    }
 
     type IndexedParameterAccessor<Ct, T> = dyn Fn(usize, &mut Ct) -> &mut T;
 
@@ -144,20 +201,16 @@ mod test {
 
         let breaker_lists = [
             change_parameters(&|i: usize, ct: &mut Ct| {
-                &mut ct.ciphertext.blocks[i].ct.get_mut_lwe_size().0
+                &mut ct.blocks_mut()[i].ct.get_mut_lwe_size().0
             }),
-            change_parameters(&|i: usize, ct: &mut Ct| {
-                &mut ct.ciphertext.blocks[i].message_modulus.0
-            }),
-            change_parameters(&|i: usize, ct: &mut Ct| {
-                &mut ct.ciphertext.blocks[i].carry_modulus.0
-            }),
-            change_parameters(&|i: usize, ct: &mut Ct| ct.ciphertext.blocks[i].degree.as_mut()),
+            change_parameters(&|i: usize, ct: &mut Ct| &mut ct.blocks_mut()[i].message_modulus.0),
+            change_parameters(&|i: usize, ct: &mut Ct| &mut ct.blocks_mut()[i].carry_modulus.0),
+            change_parameters(&|i: usize, ct: &mut Ct| ct.blocks_mut()[i].degree.as_mut()),
         ];
 
         for breaker_list in breaker_lists {
             for breaker in breaker_list {
-                for i in 0..ct.ciphertext.blocks.len() {
+                for i in 0..ct.blocks().len() {
                     let mut ct_clone = ct.clone();
 
                     breaker(i, &mut ct_clone);
@@ -174,24 +227,24 @@ mod test {
 
         let breakers2: Vec<&IndexedParameterModifier<'_, Ct>> = vec![
             &|i, ct: &mut Ct| {
-                *ct.ciphertext.blocks[i].ct.get_mut_ciphertext_modulus() =
+                *ct.blocks_mut()[i].ct.get_mut_ciphertext_modulus() =
                     CiphertextModulus::try_new_power_of_2(1).unwrap();
             },
             &|i, ct: &mut Ct| {
-                *ct.ciphertext.blocks[i].ct.get_mut_ciphertext_modulus() =
+                *ct.blocks_mut()[i].ct.get_mut_ciphertext_modulus() =
                     CiphertextModulus::try_new(3).unwrap();
             },
             &|_i, ct: &mut Ct| {
-                ct.ciphertext.blocks.pop();
+                ct.blocks_mut().pop();
             },
             &|i, ct: &mut Ct| {
-                let value = ct.ciphertext.blocks[i].clone();
-                ct.ciphertext.blocks.push(value);
+                let value = ct.blocks_mut()[i].clone();
+                ct.blocks_mut().push(value);
             },
         ];
 
         for breaker in breakers2 {
-            for i in 0..ct.ciphertext.blocks.len() {
+            for i in 0..ct.blocks().len() {
                 let mut ct_clone = ct.clone();
 
                 breaker(i, &mut ct_clone);
@@ -225,19 +278,15 @@ mod test {
 
         let mut rng = thread_rng();
 
-        let num_blocks = ct.ciphertext.blocks.len();
+        let num_blocks = ct.blocks().len();
 
         for _ in 0..10 {
             let mut ct_clone = ct.clone();
 
             for i in 0..num_blocks {
-                *ct_clone.ciphertext.blocks[i].ct.get_mut_data() = rng.gen::<u64>();
+                *ct_clone.blocks_mut()[i].ct.get_mut_data() = rng.gen::<u64>();
 
-                ct_clone.ciphertext.blocks[i]
-                    .ct
-                    .get_mut_compressed_seed()
-                    .seed
-                    .0 = rng.gen::<u128>();
+                ct_clone.blocks_mut()[i].ct.get_mut_compressed_seed().seed.0 = rng.gen::<u128>();
             }
             assert!(ct_clone.is_conformant(
                 &RadixCiphertextConformanceParams::from_pbs_parameters(

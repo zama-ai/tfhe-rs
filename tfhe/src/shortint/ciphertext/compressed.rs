@@ -34,7 +34,7 @@ impl ParameterSetConformant for CompressedCiphertext {
 }
 
 impl CompressedCiphertext {
-    pub fn decompress(self) -> Ciphertext {
+    pub fn decompress(&self) -> Ciphertext {
         let Self {
             ct,
             degree,
@@ -46,11 +46,11 @@ impl CompressedCiphertext {
 
         Ciphertext {
             ct: ct.decompress_into_lwe_ciphertext(),
-            degree,
-            message_modulus,
-            carry_modulus,
-            pbs_order,
-            noise_level,
+            degree: *degree,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            pbs_order: *pbs_order,
+            noise_level: *noise_level,
         }
     }
 
@@ -104,8 +104,8 @@ impl CompressedCiphertext {
     }
 }
 
-impl From<CompressedCiphertext> for Ciphertext {
-    fn from(value: CompressedCiphertext) -> Self {
+impl From<&CompressedCiphertext> for Ciphertext {
+    fn from(value: &CompressedCiphertext) -> Self {
         value.decompress()
     }
 }

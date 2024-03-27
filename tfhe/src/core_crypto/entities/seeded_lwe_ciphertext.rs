@@ -156,7 +156,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     /// [`LweCiphertext`].
     ///
     /// See [`SeededLweCiphertext::from_scalar`] for usage.
-    pub fn decompress_into_lwe_ciphertext(self) -> LweCiphertextOwned<Scalar>
+    pub fn decompress_into_lwe_ciphertext(&self) -> LweCiphertextOwned<Scalar>
     where
         Scalar: UnsignedTorus,
     {
@@ -164,7 +164,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
             LweCiphertext::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus());
         decompress_seeded_lwe_ciphertext::<_, _, ActivatedRandomGenerator>(
             &mut decompressed_ct,
-            &self,
+            self,
         );
         decompressed_ct
     }
