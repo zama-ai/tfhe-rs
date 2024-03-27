@@ -2,6 +2,8 @@
 // this is the pattern we use for the macros
 #![allow(clippy::redundant_closure_call)]
 use super::inner::RadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_stream;
@@ -68,21 +70,23 @@ where
                     )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => {
-                let mut iter = iter;
-                // TODO have a proper impl on cuda side
-                with_thread_local_cuda_stream(|stream| {
-                    let mut result = iter.next().unwrap().ciphertext.on_gpu().duplicate(stream);
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let cts = iter
+                    .map(|fhe_uint| fhe_uint.ciphertext.into_gpu())
+                    .collect::<Vec<_>>();
 
-                    for rhs in iter {
-                        cuda_key
-                            .key
-                            .add_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
-                    }
-
-                    Self::new(result)
-                })
-            }
+                let inner = cuda_key
+                    .key
+                    .sum_ciphertexts(cts, stream)
+                    .unwrap_or_else(|| {
+                        cuda_key.key.create_trivial_radix(
+                            0,
+                            Id::num_blocks(cuda_key.message_modulus()),
+                            stream,
+                        )
+                    });
+                Self::new(inner)
+            }),
         })
     }
 }
@@ -141,18 +145,35 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                let mut iter = iter;
-                // TODO have a proper impl on cuda side
                 with_thread_local_cuda_stream(|stream| {
-                    let mut result = iter.next().unwrap().ciphertext.on_gpu().duplicate(stream);
+                    let cts = iter
+                        .map(|fhe_uint| {
+                            match fhe_uint.ciphertext.on_gpu() {
+                                MaybeCloned::Borrowed(gpu_ct) => {
+                                    unsafe {
+                                        // SAFETY
+                                        // The gpu_ct is a ref, meaning it belongs to the thing
+                                        // that is being iterated on, so it will stay alive for the
+                                        // whole function
+                                        gpu_ct.duplicate_async(stream)
+                                    }
+                                }
+                                MaybeCloned::Cloned(gpu_ct) => gpu_ct,
+                            }
+                        })
+                        .collect::<Vec<_>>();
 
-                    for rhs in iter {
-                        cuda_key
-                            .key
-                            .add_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
-                    }
-
-                    Self::new(result)
+                    let inner = cuda_key
+                        .key
+                        .sum_ciphertexts(cts, stream)
+                        .unwrap_or_else(|| {
+                            cuda_key.key.create_trivial_radix(
+                                0,
+                                Id::num_blocks(cuda_key.message_modulus()),
+                                stream,
+                            )
+                        });
+                    Self::new(inner)
                 })
             }
         })

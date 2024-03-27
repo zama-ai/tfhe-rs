@@ -403,3 +403,9 @@ fn test_scalar_shift_when_clear_type_is_small() {
     a.rotate_left_assign(clear);
     a.rotate_right_assign(clear);
 }
+
+#[test]
+fn test_sum() {
+    let client_key = setup_default_cpu();
+    super::test_case_sum(&client_key);
+}

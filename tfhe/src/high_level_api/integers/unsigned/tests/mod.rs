@@ -1,7 +1,7 @@
 use crate::integer::U256;
 use crate::prelude::*;
 use crate::{ClientKey, FheUint256, FheUint32, FheUint64, FheUint8};
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
 mod cpu;
 #[cfg(feature = "gpu")]
@@ -420,4 +420,30 @@ fn test_case_if_then_else(client_key: &ClientKey) {
         decrypted_result,
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
+}
+
+fn test_case_sum(client_key: &ClientKey) {
+    let mut rng = thread_rng();
+
+    for _ in 0..5 {
+        let num_ct = rng.gen_range(5..=10);
+        let clears = (0..num_ct).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+
+        let expected_result = clears.iter().copied().sum::<u32>();
+
+        let ciphertext = clears
+            .iter()
+            .copied()
+            .map(|clear| FheUint32::encrypt(clear, client_key))
+            .collect::<Vec<_>>();
+
+        let sum: u32 = ciphertext.iter().sum::<FheUint32>().decrypt(client_key);
+        assert_eq!(sum, expected_result);
+
+        let sum: u32 = ciphertext
+            .into_iter()
+            .sum::<FheUint32>()
+            .decrypt(client_key);
+        assert_eq!(sum, expected_result);
+    }
 }

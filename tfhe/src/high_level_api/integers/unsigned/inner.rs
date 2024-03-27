@@ -132,6 +132,18 @@ impl RadixCiphertext {
         }
     }
 
+    #[cfg(feature = "gpu")]
+    pub(crate) fn into_gpu(self) -> crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext {
+        match self {
+            Self::Cpu(cpu_ct) => with_thread_local_cuda_stream(|stream| {
+                crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                    &cpu_ct, stream,
+                )
+            }),
+            Self::Cuda(ct) => ct,
+        }
+    }
+
     pub(crate) fn move_to_device(&mut self, device: Device) {
         match (&self, device) {
             (Self::Cpu(_), Device::Cpu) => {

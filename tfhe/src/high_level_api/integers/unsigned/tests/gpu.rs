@@ -97,3 +97,15 @@ fn test_if_then_else_gpu_multibit() {
     let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_if_then_else(&client_key);
 }
+
+#[test]
+fn test_sum_gpu() {
+    let client_key = setup_default_gpu();
+    super::test_case_sum(&client_key);
+}
+
+#[test]
+fn test_sum_gpu_multibit() {
+    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    super::test_case_sum(&client_key);
+}
