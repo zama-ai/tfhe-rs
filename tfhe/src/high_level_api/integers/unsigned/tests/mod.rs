@@ -1,7 +1,7 @@
 use crate::integer::U256;
 use crate::prelude::*;
 use crate::{ClientKey, FheUint256, FheUint32, FheUint64, FheUint8};
-use rand::Rng;
+use rand::{thread_rng, Rng};
 
 mod cpu;
 #[cfg(feature = "gpu")]
@@ -464,5 +464,31 @@ fn test_case_ilog2(cks: &ClientKey) {
         let (_ilog2, is_ok) = a.checked_ilog2();
         let is_ok = is_ok.decrypt(cks);
         assert!(!is_ok);
+    }
+}
+
+fn test_case_sum(client_key: &ClientKey) {
+    let mut rng = thread_rng();
+
+    for _ in 0..5 {
+        let num_ct = rng.gen_range(5..=10);
+        let clears = (0..num_ct).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+
+        let expected_result = clears.iter().copied().sum::<u32>();
+
+        let ciphertext = clears
+            .iter()
+            .copied()
+            .map(|clear| FheUint32::encrypt(clear, client_key))
+            .collect::<Vec<_>>();
+
+        let sum: u32 = ciphertext.iter().sum::<FheUint32>().decrypt(client_key);
+        assert_eq!(sum, expected_result);
+
+        let sum: u32 = ciphertext
+            .into_iter()
+            .sum::<FheUint32>()
+            .decrypt(client_key);
+        assert_eq!(sum, expected_result);
     }
 }

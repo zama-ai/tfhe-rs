@@ -157,6 +157,13 @@ pub struct CudaServerKey {
     pub(crate) key: Arc<crate::integer::gpu::CudaServerKey>,
 }
 
+#[cfg(feature = "gpu")]
+impl CudaServerKey {
+    pub(crate) fn message_modulus(&self) -> crate::shortint::MessageModulus {
+        self.key.message_modulus
+    }
+}
+
 pub enum InternalServerKey {
     Cpu(Arc<IntegerServerKey>),
     #[cfg(feature = "gpu")]
