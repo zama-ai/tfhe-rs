@@ -657,8 +657,8 @@ fn test_case_ilog2(cks: &ClientKey) {
         assert_eq!(ilog2, clear_a.ilog2());
     }
 
-    {
-        let a = FheInt32::try_encrypt(-1i32, cks).unwrap();
+    for _ in 0..5 {
+        let a = FheInt32::try_encrypt(rng.gen_range(i32::MIN..=0), cks).unwrap();
 
         let (_ilog2, is_ok) = a.checked_ilog2();
         let is_ok = is_ok.decrypt(cks);

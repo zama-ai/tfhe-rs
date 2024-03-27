@@ -544,20 +544,64 @@ macro_rules! impl_scalar_comparison_fn_on_type {
 pub(crate) use impl_scalar_comparison_fn_on_type;
 
 macro_rules! impl_unary_fn_on_type {
-    ($wrapper_type:ty => $($unary_fn_name:ident),* $(,)?) => {
+    (
+        input_type: $input_type:ty,
+        output_type: $output_type:ty,
+        unary_fn_names: $( $(#[$attr:meta])* $unary_fn_name:ident),*
+    ) => {
         $(
             ::paste::paste! {
+                $(#[$attr])*
                 #[no_mangle]
-                pub unsafe extern "C" fn [<$wrapper_type:snake _ $unary_fn_name>](
-                    lhs: *const $wrapper_type,
-                    result: *mut *mut $wrapper_type,
+                pub unsafe extern "C" fn [<$input_type:snake _ $unary_fn_name>](
+                    input: *const $input_type,
+                    result: *mut *mut $output_type,
                 ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
-                        let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                        let input = $crate::c_api::utils::get_ref_checked(input).unwrap();
 
-                        let inner = (&lhs.0).$unary_fn_name();
+                        let inner = (&input.0).$unary_fn_name();
 
-                        *result = Box::into_raw(Box::new($wrapper_type(inner)));
+                        *result = Box::into_raw(Box::new($output_type(inner)));
+                    })
+                }
+            }
+        )*
+    };
+    ($wrapper_type:ty => $( $(#[$attr:meta])* $unary_fn_name:ident),* $(,)?) => {
+        impl_unary_fn_on_type!(
+            input_type: $wrapper_type,
+            output_type: $wrapper_type,
+            unary_fn_names: $( $(#[$attr])* $unary_fn_name),*
+        );
+    };
+}
+
+pub(crate) use impl_unary_fn_on_type;
+
+macro_rules! impl_unary_fn_with_2_outputs_on_type {
+    (
+        input_type: $input_type:ty,
+        output_type_1: $output_type_1:ty,
+        output_type_2: $output_type_2:ty,
+        unary_fn_names: $( $(#[$attr:meta])* $unary_fn_name:ident),*
+    ) => {
+        $(
+            ::paste::paste! {
+                $(#[$attr])*
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$input_type:snake _ $unary_fn_name>](
+                    input: *const $input_type,
+                    result_1: *mut *mut $output_type_1,
+                    result_2: *mut *mut $output_type_2,
+                ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let input = $crate::c_api::utils::get_ref_checked(input).unwrap();
+
+                        let (inner_1, inner_2) = (&input.0).$unary_fn_name();
+
+                        *result_1 = Box::into_raw(Box::new($output_type_1(inner_1)));
+                        *result_2 = Box::into_raw(Box::new($output_type_2(inner_2)));
                     })
                 }
             }
@@ -565,7 +609,7 @@ macro_rules! impl_unary_fn_on_type {
     };
 }
 
-pub(crate) use impl_unary_fn_on_type;
+pub(crate) use impl_unary_fn_with_2_outputs_on_type;
 
 macro_rules! impl_binary_assign_fn_on_type {
     // More general binary fn case,
