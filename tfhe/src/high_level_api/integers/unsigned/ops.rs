@@ -400,7 +400,7 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .lt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        .lt(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -438,7 +438,7 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .le(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        .le(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -476,7 +476,7 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .gt(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        .gt(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -514,7 +514,7 @@ where
                 let inner_result =
                     cuda_key
                         .key
-                        .ge(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                        .ge(&*self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })

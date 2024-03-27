@@ -243,6 +243,7 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
         let decrypted_result: Scalar = cks.decrypt_bool(&encrypted_result).into();
 
         let expected_result = clear_fn(clear_0, clear_1);
+        println!("{:?} {:?} {:?} {:?}", clear_0, clear_1, expected_result, decrypted_result);
         assert_eq!(decrypted_result, expected_result);
     }
 }

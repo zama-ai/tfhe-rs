@@ -6,6 +6,7 @@ use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{ComparisonType, CudaServerKey};
+use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
     /// # Safety
@@ -37,7 +38,8 @@ impl CudaServerKey {
             CiphertextModulus::new_native(),
             stream,
         );
-        let block_info = ct_left.as_ref().info.blocks[0];
+        let mut block_info = ct_left.as_ref().info.blocks[0];
+        block_info.degree = Degree::new(1);
         let ct_info = vec![block_info];
         let ct_info = CudaRadixCiphertextInfo { blocks: ct_info };
 
@@ -47,55 +49,112 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_comparison_integer_radix_classic_kb_async(
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &ct_left.as_ref().d_blocks.0.d_vec,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    op,
-                );
+                if T::IS_SIGNED {
+                    stream.unchecked_comparison_integer_radix_classic_kb_async(
+                        &mut result.as_mut().d_blocks.0.d_vec,
+                        &ct_left.as_ref().d_blocks.0.d_vec,
+                        &ct_right.as_ref().d_blocks.0.d_vec,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        op,
+                        true,
+                    );
+                } else {
+                    stream.unchecked_comparison_integer_radix_classic_kb_async(
+                        &mut result.as_mut().d_blocks.0.d_vec,
+                        &ct_left.as_ref().d_blocks.0.d_vec,
+                        &ct_right.as_ref().d_blocks.0.d_vec,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        op,
+                        false,
+                    );
+                }
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_comparison_integer_radix_multibit_kb_async(
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &ct_left.as_ref().d_blocks.0.d_vec,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    lwe_ciphertext_count.0 as u32,
-                    op,
-                );
+                if T::IS_SIGNED {
+                    stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                        &mut result.as_mut().d_blocks.0.d_vec,
+                        &ct_left.as_ref().d_blocks.0.d_vec,
+                        &ct_right.as_ref().d_blocks.0.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        lwe_ciphertext_count.0 as u32,
+                        op,
+                        true,
+                    );
+                } else {
+                    stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                        &mut result.as_mut().d_blocks.0.d_vec,
+                        &ct_left.as_ref().d_blocks.0.d_vec,
+                        &ct_right.as_ref().d_blocks.0.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        lwe_ciphertext_count.0 as u32,
+                        op,
+                        false,
+                    );
+                }
             }
         }
 
@@ -277,12 +336,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -371,12 +430,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -442,12 +501,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_gt_async(
+    pub unsafe fn unchecked_gt_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::GT, stream)
     }
 
@@ -490,12 +552,15 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 > msg2));
     /// ```
-    pub fn unchecked_gt(
+    pub fn unchecked_gt<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.unchecked_gt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -505,12 +570,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_ge_async(
+    pub unsafe fn unchecked_ge_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::GE, stream)
     }
 
@@ -518,12 +586,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn gt_async(
+    pub unsafe fn gt_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -538,12 +609,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -555,12 +626,10 @@ impl CudaServerKey {
         self.unchecked_gt_async(lhs, rhs, stream)
     }
 
-    pub fn gt(
-        &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    pub fn gt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.gt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -607,12 +676,15 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
     /// ```
-    pub fn unchecked_ge(
+    pub fn unchecked_ge<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.unchecked_ge_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -622,12 +694,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn ge_async(
+    pub unsafe fn ge_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -642,12 +717,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -659,12 +734,10 @@ impl CudaServerKey {
         self.unchecked_ge_async(lhs, rhs, stream)
     }
 
-    pub fn ge(
-        &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    pub fn ge<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.ge_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -674,12 +747,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_lt_async(
+    pub unsafe fn unchecked_lt_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::LT, stream)
     }
 
@@ -724,12 +800,15 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_lt(
+    pub fn unchecked_lt<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.unchecked_lt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -739,12 +818,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn lt_async(
+    pub unsafe fn lt_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -759,12 +841,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -776,12 +858,10 @@ impl CudaServerKey {
         self.unchecked_lt_async(lhs, rhs, stream)
     }
 
-    pub fn lt(
-        &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    pub fn lt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.lt_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -791,12 +871,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_le_async(
+    pub unsafe fn unchecked_le_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         self.unchecked_comparison_async(ct_left, ct_right, ComparisonType::LE, stream)
     }
 
@@ -841,12 +924,15 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_le(
+    pub fn unchecked_le<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.unchecked_le_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -856,12 +942,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn le_async(
+    pub unsafe fn le_async<T>(
         &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
+        ct_left: &T,
+        ct_right: &T,
         stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    ) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -876,12 +965,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -893,12 +982,10 @@ impl CudaServerKey {
         self.unchecked_le_async(lhs, rhs, stream)
     }
 
-    pub fn le(
-        &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        ct_right: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
-    ) -> CudaBooleanBlock {
+    pub fn le<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let result = unsafe { self.le_async(ct_left, ct_right, stream) };
         stream.synchronize();
         result
@@ -951,6 +1038,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MAX,
+                    false,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -977,6 +1065,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MAX,
+                    false,
                 );
             }
         }
@@ -1042,6 +1131,7 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MIN,
+                    false,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1068,6 +1158,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MIN,
+                    false,
                 );
             }
         }
@@ -1110,12 +1201,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
@@ -1161,12 +1252,12 @@ impl CudaServerKey {
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);
                 (&tmp_lhs, ct_right)
             }
             (false, false) => {
-                tmp_lhs = ct_right.duplicate_async(stream);
+                tmp_lhs = ct_left.duplicate_async(stream);
                 tmp_rhs = ct_right.duplicate_async(stream);
 
                 self.full_propagate_assign_async(&mut tmp_lhs, stream);

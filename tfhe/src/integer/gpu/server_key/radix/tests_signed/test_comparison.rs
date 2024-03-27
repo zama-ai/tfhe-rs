@@ -18,8 +18,6 @@ use crate::shortint::parameters::*;
 macro_rules! define_gpu_signed_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            // Fist we "specialialize" the test_signed fns
-
             fn [<integer_signed_unchecked_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<PBSParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<unchecked_ $comparison_name>]);
@@ -62,3 +60,7 @@ macro_rules! define_gpu_signed_comparison_test_functions {
 
 define_gpu_signed_comparison_test_functions!(eq, i128);
 define_gpu_signed_comparison_test_functions!(ne, i128);
+define_gpu_signed_comparison_test_functions!(lt, i128);
+define_gpu_signed_comparison_test_functions!(le, i128);
+define_gpu_signed_comparison_test_functions!(gt, i128);
+define_gpu_signed_comparison_test_functions!(ge, i128);

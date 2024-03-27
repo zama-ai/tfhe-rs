@@ -771,10 +771,6 @@ mod coverage {
     use super::*;
     use crate::integer::tests::create_parametrized_test_classical_params;
 
-    //=============================================================
-    // Signed comparison tests
-    //=============================================================
-
     fn integer_signed_unchecked_min_parallelized_8_bits(
         params: crate::shortint::ClassicPBSParameters,
     ) {

@@ -117,7 +117,7 @@ void scratch_cuda_integer_radix_comparison_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, COMPARISON_TYPE op_type,
-    bool allocate_gpu_memory);
+    bool is_signed, bool allocate_gpu_memory);
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_array_1,
@@ -1438,6 +1438,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
 
+  Torus *tmp_out;
+
   // This map store LUTs that checks the equality between some input and values
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
@@ -1459,6 +1461,9 @@ template <typename Torus> struct int_are_all_block_true_buffer {
       int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
       tmp_block_accumulated = (Torus *)cuda_malloc_async(
           (params.big_lwe_dimension + 1) * max_chunks * sizeof(Torus), stream);
+      tmp_out = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
+                                               num_radix_blocks * sizeof(Torus),
+                                           stream);
     }
   }
 
@@ -1469,6 +1474,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     is_equal_to_lut_map.clear();
 
     cuda_drop_async(tmp_block_accumulated, stream);
+    cuda_drop_async(tmp_out, stream);
   }
 };
 
@@ -1702,15 +1708,20 @@ template <typename Torus> struct int_comparison_buffer {
   // Max Min
   int_cmux_buffer<Torus> *cmux_buffer;
 
+  // Signed LUT
+  int_radix_lut<Torus> *signed_lut;
+  bool is_signed;
+
   // Used for scalar comparisons
   cuda_stream_t *lsb_stream;
   cuda_stream_t *msb_stream;
 
   int_comparison_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
-                        bool allocate_gpu_memory) {
+                        bool is_signed, bool allocate_gpu_memory) {
     this->params = params;
     this->op = op;
+    this->is_signed = is_signed;
 
     cleaning_lut_f = [](Torus x) -> Torus { return x; };
 
@@ -1777,6 +1788,47 @@ template <typename Torus> struct int_comparison_buffer {
             stream, op, params, num_radix_blocks, allocate_gpu_memory);
         break;
       }
+
+      if (is_signed) {
+        signed_lut = new int_radix_lut<Torus>(
+            stream, params, 1, num_radix_blocks, allocate_gpu_memory);
+
+        auto message_modulus = (int)params.message_modulus;
+        size_t sign_bit_pos = log2(message_modulus) - 1;
+        std::function<Torus(Torus, Torus)> signed_lut_f;
+        signed_lut_f = [sign_bit_pos](Torus x, Torus y) -> Torus {
+          auto x_sign_bit = x >> sign_bit_pos;
+          auto y_sign_bit = y >> sign_bit_pos;
+
+          // The block that has its sign bit set is going
+          // to be ordered as 'greater' by the cmp fn.
+          // However, we are dealing with signed number,
+          // so in reality, it is the smaller of the two.
+          // i.e the cmp result is reversed
+          if (x_sign_bit == y_sign_bit) {
+            // Both have either sign bit set or unset,
+            // cmp will give correct result
+            if (x < y)
+              return (Torus)(IS_INFERIOR);
+            else if (x == y)
+              return (Torus)(IS_EQUAL);
+            else if (x > y)
+              return (Torus)(IS_SUPERIOR);
+          } else {
+            if (x < y)
+              return (Torus)(IS_SUPERIOR);
+            else if (x == y)
+              return (Torus)(IS_EQUAL);
+            else if (x > y)
+              return (Torus)(IS_INFERIOR);
+          }
+        };
+
+        generate_device_accumulator_bivariate<Torus>(
+            stream, signed_lut->lut, params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, signed_lut_f);
+      }
     }
   }
 
@@ -1802,6 +1854,9 @@ template <typename Torus> struct int_comparison_buffer {
     cuda_drop_async(tmp_block_comparisons, stream);
     cuda_drop_async(tmp_packed_input, stream);
 
+    if (is_signed) {
+      signed_lut->release(stream);
+    }
     cuda_destroy_stream(lsb_stream);
     cuda_destroy_stream(msb_stream);
   }

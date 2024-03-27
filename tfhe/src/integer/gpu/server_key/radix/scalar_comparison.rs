@@ -9,6 +9,7 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRa
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::ComparisonType;
 use crate::integer::server_key::comparator::Comparator;
+use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
     /// # Safety
@@ -70,7 +71,8 @@ impl CudaServerKey {
             CiphertextModulus::new_native(),
             stream,
         );
-        let block_info = ct.as_ref().info.blocks[0];
+        let mut block_info = ct.as_ref().info.blocks[0];
+        block_info.degree = Degree::new(1);
         let ct_info = vec![block_info];
         let ct_info = CudaRadixCiphertextInfo { blocks: ct_info };
 
