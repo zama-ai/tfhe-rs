@@ -135,6 +135,34 @@ macro_rules! impl_operations_for_integer_type {
         );
 
         impl_unary_fn_on_type!($name => neg, not);
+        impl_unary_fn_on_type!(
+            input_type: $name,
+            output_type: $crate::c_api::high_level_api::integers::FheUint32,
+            unary_fn_names:
+                /// Returns the number of leading zeros in the binary representation of input.
+                leading_zeros,
+                /// Returns the number of leading ones in the binary representation of input.
+                leading_ones,
+                /// Returns the number of trailing zeros in the binary representation of input.
+                trailing_zeros,
+                /// Returns the number of trailing ones in the binary representation of input.
+                trailing_ones,
+                /// Returns the base 2 logarithm of the number, rounded down.
+                ///
+                /// Result has no meaning if self encrypts a value that is <= 0.
+                /// See `checked_ilog2`
+                ilog2
+        );
+        impl_unary_fn_with_2_outputs_on_type!(
+            input_type: $name,
+            output_type_1: $crate::c_api::high_level_api::integers::FheUint32,
+            output_type_2: $crate::c_api::high_level_api::booleans::FheBool,
+            unary_fn_names:
+                /// Returns the base 2 logarithm of the number, rounded down.
+                ///
+                /// Also returns a boolean flag that is true if the result is valid (i.e input was > 0)
+                checked_ilog2
+        );
 
         // Implement sum of many ciphertexts
         ::paste::paste! {
