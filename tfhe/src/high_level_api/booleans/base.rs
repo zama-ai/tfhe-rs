@@ -327,8 +327,8 @@ impl FheEq<bool> for FheBool {
                 let inner =
                     cuda_key
                         .key
-                        .scalar_eq(&self.ciphertext.on_gpu(), u8::from(other), stream);
-                InnerBoolean::Cuda(inner)
+                        .scalar_eq(&*self.ciphertext.on_gpu(), u8::from(other), stream);
+                InnerBoolean::Cuda(inner.to_cuda_unsigned_radix_ciphertext())
             }),
         });
         Self::new(ciphertext)
@@ -366,8 +366,8 @@ impl FheEq<bool> for FheBool {
                 let inner =
                     cuda_key
                         .key
-                        .scalar_ne(&self.ciphertext.on_gpu(), u8::from(other), stream);
-                InnerBoolean::Cuda(inner)
+                        .scalar_ne(&*self.ciphertext.on_gpu(), u8::from(other), stream);
+                InnerBoolean::Cuda(inner.to_cuda_unsigned_radix_ciphertext())
             }),
         });
         Self::new(ciphertext)

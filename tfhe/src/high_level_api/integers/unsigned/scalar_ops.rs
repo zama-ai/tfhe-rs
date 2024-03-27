@@ -57,9 +57,12 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support equality with clear");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_eq(&*self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
+            }),
         })
     }
 
@@ -91,9 +94,12 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("cuda devices do not support difference with clear")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_ne(&*self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
+            }),
         })
     }
 }
@@ -135,7 +141,7 @@ where
                 let inner_result = cuda_key
                     .key
                     .scalar_lt(&self.ciphertext.on_gpu(), rhs, stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -172,7 +178,7 @@ where
                 let inner_result = cuda_key
                     .key
                     .scalar_le(&self.ciphertext.on_gpu(), rhs, stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -209,7 +215,7 @@ where
                 let inner_result = cuda_key
                     .key
                     .scalar_gt(&self.ciphertext.on_gpu(), rhs, stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }
@@ -246,7 +252,7 @@ where
                 let inner_result = cuda_key
                     .key
                     .scalar_ge(&self.ciphertext.on_gpu(), rhs, stream);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
     }

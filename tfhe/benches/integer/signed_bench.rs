@@ -1579,6 +1579,18 @@ mod cuda {
         rng_func: shift_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_eq,
+        display_name: eq,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_ne,
+        display_name: ne,
+        rng_func: default_signed_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -1681,6 +1693,18 @@ mod cuda {
         rng_func: shift_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_eq,
+        display_name: eq,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_ne,
+        display_name: ne,
+        rng_func: default_signed_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -1705,6 +1729,8 @@ mod cuda {
         cuda_unchecked_scalar_bitxor,
         cuda_unchecked_scalar_left_shift,
         cuda_unchecked_scalar_right_shift,
+        cuda_unchecked_scalar_eq,
+        cuda_unchecked_scalar_ne,
     );
 
     criterion_group!(
@@ -1731,6 +1757,8 @@ mod cuda {
         cuda_scalar_bitxor,
         cuda_scalar_left_shift,
         cuda_scalar_right_shift,
+        cuda_scalar_eq,
+        cuda_scalar_ne,
     );
 }
 
