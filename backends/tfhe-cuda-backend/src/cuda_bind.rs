@@ -516,13 +516,40 @@ extern "C" {
         carry_modulus: u32,
     );
 
-    pub fn cuda_small_scalar_multiplication_integer_radix_ciphertext_64_inplace(
+    pub fn scratch_cuda_integer_scalar_mul_kb_64(
+        v_stream: *const c_void,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         v_stream: *const c_void,
         lwe_array: *mut c_void,
-        scalar_input: u64,
+        decomposed_scalar: *const u64,
+        has_at_least_one_set: *const u64,
+        mem: *mut i8,
+        bsk: *const c_void,
+        ksk: *const c_void,
         lwe_dimension: u32,
-        lwe_ciphertext_count: u32,
+        polynomial_size: u32,
+        message_modulus: u32,
+        num_blocks: u32,
+        num_scalars: u32,
     );
+
+    pub fn cleanup_cuda_integer_radix_scalar_mul(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
     pub fn scratch_cuda_integer_radix_bitop_kb_64(
         v_stream: *const c_void,

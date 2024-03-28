@@ -24,8 +24,6 @@ mod ilog2;
 #[cfg(test)]
 pub(crate) mod tests_cases_comparisons;
 #[cfg(test)]
-pub(crate) mod tests_cases_signed;
-#[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]
 pub(crate) mod tests_signed;

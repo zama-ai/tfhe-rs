@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::CudaStream;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
-use itertools::Itertools;
+use crate::prelude::CastInto;
 
 impl CudaServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
@@ -45,7 +45,7 @@ impl CudaServerKey {
     /// ```
     pub fn unchecked_scalar_add<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
@@ -63,23 +63,19 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar != Scalar::ZERO {
             let bits_in_message = self.message_modulus.0.ilog2();
-            let decomposer =
-                BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
-
             let mut d_decomposed_scalar =
                 CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream);
-            let scalar64 = decomposer
-                .collect_vec()
-                .iter()
-                .map(|&x| x as u64)
-                .take(d_decomposed_scalar.len())
-                .collect_vec();
-            d_decomposed_scalar.copy_from_cpu_async(scalar64.as_slice(), stream);
+            let decomposed_scalar =
+                BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+                    .iter_as::<u64>()
+                    .take(d_decomposed_scalar.len())
+                    .collect::<Vec<_>>();
+            d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), stream);
 
             let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
             // If the scalar is decomposed using less than the number of blocks our ciphertext
@@ -88,7 +84,7 @@ impl CudaServerKey {
                 &mut ct.as_mut().d_blocks.0.d_vec,
                 &d_decomposed_scalar,
                 lwe_dimension,
-                scalar64.len() as u32,
+                decomposed_scalar.len() as u32,
                 self.message_modulus.0 as u32,
                 self.carry_modulus.0 as u32,
             );
@@ -103,7 +99,7 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
@@ -151,7 +147,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_add<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
@@ -169,7 +165,7 @@ impl CudaServerKey {
         scalar: Scalar,
         stream: &CudaStream,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -182,7 +178,7 @@ impl CudaServerKey {
 
     pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStream)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {

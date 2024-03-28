@@ -187,17 +187,17 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
-    pub(crate) fn after_small_scalar_mul(&self, scalar: u8) -> Self {
+    pub(crate) fn after_scalar_mul(&self) -> Self {
         Self {
             blocks: self
                 .blocks
                 .iter()
-                .map(|left| CudaBlockInfo {
-                    degree: Degree::new(left.degree.get() * scalar as usize),
-                    message_modulus: left.message_modulus,
-                    carry_modulus: left.carry_modulus,
-                    pbs_order: left.pbs_order,
-                    noise_level: left.noise_level,
+                .map(|info| CudaBlockInfo {
+                    degree: Degree::new(info.message_modulus.0 - 1),
+                    message_modulus: info.message_modulus,
+                    carry_modulus: info.carry_modulus,
+                    pbs_order: info.pbs_order,
+                    noise_level: info.noise_level + NoiseLevel::NOMINAL,
                 })
                 .collect(),
         }
