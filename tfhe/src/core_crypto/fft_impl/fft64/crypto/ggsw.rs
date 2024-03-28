@@ -598,7 +598,7 @@ pub fn add_external_product_assign<Scalar>(
 }
 
 #[cfg_attr(__profiling, inline(never))]
-fn collect_next_term<'a, Scalar: UnsignedTorus>(
+pub(crate) fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
     align: usize,
