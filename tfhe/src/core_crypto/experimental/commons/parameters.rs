@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+/// The number of elements in a partial GLWE secret key that are drawn from the random distribution.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct PartialGlweSecretKeyRandomCoefCount(pub usize);
+
 /// The number of elements in an LWE secret key shared with another key.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct LweSecretKeySharedCoefCount(pub usize);
