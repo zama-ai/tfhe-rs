@@ -1,21 +1,16 @@
-# Debugging FHE Code
+# Debug
 
-Since tfhe-rs 0.5, [trivial ciphertexts](./trivial_ciphertext.md) have another application.
-They can be used to allow debugging via a debugger or print statements as well as speeding-up execution time
-so that you won't have to spend minutes waiting for execution to progress.
+Since tfhe-rs 0.5, [trivial ciphertexts](../fundamentals/trivial\_ciphertext.md) have another application. They can be used to allow debugging via a debugger or print statements as well as speeding-up execution time so that you won't have to spend minutes waiting for execution to progress.
 
 This can greatly improve the pace at which one develops FHE applications.
 
 {% hint style="warning" %}
-Keep in mind that trivial ciphertexts are not secure at all, thus an application released/deployed in production
-must never receive trivial ciphertext from a client.
+Keep in mind that trivial ciphertexts are not secure at all, thus an application released/deployed in production must never receive trivial ciphertext from a client.
 {% endhint %}
-
 
 ## Example
 
-To use this feature, simply call your circuits/functions with trivially encrypted values (made using `encrypt_trivial`)
-instead of real encryptions (made using `encrypt`)
+To use this feature, simply call your circuits/functions with trivially encrypted values (made using `encrypt_trivial`) instead of real encryptions (made using `encrypt`)
 
 ```rust
 use tfhe::prelude::*;
@@ -55,18 +50,17 @@ fn main() {
 ```
 
 This example is going to print.
-```text
+
+```console
 a: Ok(1234), b: Ok(4567), c: Ok(89101112)
 a * b = Ok(5635678)
 ```
 
-If any input to `mul_all` is not a trivial ciphertexts, the computations would be done 100% in FHE, and the program
-would output:
+If any input to `mul_all` is not a trivial ciphertexts, the computations would be done 100% in FHE, and the program would output:
 
-```text
+```console
 a: Err(NotTrivialCiphertextError), b: Err(NotTrivialCiphertextError), c: Err(NotTrivialCiphertextError)
 a * b = Err(NotTrivialCiphertextError)
 ```
 
-Using trivial encryptions as input, the example runs in **980 ms** on a standard 12 cores laptop, using real encryptions
-it would run in **7.5 seconds** on a 128-core machine.
+Using trivial encryptions as input, the example runs in **980 ms** on a standard 12 cores laptop, using real encryptions it would run in **7.5 seconds** on a 128-core machine.

@@ -173,12 +173,12 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 <br></br>
 
 ### Tutorials
-- [Homomorphic Parity Bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
-- [Homomorphic Case Changing on Ascii String](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
+- [[Video tutorial] Implement signed integers using TFHE-rs ](https://www.zama.ai/post/video-tutorial-implement-signed-integers-ssing-tfhe-rs)
+- [Homomorphic parity bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
+- [Homomorphic case changing on Ascii string](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
 - [Boolean SHA256 with TFHE-rs](https://www.zama.ai/post/boolean-sha256-tfhe-rs)
-- [Dark Market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
-- [Regular Expression Engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
-
+- [Dark market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
+- [Regular expression engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
 
 *Explore more useful resources in [TFHE-rs tutorials](https://docs.zama.ai/tfhe-rs/tutorials) and [Awesome Zama repo](https://github.com/zama-ai/awesome-zama)*
 <br></br>

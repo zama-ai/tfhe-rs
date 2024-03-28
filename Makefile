@@ -582,7 +582,8 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,pbs-stats \
+		-p $(TFHE_SPEC) \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
@@ -651,12 +652,16 @@ lint_docs: lint_doc
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
-	cargo xtask format_latex_doc
+	RUSTFLAGS="" cargo xtask format_latex_doc
 	@"$(MAKE)" --no-print-directory fmt
 	@printf "\n===============================\n\n"
 	@printf "Please manually inspect changes made by format_latex_doc, rustfmt can break equations \
 	if the line length is exceeded\n"
 	@printf "\n===============================\n"
+
+.PHONY: check_md_docs_are_tested # Checks that the rust codeblocks in our .md files are tested
+check_md_docs_are_tested:
+	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
@@ -918,13 +923,15 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
+pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested clippy_all \
+check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests
+fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested clippy_fast \
+check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt

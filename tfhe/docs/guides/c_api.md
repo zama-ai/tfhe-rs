@@ -13,7 +13,7 @@ RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_6
 or on a Unix aarch64 machine using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build +nightly --release --features=aarch64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=aarch64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
 ```
 
 The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/".
