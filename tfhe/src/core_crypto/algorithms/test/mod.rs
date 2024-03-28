@@ -1,11 +1,11 @@
 pub mod params;
 pub(crate) use params::*;
 
-pub use super::misc::check_encrypted_content_respects_mod;
-use crate::core_crypto::algorithms::misc::divide_round;
-use crate::core_crypto::keycache::KeyCacheAccess;
-use crate::core_crypto::prelude::*;
-use std::fmt::Debug;
+pub(crate) use super::misc::check_encrypted_content_respects_mod;
+pub(crate) use crate::core_crypto::algorithms::misc::divide_round;
+pub(crate) use crate::core_crypto::keycache::KeyCacheAccess;
+pub(crate) use crate::core_crypto::prelude::*;
+pub(crate) use std::fmt::Debug;
 
 mod ggsw_encryption;
 mod glwe_encryption;
