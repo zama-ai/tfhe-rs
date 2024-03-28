@@ -2,6 +2,7 @@
 
 pub(crate) mod mask_random_generator;
 pub(crate) mod noise_random_generator;
+#[cfg(not(tarpaulin))]
 #[cfg(test)]
 mod test;
 

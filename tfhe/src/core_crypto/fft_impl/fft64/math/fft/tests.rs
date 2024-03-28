@@ -99,7 +99,12 @@ fn test_product<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
     // SIMD versions need size >= 32 in case of AVX512
     for size_log in 5..=14 {
-        for _ in 0..100 {
+        #[cfg(not(tarpaulin))]
+        let nb_tests = 100;
+        #[cfg(tarpaulin)]
+        let nb_tests = 1;
+
+        for _ in 0..nb_tests {
             let size = 1_usize << size_log;
 
             let fft = Fft::new(PolynomialSize(size));

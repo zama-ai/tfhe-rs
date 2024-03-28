@@ -258,7 +258,8 @@ implement!(u64, i64, 64);
 implement!(u128, i128, 128);
 implement!(usize, isize, usize::BITS as usize);
 
-#[cfg(test)]
+// In coverage mode these tests are slow and have 0 impact on the covered lines.
+#[cfg(all(test, not(feature = "__coverage")))]
 mod test {
     use super::*;
 

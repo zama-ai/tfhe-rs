@@ -79,7 +79,12 @@ fn test_product<Scalar: UnsignedTorus>() {
 
     let mut generator = new_random_generator();
     for size_log in 6..=14 {
-        for _ in 0..10 {
+        #[cfg(not(tarpaulin))]
+        let nb_tests = 10;
+        #[cfg(tarpaulin)]
+        let nb_tests = 1;
+
+        for _ in 0..nb_tests {
             let size = 1_usize << size_log;
             let fourier_size = PolynomialSize(size).to_fourier_polynomial_size().0;
 
