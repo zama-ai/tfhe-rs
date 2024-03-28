@@ -170,9 +170,9 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.if_then_else(
-                    &self.ciphertext.on_gpu(),
-                    &ct_then.ciphertext.on_gpu(),
-                    &ct_else.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
+                    &*ct_then.ciphertext.on_gpu(),
+                    &*ct_else.ciphertext.on_gpu(),
                     stream,
                 );
 

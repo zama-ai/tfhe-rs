@@ -60,12 +60,12 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(0, dec);
     /// ```
-    pub fn create_trivial_zero_radix(
+    pub fn create_trivial_zero_radix<T: CudaIntegerRadixCiphertext>(
         &self,
         num_blocks: usize,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
-        self.create_trivial_radix(0, num_blocks, stream)
+    ) -> T {
+        T::from(self.create_trivial_radix(0, num_blocks, stream).ciphertext)
     }
 
     /// Create a trivial ciphertext on the GPU
