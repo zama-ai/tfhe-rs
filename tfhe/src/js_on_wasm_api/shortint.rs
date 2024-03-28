@@ -431,7 +431,7 @@ impl Shortint {
         compressed_ciphertext: &ShortintCompressedCiphertext,
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
-        ShortintCiphertext(compressed_ciphertext.0.clone().into())
+        ShortintCiphertext(compressed_ciphertext.0.decompress())
     }
 
     #[wasm_bindgen]

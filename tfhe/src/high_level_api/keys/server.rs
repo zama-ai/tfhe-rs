@@ -145,12 +145,6 @@ impl CompressedServerKey {
     }
 }
 
-impl From<CompressedServerKey> for ServerKey {
-    fn from(value: CompressedServerKey) -> Self {
-        value.decompress()
-    }
-}
-
 #[cfg(feature = "gpu")]
 #[derive(Clone)]
 pub struct CudaServerKey {

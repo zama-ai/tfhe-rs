@@ -99,10 +99,10 @@ impl PublicKey {
     }
 }
 
-impl From<CompressedPublicKey> for PublicKey {
-    fn from(value: CompressedPublicKey) -> Self {
-        Self {
-            key: value.key.into(),
+impl CompressedPublicKey {
+    pub fn decompress(&self) -> PublicKey {
+        PublicKey {
+            key: self.key.decompress(),
         }
     }
 }
@@ -122,7 +122,7 @@ mod tests {
         let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
         let compressed_pk = crate::integer::CompressedPublicKey::new(&cks);
-        let pk = crate::integer::PublicKey::from(compressed_pk);
+        let pk = compressed_pk.decompress();
 
         let a = pk.encrypt_radix(255u64, 4);
         let b = pk.encrypt_radix(1u64, 4);

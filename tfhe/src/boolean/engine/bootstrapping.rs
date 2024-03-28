@@ -600,9 +600,3 @@ impl ServerKey {
         output
     }
 }
-
-impl From<CompressedServerKey> for ServerKey {
-    fn from(compressed_server_key: CompressedServerKey) -> Self {
-        compressed_server_key.decompress()
-    }
-}

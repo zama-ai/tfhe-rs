@@ -1,6 +1,5 @@
 use super::inner::InnerBoolean;
 use crate::conformance::ParameterSetConformant;
-use crate::high_level_api::booleans::compressed::CompressedFheBool;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_stream;
@@ -11,7 +10,7 @@ use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::{CompactFheBool, Device};
+use crate::Device;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
@@ -56,18 +55,6 @@ impl ParameterSetConformant for FheBool {
             .on_cpu()
             .0
             .is_conformant(&params.shortint_params)
-    }
-}
-
-impl From<CompressedFheBool> for FheBool {
-    fn from(value: CompressedFheBool) -> Self {
-        value.decompress()
-    }
-}
-
-impl From<CompactFheBool> for FheBool {
-    fn from(value: CompactFheBool) -> Self {
-        value.expand()
     }
 }
 

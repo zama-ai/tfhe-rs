@@ -21,13 +21,12 @@ impl ParameterSetConformant for CompressedRadixCiphertext {
     }
 }
 
-impl From<CompressedRadixCiphertext> for RadixCiphertext {
-    fn from(compressed: CompressedRadixCiphertext) -> Self {
-        Self::from(
-            compressed
-                .blocks
-                .into_iter()
-                .map(From::from)
+impl CompressedRadixCiphertext {
+    pub fn decompress(&self) -> RadixCiphertext {
+        RadixCiphertext::from(
+            self.blocks
+                .iter()
+                .map(CompressedCiphertext::decompress)
                 .collect::<Vec<_>>(),
         )
     }
@@ -49,13 +48,12 @@ impl ParameterSetConformant for CompressedSignedRadixCiphertext {
     }
 }
 
-impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
-    fn from(compressed: CompressedSignedRadixCiphertext) -> Self {
-        Self::from(
-            compressed
-                .blocks
-                .into_iter()
-                .map(From::from)
+impl CompressedSignedRadixCiphertext {
+    pub fn decompress(&self) -> SignedRadixCiphertext {
+        SignedRadixCiphertext::from(
+            self.blocks
+                .iter()
+                .map(CompressedCiphertext::decompress)
                 .collect::<Vec<_>>(),
         )
     }
@@ -64,14 +62,14 @@ impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
 /// Structure containing a **compressed** ciphertext in CRT decomposition.
 pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
 
-impl From<CompressedCrtCiphertext> for CrtCiphertext {
-    fn from(compressed: CompressedCrtCiphertext) -> Self {
-        let blocks = compressed
+impl CompressedCrtCiphertext {
+    pub fn decompress(&self) -> CrtCiphertext {
+        let blocks = self
             .blocks
-            .into_iter()
-            .map(From::from)
+            .iter()
+            .map(CompressedCiphertext::decompress)
             .collect::<Vec<_>>();
-        let moduli = compressed.moduli;
-        Self::from((blocks, moduli))
+        let moduli = self.moduli.clone();
+        CrtCiphertext::from((blocks, moduli))
     }
 }

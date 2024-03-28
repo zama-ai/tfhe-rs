@@ -173,9 +173,8 @@ pub unsafe extern "C" fn shortint_decompress_server_key(
 
         let compressed_server_key = get_ref_checked(compressed_server_key).unwrap();
 
-        let heap_allocated_public_key = Box::new(ShortintServerKey(
-            shortint::server_key::ServerKey::from(compressed_server_key.0.clone()),
-        ));
+        let heap_allocated_public_key =
+            Box::new(ShortintServerKey(compressed_server_key.0.decompress()));
 
         *result = Box::into_raw(heap_allocated_public_key);
     })

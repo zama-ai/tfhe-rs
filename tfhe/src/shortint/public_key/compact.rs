@@ -387,9 +387,3 @@ impl CompressedCompactPublicKey {
         }
     }
 }
-
-impl From<CompressedCompactPublicKey> for CompactPublicKey {
-    fn from(value: CompressedCompactPublicKey) -> Self {
-        value.decompress()
-    }
-}

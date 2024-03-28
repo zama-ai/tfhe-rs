@@ -1327,12 +1327,6 @@ impl ServerKey {
     }
 }
 
-impl From<CompressedServerKey> for ServerKey {
-    fn from(compressed_server_key: CompressedServerKey) -> Self {
-        compressed_server_key.decompress()
-    }
-}
-
 #[derive(Copy, Clone)]
 pub struct CiphertextNoiseDegree {
     pub noise_level: NoiseLevel,

@@ -252,24 +252,26 @@ impl PublicKey {
     }
 }
 
-impl From<CompressedPublicKey> for PublicKey {
-    fn from(compressed_public_key: CompressedPublicKey) -> Self {
-        let parameters = compressed_public_key.parameters;
+impl CompressedPublicKey {
+    pub fn decompress(&self) -> PublicKey {
+        let parameters = self.parameters;
 
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-        let decompressed_public_key = compressed_public_key
+        let decompressed_public_key = self
             .lwe_public_key
+            .as_view()
             .par_decompress_into_lwe_public_key();
 
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        let decompressed_public_key = compressed_public_key
+        let decompressed_public_key = self
             .lwe_public_key
+            .as_view()
             .decompress_into_lwe_public_key();
 
-        Self {
+        PublicKey {
             lwe_public_key: decompressed_public_key,
             parameters,
-            pbs_order: compressed_public_key.pbs_order,
+            pbs_order: self.pbs_order,
         }
     }
 }

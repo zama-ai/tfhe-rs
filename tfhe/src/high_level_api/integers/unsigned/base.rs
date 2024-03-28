@@ -9,7 +9,7 @@ use crate::integer::block_decomposition::RecomposableFrom;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::{CompactFheUint, CompressedFheUint, FheBool};
+use crate::FheBool;
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
@@ -68,24 +68,6 @@ pub trait FheUintId: IntegerId {}
 pub struct FheUint<Id: FheUintId> {
     pub(in crate::high_level_api) ciphertext: RadixCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
-}
-
-impl<Id> From<CompressedFheUint<Id>> for FheUint<Id>
-where
-    Id: FheUintId,
-{
-    fn from(value: CompressedFheUint<Id>) -> Self {
-        value.decompress()
-    }
-}
-
-impl<Id> From<CompactFheUint<Id>> for FheUint<Id>
-where
-    Id: FheUintId,
-{
-    fn from(value: CompactFheUint<Id>) -> Self {
-        value.expand()
-    }
 }
 
 impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {

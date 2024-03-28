@@ -67,8 +67,8 @@ where
     /// Decompress to a [FheUint]
     ///
     /// See [CompressedFheUint] example.
-    pub fn decompress(self) -> FheUint<Id> {
-        let inner: crate::integer::RadixCiphertext = self.ciphertext.into();
+    pub fn decompress(&self) -> FheUint<Id> {
+        let inner: crate::integer::RadixCiphertext = self.ciphertext.decompress();
         let mut ciphertext = FheUint::new(inner);
         ciphertext.move_to_device_of_server_key_if_set();
         ciphertext

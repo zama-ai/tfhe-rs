@@ -255,12 +255,6 @@ impl CompressedServerKey {
     }
 }
 
-impl From<CompressedServerKey> for ServerKey {
-    fn from(compressed: CompressedServerKey) -> Self {
-        compressed.decompress()
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -283,7 +277,7 @@ mod test {
             let csks = CompressedServerKey::new_radix_compressed_server_key(&cks);
             assert_eq!(csks.key.max_degree, expected_radix_max_degree);
 
-            let decompressed_sks: ServerKey = csks.into();
+            let decompressed_sks: ServerKey = csks.decompress();
             assert_eq!(decompressed_sks.key.max_degree, expected_radix_max_degree);
         }
 
@@ -298,7 +292,7 @@ mod test {
             let csks = CompressedServerKey::new_crt_compressed_server_key(&cks);
             assert_eq!(csks.key.max_degree, expected_crt_max_degree);
 
-            let decompressed_sks: ServerKey = csks.into();
+            let decompressed_sks: ServerKey = csks.decompress();
             assert_eq!(decompressed_sks.key.max_degree, expected_crt_max_degree);
         }
 
@@ -307,7 +301,7 @@ mod test {
             let client_key = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2, 14);
             let compressed_eval_key =
                 CompressedServerKey::new_radix_compressed_server_key(client_key.as_ref());
-            let evaluation_key = ServerKey::from(compressed_eval_key);
+            let evaluation_key = compressed_eval_key.decompress();
             let modulus = (client_key.parameters().message_modulus().0 as u128)
                 .pow(client_key.num_blocks() as u32);
 

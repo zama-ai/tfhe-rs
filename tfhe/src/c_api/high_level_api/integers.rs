@@ -336,7 +336,7 @@ macro_rules! create_integer_wrapper_type {
                 $crate::c_api::utils::catch_panic(|| {
                     let compressed = $crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-                    let decompressed_inner = compressed.0.clone().into();
+                    let decompressed_inner = compressed.0.decompress();
                     *result = Box::into_raw(Box::new($name(decompressed_inner)));
                 })
             }

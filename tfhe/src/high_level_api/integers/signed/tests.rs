@@ -14,7 +14,7 @@ fn test_signed_integer_compressed() {
 
     let clear = -1234i16;
     let compressed = CompressedFheInt16::try_encrypt(clear, &client_key).unwrap();
-    let decompressed = FheInt16::from(compressed);
+    let decompressed = compressed.decompress();
     let clear_decompressed: i16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }
@@ -28,7 +28,7 @@ fn test_integer_compressed_small() {
 
     let clear = rng.gen::<i16>();
     let compressed = CompressedFheInt16::try_encrypt(clear, &client_key).unwrap();
-    let decompressed = FheInt16::from(compressed);
+    let decompressed = compressed.decompress();
     let clear_decompressed: i16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }

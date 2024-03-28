@@ -80,7 +80,7 @@ impl ClientKey {
     /// // Encryption of one message:
     /// let ct = cks.encrypt_compressed(true);
     ///
-    /// let ct: Ciphertext = ct.into();
+    /// let ct = ct.decompress();
     ///
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);

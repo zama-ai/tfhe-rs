@@ -40,7 +40,7 @@ fn test_integer_compressed_can_be_serialized() {
     let bytes = bincode::serialize(&compressed).unwrap();
     let deserialized: CompressedFheUint256 = bincode::deserialize_from(bytes.as_slice()).unwrap();
 
-    let decompressed = FheUint256::from(deserialized);
+    let decompressed = FheUint256::from(deserialized.decompress());
     let clear_decompressed: U256 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }
@@ -52,7 +52,7 @@ fn test_integer_compressed() {
 
     let clear = 12_837u16;
     let compressed = CompressedFheUint16::try_encrypt(clear, &client_key).unwrap();
-    let decompressed = FheUint16::from(compressed);
+    let decompressed = FheUint16::from(compressed.decompress());
     let clear_decompressed: u16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }
@@ -64,7 +64,7 @@ fn test_integer_compressed_small() {
 
     let clear = 12_837u16;
     let compressed = CompressedFheUint16::try_encrypt(clear, &client_key).unwrap();
-    let decompressed = FheUint16::from(compressed);
+    let decompressed = FheUint16::from(compressed.decompress());
     let clear_decompressed: u16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }
