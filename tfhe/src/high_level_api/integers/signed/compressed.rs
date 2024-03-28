@@ -6,7 +6,9 @@ use crate::integer::ciphertext::CompressedSignedRadixCiphertext;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::ClientKey;
+use crate::shortint::PBSParameters;
+use crate::{ClientKey, ServerKey};
+use std::marker::PhantomData;
 
 /// Compressed [FheInt]
 ///
@@ -88,10 +90,42 @@ where
         Ok(Self::new(inner))
     }
 }
+
+pub struct CompressedFheIntConformanceParams<Id: FheIntId> {
+    params: RadixCiphertextConformanceParams,
+    id: PhantomData<Id>,
+}
+
+impl<Id: FheIntId, P: Into<PBSParameters>> From<P> for CompressedFheIntConformanceParams<Id> {
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: params.to_shortint_conformance_param(),
+                num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> From<&ServerKey> for CompressedFheIntConformanceParams<Id> {
+    fn from(sk: &ServerKey) -> Self {
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: sk.key.pbs_key().key.conformance_params(),
+                num_blocks_per_integer: Id::num_blocks(sk.key.pbs_key().message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
 impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(params)
+    type ParameterSet = CompressedFheIntConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &CompressedFheIntConformanceParams<Id>) -> bool {
+        self.ciphertext.is_conformant(&params.params)
     }
 }
 

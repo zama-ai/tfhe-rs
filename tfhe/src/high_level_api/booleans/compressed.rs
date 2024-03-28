@@ -1,11 +1,11 @@
 use crate::conformance::ParameterSetConformant;
-use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::CompressedCiphertext;
-use crate::{ClientKey, FheBool};
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::{CompressedCiphertext, PBSParameters};
+use crate::{ClientKey, FheBool, ServerKey};
 use serde::{Deserialize, Serialize};
 
 /// Compressed [FheBool]
@@ -62,11 +62,32 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
     }
 }
 
-impl ParameterSetConformant for CompressedFheBool {
-    type ParameterSet = RadixCiphertextConformanceParams;
+pub struct CompressedFheBoolConformanceParams(CiphertextConformanceParams);
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(&params.shortint_params)
+impl<P> From<P> for CompressedFheBoolConformanceParams
+where
+    P: Into<PBSParameters>,
+{
+    fn from(params: P) -> Self {
+        let mut params = params.into().to_shortint_conformance_param();
+        params.degree = Degree::new(1);
+        Self(params)
+    }
+}
+
+impl From<&ServerKey> for CompressedFheBoolConformanceParams {
+    fn from(sk: &ServerKey) -> Self {
+        let mut parameter_set = Self(sk.key.pbs_key().key.conformance_params());
+        parameter_set.0.degree = Degree::new(1);
+        parameter_set
+    }
+}
+
+impl ParameterSetConformant for CompressedFheBool {
+    type ParameterSet = CompressedFheBoolConformanceParams;
+
+    fn is_conformant(&self, params: &CompressedFheBoolConformanceParams) -> bool {
+        self.ciphertext.is_conformant(&params.0)
     }
 }
 

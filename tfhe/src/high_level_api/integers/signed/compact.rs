@@ -6,7 +6,9 @@ use crate::integer::parameters::{
 };
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::CompactPublicKey;
+use crate::shortint::PBSParameters;
+use crate::{CompactPublicKey, ServerKey};
+use std::marker::PhantomData;
 
 /// Compact [FheInt]
 ///
@@ -83,12 +85,43 @@ impl<Id: FheIntId> Named for CompactFheInt<Id> {
     const NAME: &'static str = "high_level_api::CompactFheInt";
 }
 
-impl<Id: FheIntId> ParameterSetConformant for CompactFheInt<Id> {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        let lsc = ListSizeConstraint::exact_size(1);
+pub struct CompactFheIntConformanceParams<Id: FheIntId> {
+    params: RadixCiphertextConformanceParams,
+    _id: PhantomData<Id>,
+}
 
-        let params = params.to_ct_list_conformance_parameters(lsc);
+impl<Id: FheIntId, P: Into<PBSParameters>> From<P> for CompactFheIntConformanceParams<Id> {
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: params.to_shortint_conformance_param(),
+                num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+            },
+            _id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> From<&ServerKey> for CompactFheIntConformanceParams<Id> {
+    fn from(sks: &ServerKey) -> Self {
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: sks.key.pbs_key().key.conformance_params(),
+                num_blocks_per_integer: Id::num_blocks(sks.key.pbs_key().message_modulus()),
+            },
+            _id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> ParameterSetConformant for CompactFheInt<Id> {
+    type ParameterSet = CompactFheIntConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &CompactFheIntConformanceParams<Id>) -> bool {
+        let params = params
+            .params
+            .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(1));
         self.list.is_conformant(&params)
     }
 }
@@ -185,9 +218,46 @@ impl<Id: FheIntId> Named for CompactFheIntList<Id> {
     const NAME: &'static str = "high_level_api::CompactFheIntList";
 }
 
+pub struct CompactFheIntListConformanceParams<Id: FheIntId> {
+    params: RadixCompactCiphertextListConformanceParams,
+    _id: PhantomData<Id>,
+}
+
+impl<Id: FheIntId, P: Into<PBSParameters>> From<(P, ListSizeConstraint)>
+    for CompactFheIntListConformanceParams<Id>
+{
+    fn from((params, len_constraint): (P, ListSizeConstraint)) -> Self {
+        let params = params.into();
+        Self {
+            params: RadixCompactCiphertextListConformanceParams {
+                shortint_params: params.to_shortint_conformance_param(),
+                num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+                num_integers_constraint: len_constraint,
+            },
+            _id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> From<(&ServerKey, ListSizeConstraint)>
+    for CompactFheIntListConformanceParams<Id>
+{
+    fn from((sk, len_constraint): (&ServerKey, ListSizeConstraint)) -> Self {
+        Self {
+            params: RadixCompactCiphertextListConformanceParams {
+                shortint_params: sk.key.pbs_key().key.conformance_params(),
+                num_blocks_per_integer: Id::num_blocks(sk.key.pbs_key().message_modulus()),
+                num_integers_constraint: len_constraint,
+            },
+            _id: PhantomData,
+        }
+    }
+}
+
 impl<Id: FheIntId> ParameterSetConformant for CompactFheIntList<Id> {
-    type ParameterSet = RadixCompactCiphertextListConformanceParams;
-    fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
-        self.list.is_conformant(params)
+    type ParameterSet = CompactFheIntListConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &CompactFheIntListConformanceParams<Id>) -> bool {
+        self.list.is_conformant(&params.params)
     }
 }
