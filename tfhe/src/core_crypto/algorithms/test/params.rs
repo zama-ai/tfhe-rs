@@ -61,7 +61,7 @@ pub struct ClassicTestParams<Scalar: UnsignedInteger> {
     pub pfks_noise_distribution: DynamicDistribution<Scalar>,
     pub cbs_level: DecompositionLevelCount,
     pub cbs_base_log: DecompositionBaseLog,
-    pub message_modulus_log: CiphertextModulusLog,
+    pub message_modulus_log: MessageModulusLog,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
@@ -74,7 +74,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
-    pub message_modulus_log: CiphertextModulusLog,
+    pub message_modulus_log: MessageModulusLog,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
     pub grouping_factor: LweBskGroupingFactor,
     pub thread_count: ThreadCount,
@@ -136,7 +136,7 @@ pub struct PackingKeySwitchTestParams<Scalar: UnsignedInteger> {
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
-    pub message_modulus_log: CiphertextModulusLog,
+    pub message_modulus_log: MessageModulusLog,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
