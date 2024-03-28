@@ -1,5 +1,6 @@
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
+pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
@@ -17,10 +18,9 @@ pub(crate) mod test_sub;
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
+use crate::integer::gpu::CudaServerKey;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
-use crate::shortint::parameters::*;
-use rand::Rng;
 use std::sync::Arc;
 
 // Macro to generate tests for all parameter sets
@@ -85,19 +85,6 @@ impl<F> GpuFunctionExecutor<F> {
 }
 
 // Unchecked operations
-create_gpu_parametrized_test!(integer_unchecked_if_then_else);
-
-// Default operations
-create_gpu_parametrized_test!(integer_if_then_else);
-
-/// Number of loop iteration within randomized tests
-const NB_TEST: usize = 1000;
-
-/// Smaller number of loop iteration within randomized test,
-/// meant for test where the function tested is more expensive
-// const NB_TEST_SMALLER: usize = 10;
-const NB_CTXT: usize = 4;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 
 /// For default/unchecked binary functions
 impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
@@ -434,86 +421,46 @@ where
     }
 }
 
-fn integer_unchecked_if_then_else<P>(param: P)
+impl<'a, F>
+    FunctionExecutor<(&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
+    for GpuFunctionExecutor<F>
 where
-    P: Into<PBSParameters> + Copy,
+    F: Fn(
+        &CudaServerKey,
+        &CudaBooleanBlock,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext,
 {
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
-
-    let (cks, sks) = gen_keys_gpu(param, &stream);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TEST {
-        // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-        let clear_condition = rng.gen_range(0u64..2);
-
-        // Encrypt the integers;;
-        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
-        let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
-        let ctxt_condition = cks.encrypt_radix(clear_condition, 1);
-
-        // Copy to the GPU
-        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
-        let d_ctxt_condition =
-            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
-
-        let d_ct_res = sks.unchecked_if_then_else(&d_ctxt_condition, &d_ctxt_1, &d_ctxt_2, &stream);
-
-        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // Check the correctness
-        assert_eq!(dec_res, if clear_condition == 1 { clear1 } else { clear2 });
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
     }
-}
 
-fn integer_if_then_else<P>(param: P)
-where
-    P: Into<PBSParameters> + Copy,
-{
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
+    fn execute(
+        &mut self,
+        input: (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
+    ) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
 
-    let (cks, sks) = gen_keys_gpu(param, &stream);
+        let d_ctxt_1: CudaBooleanBlock =
+            CudaBooleanBlock::from_boolean_block(input.0, &context.stream);
+        let d_ctxt_2: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+        let d_ctxt_3: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.2, &context.stream);
 
-    let mut rng = rand::thread_rng();
+        let d_res = (self.func)(
+            &context.sks,
+            &d_ctxt_1,
+            &d_ctxt_2,
+            &d_ctxt_3,
+            &context.stream,
+        );
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TEST {
-        // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-        let clear_condition = rng.gen_range(0u64..2);
-
-        // Encrypt the integers;;
-        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
-        let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
-        let ctxt_condition = cks.encrypt_radix(clear_condition, 1);
-
-        // Copy to the GPU
-        let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &stream);
-        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &stream);
-        let d_ctxt_condition =
-            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_condition, &stream);
-
-        let d_ct_res = sks.if_then_else(&d_ctxt_condition, &d_ctxt_1, &d_ctxt_2, &stream);
-
-        let ct_res = d_ct_res.to_radix_ciphertext(&stream);
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // Check the correctness
-        assert_eq!(dec_res, if clear_condition == 1 { clear1 } else { clear2 });
+        d_res.to_radix_ciphertext(&context.stream)
     }
 }

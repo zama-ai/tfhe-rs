@@ -8,6 +8,8 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheEq, IfThenElse};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
@@ -178,9 +180,9 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.if_then_else(
-                    &self.ciphertext.on_gpu(),
-                    &ct_then.ciphertext.on_gpu(),
-                    &ct_else.ciphertext.on_gpu(),
+                    &CudaBooleanBlock(self.ciphertext.on_gpu().duplicate(stream)),
+                    &*ct_then.ciphertext.on_gpu(),
+                    &*ct_else.ciphertext.on_gpu(),
                     stream,
                 );
 

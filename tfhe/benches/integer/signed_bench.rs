@@ -1201,6 +1201,7 @@ mod cuda {
     use super::*;
     use criterion::criterion_group;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     use tfhe::integer::gpu::server_key::CudaServerKey;
 
@@ -1555,6 +1556,66 @@ mod cuda {
         }
     );
 
+    fn cuda_if_then_else(c: &mut Criterion) {
+        let mut bench_group = c.benchmark_group("integer::cuda::signed::if_then_else");
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            if bit_size > ScalarType::BITS as usize {
+                break;
+            }
+
+            let param_name = param.name();
+
+            let bench_id = format!("if_then_else:{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_tree_values = || {
+                    let clear_cond = rng.gen::<bool>();
+                    let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let ct_cond = cks.encrypt_bool(clear_cond);
+
+                    let d_ct_cond = CudaBooleanBlock::from_boolean_block(&ct_cond, &stream);
+                    let d_ct_then =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_then, &stream);
+                    let d_ct_else =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_else, &stream);
+
+                    (d_ct_cond, d_ct_then, d_ct_else)
+                };
+
+                b.iter_batched(
+                    encrypt_tree_values,
+                    |(ct_cond, ct_then, ct_else)| {
+                        let _ = gpu_sks.if_then_else(&ct_cond, &ct_then, &ct_else, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                "if_then_else",
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
     // Functions used to apply different way of selecting a scalar based on the context.
     fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
         let clearlow = rng.gen::<u128>();
@@ -1958,6 +2019,7 @@ mod cuda {
         cuda_le,
         cuda_min,
         cuda_max,
+        cuda_if_then_else,
     );
 
     criterion_group!(

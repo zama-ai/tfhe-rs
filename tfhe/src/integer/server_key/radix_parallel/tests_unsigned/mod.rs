@@ -1,6 +1,7 @@
 mod modulus_switch_compression;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
+pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
@@ -500,8 +501,6 @@ create_parametrized_test!(
 );
 // left/right rotations
 create_parametrized_test!(integer_default_scalar_div_rem);
-create_parametrized_test!(integer_smart_if_then_else);
-create_parametrized_test!(integer_default_if_then_else);
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
 create_parametrized_test!(integer_default_trailing_zeros);
 create_parametrized_test!(integer_default_trailing_ones);
@@ -712,14 +711,6 @@ where
 // Smart Tests
 //=============================================================================
 
-fn integer_smart_if_then_else<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_if_then_else_parallelized);
-    smart_if_then_else_test(param, executor);
-}
-
 fn integer_smart_div_rem<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -815,14 +806,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::rem_parallelized);
     default_rem_test(param, executor);
-}
-
-fn integer_default_if_then_else<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::if_then_else_parallelized);
-    default_if_then_else_test(param, executor);
 }
 
 fn integer_default_trailing_zeros<P>(param: P)

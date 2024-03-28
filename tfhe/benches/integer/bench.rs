@@ -1180,6 +1180,7 @@ mod cuda {
     use super::*;
     use criterion::criterion_group;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
 
@@ -1414,8 +1415,7 @@ mod cuda {
 
                 let encrypt_tree_values = || {
                     let clear_cond = rng.gen::<bool>();
-                    let ct_cond =
-                        cks.encrypt_radix(tfhe::integer::U256::from(clear_cond), num_block);
+                    let ct_cond = cks.encrypt_bool(clear_cond);
 
                     let clearlow = rng.gen::<u128>();
                     let clearhigh = rng.gen::<u128>();
@@ -1427,8 +1427,7 @@ mod cuda {
                     let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_else = cks.encrypt_radix(clear_1, num_block);
 
-                    let d_ct_cond =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_cond, &stream);
+                    let d_ct_cond = CudaBooleanBlock::from_boolean_block(&ct_cond, &stream);
                     let d_ct_then =
                         CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_then, &stream);
                     let d_ct_else =

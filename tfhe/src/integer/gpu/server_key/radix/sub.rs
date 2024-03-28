@@ -352,7 +352,7 @@ impl CudaServerKey {
         stream: &CudaStream,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         let num_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-        let mut tmp = self.create_trivial_zero_radix(1, stream);
+        let mut tmp: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
         if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
             && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
         {
