@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{CiphertextModulus, LweSize};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::shortint::Ciphertext;
 
@@ -130,6 +130,15 @@ impl CudaBooleanBlock {
         let h_blocks = RadixCiphertext { blocks: block_vec };
 
         BooleanBlock::try_new(&h_blocks).unwrap()
+    }
+
+    pub fn to_cuda_unsigned_radix_ciphertext(self) -> CudaUnsignedRadixCiphertext {
+        CudaUnsignedRadixCiphertext {
+            ciphertext: CudaRadixCiphertext {
+                d_blocks: self.ciphertext.d_blocks,
+                info: self.ciphertext.info,
+            },
+        }
     }
 }
 

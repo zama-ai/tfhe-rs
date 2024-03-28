@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::CudaServerKey;
 
@@ -8,15 +8,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_if_then_else_async(
+    pub unsafe fn unchecked_if_then_else_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &T,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let lwe_ciphertext_count = true_ct.as_ref().d_blocks.lwe_ciphertext_count();
-        let mut result = self
+        let mut result: T = self
             .create_trivial_zero_radix(true_ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream);
 
         match &self.bootstrapping_key {
@@ -75,26 +75,26 @@ impl CudaServerKey {
 
         result
     }
-    pub fn unchecked_if_then_else(
+    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &T,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let result =
             unsafe { self.unchecked_if_then_else_async(condition, true_ct, false_ct, stream) };
         stream.synchronize();
         result
     }
 
-    pub fn if_then_else(
+    pub fn if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &T,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let mut tmp_condition;
         let mut tmp_true_ct;
         let mut tmp_false_ct;

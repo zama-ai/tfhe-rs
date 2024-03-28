@@ -71,12 +71,13 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
 
   auto are_all_block_true_buffer =
       mem_ptr->eq_buffer->are_all_block_true_buffer;
+  auto tmp_out = are_all_block_true_buffer->tmp_out;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
   uint32_t max_value = total_modulus - 1;
 
   cuda_memcpy_async_gpu_to_gpu(
-      lwe_array_out, lwe_array_in,
+      tmp_out, lwe_array_in,
       num_radix_blocks * (big_lwe_dimension + 1) * sizeof(Torus), stream);
 
   uint32_t remaining_blocks = num_radix_blocks;
@@ -87,7 +88,7 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
-    auto input_blocks = lwe_array_out;
+    auto input_blocks = tmp_out;
     auto accumulator = are_all_block_true_buffer->tmp_block_accumulated;
     for (int i = 0; i < num_chunks; i++) {
       accumulate_all_blocks(stream, accumulator, input_blocks,
@@ -130,8 +131,13 @@ are_all_comparisons_block_true(cuda_stream_t *stream, Torus *lwe_array_out,
     }
 
     // Applies the LUT
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        stream, lwe_array_out, accumulator, bsk, ksk, num_chunks, lut);
+    if (remaining_blocks == 1)
+      // In the last iteration we copy the output to the final address
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          stream, lwe_array_out, accumulator, bsk, ksk, 1, lut);
+    else
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          stream, tmp_out, accumulator, bsk, ksk, num_chunks, lut);
   }
 }
 
@@ -157,7 +163,7 @@ __host__ void is_at_least_one_comparisons_block_true(
   uint32_t max_value = total_modulus - 1;
 
   cuda_memcpy_async_gpu_to_gpu(
-      lwe_array_out, lwe_array_in,
+      mem_ptr->tmp_lwe_array_out, lwe_array_in,
       num_radix_blocks * (big_lwe_dimension + 1) * sizeof(Torus), stream);
 
   uint32_t remaining_blocks = num_radix_blocks;
@@ -168,7 +174,7 @@ __host__ void is_at_least_one_comparisons_block_true(
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
-    auto input_blocks = lwe_array_out;
+    auto input_blocks = mem_ptr->tmp_lwe_array_out;
     auto accumulator = buffer->tmp_block_accumulated;
     for (int i = 0; i < num_chunks; i++) {
       accumulate_all_blocks(stream, accumulator, input_blocks,
@@ -184,8 +190,14 @@ __host__ void is_at_least_one_comparisons_block_true(
     int_radix_lut<Torus> *lut = mem_ptr->eq_buffer->is_non_zero_lut;
 
     // Applies the LUT
-    integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        stream, lwe_array_out, accumulator, bsk, ksk, num_chunks, lut);
+    if (remaining_blocks == 1)
+      // In the last iteration we copy the output to the final address
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          stream, lwe_array_out, accumulator, bsk, ksk, 1, lut);
+    else
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
+          stream, mem_ptr->tmp_lwe_array_out, accumulator, bsk, ksk, num_chunks,
+          lut);
   }
 }
 
@@ -265,11 +277,6 @@ __host__ void host_compare_with_zero_equality(
       stream, sum, sum, bsk, ksk, num_sum_blocks, zero_comparison);
   are_all_comparisons_block_true(stream, lwe_array_out, sum, mem_ptr, bsk, ksk,
                                  num_sum_blocks);
-
-  // The result will be in the two first block. Everything else is
-  //  garbage.
-  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                    big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 
 template <typename Torus>
@@ -280,9 +287,6 @@ __host__ void host_integer_radix_equality_check_kb(
 
   auto eq_buffer = mem_ptr->eq_buffer;
 
-  auto params = mem_ptr->params;
-  auto big_lwe_dimension = params.big_lwe_dimension;
-
   // Applies the LUT for the comparison operation
   auto comparisons = mem_ptr->tmp_block_comparisons;
   integer_radix_apply_bivariate_lookup_table_kb(
@@ -291,16 +295,10 @@ __host__ void host_integer_radix_equality_check_kb(
 
   // This takes a Vec of blocks, where each block is either 0 or 1.
   //
-  // It return a block encrypting 1 if all input blocks are 1
+  // It returns a block encrypting 1 if all input blocks are 1
   // otherwise the block encrypts 0
   are_all_comparisons_block_true(stream, lwe_array_out, comparisons, mem_ptr,
                                  bsk, ksk, num_radix_blocks);
-
-  // Zero all blocks but the first
-  size_t big_lwe_size = big_lwe_dimension + 1;
-  size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                    big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 
 template <typename Torus>
@@ -311,7 +309,7 @@ __host__ void scratch_cuda_integer_radix_equality_check_kb(
 
   cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_comparison_buffer<Torus>(
-      stream, op, params, num_radix_blocks, allocate_gpu_memory);
+      stream, op, params, num_radix_blocks, false, allocate_gpu_memory);
 }
 
 template <typename Torus>
@@ -452,6 +450,7 @@ __host__ void host_integer_radix_difference_check_kb(
 
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
+  auto big_lwe_size = big_lwe_dimension + 1;
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
@@ -488,8 +487,19 @@ __host__ void host_integer_radix_difference_check_kb(
   // - 1 if lhs == rhs
   // - 2 if lhs > rhs
   auto comparisons = mem_ptr->tmp_block_comparisons;
-  compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
-                          num_radix_blocks);
+  if (!mem_ptr->is_signed) {
+    compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
+                            num_radix_blocks);
+  } else {
+    compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
+                            num_radix_blocks - 1);
+    // Compare the sign block separately
+    integer_radix_apply_bivariate_lookup_table_kb(
+        stream, comparisons + (num_radix_blocks - 1) * big_lwe_size,
+        lhs + (num_radix_blocks - 1) * big_lwe_size,
+        rhs + (num_radix_blocks - 1) * big_lwe_size, bsk, ksk, 1,
+        mem_ptr->signed_lut);
+  }
 
   // Reduces a vec containing radix blocks that encrypts a sign
   // (inferior, equal, superior) to one single radix block containing the
@@ -497,22 +507,16 @@ __host__ void host_integer_radix_difference_check_kb(
   tree_sign_reduction(stream, lwe_array_out, comparisons,
                       mem_ptr->diff_buffer->tree_buffer, reduction_lut_f, bsk,
                       ksk, num_radix_blocks);
-
-  // The result will be in the first block. Everything else is garbage.
-  size_t big_lwe_size = big_lwe_dimension + 1;
-  size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-  cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                    (total_num_radix_blocks - 1) * big_lwe_size_bytes, stream);
 }
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_difference_check_kb(
     cuda_stream_t *stream, int_comparison_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
-    bool allocate_gpu_memory) {
+    bool is_signed, bool allocate_gpu_memory) {
 
   *mem_ptr = new int_comparison_buffer<Torus>(
-      stream, op, params, num_radix_blocks, allocate_gpu_memory);
+      stream, op, params, num_radix_blocks, is_signed, allocate_gpu_memory);
 }
 
 template <typename Torus>

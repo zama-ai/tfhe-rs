@@ -1469,6 +1469,18 @@ mod cuda {
         tfhe::integer::I256::from((clearlow, clearhigh))
     }
 
+    fn mul_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+        loop {
+            let clearlow = rng.gen::<u128>();
+            let clearhigh = rng.gen::<u128>();
+            let scalar = tfhe::integer::I256::from((clearlow, clearhigh));
+            // If scalar is power of two, it is just a shit, which is a happy path.
+            if !scalar.is_power_of_two() {
+                return scalar;
+            }
+        }
+    }
+
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_add,
         display_name: add
@@ -1509,10 +1521,56 @@ mod cuda {
         display_name: bitnot
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_ne,
+        display_name: ne
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_gt,
+        display_name: gt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_ge,
+        display_name: ge
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_lt,
+        display_name: lt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_le,
+        display_name: le
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
         rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_mul,
+        display_name: mul,
+        rng_func: mul_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
@@ -1549,6 +1607,54 @@ mod cuda {
         method_name: unchecked_scalar_left_shift,
         display_name: left_shift,
         rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_eq,
+        display_name: eq,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_ne,
+        display_name: ne,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_gt,
+        display_name: gt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_ge,
+        display_name: ge,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_lt,
+        display_name: lt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_le,
+        display_name: le,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_min,
+        display_name: min,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_max,
+        display_name: max,
+        rng_func: default_signed_scalar
     );
 
     //===========================================
@@ -1595,10 +1701,56 @@ mod cuda {
         display_name: bitxor
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: ne,
+        display_name: ne
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: gt,
+        display_name: gt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: ge,
+        display_name: ge
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: lt,
+        display_name: lt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: le,
+        display_name: le
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
         rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_mul,
+        display_name: mul,
+        rng_func: mul_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
@@ -1637,6 +1789,54 @@ mod cuda {
         rng_func: shift_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_eq,
+        display_name: eq,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_ne,
+        display_name: ne,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_gt,
+        display_name: gt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_ge,
+        display_name: ge,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_lt,
+        display_name: lt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_le,
+        display_name: le,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_min,
+        display_name: min,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_max,
+        display_name: max,
+        rng_func: default_signed_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -1647,17 +1847,34 @@ mod cuda {
         cuda_unchecked_bitnot,
         cuda_unchecked_bitor,
         cuda_unchecked_bitxor,
+        cuda_unchecked_eq,
+        cuda_unchecked_ne,
+        cuda_unchecked_gt,
+        cuda_unchecked_ge,
+        cuda_unchecked_lt,
+        cuda_unchecked_le,
+        cuda_unchecked_min,
+        cuda_unchecked_max,
     );
 
     criterion_group!(
         unchecked_scalar_cuda_ops,
         cuda_unchecked_scalar_add,
+        cuda_unchecked_scalar_mul,
         cuda_unchecked_scalar_sub,
         cuda_unchecked_scalar_bitand,
         cuda_unchecked_scalar_bitor,
         cuda_unchecked_scalar_bitxor,
         cuda_unchecked_scalar_left_shift,
         cuda_unchecked_scalar_right_shift,
+        cuda_unchecked_scalar_eq,
+        cuda_unchecked_scalar_ne,
+        cuda_unchecked_scalar_gt,
+        cuda_unchecked_scalar_ge,
+        cuda_unchecked_scalar_lt,
+        cuda_unchecked_scalar_le,
+        cuda_unchecked_scalar_min,
+        cuda_unchecked_scalar_max,
     );
 
     criterion_group!(
@@ -1670,17 +1887,34 @@ mod cuda {
         cuda_bitnot,
         cuda_bitor,
         cuda_bitxor,
+        cuda_eq,
+        cuda_ne,
+        cuda_gt,
+        cuda_ge,
+        cuda_lt,
+        cuda_le,
+        cuda_min,
+        cuda_max,
     );
 
     criterion_group!(
         default_scalar_cuda_ops,
         cuda_scalar_add,
+        cuda_scalar_mul,
         cuda_scalar_sub,
         cuda_scalar_bitand,
         cuda_scalar_bitor,
         cuda_scalar_bitxor,
         cuda_scalar_left_shift,
         cuda_scalar_right_shift,
+        cuda_scalar_eq,
+        cuda_scalar_ne,
+        cuda_scalar_gt,
+        cuda_scalar_ge,
+        cuda_scalar_lt,
+        cuda_scalar_le,
+        cuda_scalar_min,
+        cuda_scalar_max,
     );
 }
 
