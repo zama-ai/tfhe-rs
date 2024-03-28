@@ -140,7 +140,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_lt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_lt(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -177,7 +177,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_le(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_le(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -214,7 +214,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_gt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_gt(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -251,7 +251,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_ge(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_ge(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result.to_cuda_unsigned_radix_ciphertext())
             }),
         })
@@ -296,7 +296,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_max(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_max(&*self.ciphertext.on_gpu(), rhs, stream);
                 Self::new(inner_result)
             }),
         })
@@ -341,7 +341,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_min(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_min(&*self.ciphertext.on_gpu(), rhs, stream);
                 Self::new(inner_result)
             }),
         })

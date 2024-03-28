@@ -181,7 +181,6 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     tree_sign_reduction(stream, lwe_array_out, comparisons,
                         mem_ptr->diff_buffer->tree_buffer, sign_handler_f, bsk,
                         ksk, num_lsb_radix_blocks);
-
   }
 }
 
@@ -374,6 +373,5 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
   default:
     PANIC("Cuda error: integer operation not supported")
   }
-
 }
 #endif

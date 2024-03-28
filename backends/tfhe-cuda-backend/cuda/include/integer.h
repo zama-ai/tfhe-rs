@@ -1856,6 +1856,7 @@ template <typename Torus> struct int_comparison_buffer {
 
     if (is_signed) {
       signed_lut->release(stream);
+      delete (signed_lut);
     }
     cuda_destroy_stream(lsb_stream);
     cuda_destroy_stream(msb_stream);

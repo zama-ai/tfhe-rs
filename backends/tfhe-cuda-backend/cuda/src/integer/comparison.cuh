@@ -196,7 +196,8 @@ __host__ void is_at_least_one_comparisons_block_true(
           stream, lwe_array_out, accumulator, bsk, ksk, 1, lut);
     else
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          stream, mem_ptr->tmp_lwe_array_out, accumulator, bsk, ksk, num_chunks, lut);
+          stream, mem_ptr->tmp_lwe_array_out, accumulator, bsk, ksk, num_chunks,
+          lut);
   }
 }
 

@@ -5,7 +5,7 @@ use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::ComparisonType;
 use crate::integer::server_key::comparator::Comparator;
@@ -103,6 +103,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
+                    T::IS_SIGNED,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -130,6 +131,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
+                    T::IS_SIGNED,
                 );
             }
         }
@@ -147,14 +149,17 @@ impl CudaServerKey {
         scalar: Scalar,
         op: ComparisonType,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar < Scalar::ZERO {
             // ct represents an unsigned (always >= 0)
-            return self.create_trivial_radix(Comparator::IS_SUPERIOR, 1, stream);
+            return T::from(
+                self.create_trivial_radix(Comparator::IS_SUPERIOR, 1, stream)
+                    .ciphertext,
+            );
         }
 
         let message_modulus = self.message_modulus.0;
@@ -170,7 +175,10 @@ impl CudaServerKey {
             .get(ct.as_ref().d_blocks.lwe_ciphertext_count().0..)
             .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
         if is_scalar_obviously_bigger {
-            return self.create_trivial_radix(Comparator::IS_INFERIOR, 1, stream);
+            return T::from(
+                self.create_trivial_radix(Comparator::IS_INFERIOR, 1, stream)
+                    .ciphertext,
+            );
         }
 
         // If we are still here, that means scalar_blocks above
@@ -182,9 +190,7 @@ impl CudaServerKey {
 
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
-        let mut result = CudaUnsignedRadixCiphertext {
-            ciphertext: ct.as_ref().duplicate_async(stream),
-        };
+        let mut result = ct.duplicate_async(stream);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -211,6 +217,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
+                    T::IS_SIGNED,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -238,6 +245,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
+                    T::IS_SIGNED,
                 );
             }
         }
@@ -477,26 +485,28 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_gt_async<Scalar>(
+    pub unsafe fn unchecked_scalar_gt_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::GT, stream)
     }
 
-    pub fn unchecked_scalar_gt<Scalar>(
+    pub fn unchecked_scalar_gt<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_gt_async(ct, scalar, stream) };
         stream.synchronize();
@@ -507,26 +517,28 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_ge_async<Scalar>(
+    pub unsafe fn unchecked_scalar_ge_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::GE, stream)
     }
 
-    pub fn unchecked_scalar_ge<Scalar>(
+    pub fn unchecked_scalar_ge<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_ge_async(ct, scalar, stream) };
         stream.synchronize();
@@ -537,26 +549,28 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_lt_async<Scalar>(
+    pub unsafe fn unchecked_scalar_lt_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::LT, stream)
     }
 
-    pub fn unchecked_scalar_lt<Scalar>(
+    pub fn unchecked_scalar_lt<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_lt_async(ct, scalar, stream) };
         stream.synchronize();
@@ -567,26 +581,28 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_le_async<Scalar>(
+    pub unsafe fn unchecked_scalar_le_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison_async(ct, scalar, ComparisonType::LE, stream)
     }
 
-    pub fn unchecked_scalar_le<Scalar>(
+    pub fn unchecked_scalar_le<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_le_async(ct, scalar, stream) };
         stream.synchronize();
@@ -596,14 +612,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_gt_async<Scalar>(
+    pub unsafe fn scalar_gt_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -617,14 +634,15 @@ impl CudaServerKey {
         self.unchecked_scalar_gt_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_gt<Scalar>(
+    pub fn scalar_gt<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_gt_async(ct, scalar, stream) };
         stream.synchronize();
@@ -635,14 +653,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_ge_async<Scalar>(
+    pub unsafe fn scalar_ge_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -656,14 +675,15 @@ impl CudaServerKey {
         self.unchecked_scalar_ge_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_ge<Scalar>(
+    pub fn scalar_ge<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_ge_async(ct, scalar, stream) };
         stream.synchronize();
@@ -674,14 +694,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_lt_async<Scalar>(
+    pub unsafe fn scalar_lt_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -695,14 +716,15 @@ impl CudaServerKey {
         self.unchecked_scalar_lt_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_lt<Scalar>(
+    pub fn scalar_lt<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_lt_async(ct, scalar, stream) };
         stream.synchronize();
@@ -712,14 +734,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_le_async<Scalar>(
+    pub unsafe fn scalar_le_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -733,14 +756,15 @@ impl CudaServerKey {
         self.unchecked_scalar_le_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_le<Scalar>(
+    pub fn scalar_le<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_le_async(ct, scalar, stream) };
         stream.synchronize();
@@ -751,26 +775,23 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_max_async<Scalar>(
+    pub unsafe fn unchecked_scalar_max_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_minmax_async(ct, scalar, ComparisonType::MAX, stream)
     }
 
-    pub fn unchecked_scalar_max<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_max_async(ct, scalar, stream) };
         stream.synchronize();
@@ -781,26 +802,23 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_min_async<Scalar>(
+    pub unsafe fn unchecked_scalar_min_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_minmax_async(ct, scalar, ComparisonType::MIN, stream)
     }
 
-    pub fn unchecked_scalar_min<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn unchecked_scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.unchecked_scalar_min_async(ct, scalar, stream) };
         stream.synchronize();
@@ -811,14 +829,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_max_async<Scalar>(
+    pub unsafe fn scalar_max_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -832,14 +851,10 @@ impl CudaServerKey {
         self.unchecked_scalar_max_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_max<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_max_async(ct, scalar, stream) };
         stream.synchronize();
@@ -850,14 +865,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn scalar_min_async<Scalar>(
+    pub unsafe fn scalar_min_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
+        ct: &T,
         scalar: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -871,14 +887,10 @@ impl CudaServerKey {
         self.unchecked_scalar_min_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_min<Scalar>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        scalar: Scalar,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
     where
         Scalar: DecomposableInto<u64>,
+        T: CudaIntegerRadixCiphertext,
     {
         let result = unsafe { self.scalar_min_async(ct, scalar, stream) };
         stream.synchronize();

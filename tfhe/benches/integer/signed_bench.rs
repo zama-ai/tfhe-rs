@@ -1551,6 +1551,16 @@ mod cuda {
         display_name: le
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
@@ -1608,6 +1618,42 @@ mod cuda {
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_ne,
         display_name: ne,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_gt,
+        display_name: gt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_ge,
+        display_name: ge,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_lt,
+        display_name: lt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_le,
+        display_name: le,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_min,
+        display_name: min,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_max,
+        display_name: max,
         rng_func: default_signed_scalar
     );
 
@@ -1685,6 +1731,16 @@ mod cuda {
         display_name: le
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -1745,6 +1801,42 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_gt,
+        display_name: gt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_ge,
+        display_name: ge,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_lt,
+        display_name: lt,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_le,
+        display_name: le,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_min,
+        display_name: min,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_max,
+        display_name: max,
+        rng_func: default_signed_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -1761,6 +1853,8 @@ mod cuda {
         cuda_unchecked_ge,
         cuda_unchecked_lt,
         cuda_unchecked_le,
+        cuda_unchecked_min,
+        cuda_unchecked_max,
     );
 
     criterion_group!(
@@ -1775,6 +1869,12 @@ mod cuda {
         cuda_unchecked_scalar_right_shift,
         cuda_unchecked_scalar_eq,
         cuda_unchecked_scalar_ne,
+        cuda_unchecked_scalar_gt,
+        cuda_unchecked_scalar_ge,
+        cuda_unchecked_scalar_lt,
+        cuda_unchecked_scalar_le,
+        cuda_unchecked_scalar_min,
+        cuda_unchecked_scalar_max,
     );
 
     criterion_group!(
@@ -1793,6 +1893,8 @@ mod cuda {
         cuda_ge,
         cuda_lt,
         cuda_le,
+        cuda_min,
+        cuda_max,
     );
 
     criterion_group!(
@@ -1807,6 +1909,12 @@ mod cuda {
         cuda_scalar_right_shift,
         cuda_scalar_eq,
         cuda_scalar_ne,
+        cuda_scalar_gt,
+        cuda_scalar_ge,
+        cuda_scalar_lt,
+        cuda_scalar_le,
+        cuda_scalar_min,
+        cuda_scalar_max,
     );
 }
 

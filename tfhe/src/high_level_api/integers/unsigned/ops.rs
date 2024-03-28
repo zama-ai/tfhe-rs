@@ -194,10 +194,11 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner_result =
-                    cuda_key
-                        .key
-                        .max(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                let inner_result = cuda_key.key.max(
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.ciphertext.on_gpu(),
+                    stream,
+                );
                 Self::new(inner_result)
             }),
         })
@@ -239,10 +240,11 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner_result =
-                    cuda_key
-                        .key
-                        .min(&self.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                let inner_result = cuda_key.key.min(
+                    &*self.ciphertext.on_gpu(),
+                    &*rhs.ciphertext.on_gpu(),
+                    stream,
+                );
                 Self::new(inner_result)
             }),
         })
