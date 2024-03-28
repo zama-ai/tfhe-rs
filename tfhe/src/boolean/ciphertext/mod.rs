@@ -22,13 +22,11 @@ pub struct CompressedCiphertext {
     pub(crate) ciphertext: SeededLweCiphertext<u32>,
 }
 
-impl From<CompressedCiphertext> for Ciphertext {
-    fn from(value: CompressedCiphertext) -> Self {
-        Self::Encrypted(value.ciphertext.decompress_into_lwe_ciphertext())
-    }
-}
-
 impl CompressedCiphertext {
+    pub fn decompress(&self) -> Ciphertext {
+        Ciphertext::Encrypted(self.ciphertext.decompress_into_lwe_ciphertext())
+    }
+
     /// Deconstruct a [`CompressedCiphertext`] into its constituents.
     pub fn into_raw_parts(self) -> SeededLweCiphertext<u32> {
         self.ciphertext

@@ -33,7 +33,7 @@ impl CompressedPublicKey {
     /// let (cks, sks) = gen_keys();
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
-    /// let pks = PublicKey::from(cpks);
+    /// let pks = cpks.decompress();
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| {

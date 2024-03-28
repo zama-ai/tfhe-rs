@@ -303,8 +303,8 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
     let cttrue = CompressedFheBool::encrypt(true, &cks);
     let cffalse = CompressedFheBool::encrypt(false, &cks);
 
-    let a = FheBool::from(cttrue);
-    let b = FheBool::from(cffalse);
+    let a = cttrue.decompress();
+    let b = cffalse.decompress();
 
     assert_degree_is_ok(&a);
     assert_degree_is_ok(&b);

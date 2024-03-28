@@ -68,8 +68,8 @@ where
     /// Decompress to a [FheInt]
     ///
     /// See [CompressedFheInt] example.
-    pub fn decompress(self) -> FheInt<Id> {
-        let inner = self.ciphertext.into();
+    pub fn decompress(&self) -> FheInt<Id> {
+        let inner = self.ciphertext.decompress();
         FheInt::new(inner)
     }
 }

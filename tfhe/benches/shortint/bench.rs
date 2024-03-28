@@ -363,7 +363,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             b.iter_batched(
                 clone_compressed_key,
                 |sks_cloned| {
-                    let _ = ServerKey::from(sks_cloned);
+                    let _ = sks_cloned.decompress();
                 },
                 criterion::BatchSize::PerIteration,
             )

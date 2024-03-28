@@ -70,9 +70,9 @@ impl CompressedPublicKey {
         Self { key }
     }
 
-    pub fn decompress(self) -> PublicKey {
+    pub fn decompress(&self) -> PublicKey {
         PublicKey {
-            key: crate::integer::PublicKey::from(self.key),
+            key: self.key.decompress(),
         }
     }
 

@@ -174,7 +174,7 @@ impl CudaServerKey {
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let compressed_sks = CompressedServerKey::new_radix_compressed_server_key(&cks);
     /// let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_sks);
-    /// let cpu_sks = ServerKey::from(compressed_sks);
+    /// let cpu_sks = compressed_sks.decompress();
     /// let msg = 1;
     /// let scalar = 3;
     /// let ct = cpu_sks.create_trivial_radix(msg, size);

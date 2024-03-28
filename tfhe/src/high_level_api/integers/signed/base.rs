@@ -8,7 +8,7 @@ use crate::integer::SignedRadixCiphertext;
 use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::{CompactFheInt, CompressedFheInt, FheBool};
+use crate::FheBool;
 
 pub trait FheIntId: IntegerId {}
 
@@ -30,24 +30,6 @@ pub trait FheIntId: IntegerId {}
 pub struct FheInt<Id: FheIntId> {
     pub(in crate::high_level_api) ciphertext: SignedRadixCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
-}
-
-impl<Id> From<CompressedFheInt<Id>> for FheInt<Id>
-where
-    Id: FheIntId,
-{
-    fn from(value: CompressedFheInt<Id>) -> Self {
-        value.decompress()
-    }
-}
-
-impl<Id> From<CompactFheInt<Id>> for FheInt<Id>
-where
-    Id: FheIntId,
-{
-    fn from(value: CompactFheInt<Id>) -> Self {
-        value.expand()
-    }
 }
 
 impl<Id: FheIntId> ParameterSetConformant for FheInt<Id> {
