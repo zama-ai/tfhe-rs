@@ -1201,7 +1201,7 @@ mod cuda {
     use super::*;
     use criterion::criterion_group;
     use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+    use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     use tfhe::integer::gpu::server_key::CudaServerKey;
 
     /// Base function to bench a server key function that is a binary operation, input ciphertext
@@ -1462,6 +1462,99 @@ mod cuda {
         }
     );
 
+    /// Base function to bench a server key function that is a binary operation for shift/rotate,
+    /// input ciphertext will contain only zero carries
+    fn bench_cuda_server_key_shift_rotate_signed_function_clean_inputs<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        binary_op: F,
+    ) where
+        F: Fn(
+            &CudaServerKey,
+            &mut CudaSignedRadixCiphertext,
+            &mut CudaUnsignedRadixCiphertext,
+            &CudaStream,
+        ),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_two_values = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                    let d_ctxt_1 =
+                        CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_0, &stream);
+                    let d_ctxt_2 =
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
+
+                    (d_ctxt_1, d_ctxt_2)
+                };
+
+                b.iter_batched(
+                    encrypt_two_values,
+                    |(mut ct_0, mut ct_1)| {
+                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_clean_input_signed_shift_rotate (
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_shift_rotate_signed_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
+                        }
+                    )
+                }
+            }
+        }
+    );
+
     // Functions used to apply different way of selecting a scalar based on the context.
     fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
         let clearlow = rng.gen::<u128>();
@@ -1507,6 +1600,26 @@ mod cuda {
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: unchecked_bitnot,
         display_name: bitnot
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: unchecked_rotate_left,
+        display_name: rotate_left
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: unchecked_rotate_right,
+        display_name: rotate_right
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: unchecked_left_shift,
+        display_name: left_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: unchecked_right_shift,
+        display_name: right_shift
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
@@ -1595,6 +1708,26 @@ mod cuda {
         display_name: bitxor
     );
 
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: rotate_left,
+        display_name: rotate_left
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: rotate_right,
+        display_name: rotate_right
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: left_shift,
+        display_name: left_shift
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
+        method_name: right_shift,
+        display_name: right_shift
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -1647,6 +1780,10 @@ mod cuda {
         cuda_unchecked_bitnot,
         cuda_unchecked_bitor,
         cuda_unchecked_bitxor,
+        cuda_unchecked_left_shift,
+        cuda_unchecked_right_shift,
+        cuda_unchecked_rotate_left,
+        cuda_unchecked_rotate_right,
     );
 
     criterion_group!(
@@ -1670,6 +1807,10 @@ mod cuda {
         cuda_bitnot,
         cuda_bitor,
         cuda_bitxor,
+        cuda_left_shift,
+        cuda_right_shift,
+        cuda_rotate_left,
+        cuda_rotate_right,
     );
 
     criterion_group!(

@@ -62,26 +62,30 @@ __global__ void radix_blocks_rotate_left(Torus *dst, Torus *src, uint32_t value,
 // polynomial_size threads
 template <typename Torus>
 __global__ void
-device_pack_bivariate_blocks(Torus *lwe_array_out, Torus *lwe_array_1,
-                             Torus *lwe_array_2, Torus *lwe_indexes,
-                             uint32_t lwe_dimension, uint32_t message_modulus,
-                             uint32_t num_blocks) {
+device_pack_bivariate_blocks(Torus *lwe_array_out, Torus *lwe_indexes_out,
+                             Torus *lwe_array_1, Torus *lwe_array_2,
+                             Torus *lwe_indexes_in, uint32_t lwe_dimension,
+                             uint32_t shift, uint32_t num_blocks) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid < num_blocks * (lwe_dimension + 1)) {
     int block_id = tid / (lwe_dimension + 1);
     int coeff_id = tid % (lwe_dimension + 1);
 
-    int pos = lwe_indexes[block_id] * (lwe_dimension + 1) + coeff_id;
-    lwe_array_out[pos] = lwe_array_1[pos] * message_modulus + lwe_array_2[pos];
+    int pos_in = lwe_indexes_in[block_id] * (lwe_dimension + 1) + coeff_id;
+    int pos_out = lwe_indexes_out[block_id] * (lwe_dimension + 1) + coeff_id;
+    lwe_array_out[pos_out] = lwe_array_1[pos_in] * shift + lwe_array_2[pos_in];
   }
 }
 
+/* Combine lwe_array_1 and lwe_array_2 so that each block m1 and m2
+ *  becomes out = m1 * shift + m2
+ */
 template <typename Torus>
 __host__ void pack_bivariate_blocks(cuda_stream_t *stream, Torus *lwe_array_out,
-                                    Torus *lwe_array_1, Torus *lwe_array_2,
-                                    Torus *lwe_indexes, uint32_t lwe_dimension,
-                                    uint32_t message_modulus,
+                                    Torus *lwe_indexes_out, Torus *lwe_array_1,
+                                    Torus *lwe_array_2, Torus *lwe_indexes_in,
+                                    uint32_t lwe_dimension, uint32_t shift,
                                     uint32_t num_radix_blocks) {
 
   cudaSetDevice(stream->gpu_index);
@@ -90,8 +94,8 @@ __host__ void pack_bivariate_blocks(cuda_stream_t *stream, Torus *lwe_array_out,
   int num_entries = num_radix_blocks * (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   device_pack_bivariate_blocks<<<num_blocks, num_threads, 0, stream->stream>>>(
-      lwe_array_out, lwe_array_1, lwe_array_2, lwe_indexes, lwe_dimension,
-      message_modulus, num_radix_blocks);
+      lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_array_2, lwe_indexes_in,
+      lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -115,13 +119,13 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
   // Compute Keyswitch-PBS
   cuda_keyswitch_lwe_ciphertext_vector(
-      stream, lut->tmp_lwe_after_ks, lut->lwe_indexes_out, lwe_array_in,
+      stream, lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, lwe_array_in,
       lut->lwe_indexes_in, ksk, big_lwe_dimension, small_lwe_dimension,
       ks_base_log, ks_level, num_radix_blocks);
 
   execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes_out, lut->lut,
                      lut->lut_indexes, lut->tmp_lwe_after_ks,
-                     lut->lwe_indexes_in, bsk, lut->buffer, glwe_dimension,
+                     lut->lwe_trivial_indexes, bsk, lut->buffer, glwe_dimension,
                      small_lwe_dimension, polynomial_size, pbs_base_log,
                      pbs_level, grouping_factor, num_radix_blocks, 1, 0,
                      cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
@@ -134,21 +138,38 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     int_radix_lut<Torus> *lut) {
   cudaSetDevice(stream->gpu_index);
   // apply_lookup_table_bivariate
-
   auto params = lut->params;
+  auto pbs_type = params.pbs_type;
   auto big_lwe_dimension = params.big_lwe_dimension;
+  auto small_lwe_dimension = params.small_lwe_dimension;
+  auto ks_level = params.ks_level;
+  auto ks_base_log = params.ks_base_log;
+  auto pbs_level = params.pbs_level;
+  auto pbs_base_log = params.pbs_base_log;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto grouping_factor = params.grouping_factor;
   auto message_modulus = params.message_modulus;
 
   // Left message is shifted
-  pack_bivariate_blocks(stream, lut->tmp_lwe_before_ks, lwe_array_1,
-                        lwe_array_2, lut->lwe_indexes_in, big_lwe_dimension,
-                        message_modulus, num_radix_blocks);
+  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  pack_bivariate_blocks(stream, lwe_array_pbs_in, lut->lwe_trivial_indexes,
+                        lwe_array_1, lwe_array_2, lut->lwe_indexes_in,
+                        big_lwe_dimension, message_modulus, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 
   // Apply LUT
-  integer_radix_apply_univariate_lookup_table_kb(stream, lwe_array_out,
-                                                 lut->tmp_lwe_before_ks, bsk,
-                                                 ksk, num_radix_blocks, lut);
+  cuda_keyswitch_lwe_ciphertext_vector(
+      stream, lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, lwe_array_pbs_in,
+      lut->lwe_trivial_indexes, ksk, big_lwe_dimension, small_lwe_dimension,
+      ks_base_log, ks_level, num_radix_blocks);
+
+  execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes_out, lut->lut,
+                     lut->lut_indexes, lut->tmp_lwe_after_ks,
+                     lut->lwe_trivial_indexes, bsk, lut->buffer, glwe_dimension,
+                     small_lwe_dimension, polynomial_size, pbs_base_log,
+                     pbs_level, grouping_factor, num_radix_blocks, 1, 0,
+                     cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
 }
 
 // Rotates the slice in-place such that the first mid elements of the slice move
@@ -645,6 +666,22 @@ create_trivial_radix(cuda_stream_t *stream, Torus *lwe_array_out,
   device_create_trivial_radix<<<grid, thds, 0, stream->stream>>>(
       lwe_array_out, scalar_array, num_scalar_blocks, lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
+}
+
+/**
+ * Each bit in lwe_array_in becomes a lwe ciphertext in lwe_array_out
+ * Thus, lwe_array_out must be allocated with num_radix_blocks * bits_per_block
+ * * (lwe_dimension+1) * sizeeof(Torus) bytes
+ */
+template <typename Torus>
+__host__ void extract_n_bits(cuda_stream_t *stream, Torus *lwe_array_out,
+                             Torus *lwe_array_in, void *bsk, Torus *ksk,
+                             uint32_t num_radix_blocks, uint32_t bits_per_block,
+                             int_bit_extract_luts_buffer<Torus> *bit_extract) {
+
+  integer_radix_apply_univariate_lookup_table_kb(
+      stream, lwe_array_out, lwe_array_in, bsk, ksk,
+      num_radix_blocks * bits_per_block, bit_extract->lut);
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

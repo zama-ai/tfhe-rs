@@ -14,8 +14,8 @@
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_scalar_rotate_kb(
     cuda_stream_t *stream, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, SHIFT_TYPE shift_type,
-    bool allocate_gpu_memory) {
+    uint32_t num_radix_blocks, int_radix_params params,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
   cudaSetDevice(stream->gpu_index);
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(

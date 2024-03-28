@@ -206,6 +206,7 @@ where
         {
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
+
             let encrypted_result = executor.execute((&ct, &shift));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
             assert_eq!((clear << clear_shift) % modulus, decrypted_result);
@@ -215,6 +216,7 @@ where
         {
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let shift = cks.encrypt(clear_shift as u64);
+
             let encrypted_result = executor.execute((&ct, &shift));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
             // When nb_bits is not a power of two
@@ -315,6 +317,225 @@ where
 
         // case when 0 <= rotate < nb_bits
         {
+            let clear_rotate = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, clear_rotate, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_rotate = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_left_helper(clear, clear_rotate % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+pub(crate) fn unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_rotate = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, clear_rotate, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_rotate = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_right_helper(clear, clear_rotate % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+pub(crate) fn default_left_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            assert_eq!((clear << clear_shift) % modulus, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shl manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!(
+                (clear << (clear_shift % nb_bits)) % modulus,
+                decrypted_result
+            );
+        }
+    }
+}
+
+pub(crate) fn default_right_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            assert_eq!((clear >> clear_shift) % modulus, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shr manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!(
+                (clear >> (clear_shift % nb_bits)) % modulus,
+                decrypted_result
+            );
+        }
+    }
+}
+
+pub(crate) fn default_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
             let encrypted_result = executor.execute((&ct, &shift));
@@ -342,7 +563,7 @@ where
     }
 }
 
-pub(crate) fn unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_rotate_right_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,

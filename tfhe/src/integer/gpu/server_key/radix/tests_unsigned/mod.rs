@@ -2,10 +2,12 @@ pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
+pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
+pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 
 use crate::core_crypto::gpu::{CudaDevice, CudaStream};
@@ -1737,7 +1739,7 @@ fn integer_unchecked_scalar_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters> + Copy,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_left_rotate);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_left);
     unchecked_scalar_rotate_left_test(param, executor);
 }
 
@@ -1745,7 +1747,7 @@ fn integer_unchecked_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters> + Copy,
 {
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_right_rotate);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_right);
     unchecked_scalar_rotate_right_test(param, executor);
 }
 

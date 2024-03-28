@@ -9,7 +9,12 @@
 #include <functional>
 
 enum OUTPUT_CARRY { NONE = 0, GENERATED = 1, PROPAGATED = 2 };
-enum SHIFT_TYPE { LEFT_SHIFT = 0, RIGHT_SHIFT = 1 };
+enum SHIFT_OR_ROTATE_TYPE {
+  LEFT_SHIFT = 0,
+  RIGHT_SHIFT = 1,
+  LEFT_ROTATE = 2,
+  RIGHT_ROTATE = 3
+};
 enum LUT_TYPE { OPERATOR = 0, MAXVALUE = 1, ISNONZERO = 2, BLOCKSLEN = 3 };
 enum BITOP_TYPE {
   BITAND = 0,
@@ -94,7 +99,8 @@ void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, SHIFT_TYPE shift_type, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
+    bool allocate_gpu_memory);
 
 void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     cuda_stream_t *stream, void *lwe_array, uint32_t shift, int8_t *mem_ptr,
@@ -106,7 +112,8 @@ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, SHIFT_TYPE shift_type, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
+    bool allocate_gpu_memory);
 
 void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
     cuda_stream_t *stream, void *lwe_array, uint32_t shift, int8_t *mem_ptr,
@@ -117,6 +124,22 @@ void cleanup_cuda_integer_radix_logical_scalar_shift(cuda_stream_t *stream,
 
 void cleanup_cuda_integer_radix_arithmetic_scalar_shift(cuda_stream_t *stream,
                                                         int8_t **mem_ptr_void);
+
+void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
+    bool allocate_gpu_memory);
+
+void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+    cuda_stream_t *stream, void *lwe_array, void *lwe_shift, int8_t *mem_ptr,
+    void *bsk, void *ksk, uint32_t num_blocks);
+
+void cleanup_cuda_integer_radix_shift_and_rotate(cuda_stream_t *stream,
+                                                 int8_t **mem_ptr_void);
 
 void scratch_cuda_integer_radix_comparison_kb_64(
     cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
@@ -187,7 +210,8 @@ void scratch_cuda_integer_radix_scalar_rotate_kb_64(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, SHIFT_TYPE shift_type, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
+    bool allocate_gpu_memory);
 
 void cuda_integer_radix_scalar_rotate_kb_64_inplace(cuda_stream_t *stream,
                                                     void *lwe_array, uint32_t n,
@@ -328,6 +352,10 @@ template <typename Torus> struct int_radix_lut {
   Torus *lwe_indexes_in;
   Torus *lwe_indexes_out;
 
+  // lwe_trivial_indexes is the intermediary index we need in case
+  // lwe_indexes_in != lwe_indexes_out
+  Torus *lwe_trivial_indexes;
+
   Torus *tmp_lwe_before_ks;
   Torus *tmp_lwe_after_ks;
 
@@ -371,6 +399,8 @@ template <typename Torus> struct int_radix_lut {
                                             stream->gpu_index);
       lwe_indexes_out = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
                                              stream->gpu_index);
+      lwe_trivial_indexes = (Torus *)cuda_malloc(
+          num_radix_blocks * sizeof(Torus), stream->gpu_index);
       auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
       for (int i = 0; i < num_radix_blocks; i++)
@@ -380,7 +410,10 @@ template <typename Torus> struct int_radix_lut {
                                num_radix_blocks * sizeof(Torus), stream);
       cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes,
                                num_radix_blocks * sizeof(Torus), stream);
-      free(h_lwe_indexes);
+      cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes,
+                               num_radix_blocks * sizeof(Torus), stream);
+      cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                               h_lwe_indexes);
 
       // Keyswitch
       tmp_lwe_before_ks = (Torus *)cuda_malloc_async(big_size, stream);
@@ -425,6 +458,8 @@ template <typename Torus> struct int_radix_lut {
                                           stream->gpu_index);
     lwe_indexes_out = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
                                            stream->gpu_index);
+    lwe_trivial_indexes = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
+                                               stream->gpu_index);
     auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
     for (int i = 0; i < num_radix_blocks; i++)
@@ -434,8 +469,10 @@ template <typename Torus> struct int_radix_lut {
                              num_radix_blocks * sizeof(Torus), stream);
     cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes,
                              num_radix_blocks * sizeof(Torus), stream);
-    cuda_synchronize_stream(stream);
-    free(h_lwe_indexes);
+    cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes,
+                             num_radix_blocks * sizeof(Torus), stream);
+    cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                             h_lwe_indexes);
   }
 
   Torus *get_lut(size_t ind) {
@@ -448,6 +485,7 @@ template <typename Torus> struct int_radix_lut {
     cuda_drop_async(lut_indexes, stream);
     cuda_drop_async(lwe_indexes_in, stream);
     cuda_drop_async(lwe_indexes_out, stream);
+    cuda_drop_async(lwe_trivial_indexes, stream);
     cuda_drop_async(lut, stream);
     if (!mem_reuse) {
       switch (params.pbs_type) {
@@ -463,6 +501,228 @@ template <typename Torus> struct int_radix_lut {
       cuda_drop_async(tmp_lwe_before_ks, stream);
       cuda_drop_async(tmp_lwe_after_ks, stream);
     }
+  }
+};
+
+template <typename Torus> struct int_bit_extract_luts_buffer {
+  int_radix_params params;
+  int_radix_lut<Torus> *lut;
+
+  // With offset
+  int_bit_extract_luts_buffer(cuda_stream_t *stream, int_radix_params params,
+                              uint32_t bits_per_block, uint32_t final_offset,
+                              uint32_t num_radix_blocks,
+                              bool allocate_gpu_memory) {
+    this->params = params;
+
+    lut = new int_radix_lut<Torus>(stream, params, bits_per_block,
+                                   bits_per_block * num_radix_blocks,
+                                   allocate_gpu_memory);
+
+    if (allocate_gpu_memory) {
+      for (int i = 0; i < bits_per_block; i++) {
+
+        auto operator_f = [i, final_offset](Torus x) -> Torus {
+          Torus y = (x >> i) & 1;
+          return y << final_offset;
+        };
+
+        generate_device_accumulator<Torus>(
+            stream, lut->get_lut(i), params.glwe_dimension,
+            params.polynomial_size, params.message_modulus,
+            params.carry_modulus, operator_f);
+      }
+
+      /**
+       * we have bits_per_blocks LUTs that should be used for all bits in all
+       * blocks
+       */
+      Torus *h_lut_indexes =
+          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+      for (int j = 0; j < num_radix_blocks; j++) {
+        for (int i = 0; i < bits_per_block; i++)
+          h_lut_indexes[i + j * bits_per_block] = i;
+      }
+      cuda_memcpy_async_to_gpu(
+          lut->lut_indexes, h_lut_indexes,
+          num_radix_blocks * bits_per_block * sizeof(Torus), stream);
+      cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                               h_lut_indexes);
+
+      /**
+       * the input indexes should take the first bits_per_block PBS to target
+       * the block 0, then block 1, etc...
+       */
+      Torus *h_lwe_indexes_in =
+          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+
+      for (int j = 0; j < num_radix_blocks; j++) {
+        for (int i = 0; i < bits_per_block; i++)
+          h_lwe_indexes_in[i + j * bits_per_block] = j;
+      }
+      cuda_memcpy_async_to_gpu(
+          lut->lwe_indexes_in, h_lwe_indexes_in,
+          num_radix_blocks * bits_per_block * sizeof(Torus), stream);
+      cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                               h_lwe_indexes_in);
+
+      /**
+       * the output should aim different lwe ciphertexts, so lwe_indexes_out =
+       * range(num_luts)
+       */
+      Torus *h_lwe_indexes_out =
+          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+
+      for (int i = 0; i < num_radix_blocks * bits_per_block; i++)
+        h_lwe_indexes_out[i] = i;
+
+      cuda_memcpy_async_to_gpu(
+          lut->lwe_indexes_out, h_lwe_indexes_out,
+          num_radix_blocks * bits_per_block * sizeof(Torus), stream);
+      cuda_stream_add_callback(stream, host_free_on_stream_callback,
+                               h_lwe_indexes_out);
+    }
+  }
+
+  // Without offset
+  int_bit_extract_luts_buffer(cuda_stream_t *stream, int_radix_params params,
+                              uint32_t bits_per_block,
+                              uint32_t num_radix_blocks,
+                              bool allocate_gpu_memory)
+      : int_bit_extract_luts_buffer(stream, params, bits_per_block, 0,
+                                    num_radix_blocks, allocate_gpu_memory) {}
+
+  void release(cuda_stream_t *stream) { lut->release(stream); }
+};
+
+template <typename Torus> struct int_shift_and_rotate_buffer {
+  int_radix_params params;
+  SHIFT_OR_ROTATE_TYPE shift_type;
+  bool is_signed;
+
+  Torus *tmp_bits;
+  Torus *tmp_shift_bits;
+
+  Torus *tmp_rotated;
+  Torus *tmp_input_bits_a;
+  Torus *tmp_input_bits_b;
+
+  int_bit_extract_luts_buffer<Torus> *bit_extract_luts;
+  int_bit_extract_luts_buffer<Torus> *bit_extract_luts_with_offset_2;
+
+  int_radix_lut<Torus> *mux_lut;
+  Torus *tmp_mux_inputs;
+
+  Torus offset;
+
+  int_radix_lut<Torus> *cleaning_lut;
+
+  int_shift_and_rotate_buffer(cuda_stream_t *stream,
+                              SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
+                              int_radix_params params,
+                              uint32_t num_radix_blocks,
+                              bool allocate_gpu_memory) {
+    this->shift_type = shift_type;
+    this->is_signed = is_signed;
+    this->params = params;
+
+    uint32_t bits_per_block = std::log2(params.message_modulus);
+    uint32_t total_nb_bits =
+        std::log2(params.message_modulus) * num_radix_blocks;
+    uint32_t max_num_bits_that_tell_shift = std::log2(total_nb_bits);
+
+    auto is_power_of_two = [](uint32_t n) {
+      return (n > 0) && ((n & (n - 1)) == 0);
+    };
+
+    if (!is_power_of_two(total_nb_bits))
+      max_num_bits_that_tell_shift += 1;
+
+    offset = (shift_type == LEFT_SHIFT ? 0 : total_nb_bits);
+
+    bit_extract_luts = new int_bit_extract_luts_buffer<Torus>(
+        stream, params, bits_per_block, num_radix_blocks, allocate_gpu_memory);
+    bit_extract_luts_with_offset_2 = new int_bit_extract_luts_buffer<Torus>(
+        stream, params, bits_per_block, 2, num_radix_blocks,
+        allocate_gpu_memory);
+
+    mux_lut = new int_radix_lut<Torus>(stream, params, 1,
+                                       bits_per_block * num_radix_blocks,
+                                       allocate_gpu_memory);
+    cleaning_lut = new int_radix_lut<Torus>(stream, params, 1, num_radix_blocks,
+                                            allocate_gpu_memory);
+
+    if (allocate_gpu_memory) {
+      tmp_bits = (Torus *)cuda_malloc_async(bits_per_block * num_radix_blocks *
+                                                (params.big_lwe_dimension + 1) *
+                                                sizeof(Torus),
+                                            stream);
+      tmp_shift_bits = (Torus *)cuda_malloc_async(
+          max_num_bits_that_tell_shift * num_radix_blocks *
+              (params.big_lwe_dimension + 1) * sizeof(Torus),
+          stream);
+
+      tmp_rotated = (Torus *)cuda_malloc_async(
+          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
+              sizeof(Torus),
+          stream);
+
+      tmp_input_bits_a = (Torus *)cuda_malloc_async(
+          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
+              sizeof(Torus),
+          stream);
+      tmp_input_bits_b = (Torus *)cuda_malloc_async(
+          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
+              sizeof(Torus),
+          stream);
+      tmp_mux_inputs = (Torus *)cuda_malloc_async(
+          bits_per_block * num_radix_blocks * (params.big_lwe_dimension + 1) *
+              sizeof(Torus),
+          stream);
+
+      auto mux_lut_f = [](Torus x) -> Torus {
+        // x is expected to be x = 0bcba
+        // where
+        // - c is the control bit
+        // - b the bit value returned if c is 1
+        // - a the bit value returned if c is 0
+        // (any bit above c is ignored)
+        x = x & 7;
+        auto control_bit = x >> 2;
+        auto previous_bit = (x & 2) >> 1;
+        auto current_bit = x & 1;
+
+        if (control_bit == 1)
+          return previous_bit;
+        else
+          return current_bit;
+      };
+
+      generate_device_accumulator<Torus>(
+          stream, mux_lut->get_lut(0), params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          mux_lut_f);
+
+      auto cleaning_lut_f = [](Torus x) -> Torus { return x; };
+      generate_device_accumulator<Torus>(
+          stream, cleaning_lut->lut, params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          cleaning_lut_f);
+    }
+  }
+
+  void release(cuda_stream_t *stream) {
+    cuda_drop_async(tmp_bits, stream);
+    cuda_drop_async(tmp_shift_bits, stream);
+    cuda_drop_async(tmp_rotated, stream);
+    cuda_drop_async(tmp_input_bits_a, stream);
+    cuda_drop_async(tmp_input_bits_b, stream);
+    cuda_drop_async(tmp_mux_inputs, stream);
+
+    bit_extract_luts->release(stream);
+    bit_extract_luts_with_offset_2->release(stream);
+    mux_lut->release(stream);
+    cleaning_lut->release(stream);
   }
 };
 
@@ -961,11 +1221,12 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
   int_radix_params params;
   std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
 
-  SHIFT_TYPE shift_type;
+  SHIFT_OR_ROTATE_TYPE shift_type;
 
   Torus *tmp_rotated;
 
-  int_logical_scalar_shift_buffer(cuda_stream_t *stream, SHIFT_TYPE shift_type,
+  int_logical_scalar_shift_buffer(cuda_stream_t *stream,
+                                  SHIFT_OR_ROTATE_TYPE shift_type,
                                   int_radix_params params,
                                   uint32_t num_radix_blocks,
                                   bool allocate_gpu_memory) {
@@ -1065,7 +1326,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
   std::vector<int_radix_lut<Torus> *> lut_buffers_univariate;
   std::vector<int_radix_lut<Torus> *> lut_buffers_bivariate;
 
-  SHIFT_TYPE shift_type;
+  SHIFT_OR_ROTATE_TYPE shift_type;
 
   Torus *tmp_rotated;
 
@@ -1073,7 +1334,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
   cuda_stream_t *local_stream_2;
 
   int_arithmetic_scalar_shift_buffer(cuda_stream_t *stream,
-                                     SHIFT_TYPE shift_type,
+                                     SHIFT_OR_ROTATE_TYPE shift_type,
                                      int_radix_params params,
                                      uint32_t num_radix_blocks,
                                      bool allocate_gpu_memory) {
