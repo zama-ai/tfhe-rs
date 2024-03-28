@@ -22,6 +22,8 @@ pub mod utils {
         fn name(&self) -> String;
     }
 
+    // Useful when defining custom parameters that may need an access to the keycache logic
+    #[macro_export]
     macro_rules! named_params_impl(
         (expose $($const_param:ident),* $(,)? ) => {
             $(
@@ -59,7 +61,7 @@ pub mod utils {
         }
     );
 
-    pub(crate) use named_params_impl;
+    pub use named_params_impl;
 
     pub struct FileStorage {
         prefix: String,
