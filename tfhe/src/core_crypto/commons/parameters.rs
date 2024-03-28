@@ -202,6 +202,10 @@ pub struct FunctionalPackingKeyswitchKeyCount(pub usize);
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct CiphertextModulusLog(pub usize);
 
+/// The number of bits that can be represented in a message
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct MessageModulusLog(pub usize);
+
 /// The number of cpu execution thread to use
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct ThreadCount(pub usize);

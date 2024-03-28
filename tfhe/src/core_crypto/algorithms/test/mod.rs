@@ -74,7 +74,7 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestPar
     )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
@@ -99,7 +99,7 @@ pub const TEST_PARAMS_3_BITS_63_U64: ClassicTestParams<u64> = ClassicTestParams 
     )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
 };
 
@@ -124,7 +124,7 @@ pub const TEST_PARAMS_3_BITS_SOLINAS_U64: ClassicTestParams<u64> = ClassicTestPa
     )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new((1 << 64) - (1 << 32) + 1),
 };
 
@@ -149,7 +149,7 @@ pub const DUMMY_NATIVE_U32: ClassicTestParams<u32> = ClassicTestParams {
     )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
@@ -174,7 +174,7 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     )),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
@@ -190,7 +190,7 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000000000000003152931493498455,
     )),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
@@ -208,7 +208,7 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000000000000003152931493498455,
     )),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(2),
     thread_count: ThreadCount(5),
@@ -226,7 +226,7 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000000000000003152931493498455,
     )),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
@@ -244,7 +244,7 @@ pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.0000000000000003152931493498455,
     )),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
