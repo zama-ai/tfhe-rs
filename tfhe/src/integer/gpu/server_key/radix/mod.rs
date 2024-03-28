@@ -44,6 +44,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -57,19 +58,20 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let d_ctxt = sks.create_trivial_zero_radix(num_blocks, &mut stream);
+    /// let d_ctxt: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_zero_radix(num_blocks, &mut stream);
     /// let ctxt = d_ctxt.to_radix_ciphertext(&mut stream);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(0, dec);
     /// ```
-    pub fn create_trivial_zero_radix(
+    pub fn create_trivial_zero_radix<T: CudaIntegerRadixCiphertext>(
         &self,
         num_blocks: usize,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
-        self.create_trivial_radix(0, num_blocks, stream)
+    ) -> T {
+        T::from(self.create_trivial_radix(0, num_blocks, stream).ciphertext)
     }
 
     /// Create a trivial ciphertext on the GPU

@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::CudaServerKey;
 
@@ -8,22 +9,22 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_if_then_else_async(
+    pub unsafe fn unchecked_if_then_else_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &CudaBooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let lwe_ciphertext_count = true_ct.as_ref().d_blocks.lwe_ciphertext_count();
-        let mut result = self
+        let mut result: T = self
             .create_trivial_zero_radix(true_ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_cmux_integer_radix_classic_kb_async(
                     &mut result.as_mut().d_blocks.0.d_vec,
-                    &condition.as_ref().d_blocks.0.d_vec,
+                    &condition.as_ref().ciphertext.d_blocks.0.d_vec,
                     &true_ct.as_ref().d_blocks.0.d_vec,
                     &false_ct.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -48,7 +49,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_cmux_integer_radix_multibit_kb_async(
                     &mut result.as_mut().d_blocks.0.d_vec,
-                    &condition.as_ref().d_blocks.0.d_vec,
+                    &condition.as_ref().ciphertext.d_blocks.0.d_vec,
                     &true_ct.as_ref().d_blocks.0.d_vec,
                     &false_ct.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -75,39 +76,30 @@ impl CudaServerKey {
 
         result
     }
-    pub fn unchecked_if_then_else(
+    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &CudaBooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> T {
         let result =
             unsafe { self.unchecked_if_then_else_async(condition, true_ct, false_ct, stream) };
         stream.synchronize();
         result
     }
 
-    pub fn if_then_else(
+    pub fn if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
-        condition: &CudaUnsignedRadixCiphertext,
-        true_ct: &CudaUnsignedRadixCiphertext,
-        false_ct: &CudaUnsignedRadixCiphertext,
+        condition: &CudaBooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
-        let mut tmp_condition;
+    ) -> T {
         let mut tmp_true_ct;
         let mut tmp_false_ct;
 
         let result = unsafe {
-            let condition = if condition.block_carries_are_empty() {
-                condition
-            } else {
-                tmp_condition = condition.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_condition, stream);
-                &tmp_condition
-            };
-
             let true_ct = if true_ct.block_carries_are_empty() {
                 true_ct
             } else {
