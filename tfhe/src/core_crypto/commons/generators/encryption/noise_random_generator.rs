@@ -524,3 +524,34 @@ fn noise_elements_per_pfpksk(
 fn noise_elements_per_lwe_compact_ciphertext_bin(lwe_dimension: LweDimension) -> NoiseElementCount {
     NoiseElementCount(lwe_dimension.0 * noise_bytes_per_coef().0)
 }
+
+#[cfg(feature = "experimental")]
+mod experimental {
+    use super::*;
+
+    impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
+        // Forks the generator, when splitting a ggsw into level matrices.
+        pub(crate) fn fork_pseudo_ggsw_to_ggsw_levels(
+            &mut self,
+            level: DecompositionLevelCount,
+            glwe_size_in: GlweSize,
+            polynomial_size: PolynomialSize,
+        ) -> Result<impl Iterator<Item = Self>, ForkError> {
+            let noise_bytes =
+                noise_elements_per_ggsw_level(GlweSize(glwe_size_in.0 - 1), polynomial_size)
+                    .to_noise_byte_count(noise_bytes_per_coef());
+            self.try_fork(level.0, noise_bytes)
+        }
+
+        // Forks the generator, when splitting a pseudo ggsw level matrix to glwe.
+        pub(crate) fn fork_pseudo_ggsw_level_to_glwe(
+            &mut self,
+            glwe_size_in: GlweSize,
+            polynomial_size: PolynomialSize,
+        ) -> Result<impl Iterator<Item = Self>, ForkError> {
+            let noise_bytes = noise_elements_per_glwe(polynomial_size)
+                .to_noise_byte_count(noise_bytes_per_coef());
+            self.try_fork(glwe_size_in.to_glwe_dimension().0, noise_bytes)
+        }
+    }
+}
