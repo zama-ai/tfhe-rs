@@ -1,6 +1,13 @@
-use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
-use crate::high_level_api::integers::unsigned::compact::{CompactFheUint, CompactFheUintList};
-use crate::high_level_api::integers::unsigned::compressed::CompressedFheUint;
+use crate::high_level_api::integers::unsigned::base::{
+    FheUint, FheUintConformanceParams, FheUintId,
+};
+use crate::high_level_api::integers::unsigned::compact::{
+    CompactFheUint, CompactFheUintConformanceParams, CompactFheUintList,
+    CompactFheUintListConformanceParams,
+};
+use crate::high_level_api::integers::unsigned::compressed::{
+    CompressedFheUint, CompressedFheUintConformanceParams,
+};
 use crate::high_level_api::integers::IntegerId;
 use serde::{Deserialize, Serialize};
 
@@ -45,6 +52,19 @@ macro_rules! static_int_type {
 
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compact FheUint $num_bits List>] = CompactFheUintList<[<FheUint $num_bits Id>]>;
+
+            // Conformance Params
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<FheUint $num_bits ConformanceParams>] = FheUintConformanceParams<[<FheUint $num_bits Id>]>;
+
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compressed FheUint $num_bits ConformanceParams>] = CompressedFheUintConformanceParams<[<FheUint $num_bits Id>]>;
+
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compact FheUint $num_bits ConformanceParams>] = CompactFheUintConformanceParams<[<FheUint $num_bits Id>]>;
+
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compact FheUint $num_bits ListConformanceParams>] = CompactFheUintListConformanceParams<[<FheUint $num_bits Id>]>;
         }
     };
 }

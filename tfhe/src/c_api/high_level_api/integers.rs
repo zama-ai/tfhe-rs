@@ -307,7 +307,7 @@ macro_rules! create_integer_wrapper_type {
 
         impl_safe_serialize_on_type!($name);
 
-        impl_safe_deserialize_conformant_integer!($name, crate::high_level_api::safe_deserialize_conformant);
+        impl_safe_deserialize_conformant_integer!($name);
 
         define_all_cast_into_for_integer_type!($name);
 
@@ -325,7 +325,7 @@ macro_rules! create_integer_wrapper_type {
 
             impl_safe_serialize_on_type!([<Compressed $name>]);
 
-            impl_safe_deserialize_conformant_integer!([<Compressed $name>], crate::high_level_api::safe_deserialize_conformant);
+            impl_safe_deserialize_conformant_integer!([<Compressed $name>]);
 
 
             #[no_mangle]
@@ -357,7 +357,7 @@ macro_rules! create_integer_wrapper_type {
 
             impl_safe_serialize_on_type!([<Compact $name>]);
 
-            impl_safe_deserialize_conformant_integer!([<Compact $name>], crate::high_level_api::safe_deserialize_conformant);
+            impl_safe_deserialize_conformant_integer!([<Compact $name>]);
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compact_ $name:snake _expand>](
@@ -382,6 +382,10 @@ macro_rules! create_integer_wrapper_type {
             impl_clone_on_type!([<Compact $name List>]);
 
             impl_serialize_deserialize_on_type!([<Compact $name List>]);
+
+            impl_safe_serialize_on_type!([<Compact $name List>]);
+
+            impl_safe_deserialize_conformant_integer_list!([<Compact $name List>]);
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compact_ $name:snake _list_len>](

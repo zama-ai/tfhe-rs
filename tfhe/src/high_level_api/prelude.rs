@@ -12,4 +12,5 @@ pub use crate::high_level_api::traits::{
     RotateRightAssign,
 };
 
+pub use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
