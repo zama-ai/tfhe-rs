@@ -87,7 +87,7 @@ pub unsafe extern "C" fn shortint_decompress_ciphertext(
 
         let compressed_ciphertext = get_ref_checked(compressed_ciphertext).unwrap();
 
-        let ciphertext = compressed_ciphertext.0.clone().into();
+        let ciphertext = compressed_ciphertext.0.decompress();
 
         let heap_allocated_ciphertext = Box::new(ShortintCiphertext(ciphertext));
 

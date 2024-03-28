@@ -113,15 +113,16 @@ impl PublicKey {
     }
 }
 
-impl From<CompressedPublicKey> for PublicKey {
-    fn from(compressed_public_key: CompressedPublicKey) -> Self {
-        let parameters = compressed_public_key.parameters;
+impl CompressedPublicKey {
+    pub fn decompress(&self) -> PublicKey {
+        let parameters = self.parameters;
 
-        let decompressed_public_key = compressed_public_key
+        let decompressed_public_key = self
             .compressed_lwe_public_key
+            .as_view()
             .par_decompress_into_lwe_public_key();
 
-        Self {
+        PublicKey {
             lwe_public_key: decompressed_public_key,
             parameters,
         }
@@ -194,7 +195,7 @@ mod tests {
         let keys = KEY_CACHE.get_from_param(parameters);
         let (cks, sks) = (keys.client_key(), keys.server_key());
         let cpks = CompressedPublicKey::new(cks);
-        let pks = PublicKey::from(cpks);
+        let pks = cpks.decompress();
 
         for _ in 0..NB_TESTS {
             let b1 = random_boolean();

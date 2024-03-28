@@ -200,7 +200,7 @@ impl Boolean {
         compressed_ciphertext: &BooleanCompressedCiphertext,
     ) -> BooleanCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanCiphertext(compressed_ciphertext.0.clone().into())
+        BooleanCiphertext(compressed_ciphertext.0.decompress())
     }
 
     #[wasm_bindgen]
