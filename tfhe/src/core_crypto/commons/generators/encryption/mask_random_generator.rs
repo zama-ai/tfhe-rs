@@ -371,8 +371,8 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
 pub(crate) struct MaskElementCount(pub usize);
 
 impl MaskElementCount {
-    pub(crate) fn to_mask_byte_count(self, noise_byte_per_scalar: MaskByteCount) -> MaskByteCount {
-        MaskByteCount(self.0 * noise_byte_per_scalar.0)
+    pub(crate) fn to_mask_byte_count(self, mask_byte_per_scalar: MaskByteCount) -> MaskByteCount {
+        MaskByteCount(self.0 * mask_byte_per_scalar.0)
     }
 }
 
@@ -451,4 +451,48 @@ fn mask_elements_per_pfpksk(
 
 fn mask_elements_per_lwe_compact_ciphertext_bin(lwe_dimension: LweDimension) -> MaskElementCount {
     MaskElementCount(lwe_dimension.0)
+}
+
+#[cfg(feature = "experimental")]
+mod experimental {
+    use super::*;
+    impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
+        // Forks the generator, when splitting a ggsw into level matrices.
+        pub(crate) fn fork_pseudo_ggsw_to_ggsw_levels<T: UnsignedInteger>(
+            &mut self,
+            level: DecompositionLevelCount,
+            glwe_size_in: GlweSize,
+            glwe_size_out: GlweSize,
+            polynomial_size: PolynomialSize,
+        ) -> Result<impl Iterator<Item = Self>, ForkError> {
+            let mask_bytes =
+                mask_elements_per_pseudo_ggsw_level(glwe_size_in, glwe_size_out, polynomial_size)
+                    .to_mask_byte_count(mask_bytes_per_coef::<T>());
+            self.try_fork(level.0, mask_bytes)
+        }
+
+        // Forks the generator, when splitting a pseudo ggsw level matrix to glwe.
+        pub(crate) fn fork_pseudo_ggsw_level_to_glwe<T: UnsignedInteger>(
+            &mut self,
+            glwe_size_in: GlweSize,
+            glwe_size_out: GlweSize,
+            polynomial_size: PolynomialSize,
+        ) -> Result<impl Iterator<Item = Self>, ForkError> {
+            let mask_bytes =
+                mask_elements_per_glwe(glwe_size_out.to_glwe_dimension(), polynomial_size)
+                    .to_mask_byte_count(mask_bytes_per_coef::<T>());
+            self.try_fork(glwe_size_in.to_glwe_dimension().0, mask_bytes)
+        }
+    }
+
+    fn mask_elements_per_pseudo_ggsw_level(
+        glwe_size_in: GlweSize,
+        glwe_size_out: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> MaskElementCount {
+        MaskElementCount(
+            glwe_size_in.to_glwe_dimension().0
+                * mask_elements_per_glwe(glwe_size_out.to_glwe_dimension(), poly_size).0,
+        )
+    }
 }
