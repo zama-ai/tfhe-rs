@@ -349,11 +349,11 @@ impl WopbsKey {
     /// ```rust
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::wopbs::WopbsKey;
-    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::parameters_wopbs_only::WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, nb_block);
+    /// let (cks, sks) = gen_keys_radix(WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, nb_block);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {

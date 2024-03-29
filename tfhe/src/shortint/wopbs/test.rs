@@ -1,11 +1,11 @@
 use crate::shortint::keycache::KEY_CACHE_WOPBS;
-use crate::shortint::parameters::parameters_wopbs_message_carry::*;
+use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::{
     MessageModulus, PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS, PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use crate::shortint::wopbs::WopbsKey;
-use crate::shortint::{gen_keys, ClassicPBSParameters, WopbsParameters};
+use crate::shortint::{gen_keys, ClassicPBSParameters};
 use rand::Rng;
 
 const NB_TESTS: usize = 1;
@@ -101,6 +101,13 @@ create_parametrized_test!(generate_lut);
 create_parametrized_test!(generate_lut_modulus);
 #[cfg(not(tarpaulin))]
 create_parametrized_wopbs_only_test!(generate_lut_modulus_not_power_of_two);
+#[cfg(not(tarpaulin))]
+create_parametrized_wopbs_only_test!(generate_lut_wop_only {
+    WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_4_CARRY_4_KS_PBS
+});
 
 fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
     let keys = KEY_CACHE_WOPBS.get_from_param(params);
@@ -114,6 +121,33 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
         let ct = cks.encrypt(m as u64);
         let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus as u64);
         let ct_res = wopbs_key.programmable_bootstrapping(sks, &ct, &lut);
+
+        let res = cks.decrypt(&ct_res);
+        if res != (m % message_modulus) as u64 {
+            tmp += 1;
+        }
+    }
+    if 0 != tmp {
+        println!("______");
+        println!("failure rate {tmp:?}/{NB_TESTS:?}");
+        println!("______");
+    }
+    assert_eq!(0, tmp);
+}
+
+#[cfg(not(tarpaulin))]
+fn generate_lut_wop_only(params: WopbsParameters) {
+    let (cks, sks) = gen_keys(params);
+    let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    let mut rng = rand::thread_rng();
+
+    let mut tmp = 0;
+    for _ in 0..NB_TESTS {
+        let message_modulus = params.message_modulus.0;
+        let m = rng.gen::<usize>() % message_modulus;
+        let ct = cks.encrypt(m as u64);
+        let lut = wopbs_key.generate_lut(&ct, |x| x % message_modulus as u64);
+        let ct_res = wopbs_key.wopbs(&ct, &lut);
 
         let res = cks.decrypt(&ct_res);
         if res != (m % message_modulus) as u64 {
