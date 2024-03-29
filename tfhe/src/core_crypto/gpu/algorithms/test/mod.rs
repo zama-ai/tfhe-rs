@@ -1,5 +1,4 @@
 use crate::core_crypto::algorithms::test::*;
-use crate::core_crypto::prelude::*;
 
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
