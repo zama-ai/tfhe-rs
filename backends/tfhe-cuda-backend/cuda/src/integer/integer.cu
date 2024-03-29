@@ -88,6 +88,8 @@ void cleanup_cuda_full_propagation(cuda_stream_t *stream,
   cuda_drop_async(mem_ptr->lut_buffer, stream);
   cuda_drop_async(mem_ptr->lut_indexes, stream);
 
+  cuda_drop_async(mem_ptr->lwe_indexes, stream);
+
   cuda_drop_async(mem_ptr->tmp_small_lwe_vector, stream);
   cuda_drop_async(mem_ptr->tmp_big_lwe_vector, stream);
 

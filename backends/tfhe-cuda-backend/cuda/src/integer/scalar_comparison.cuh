@@ -22,7 +22,6 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
   auto diff_buffer = mem_ptr->diff_buffer;
 
   size_t big_lwe_size = big_lwe_dimension + 1;
-  size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
   // Reducing the signs is the bottleneck of the comparison algorithms,
   // however if the scalar case there is an improvement:
@@ -65,12 +64,6 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         stream, lwe_array_out, mem_ptr->tmp_lwe_array_out, bsk, ksk, 1, lut);
 
-    // The result will be in the two first block. Everything else is
-    //  garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      big_lwe_size_bytes * (total_num_radix_blocks - 1),
-                      stream);
-
   } else if (total_num_scalar_blocks < total_num_radix_blocks) {
     // We have to handle both part of the work described above
 
@@ -78,7 +71,6 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     uint32_t num_msb_radix_blocks =
         total_num_radix_blocks - num_lsb_radix_blocks;
 
-    auto lsb = lwe_array_in;
     auto msb = lwe_array_in + num_lsb_radix_blocks * big_lwe_size;
 
     auto lwe_array_lsb_out = mem_ptr->tmp_lwe_array_out;
@@ -121,7 +113,7 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
         // final sign
         tree_sign_reduction(lsb_stream, lwe_array_lsb_out, comparisons,
                             mem_ptr->diff_buffer->tree_buffer,
-                            mem_ptr->cleaning_lut_f, bsk, ksk,
+                            mem_ptr->identity_lut_f, bsk, ksk,
                             num_lsb_radix_blocks);
       }
 #pragma omp section
@@ -156,18 +148,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
         stream, lwe_array_out, lwe_array_lsb_out, lwe_array_msb_out, bsk, ksk,
         1, lut);
 
-    // The result will be in the first block. Everything else is garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      (total_num_radix_blocks - 1) * big_lwe_size_bytes,
-                      stream);
   } else {
     // We only have to do the regular comparison
     // And not the part where we compare most significant blocks with zeros
     // total_num_radix_blocks == total_num_scalar_blocks
     uint32_t num_lsb_radix_blocks = total_num_radix_blocks;
     uint32_t num_scalar_blocks = total_num_scalar_blocks;
-
-    auto lsb = lwe_array_in;
 
     Torus *lhs = diff_buffer->tmp_packed_left;
     Torus *rhs = diff_buffer->tmp_packed_right;
@@ -195,11 +181,6 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     tree_sign_reduction(stream, lwe_array_out, comparisons,
                         mem_ptr->diff_buffer->tree_buffer, sign_handler_f, bsk,
                         ksk, num_lsb_radix_blocks);
-
-    // The result will be in the first block. Everything else is garbage.
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      (total_num_radix_blocks - 1) * big_lwe_size_bytes,
-                      stream);
   }
 }
 
@@ -270,7 +251,7 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
   auto sign = mem_ptr->tmp_lwe_array_out;
   host_integer_radix_scalar_difference_check_kb(
       stream, sign, lwe_array_in, scalar_blocks, mem_ptr,
-      mem_ptr->cleaning_lut_f, bsk, ksk, total_num_radix_blocks,
+      mem_ptr->identity_lut_f, bsk, ksk, total_num_radix_blocks,
       total_num_scalar_blocks);
 
   // There is no optimized CMUX for scalars, so we convert to a trivial
@@ -303,7 +284,6 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
   auto eq_buffer = mem_ptr->eq_buffer;
 
   size_t big_lwe_size = big_lwe_dimension + 1;
-  size_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
   auto scalar_comparison_luts = eq_buffer->scalar_comparison_luts;
 
@@ -393,11 +373,5 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
   default:
     PANIC("Cuda error: integer operation not supported")
   }
-
-  // The result will be in the two first block. Everything else is
-  //  garbage.
-  if (num_radix_blocks > 1)
-    cuda_memset_async(lwe_array_out + big_lwe_size, 0,
-                      big_lwe_size_bytes * (num_radix_blocks - 1), stream);
 }
 #endif

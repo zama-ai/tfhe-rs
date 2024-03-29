@@ -4,6 +4,8 @@ use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 use crate::high_level_api::keys::InternalServerKey;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::BooleanBlock;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::shortint::ciphertext::Degree;
@@ -105,7 +107,9 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                 let inner = cuda_key
                     .key
                     .create_trivial_radix(u64::from(value), 1, stream);
-                InnerBoolean::Cuda(inner)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner.ciphertext,
+                ))
             }),
         });
         Ok(Self::new(ciphertext))

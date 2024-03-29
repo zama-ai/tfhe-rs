@@ -7,6 +7,8 @@ use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheEq, IfThenElse};
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
@@ -242,7 +244,7 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.eq(
-                    &self.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
                     &other.borrow().ciphertext.on_gpu(),
                     stream,
                 );
@@ -283,7 +285,7 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner = cuda_key.key.ne(
-                    &self.ciphertext.on_gpu(),
+                    &*self.ciphertext.on_gpu(),
                     &other.borrow().ciphertext.on_gpu(),
                     stream,
                 );
@@ -438,10 +440,12 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitand(
                     &*self.ciphertext.on_gpu(),
-                    &*rhs.borrow().ciphertext.on_gpu(),
+                    &rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -514,10 +518,12 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitor(
                     &*self.ciphertext.on_gpu(),
-                    &*rhs.borrow().ciphertext.on_gpu(),
+                    &rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -590,10 +596,12 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_ct = cuda_key.key.bitxor(
                     &*self.ciphertext.on_gpu(),
-                    &*rhs.borrow().ciphertext.on_gpu(),
+                    &rhs.borrow().ciphertext.on_gpu(),
                     stream,
                 );
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -660,7 +668,9 @@ impl BitAnd<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitand(&*self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -727,7 +737,9 @@ impl BitOr<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitor(&*self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -794,7 +806,9 @@ impl BitXor<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitxor(&*self.ciphertext.on_gpu(), u8::from(rhs), stream);
-                InnerBoolean::Cuda(inner_ct)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner_ct.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
@@ -1251,7 +1265,9 @@ impl std::ops::Not for &FheBool {
                 let inner = cuda_key
                     .key
                     .scalar_bitxor(&*self.ciphertext.on_gpu(), 1, stream);
-                InnerBoolean::Cuda(inner)
+                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    inner.ciphertext,
+                ))
             }),
         });
         FheBool::new(ciphertext)
