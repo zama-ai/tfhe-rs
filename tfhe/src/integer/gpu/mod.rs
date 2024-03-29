@@ -1136,7 +1136,7 @@ impl CudaStream {
         num_blocks: u32,
         num_scalar_blocks: u32,
         op: ComparisonType,
-        is_signed: bool,
+        signed_with_positive_scalar: bool,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
         scratch_cuda_integer_radix_comparison_kb_64(
@@ -1156,7 +1156,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             op as u32,
-            is_signed,
+            signed_with_positive_scalar,
             true,
         );
 
@@ -1203,7 +1203,7 @@ impl CudaStream {
         num_blocks: u32,
         num_scalar_blocks: u32,
         op: ComparisonType,
-        is_signed: bool,
+        signed_with_positive_scalar: bool,
     ) {
         let mut mem_ptr: *mut i8 = std::ptr::null_mut();
         scratch_cuda_integer_radix_comparison_kb_64(
@@ -1223,7 +1223,7 @@ impl CudaStream {
             carry_modulus.0 as u32,
             PBSType::MultiBit as u32,
             op as u32,
-            is_signed,
+            signed_with_positive_scalar,
             true,
         );
         cuda_scalar_comparison_integer_radix_ciphertext_kb_64(

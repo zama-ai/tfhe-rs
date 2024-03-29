@@ -71,7 +71,7 @@ impl CudaServerKey {
         num_blocks: usize,
         stream: &CudaStream,
     ) -> T {
-        T::from(self.create_trivial_radix(0, num_blocks, stream).ciphertext)
+        self.create_trivial_radix(0, num_blocks, stream)
     }
 
     /// Create a trivial ciphertext on the GPU
@@ -80,6 +80,7 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -93,20 +94,22 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let d_ctxt = sks.create_trivial_radix(212u64, num_blocks, &mut stream);
+    /// let d_ctxt: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(212u64, num_blocks, &mut stream);
     /// let ctxt = d_ctxt.to_radix_ciphertext(&mut stream);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(212, dec);
     /// ```
-    pub fn create_trivial_radix<Scalar>(
+    pub fn create_trivial_radix<Scalar, T>(
         &self,
         scalar: Scalar,
         num_blocks: usize,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
+        T: CudaIntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
         let lwe_size = match self.pbs_order {
@@ -140,12 +143,10 @@ impl CudaServerKey {
 
         let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&cpu_lwe_list, stream);
 
-        CudaUnsignedRadixCiphertext {
-            ciphertext: CudaRadixCiphertext {
-                d_blocks,
-                info: CudaRadixCiphertextInfo { blocks: info },
-            },
-        }
+        T::from(CudaRadixCiphertext {
+            d_blocks,
+            info: CudaRadixCiphertextInfo { blocks: info },
+        })
     }
 
     /// # Safety
@@ -268,7 +269,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -282,7 +283,8 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let mut d_ct1 = sks.create_trivial_radix(7u64, num_blocks, &mut stream);
+    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(7u64, num_blocks, &mut stream);
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///
@@ -342,6 +344,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -355,7 +358,8 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let mut d_ct1 = sks.create_trivial_radix(7u64, num_blocks, &mut stream);
+    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(7u64, num_blocks, &mut stream);
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///
@@ -406,6 +410,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -419,7 +424,8 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let mut d_ct1 = sks.create_trivial_radix(119u64, num_blocks, &mut stream);
+    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(119u64, num_blocks, &mut stream);
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///
@@ -470,6 +476,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -483,7 +490,8 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let mut d_ct1 = sks.create_trivial_radix(119u64, num_blocks, &mut stream);
+    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(119u64, num_blocks, &mut stream);
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///
@@ -532,6 +540,7 @@ impl CudaServerKey {
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -546,7 +555,8 @@ impl CudaServerKey {
     ///
     /// let msg = 2u8;
     ///
-    /// let mut d_ct1 = sks.create_trivial_radix(msg, num_blocks, &mut stream);
+    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
+    ///     sks.create_trivial_radix(msg, num_blocks, &mut stream);
     /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
     /// assert_eq!(ct1.blocks().len(), 4);
     ///

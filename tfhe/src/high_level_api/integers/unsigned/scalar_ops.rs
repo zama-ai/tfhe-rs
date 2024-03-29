@@ -17,6 +17,8 @@ use crate::high_level_api::traits::{
 };
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::IntegerCiphertext;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::U256;
 use crate::FheBool;
 use std::ops::{
@@ -60,7 +62,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_eq(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_eq(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -97,7 +99,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_ne(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_ne(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -140,7 +142,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_lt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_lt(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -177,7 +179,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_le(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_le(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -214,7 +216,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_gt(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_gt(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -251,7 +253,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_ge(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_ge(&*self.ciphertext.on_gpu(), rhs, stream);
                 FheBool::new(inner_result)
             }),
         })
@@ -296,7 +298,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_max(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_max(&*self.ciphertext.on_gpu(), rhs, stream);
                 Self::new(inner_result)
             }),
         })
@@ -341,7 +343,7 @@ where
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
                 let inner_result = cuda_key
                     .key
-                    .scalar_min(&self.ciphertext.on_gpu(), rhs, stream);
+                    .scalar_min(&*self.ciphertext.on_gpu(), rhs, stream);
                 Self::new(inner_result)
             }),
         })
@@ -1036,7 +1038,8 @@ generic_integer_impl_scalar_left_operation!(
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
                     with_thread_local_cuda_stream(|stream| {
-                        let mut result = cuda_key.key.create_trivial_radix(lhs, rhs.ciphertext.on_gpu().ciphertext.info.blocks.len(), stream);
+                        let mut result: CudaUnsignedRadixCiphertext = cuda_key.key.create_trivial_radix(
+                            lhs, rhs.ciphertext.on_gpu().ciphertext.info.blocks.len(), stream);
                         cuda_key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(), stream);
                         RadixCiphertext::Cuda(result)
                     })
