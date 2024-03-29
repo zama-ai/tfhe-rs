@@ -3,7 +3,9 @@ use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
+};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::shortint::ciphertext::NoiseLevel;
 
@@ -369,13 +371,14 @@ impl CudaServerKey {
         let ct_info = vec![block_info];
         let ct_info = CudaRadixCiphertextInfo { blocks: ct_info };
 
-        let mut ct_overflowed = CudaBooleanBlock::new_unchecked(block, ct_info);
+        let mut ct_overflowed =
+            CudaBooleanBlock::from_cuda_radix_ciphertext(CudaRadixCiphertext::new(block, ct_info));
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 stream.unchecked_unsigned_overflowing_sub_integer_radix_classic_kb_assign_async(
                     &mut ct_res.as_mut().d_blocks.0.d_vec,
-                    &mut ct_overflowed.as_mut().d_blocks.0.d_vec,
+                    &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
                     &lhs.as_ref().d_blocks.0.d_vec,
                     &rhs.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -400,7 +403,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 stream.unchecked_unsigned_overflowing_sub_integer_radix_multibit_kb_assign_async(
                     &mut ct_res.as_mut().d_blocks.0.d_vec,
-                    &mut ct_overflowed.as_mut().d_blocks.0.d_vec,
+                    &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
                     &lhs.as_ref().d_blocks.0.d_vec,
                     &rhs.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,

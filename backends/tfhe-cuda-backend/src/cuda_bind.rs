@@ -624,6 +624,7 @@ extern "C" {
         carry_modulus: u32,
         pbs_type: u32,
         op_type: u32,
+        is_signed: bool,
         allocate_gpu_memory: bool,
     );
 
@@ -638,6 +639,8 @@ extern "C" {
         num_blocks: u32,
     );
 
+    pub fn cleanup_cuda_integer_comparison(v_stream: *const c_void, mem_ptr: *mut *mut i8);
+
     pub fn cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         v_stream: *const c_void,
         radix_lwe_out: *mut c_void,
@@ -649,8 +652,6 @@ extern "C" {
         num_blocks: u32,
         num_scalar_blocks: u32,
     );
-
-    pub fn cleanup_cuda_integer_comparison(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
     pub fn scratch_cuda_full_propagation_64(
         v_stream: *const c_void,

@@ -1634,6 +1634,16 @@ mod cuda {
         display_name: right_shift
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_ne,
+        display_name: ne
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
@@ -1746,6 +1756,16 @@ mod cuda {
         display_name: right_shift
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: eq,
+        display_name: eq
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: ne,
+        display_name: ne
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -1808,6 +1828,8 @@ mod cuda {
         cuda_unchecked_right_shift,
         cuda_unchecked_rotate_left,
         cuda_unchecked_rotate_right,
+        cuda_unchecked_eq,
+        cuda_unchecked_ne,
     );
 
     criterion_group!(
@@ -1836,6 +1858,8 @@ mod cuda {
         cuda_right_shift,
         cuda_rotate_left,
         cuda_rotate_right,
+        cuda_eq,
+        cuda_ne,
     );
 
     criterion_group!(

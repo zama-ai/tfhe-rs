@@ -1,10 +1,11 @@
 use crate::core_crypto::entities::{LweCiphertextList, LweCiphertextOwned};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{CiphertextModulus, LweSize};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
-use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
-use crate::integer::{BooleanBlock, RadixCiphertext};
+use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::BooleanBlock;
 use crate::shortint::Ciphertext;
 
 /// Wrapper type used to signal that the inner value encrypts 0 or 1
@@ -19,22 +20,37 @@ use crate::shortint::Ciphertext;
 ///
 /// Also, some function such as comparisons are known to return an encrypted value
 /// that is either 0 or 1, and thus return a CudaCiphertext wrapped in a [CudaBooleanBlock].
-pub struct CudaBooleanBlock {
-    pub ciphertext: CudaRadixCiphertext,
-}
+pub struct CudaBooleanBlock(pub CudaUnsignedRadixCiphertext);
 
 impl CudaBooleanBlock {
-    /// Creates a new CudaBooleanBlock without checks.
+    /// Creates a new CudaBooleanBlock.
     ///
-    /// You have to be sure the ciphertext has only one block and encrypts 0 or 1 otherwise
+    /// The input ciphertext has only one block and encrypts 0 or 1 otherwise
     /// functions expecting a CudaBooleanBlock could result in wrong computation
-    pub fn new_unchecked(
-        d_blocks: CudaLweCiphertextList<u64>,
-        info: CudaRadixCiphertextInfo,
-    ) -> Self {
-        Self {
-            ciphertext: CudaRadixCiphertext { d_blocks, info },
-        }
+    pub fn from_cuda_radix_ciphertext(ct: CudaRadixCiphertext) -> Self {
+        assert_eq!(
+            ct.info.blocks.len(),
+            1,
+            "CudaBooleanBlock needs to have 1 block, got {}",
+            ct.info.blocks.len()
+        );
+        assert!(
+            ct.info.blocks.first().unwrap().degree.get() <= 1,
+            "CudaBooleanBlock needs to have degree <= 1, got {}",
+            ct.info.blocks.first().unwrap().degree.get()
+        );
+        assert_eq!(
+            ct.d_blocks.0.lwe_ciphertext_count.0, 1,
+            "CudaBooleanBlock needs to have 1 block, got {}",
+            ct.d_blocks.0.lwe_ciphertext_count.0
+        );
+        assert_eq!(
+            ct.d_blocks.0.d_vec.len(),
+            ct.d_blocks.0.lwe_dimension.0 + 1,
+            "CudaBooleanBlock needs to have a length of LWE size, got {}",
+            ct.d_blocks.0.lwe_dimension.0 + 1
+        );
+        Self(CudaUnsignedRadixCiphertext { ciphertext: ct })
     }
 
     pub fn from_boolean_block(boolean_block: &BooleanBlock, stream: &CudaStream) -> Self {
@@ -56,17 +72,18 @@ impl CudaBooleanBlock {
             pbs_order: boolean_block.0.pbs_order,
             noise_level: boolean_block.0.noise_level(),
         };
-        let radix_info = vec![info];
+        let radix_info = vec![info; 1];
         let info = CudaRadixCiphertextInfo { blocks: radix_info };
 
-        Self {
+        Self(CudaUnsignedRadixCiphertext {
             ciphertext: CudaRadixCiphertext { d_blocks, info },
-        }
+        })
     }
 
     pub fn copy_from_boolean_block(&mut self, boolean_block: &BooleanBlock, stream: &CudaStream) {
         unsafe {
-            self.ciphertext
+            self.0
+                .ciphertext
                 .d_blocks
                 .0
                 .d_vec
@@ -81,8 +98,8 @@ impl CudaBooleanBlock {
             pbs_order: boolean_block.0.pbs_order,
             noise_level: boolean_block.0.noise_level(),
         };
-        let radix_info = vec![info];
-        self.ciphertext.info = CudaRadixCiphertextInfo { blocks: radix_info };
+        let radix_info = vec![info; 1];
+        self.0.ciphertext.info = CudaRadixCiphertextInfo { blocks: radix_info };
     }
 
     /// ```rust
@@ -112,7 +129,7 @@ impl CudaBooleanBlock {
     /// assert_eq!(msg1, res);
     /// ```
     pub fn to_boolean_block(&self, stream: &CudaStream) -> BooleanBlock {
-        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(stream);
+        let h_lwe_ciphertext_list = self.0.ciphertext.d_blocks.to_lwe_ciphertext_list(stream);
         let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
 
         let block = Ciphertext {
@@ -120,26 +137,52 @@ impl CudaBooleanBlock {
                 h_lwe_ciphertext_list.into_container(),
                 ciphertext_modulus,
             ),
-            degree: self.ciphertext.info.blocks[0].degree,
-            noise_level: self.ciphertext.info.blocks[0].noise_level,
-            message_modulus: self.ciphertext.info.blocks[0].message_modulus,
-            carry_modulus: self.ciphertext.info.blocks[0].carry_modulus,
-            pbs_order: self.ciphertext.info.blocks[0].pbs_order,
+            degree: self.0.ciphertext.info.blocks[0].degree,
+            noise_level: self.0.ciphertext.info.blocks[0].noise_level,
+            message_modulus: self.0.ciphertext.info.blocks[0].message_modulus,
+            carry_modulus: self.0.ciphertext.info.blocks[0].carry_modulus,
+            pbs_order: self.0.ciphertext.info.blocks[0].pbs_order,
         };
-        let block_vec = vec![block];
-        let h_blocks = RadixCiphertext { blocks: block_vec };
 
-        BooleanBlock::try_new(&h_blocks).unwrap()
+        BooleanBlock::new_unchecked(block)
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub(crate) unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
+        let lwe_ciphertext_count = self.0.ciphertext.d_blocks.lwe_ciphertext_count();
+        let ciphertext_modulus = self.0.ciphertext.d_blocks.ciphertext_modulus();
+
+        let mut d_ct = CudaVec::new_async(self.0.ciphertext.d_blocks.0.d_vec.len(), stream);
+        d_ct.copy_from_gpu_async(&self.0.ciphertext.d_blocks.0.d_vec, stream);
+
+        let d_blocks =
+            CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
+
+        Self(CudaUnsignedRadixCiphertext {
+            ciphertext: CudaRadixCiphertext {
+                d_blocks,
+                info: self.0.ciphertext.info.clone(),
+            },
+        })
+    }
+
+    pub(crate) fn duplicate(&self, stream: &CudaStream) -> Self {
+        let ct = unsafe { self.duplicate_async(stream) };
+        stream.synchronize();
+        ct
     }
 }
 
-impl AsRef<CudaRadixCiphertext> for CudaBooleanBlock {
-    fn as_ref(&self) -> &CudaRadixCiphertext {
-        &self.ciphertext
+impl AsRef<CudaUnsignedRadixCiphertext> for CudaBooleanBlock {
+    fn as_ref(&self) -> &CudaUnsignedRadixCiphertext {
+        &self.0
     }
 }
-impl AsMut<CudaRadixCiphertext> for CudaBooleanBlock {
-    fn as_mut(&mut self) -> &mut CudaRadixCiphertext {
-        &mut self.ciphertext
+impl AsMut<CudaUnsignedRadixCiphertext> for CudaBooleanBlock {
+    fn as_mut(&mut self) -> &mut CudaUnsignedRadixCiphertext {
+        &mut self.0
     }
 }
