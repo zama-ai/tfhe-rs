@@ -126,3 +126,6 @@ pub mod safe_deserialization;
 pub mod conformance;
 
 pub mod named;
+
+#[cfg(feature = "forward_compatibility")]
+pub mod forward_compatibility;

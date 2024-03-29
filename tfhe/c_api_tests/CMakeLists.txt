@@ -8,6 +8,7 @@ endif()
 set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../target/${CARGO_PROFILE}")
 
 option(WITH_FEATURE_GPU "Enable if tfhe-rs C API was compiled with the 'gpu' feature activated" OFF)
+option(WITH_FORWARD_COMPATIBILITY "Enable if tfhe-rs C API was compiled with the 'forward_compatibility' feature activated" OFF)
 
 include_directories(${TFHE_C_API_RELEASE})
 # This one is to fetch the dynamic buffer header
@@ -27,6 +28,10 @@ endif()
 if (WITH_FEATURE_GPU)
     find_package(CUDAToolkit 10.0 REQUIRED)
     find_package(OpenMP REQUIRED)
+endif()
+
+if("${WITH_FORWARD_COMPATIBILITY}" STREQUAL "ON")
+    add_definitions(-DWITH_FORWARD_COMPATIBILITY)
 endif()
 
 file(GLOB TEST_CASES test_*.c)

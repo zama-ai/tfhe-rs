@@ -233,9 +233,15 @@ clippy_trivium: install_rs_check_toolchain
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
-clippy_all_targets:
+clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+
+.PHONY: clippy_all_targets_forward_compatibility # Run clippy lints on all targets (benches, examples, etc.)
+clippy_all_targets_forward_compatibility: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,forward_compatibility \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
@@ -246,7 +252,8 @@ clippy_concrete_csprng:
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium
+clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium \
+clippy_all_targets_forward_compatibility
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
@@ -314,7 +321,6 @@ build_c_api_gpu: install_rs_check_toolchain
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
-		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
@@ -408,7 +414,7 @@ test_c_api_rs: install_rs_check_toolchain
 
 .PHONY: test_c_api_c # Run the C tests for the C API
 test_c_api_c: build_c_api
-	./scripts/c_api_tests.sh
+	./scripts/c_api_tests.sh --forward-compat "$(FORWARD_COMPAT)"
 
 .PHONY: test_c_api # Run all the tests for the C API
 test_c_api: test_c_api_rs test_c_api_c
@@ -508,6 +514,12 @@ test_high_level_api: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) \
 		-- high_level_api::
 
+.PHONY: test_forward_compatibility # Run forward compatibility tests
+test_forward_compatibility: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,forward_compatibility,internal-keycache -p $(TFHE_SPEC) \
+		-- forward_compatibility::
+
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
@@ -585,7 +597,9 @@ check_compile_tests:
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
-		./scripts/c_api_tests.sh --build-only; \
+		./scripts/c_api_tests.sh --build-only --forward-compat "$(FORWARD_COMPAT)" && \
+		FORWARD_COMPAT=ON "$(MAKE)" build_c_api && \
+		./scripts/c_api_tests.sh --build-only --forward-compat "$(FORWARD_COMPAT)"; \
 	fi
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API

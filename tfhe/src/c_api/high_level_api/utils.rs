@@ -642,3 +642,68 @@ macro_rules! define_casting_operation(
         )*
     }
 );
+
+#[cfg(feature = "forward_compatibility")]
+macro_rules! impl_update_serialization_format_on_type {
+    ($wrapper_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _update_serialization_from_0_5_to_0_6>](
+                buffer_view: tfhe_c_api_dynamic_buffer::DynamicBufferView,
+                result: *mut tfhe_c_api_dynamic_buffer::DynamicBuffer,
+            ) -> ::std::os::raw::c_int {
+                use crate::forward_compatibility::ConvertInto;
+                crate::c_api::utils::catch_panic(|| {
+                    let object: $wrapper_type = $wrapper_type(
+                        bincode::deserialize(buffer_view.as_slice()).unwrap()
+                    );
+
+                    let next_object: next_tfhe::$wrapper_type = (object.0).convert_into();
+
+                    let buffer = bincode::serialize(&next_object).unwrap();
+
+                    *result = buffer.into();
+                })
+            }
+        }
+    };
+}
+
+#[cfg(feature = "forward_compatibility")]
+macro_rules! impl_safe_update_serialization_format_conformant_on_type {
+    ($wrapper_type:ty, $function_name:path) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_update_serialization_conformant_from_0_5_to_0_6>](
+                buffer_view: tfhe_c_api_dynamic_buffer::DynamicBufferView,
+                serialized_size_limit: u64,
+                server_key: *const crate::c_api::high_level_api::keys::ServerKey,
+                result: *mut tfhe_c_api_dynamic_buffer::DynamicBuffer,
+            ) -> ::std::os::raw::c_int {
+                crate::c_api::utils::catch_panic(|| {
+                    use crate::forward_compatibility::ConvertInto;
+                    crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+                    let sk = crate::c_api::utils::get_ref_checked(server_key).unwrap();
+
+                    let buffer_view: &[u8] = buffer_view.as_slice();
+
+                    let object: $wrapper_type = $wrapper_type(
+                        $function_name(
+                            buffer_view,
+                            serialized_size_limit,
+                            &sk.0,
+                        )
+                        .unwrap(),
+                    );
+
+                    let next_object: next_tfhe::$wrapper_type = (object.0).convert_into();
+
+                    let buffer = bincode::serialize(&next_object).unwrap();
+
+                    *result = buffer.into();
+                })
+            }
+        }
+    };
+}
