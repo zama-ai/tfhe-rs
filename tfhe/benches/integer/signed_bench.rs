@@ -1644,6 +1644,36 @@ mod cuda {
         display_name: ne
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_gt,
+        display_name: gt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_ge,
+        display_name: ge
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_lt,
+        display_name: lt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_le,
+        display_name: le
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
@@ -1766,6 +1796,36 @@ mod cuda {
         display_name: ne
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: gt,
+        display_name: gt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: ge,
+        display_name: ge
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: lt,
+        display_name: lt
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: le,
+        display_name: le
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: max,
+        display_name: max
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -1830,6 +1890,12 @@ mod cuda {
         cuda_unchecked_rotate_right,
         cuda_unchecked_eq,
         cuda_unchecked_ne,
+        cuda_unchecked_gt,
+        cuda_unchecked_ge,
+        cuda_unchecked_lt,
+        cuda_unchecked_le,
+        cuda_unchecked_min,
+        cuda_unchecked_max,
     );
 
     criterion_group!(
@@ -1860,6 +1926,12 @@ mod cuda {
         cuda_rotate_right,
         cuda_eq,
         cuda_ne,
+        cuda_gt,
+        cuda_ge,
+        cuda_lt,
+        cuda_le,
+        cuda_min,
+        cuda_max,
     );
 
     criterion_group!(

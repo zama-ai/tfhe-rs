@@ -3,7 +3,8 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_comparison::{
-    test_signed_default_function, test_signed_unchecked_function,
+    test_signed_default_function, test_signed_default_minmax, test_signed_unchecked_function,
+    test_signed_unchecked_minmax,
 };
 use crate::shortint::parameters::*;
 
@@ -48,5 +49,46 @@ macro_rules! define_gpu_signed_comparison_test_functions {
     };
 }
 
+fn integer_signed_unchecked_min_128_bits<P>(params: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_min);
+    test_signed_unchecked_minmax(params, 2, executor, std::cmp::min::<i128>)
+}
+
+fn integer_signed_unchecked_max_128_bits<P>(params: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_max);
+    test_signed_unchecked_minmax(params, 2, executor, std::cmp::max::<i128>)
+}
+
+fn integer_signed_min_128_bits<P>(params: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::min);
+    test_signed_default_minmax(params, 2, executor, std::cmp::min::<i128>);
+}
+
+fn integer_signed_max_128_bits<P>(params: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::max);
+    test_signed_default_minmax(params, 2, executor, std::cmp::max::<i128>);
+}
+
+create_gpu_parametrized_test!(integer_signed_unchecked_max_128_bits);
+create_gpu_parametrized_test!(integer_signed_unchecked_min_128_bits);
+create_gpu_parametrized_test!(integer_signed_max_128_bits);
+create_gpu_parametrized_test!(integer_signed_min_128_bits);
+
 define_gpu_signed_comparison_test_functions!(eq, i128);
 define_gpu_signed_comparison_test_functions!(ne, i128);
+define_gpu_signed_comparison_test_functions!(lt, i128);
+define_gpu_signed_comparison_test_functions!(le, i128);
+define_gpu_signed_comparison_test_functions!(gt, i128);
+define_gpu_signed_comparison_test_functions!(ge, i128);
