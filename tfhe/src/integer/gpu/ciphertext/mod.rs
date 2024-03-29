@@ -19,6 +19,8 @@ pub trait CudaIntegerRadixCiphertext: Sized {
         Self::from(self.as_ref().duplicate(stream))
     }
 
+    fn into_inner(self) -> CudaRadixCiphertext;
+
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -67,6 +69,10 @@ impl CudaIntegerRadixCiphertext for CudaUnsignedRadixCiphertext {
     fn from(ct: CudaRadixCiphertext) -> Self {
         Self { ciphertext: ct }
     }
+
+    fn into_inner(self) -> CudaRadixCiphertext {
+        self.ciphertext
+    }
 }
 
 impl CudaIntegerRadixCiphertext for CudaSignedRadixCiphertext {
@@ -82,6 +88,10 @@ impl CudaIntegerRadixCiphertext for CudaSignedRadixCiphertext {
 
     fn from(ct: CudaRadixCiphertext) -> Self {
         Self { ciphertext: ct }
+    }
+
+    fn into_inner(self) -> CudaRadixCiphertext {
+        self.ciphertext
     }
 }
 

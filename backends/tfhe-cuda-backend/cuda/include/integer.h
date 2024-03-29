@@ -36,7 +36,7 @@ enum COMPARISON_TYPE {
   MAX = 6,
   MIN = 7,
 };
-enum IS_RELATIONSHIP { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
+enum CMP_ORDERING { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
 
 extern "C" {
 void scratch_cuda_full_propagation_64(
@@ -1846,6 +1846,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
                                  bool allocate_gpu_memory) {
     this->params = params;
 
+    Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
+
     block_selector_f = [](Torus msb, Torus lsb) -> Torus {
       if (msb == IS_EQUAL) // EQUAL
         return lsb;
@@ -1854,13 +1856,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     };
 
     if (allocate_gpu_memory) {
-      tmp_x = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
-                                             num_radix_blocks * sizeof(Torus),
-                                         stream);
-      tmp_y = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
-                                             num_radix_blocks * sizeof(Torus),
-                                         stream);
-
+      tmp_x = (Torus *)cuda_malloc_async(big_size * num_radix_blocks, stream);
+      tmp_y = (Torus *)cuda_malloc_async(big_size * num_radix_blocks, stream);
       // LUTs
       tree_inner_leaf_lut = new int_radix_lut<Torus>(
           stream, params, 1, num_radix_blocks, allocate_gpu_memory);
@@ -1901,6 +1898,10 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
   int_tree_sign_reduction_buffer<Torus> *tree_buffer;
 
+  Torus *tmp_signs_a;
+  Torus *tmp_signs_b;
+  int_radix_lut<Torus> *reduce_signs_lut;
+
   int_comparison_diff_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                              int_radix_params params, uint32_t num_radix_blocks,
                              bool allocate_gpu_memory) {
@@ -1922,7 +1923,6 @@ template <typename Torus> struct int_comparison_diff_buffer {
         return 42;
       }
     };
-
     if (allocate_gpu_memory) {
 
       Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
@@ -1935,15 +1935,26 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
       tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
           stream, operator_f, params, num_radix_blocks, allocate_gpu_memory);
+      tmp_signs_a =
+          (Torus *)cuda_malloc_async(big_size * num_radix_blocks, stream);
+      tmp_signs_b =
+          (Torus *)cuda_malloc_async(big_size * num_radix_blocks, stream);
+      // LUTs
+      reduce_signs_lut = new int_radix_lut<Torus>(
+          stream, params, 1, num_radix_blocks, allocate_gpu_memory);
     }
   }
 
   void release(cuda_stream_t *stream) {
     tree_buffer->release(stream);
     delete tree_buffer;
+    reduce_signs_lut->release(stream);
+    delete reduce_signs_lut;
 
     cuda_drop_async(tmp_packed_left, stream);
     cuda_drop_async(tmp_packed_right, stream);
+    cuda_drop_async(tmp_signs_a, stream);
+    cuda_drop_async(tmp_signs_b, stream);
   }
 };
 
@@ -1963,6 +1974,7 @@ template <typename Torus> struct int_comparison_buffer {
 
   Torus *tmp_block_comparisons;
   Torus *tmp_lwe_array_out;
+  Torus *tmp_trivial_sign_block;
 
   // Scalar EQ / NE
   Torus *tmp_packed_input;
@@ -1975,6 +1987,7 @@ template <typename Torus> struct int_comparison_buffer {
   bool is_signed;
 
   // Used for scalar comparisons
+  int_radix_lut<Torus> *signed_msb_lut;
   cuda_stream_t *lsb_stream;
   cuda_stream_t *msb_stream;
 
@@ -1987,22 +2000,22 @@ template <typename Torus> struct int_comparison_buffer {
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
+    auto big_lwe_size = params.big_lwe_dimension + 1;
+
     if (allocate_gpu_memory) {
       lsb_stream = cuda_create_stream(stream->gpu_index);
       msb_stream = cuda_create_stream(stream->gpu_index);
 
+      // +1 to have space for signed comparison
       tmp_lwe_array_out = (Torus *)cuda_malloc_async(
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
-          stream);
+          big_lwe_size * (num_radix_blocks + 1) * sizeof(Torus), stream);
 
       tmp_packed_input = (Torus *)cuda_malloc_async(
-          (params.big_lwe_dimension + 1) * 2 * num_radix_blocks * sizeof(Torus),
-          stream);
+          big_lwe_size * 2 * num_radix_blocks * sizeof(Torus), stream);
 
       // Block comparisons
       tmp_block_comparisons = (Torus *)cuda_malloc_async(
-          (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
-          stream);
+          big_lwe_size * num_radix_blocks * sizeof(Torus), stream);
 
       // Cleaning LUT
       identity_lut = new int_radix_lut<Torus>(
@@ -2054,13 +2067,19 @@ template <typename Torus> struct int_comparison_buffer {
       }
 
       if (is_signed) {
+
+        tmp_trivial_sign_block =
+            (Torus *)cuda_malloc_async(big_lwe_size * sizeof(Torus), stream);
+
         signed_lut =
+            new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
+        signed_msb_lut =
             new int_radix_lut<Torus>(stream, params, 1, 1, allocate_gpu_memory);
 
         auto message_modulus = (int)params.message_modulus;
         uint32_t sign_bit_pos = log2(message_modulus) - 1;
-        std::function<Torus(Torus, Torus)> signed_lut_f;
-        signed_lut_f = [sign_bit_pos](Torus x, Torus y) -> Torus {
+        std::function<Torus(Torus, Torus)> signed_lut_f =
+            [sign_bit_pos](Torus x, Torus y) -> Torus {
           auto x_sign_bit = x >> sign_bit_pos;
           auto y_sign_bit = y >> sign_bit_pos;
 
@@ -2076,14 +2095,14 @@ template <typename Torus> struct int_comparison_buffer {
               return (Torus)(IS_INFERIOR);
             else if (x == y)
               return (Torus)(IS_EQUAL);
-            else if (x > y)
+            else
               return (Torus)(IS_SUPERIOR);
           } else {
             if (x < y)
               return (Torus)(IS_SUPERIOR);
             else if (x == y)
               return (Torus)(IS_EQUAL);
-            else if (x > y)
+            else
               return (Torus)(IS_INFERIOR);
           }
           PANIC("Cuda error: sign_lut creation failed due to wrong function.")
@@ -2126,8 +2145,11 @@ template <typename Torus> struct int_comparison_buffer {
     cuda_drop_async(tmp_packed_input, stream);
 
     if (is_signed) {
+      cuda_drop_async(tmp_trivial_sign_block, stream);
       signed_lut->release(stream);
       delete (signed_lut);
+      signed_msb_lut->release(stream);
+      delete (signed_msb_lut);
     }
     cuda_destroy_stream(lsb_stream);
     cuda_destroy_stream(msb_stream);

@@ -587,7 +587,7 @@ __global__ void device_pack_blocks(Torus *lwe_array_out, Torus *lwe_array_in,
       packed_block[tid] = lsb_block[tid] + factor * msb_block[tid];
     }
 
-    if (num_radix_blocks % 2 != 0) {
+    if (num_radix_blocks % 2 == 1) {
       // We couldn't pack the last block, so we just copy it
       Torus *lsb_block =
           lwe_array_in + (num_radix_blocks - 1) * (lwe_dimension + 1);
@@ -684,4 +684,91 @@ __host__ void extract_n_bits(cuda_stream_t *stream, Torus *lwe_array_out,
       num_radix_blocks * bits_per_block, bit_extract->lut);
 }
 
+template <typename Torus>
+__host__ void reduce_signs(cuda_stream_t *stream, Torus *signs_array_out,
+                           Torus *signs_array_in,
+                           int_comparison_buffer<Torus> *mem_ptr,
+                           std::function<Torus(Torus)> sign_handler_f,
+                           void *bsk, Torus *ksk, uint32_t num_sign_blocks) {
+
+  auto diff_buffer = mem_ptr->diff_buffer;
+
+  auto params = mem_ptr->params;
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+
+  std::function<Torus(Torus)> reduce_two_orderings_function =
+      [diff_buffer, sign_handler_f](Torus x) -> Torus {
+    int msb = (x >> 2) & 3;
+    int lsb = x & 3;
+
+    return diff_buffer->tree_buffer->block_selector_f(msb, lsb);
+  };
+
+  auto signs_a = diff_buffer->tmp_signs_a;
+  auto signs_b = diff_buffer->tmp_signs_b;
+
+  cuda_memcpy_async_gpu_to_gpu(
+      signs_a, signs_array_in,
+      (big_lwe_dimension + 1) * num_sign_blocks * sizeof(Torus), stream);
+  if (num_sign_blocks > 2) {
+    auto lut = diff_buffer->reduce_signs_lut;
+    generate_device_accumulator<Torus>(
+        stream, lut->lut, glwe_dimension, polynomial_size, message_modulus,
+        carry_modulus, reduce_two_orderings_function);
+
+    while (num_sign_blocks > 2) {
+      pack_blocks(stream, signs_b, signs_a, big_lwe_dimension, num_sign_blocks,
+                  4);
+      integer_radix_apply_univariate_lookup_table_kb(
+          stream, signs_a, signs_b, bsk, ksk, num_sign_blocks / 2, lut);
+
+      auto last_block_signs_b =
+          signs_b + (num_sign_blocks / 2) * (big_lwe_dimension + 1);
+      auto last_block_signs_a =
+          signs_a + (num_sign_blocks / 2) * (big_lwe_dimension + 1);
+      if (num_sign_blocks % 2 == 1)
+        cuda_memcpy_async_gpu_to_gpu(last_block_signs_a, last_block_signs_b,
+                                     (big_lwe_dimension + 1) * sizeof(Torus),
+                                     stream);
+
+      num_sign_blocks = (num_sign_blocks / 2) + (num_sign_blocks % 2);
+    }
+  }
+
+  if (num_sign_blocks == 2) {
+    std::function<Torus(Torus)> final_lut_f =
+        [reduce_two_orderings_function, sign_handler_f](Torus x) -> Torus {
+      Torus final_sign = reduce_two_orderings_function(x);
+      return sign_handler_f(final_sign);
+    };
+
+    auto lut = diff_buffer->reduce_signs_lut;
+    generate_device_accumulator<Torus>(stream, lut->lut, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, final_lut_f);
+
+    pack_blocks(stream, signs_b, signs_a, big_lwe_dimension, 2, 4);
+    integer_radix_apply_univariate_lookup_table_kb(stream, signs_array_out,
+                                                   signs_b, bsk, ksk, 1, lut);
+
+  } else {
+
+    std::function<Torus(Torus)> final_lut_f =
+        [mem_ptr, sign_handler_f](Torus x) -> Torus {
+      return sign_handler_f(x & 3);
+    };
+
+    auto lut = mem_ptr->diff_buffer->reduce_signs_lut;
+    generate_device_accumulator<Torus>(stream, lut->lut, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, final_lut_f);
+
+    integer_radix_apply_univariate_lookup_table_kb(stream, signs_array_out,
+                                                   signs_a, bsk, ksk, 1, lut);
+  }
+}
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

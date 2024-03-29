@@ -273,7 +273,7 @@ __host__ void host_compare_with_zero_equality(
       remainder_blocks -= (chunk_size - 1);
 
       // Update operands
-      chunk += chunk_size * big_lwe_size;
+      chunk += (chunk_size - 1) * big_lwe_size;
       sum_i += big_lwe_size;
     }
   }
