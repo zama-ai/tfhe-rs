@@ -26,13 +26,13 @@ on:
         description: "Action runner name"
         type: string
       request_id:
-        description: 'Slab request ID'
+        description: "Slab request ID"
         type: string
       fork_repo:
-        description: 'Name of forked repo as user/repo'
+        description: "Name of forked repo as user/repo"
         type: string
       fork_git_sha:
-        description: 'Git SHA to checkout from fork'
+        description: "Git SHA to checkout from fork"
         type: string
 
 jobs:
@@ -114,6 +114,10 @@ jobs:
       - name: Run safe deserialization tests
         run: |
           make test_safe_deserialization
+
+      - name: Run forward compatibility tests
+        run: |
+          make test_forward_compatibility
 
       - name: Slack Notification
         if: ${{ always() }}

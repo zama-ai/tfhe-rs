@@ -46,6 +46,7 @@ usize_is_size_t = true
 [defines]
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 "feature = gpu" = "WITH_FEATURE_GPU"
+"feature = forward_compatibility" = "WITH_FORWARD_COMPATIBILITY"
 
 
 [export]

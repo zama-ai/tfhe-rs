@@ -522,6 +522,167 @@ impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt16List{crate
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt32List{crate::high_level_api::CompactFheInt32List}, i32);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt64List{crate::high_level_api::CompactFheInt64List}, i64);
 
+#[cfg(feature = "forward_compatibility")]
+pub mod forward_compatibility {
+    use super::*;
+
+    // FheInt don't have the 10, 12, 14 variants so we define the impl here
+    impl_update_serialization_format_on_type!(FheUint8);
+    impl_update_serialization_format_on_type!(FheUint10);
+    impl_update_serialization_format_on_type!(FheUint12);
+    impl_update_serialization_format_on_type!(FheUint14);
+    impl_update_serialization_format_on_type!(FheUint16);
+    impl_update_serialization_format_on_type!(FheUint32);
+    impl_update_serialization_format_on_type!(FheUint64);
+    impl_update_serialization_format_on_type!(FheUint128);
+    impl_update_serialization_format_on_type!(FheUint256);
+    impl_update_serialization_format_on_type!(CompressedFheUint8);
+    impl_update_serialization_format_on_type!(CompressedFheUint10);
+    impl_update_serialization_format_on_type!(CompressedFheUint12);
+    impl_update_serialization_format_on_type!(CompressedFheUint14);
+    impl_update_serialization_format_on_type!(CompressedFheUint16);
+    impl_update_serialization_format_on_type!(CompressedFheUint32);
+    impl_update_serialization_format_on_type!(CompressedFheUint64);
+    impl_update_serialization_format_on_type!(CompressedFheUint128);
+    impl_update_serialization_format_on_type!(CompressedFheUint256);
+
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint8,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint10,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint12,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint14,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint16,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint32,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint64,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint128,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheUint256,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint8,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint10,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint12,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint14,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint16,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint32,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint64,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint128,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheUint256,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+
+    // FheInt don't have the 10, 12, 14 variants so we define the impl here
+    impl_update_serialization_format_on_type!(FheInt8);
+    impl_update_serialization_format_on_type!(FheInt16);
+    impl_update_serialization_format_on_type!(FheInt32);
+    impl_update_serialization_format_on_type!(FheInt64);
+    impl_update_serialization_format_on_type!(FheInt128);
+    impl_update_serialization_format_on_type!(FheInt256);
+    impl_update_serialization_format_on_type!(CompressedFheInt8);
+    impl_update_serialization_format_on_type!(CompressedFheInt16);
+    impl_update_serialization_format_on_type!(CompressedFheInt32);
+    impl_update_serialization_format_on_type!(CompressedFheInt64);
+    impl_update_serialization_format_on_type!(CompressedFheInt128);
+    impl_update_serialization_format_on_type!(CompressedFheInt256);
+
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt8,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt16,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt32,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt64,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt128,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        FheInt256,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt8,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt16,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt32,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt64,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt128,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+    impl_safe_update_serialization_format_conformant_on_type!(
+        CompressedFheInt256,
+        crate::high_level_api::safe_deserialize_conformant
+    );
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn compact_fhe_uint128_list_try_encrypt_with_compact_public_key_u128(
     input: *const U128,

@@ -57,6 +57,8 @@ fn gen_c_api() {
         "integer",
         #[cfg(feature = "gpu")]
         "gpu",
+        #[cfg(feature = "forward_compatibility")]
+        "forward_compatibility",
     ];
 
     let parse_expand_vec = if parse_expand_features_vec.is_empty() {
@@ -65,14 +67,16 @@ fn gen_c_api() {
         vec![package_name.as_str()]
     };
 
-    cbindgen::Builder::new()
+    let builder = cbindgen::Builder::new()
         .with_crate(crate_dir.as_path())
         .with_config(cbindgen::Config::from_file(crate_dir.join("cbindgen.toml")).unwrap())
         .with_parse_expand(&parse_expand_vec)
-        .with_parse_expand_features(&parse_expand_features_vec)
-        .generate()
-        .unwrap()
-        .write_to_file(output_file);
+        .with_parse_expand_features(&parse_expand_features_vec);
+
+    #[cfg(feature = "forward_compatibility")]
+    let builder = builder.with_include("tfhe-c-api-dynamic-buffer.h");
+
+    builder.generate().unwrap().write_to_file(output_file);
 }
 
 fn main() {

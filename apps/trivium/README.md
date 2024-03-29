@@ -146,7 +146,7 @@ use tfhe::prelude::*;
 use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {
-	let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+	let config = ConfigBuilder::default().build();
 	let (hl_client_key, hl_server_key) = generate_keys(config);
 	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 	let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));

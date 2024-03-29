@@ -8,11 +8,14 @@ function usage() {
     echo "--help                    Print this message"
     echo "--build-only              Pass to only build the tests without running them"
     echo "--gpu                     Enable GPU support"
+    echo "--forward-compat          Indicate if we have forward compatibility enabled"
     echo
 }
 
 BUILD_ONLY=0
 WITH_FEATURE_GPU="OFF"
+WITH_FORWARD_COMPAT="OFF"
+
 while [ -n "$1" ]
 do
    case "$1" in
@@ -28,6 +31,12 @@ do
         "--gpu" )
             WITH_FEATURE_GPU="ON"
             ;;
+
+        "--forward-compat" )
+            shift
+            WITH_FORWARD_COMPAT="$1"
+            ;;
+
         *)
             echo "Unknown param : $1"
             exit 1
@@ -44,7 +53,9 @@ mkdir -p "${TFHE_BUILD_DIR}"
 
 cd "${TFHE_BUILD_DIR}"
 
-cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" -DWITH_FEATURE_GPU="${WITH_FEATURE_GPU}"
+cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" \
+    -DWITH_FEATURE_GPU="${WITH_FEATURE_GPU}" \
+    -DWITH_FORWARD_COMPATIBILITY="${WITH_FORWARD_COMPAT}"
 
 make -j
 
