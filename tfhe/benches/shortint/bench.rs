@@ -6,8 +6,7 @@ use criterion::{criterion_group, Criterion};
 use rand::Rng;
 use std::env;
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
-use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
+use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
 
@@ -379,34 +378,6 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             vec![param.message_modulus().0.ilog2()],
         );
     }
-
-    bench_group.finish();
-}
-
-// TODO: remove?
-fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
-    let mut bench_group = c.benchmark_group("programmable_bootstrap");
-
-    let param = WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
-    let param_set: ShortintParameterSet = param.into();
-    let pbs_params = param_set.pbs_parameters().unwrap();
-
-    let keys = KEY_CACHE_WOPBS.get_from_param((pbs_params, param));
-    let (cks, _, wopbs_key) = (keys.client_key(), keys.server_key(), keys.wopbs_key());
-
-    let mut rng = rand::thread_rng();
-
-    let clear = rng.gen::<usize>() % param.message_modulus.0;
-    let ct = cks.encrypt_without_padding(clear as u64);
-    let vec_lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
-
-    let id = format!("Shortint WOPBS: {param:?}");
-
-    bench_group.bench_function(&id, |b| {
-        b.iter(|| {
-            let _ = wopbs_key.programmable_bootstrapping_native_crt(&ct, &vec_lut);
-        })
-    });
 
     bench_group.finish();
 }
