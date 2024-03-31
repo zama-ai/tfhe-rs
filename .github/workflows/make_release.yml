@@ -49,7 +49,7 @@ jobs:
 
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
-        uses: JS-DevTools/npm-publish@79051c040d27c2202f1e56093d4f3a2b804f4154
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
@@ -65,7 +65,7 @@ jobs:
 
       - name: Publish Node package
         if: ${{ inputs.push_node_package }}
-        uses: JS-DevTools/npm-publish@79051c040d27c2202f1e56093d4f3a2b804f4154
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
