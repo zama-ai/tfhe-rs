@@ -180,6 +180,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         );
         decompressed_cpk
     }
+
+    /// Return a view of the [`SeededLweCompactPublicKey`]. This is useful if an algorithm takes a
+    /// view by value.
+    pub fn as_view(&self) -> SeededLweCompactPublicKey<&[Scalar]> {
+        SeededLweCompactPublicKey {
+            seeded_glwe_ciphertext: self.seeded_glwe_ciphertext.as_view(),
+        }
+    }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweCompactPublicKey<C> {

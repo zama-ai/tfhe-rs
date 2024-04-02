@@ -162,7 +162,7 @@ impl CompressedCompactPublicKey {
         Self { key }
     }
 
-    pub fn decompress(self) -> CompactPublicKey {
+    pub fn decompress(&self) -> CompactPublicKey {
         CompactPublicKey {
             key: self.key.decompress(),
         }

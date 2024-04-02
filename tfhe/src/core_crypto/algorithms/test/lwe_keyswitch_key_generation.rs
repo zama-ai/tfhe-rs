@@ -93,11 +93,11 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
             ciphertext_modulus
         ));
 
-        let ser_decompressed_ksk = seeded_ksk.clone().decompress_into_lwe_keyswitch_key();
+        let ser_decompressed_ksk = seeded_ksk.as_view().decompress_into_lwe_keyswitch_key();
 
         assert_eq!(ksk, ser_decompressed_ksk);
 
-        let par_decompressed_ksk = seeded_ksk.par_decompress_into_lwe_keyswitch_key();
+        let par_decompressed_ksk = seeded_ksk.as_view().par_decompress_into_lwe_keyswitch_key();
 
         assert_eq!(ser_decompressed_ksk, par_decompressed_ksk);
     }

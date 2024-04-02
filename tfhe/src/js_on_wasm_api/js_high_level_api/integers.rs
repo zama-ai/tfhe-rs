@@ -225,7 +225,7 @@ macro_rules! create_wrapper_type_non_native_type (
                 &self,
             ) -> Result<$type_name, JsError> {
                 catch_panic(||{
-                    $type_name(self.0.clone().decompress())
+                    $type_name(self.0.decompress())
                 })
             }
 
@@ -579,7 +579,7 @@ macro_rules! create_wrapper_type_that_has_native_type (
                 &self,
             ) -> Result<$type_name, JsError> {
                 catch_panic(||{
-                    $type_name(self.0.clone().decompress())
+                    $type_name(self.0.decompress())
                 })
             }
 
