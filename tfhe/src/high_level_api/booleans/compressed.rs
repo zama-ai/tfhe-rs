@@ -1,9 +1,10 @@
 use crate::conformance::ParameterSetConformant;
+use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
 use crate::shortint::CompressedCiphertext;
 use crate::{ClientKey, FheBool};
 use serde::{Deserialize, Serialize};
@@ -30,23 +31,29 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(decrypted, true);
 /// ```
 #[derive(Clone, Serialize, Deserialize)]
-pub struct CompressedFheBool {
-    pub(in crate::high_level_api) ciphertext: CompressedCiphertext,
+pub enum CompressedFheBool {
+    Seeded(CompressedCiphertext),
+    ModulusSwitched(CompressedModulusSwitchedCiphertext),
 }
 
 impl CompressedFheBool {
     pub(in crate::high_level_api) fn new(ciphertext: CompressedCiphertext) -> Self {
-        Self { ciphertext }
+        Self::Seeded(ciphertext)
     }
 
     /// Decompresses itself into a [FheBool]
     ///
     /// See [CompressedFheBool] example.
     pub fn decompress(&self) -> FheBool {
-        let mut ciphertext = FheBool::new(BooleanBlock::new_unchecked(
-            self.ciphertext.clone().decompress(),
-        ));
+        let mut ciphertext = FheBool::new(BooleanBlock::new_unchecked(match self {
+            Self::Seeded(seeded) => seeded.decompress(),
+            Self::ModulusSwitched(modulus_switched) => {
+                with_cpu_internal_keys(|sk| sk.key.key.decompress(modulus_switched))
+            }
+        }));
+
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
+
         ciphertext
     }
 }
@@ -66,10 +73,23 @@ impl ParameterSetConformant for CompressedFheBool {
     type ParameterSet = RadixCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(&params.shortint_params)
+        match self {
+            Self::Seeded(seeded) => seeded.is_conformant(&params.shortint_params),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&params.shortint_params),
+        }
     }
 }
 
 impl Named for CompressedFheBool {
     const NAME: &'static str = "high_level_api::CompressedFheBool";
+}
+
+impl FheBool {
+    pub fn compress(&self) -> CompressedFheBool {
+        CompressedFheBool::ModulusSwitched(with_cpu_internal_keys(|sk| {
+            sk.key
+                .key
+                .switch_modulus_and_compress(&self.ciphertext.on_cpu().0)
+        }))
+    }
 }

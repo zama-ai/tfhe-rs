@@ -70,6 +70,19 @@ pub unsafe extern "C" fn compressed_fhe_bool_decompress(
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn fhe_bool_compress(
+    sself: *const FheBool,
+    result: *mut *mut CompressedFheBool,
+) -> std::os::raw::c_int {
+    crate::c_api::utils::catch_panic(|| {
+        let ct = crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+        let compressed_inner = ct.0.compress();
+        *result = Box::into_raw(Box::new(CompressedFheBool(compressed_inner)));
+    })
+}
+
 pub struct CompactFheBool(crate::high_level_api::CompactFheBool);
 
 impl_destroy_on_type!(CompactFheBool);
