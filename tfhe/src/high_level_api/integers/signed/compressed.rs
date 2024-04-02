@@ -1,6 +1,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{
@@ -96,10 +97,12 @@ where
         Ok(Self::new(CompressedSignedRadixCiphertext::Seeded(inner)))
     }
 }
+
 impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(params)
+    type ParameterSet = FheIntConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
+        self.ciphertext.is_conformant(&params.params)
     }
 }
 
