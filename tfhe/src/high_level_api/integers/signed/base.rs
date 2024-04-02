@@ -8,7 +8,9 @@ use crate::integer::SignedRadixCiphertext;
 use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::FheBool;
+use crate::shortint::PBSParameters;
+use crate::{FheBool, ServerKey};
+use std::marker::PhantomData;
 
 pub trait FheIntId: IntegerId {}
 
@@ -32,10 +34,41 @@ pub struct FheInt<Id: FheIntId> {
     pub(in crate::high_level_api::integers) id: Id,
 }
 
+pub struct FheIntConformanceParams<Id: FheIntId> {
+    pub(crate) params: RadixCiphertextConformanceParams,
+    pub(crate) id: PhantomData<Id>,
+}
+
+impl<Id: FheIntId, P: Into<PBSParameters>> From<P> for FheIntConformanceParams<Id> {
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: params.to_shortint_conformance_param(),
+                num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheIntId> From<&ServerKey> for FheIntConformanceParams<Id> {
+    fn from(sk: &ServerKey) -> Self {
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: sk.key.pbs_key().key.conformance_params(),
+                num_blocks_per_integer: Id::num_blocks(sk.key.pbs_key().message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
 impl<Id: FheIntId> ParameterSetConformant for FheInt<Id> {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.is_conformant(params)
+    type ParameterSet = FheIntConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
+        self.ciphertext.is_conformant(&params.params)
     }
 }
 

@@ -1,5 +1,5 @@
-pub use base::FheBool;
-pub use compact::{CompactFheBool, CompactFheBoolList};
+pub use base::{FheBool, FheBoolConformanceParams};
+pub use compact::{CompactFheBool, CompactFheBoolList, CompactFheBoolListConformanceParams};
 pub use compressed::CompressedFheBool;
 
 mod base;

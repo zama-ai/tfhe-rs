@@ -99,61 +99,67 @@ use tfhe::conformance::ParameterSetConformant;
 use tfhe::integer::parameters::RadixCiphertextConformanceParams;
 use tfhe::prelude::*;
 use tfhe::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
-use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS};
-use tfhe::{generate_keys, CompactFheUint8, CompactPublicKey, ConfigBuilder};
+use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS};
+use tfhe::conformance::ListSizeConstraint;
+use tfhe::{
+    generate_keys, CompactFheUint8, CompactFheUint8List, FheUint8ConformanceParams,
+    CompactFheUint8ListConformanceParams, CompactPublicKey, ConfigBuilder
+};
 
 fn main() {
     let config = ConfigBuilder::default().build();
 
-    let (client_key, _server_key) = generate_keys(config);
-
+    let params_1 = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let params_2 = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
+    
+    let (client_key, server_key) = generate_keys(
+        ConfigBuilder::with_custom_parameters(params_1, None).build()
+    );
+    
+    let conformance_params_1 = FheUint8ConformanceParams::from(params_1);
+    let conformance_params_2 = FheUint8ConformanceParams::from(params_2);
+    
     let public_key = CompactPublicKey::new(&client_key);
 
     let msg = 27u8;
 
-    let num_blocks_per_integer = 4;
-
     let ct = CompactFheUint8::try_encrypt(msg, &public_key).unwrap();
-
-    assert!(
-        ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            num_blocks_per_integer
-        ))
-    );
-
-    assert!(
-        !ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            num_blocks_per_integer
-        ))
-    );
+    
+    assert!(ct.is_conformant(&conformance_params_1));
+    assert!(!ct.is_conformant(&conformance_params_2));
 
     let mut buffer = vec![];
 
     safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
-
+    
     assert!(safe_deserialize_conformant::<CompactFheUint8>(
         buffer.as_slice(),
         1 << 20,
-        &RadixCiphertextConformanceParams::from_pbs_parameters(
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            num_blocks_per_integer
-        ),
-    )
-    .is_err());
+        &conformance_params_2
+    ).is_err());
 
     let ct2 = safe_deserialize_conformant::<CompactFheUint8>(
         buffer.as_slice(),
         1 << 20,
-        &RadixCiphertextConformanceParams::from_pbs_parameters(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            num_blocks_per_integer,
-        ),
-    )
-    .unwrap();
+        &conformance_params_1
+    ).unwrap();
 
     let dec: u8 = ct2.expand().decrypt(&client_key);
     assert_eq!(msg, dec);
+    
+    
+    // Example with a compact list:
+    let msgs = [27, 188u8];
+    let compact_list = CompactFheUint8List::try_encrypt(&msgs, &public_key).unwrap();
+    
+    let mut buffer = vec![];
+    safe_serialize(&compact_list, &mut buffer, 1 << 40).unwrap();
+    
+    let conformance_params = CompactFheUint8ListConformanceParams::from((&server_key, ListSizeConstraint::exact_size(2)));
+    assert!(safe_deserialize_conformant::<CompactFheUint8List>(
+        buffer.as_slice(),
+        1 << 20,
+        &conformance_params
+    ).is_ok());
 }
 ```

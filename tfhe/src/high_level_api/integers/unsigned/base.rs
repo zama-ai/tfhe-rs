@@ -9,7 +9,9 @@ use crate::integer::block_decomposition::RecomposableFrom;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::FheBool;
+use crate::shortint::PBSParameters;
+use crate::{FheBool, ServerKey};
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
@@ -70,10 +72,41 @@ pub struct FheUint<Id: FheUintId> {
     pub(in crate::high_level_api::integers) id: Id,
 }
 
+pub struct FheUintConformanceParams<Id: FheUintId> {
+    pub(crate) params: RadixCiphertextConformanceParams,
+    pub(crate) id: PhantomData<Id>,
+}
+
+impl<Id: FheUintId, P: Into<PBSParameters>> From<P> for FheUintConformanceParams<Id> {
+    fn from(params: P) -> Self {
+        let params = params.into();
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: params.to_shortint_conformance_param(),
+                num_blocks_per_integer: Id::num_blocks(params.message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
+impl<Id: FheUintId> From<&ServerKey> for FheUintConformanceParams<Id> {
+    fn from(sks: &ServerKey) -> Self {
+        Self {
+            params: RadixCiphertextConformanceParams {
+                shortint_params: sks.key.pbs_key().key.conformance_params(),
+                num_blocks_per_integer: Id::num_blocks(sks.key.pbs_key().message_modulus()),
+            },
+            id: PhantomData,
+        }
+    }
+}
+
 impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
-    type ParameterSet = RadixCiphertextConformanceParams;
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext.on_cpu().is_conformant(params)
+    type ParameterSet = FheUintConformanceParams<Id>;
+
+    fn is_conformant(&self, params: &FheUintConformanceParams<Id>) -> bool {
+        self.ciphertext.on_cpu().is_conformant(&params.params)
     }
 }
 
@@ -657,12 +690,9 @@ mod test {
 
         let ct = FheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
-        assert!(
-            ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                4
-            ))
-        );
+        assert!(ct.is_conformant(&FheUintConformanceParams::from(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        )));
 
         let breaker_lists = [
             change_parameters(&|i, ct: &mut Ct| {
@@ -683,12 +713,9 @@ mod test {
 
                     breaker(i, &mut ct_clone);
 
-                    assert!(!ct_clone.is_conformant(
-                        &RadixCiphertextConformanceParams::from_pbs_parameters(
-                            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                            4
-                        )
-                    ));
+                    assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
+                        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    )));
                 }
             }
         }
@@ -722,12 +749,9 @@ mod test {
 
                 breaker(i, &mut ct_clone);
 
-                assert!(!ct_clone.is_conformant(
-                    &RadixCiphertextConformanceParams::from_pbs_parameters(
-                        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                        4
-                    )
-                ));
+                assert!(!ct_clone.is_conformant(&FheUintConformanceParams::from(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                )));
             }
         }
     }
@@ -742,12 +766,9 @@ mod test {
 
         let ct = FheUint8::try_encrypt(0_u64, &client_key).unwrap();
 
-        assert!(
-            ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                4
-            ))
-        );
+        assert!(ct.is_conformant(&FheUintConformanceParams::from(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        )));
 
         let mut rng = thread_rng();
 
@@ -763,12 +784,9 @@ mod test {
                     .fill_with(|| rng.gen::<u64>());
             }
 
-            assert!(ct_clone.is_conformant(
-                &RadixCiphertextConformanceParams::from_pbs_parameters(
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                    4
-                )
-            ));
+            assert!(ct.is_conformant(&FheUintConformanceParams::from(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            )));
 
             ct_clone += &ct_clone.clone();
         }

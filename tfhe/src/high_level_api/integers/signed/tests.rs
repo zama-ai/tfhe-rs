@@ -1,9 +1,13 @@
+use crate::conformance::ListSizeConstraint;
 use crate::integer::I256;
 use crate::prelude::*;
+use crate::safe_deserialization::safe_deserialize_conformant;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{
     generate_keys, set_server_key, ClientKey, CompactFheInt32, CompactFheInt32List,
-    CompactPublicKey, CompressedFheInt16, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
-    FheInt64, FheInt8, FheUint64, FheUint8,
+    CompactFheInt32ListConformanceParams, CompactPublicKey, CompressedFheInt16, CompressedFheInt32,
+    Config, ConfigBuilder, FheInt16, FheInt256, FheInt32, FheInt32ConformanceParams, FheInt64,
+    FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
 
@@ -691,4 +695,109 @@ fn test_leading_trailing_zeros_ones() {
     let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     set_server_key(server_key);
     test_case_leading_trailing_zeros_ones(&client_key);
+}
+
+#[test]
+fn test_safe_deserialize_conformant_fhe_int32() {
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let (client_key, server_key) =
+        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    set_server_key(server_key.clone());
+
+    let clear_a = random::<i32>();
+    let a = FheInt32::encrypt(clear_a, &client_key);
+    let mut serialized = vec![];
+    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+    let params = FheInt32ConformanceParams::from(&server_key);
+    let deserialized_a =
+        safe_deserialize_conformant::<FheInt32>(serialized.as_slice(), 1 << 20, &params).unwrap();
+    let decrypted: i32 = deserialized_a.decrypt(&client_key);
+    assert_eq!(decrypted, clear_a);
+
+    let params = FheInt32ConformanceParams::from(block_params);
+    assert!(deserialized_a.is_conformant(&params));
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compressed_fhe_int32() {
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let (client_key, server_key) =
+        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    set_server_key(server_key.clone());
+
+    let clear_a = random::<i32>();
+    let a = CompressedFheInt32::encrypt(clear_a, &client_key);
+    let mut serialized = vec![];
+    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+    let params = FheInt32ConformanceParams::from(&server_key);
+    let deserialized_a =
+        safe_deserialize_conformant::<CompressedFheInt32>(serialized.as_slice(), 1 << 20, &params)
+            .unwrap();
+
+    let params = FheInt32ConformanceParams::from(block_params);
+    assert!(deserialized_a.is_conformant(&params));
+
+    let decrypted: i32 = deserialized_a.decompress().decrypt(&client_key);
+    assert_eq!(decrypted, clear_a);
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compact_fhe_int32() {
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let (client_key, server_key) =
+        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    set_server_key(server_key.clone());
+    let pk = CompactPublicKey::new(&client_key);
+
+    let clear_a = random::<i32>();
+    let a = CompactFheInt32::encrypt(clear_a, &pk);
+    let mut serialized = vec![];
+    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+    let params = FheInt32ConformanceParams::from(&server_key);
+    let deserialized_a =
+        safe_deserialize_conformant::<CompactFheInt32>(serialized.as_slice(), 1 << 20, &params)
+            .unwrap();
+    let decrypted: i32 = deserialized_a.expand().decrypt(&client_key);
+    assert_eq!(decrypted, clear_a);
+
+    let params = FheInt32ConformanceParams::from(block_params);
+    assert!(deserialized_a.is_conformant(&params));
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compact_fhe_int32_list() {
+    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let (client_key, server_key) =
+        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    set_server_key(server_key.clone());
+    let pk = CompactPublicKey::new(&client_key);
+
+    let clears = [random::<i32>(), random::<i32>(), random::<i32>()];
+    let compact_list = CompactFheInt32List::encrypt(&clears, &pk);
+
+    let mut serialized = vec![];
+    assert!(crate::safe_serialize(&compact_list, &mut serialized, 1 << 20).is_ok());
+
+    let params = CompactFheInt32ListConformanceParams::from((
+        &server_key,
+        ListSizeConstraint::exact_size(3),
+    ));
+    let deserialized_list =
+        safe_deserialize_conformant::<CompactFheInt32List>(serialized.as_slice(), 1 << 20, &params)
+            .unwrap();
+
+    let expanded_list = deserialized_list.expand();
+    for (fhe_uint, expected) in expanded_list.iter().zip(clears.into_iter()) {
+        let decrypted: i32 = fhe_uint.decrypt(&client_key);
+        assert_eq!(decrypted, expected);
+    }
+
+    let params = CompactFheInt32ListConformanceParams::from((
+        block_params,
+        ListSizeConstraint::exact_size(3),
+    ));
+    assert!(deserialized_list.is_conformant(&params));
 }

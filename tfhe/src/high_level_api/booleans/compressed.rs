@@ -1,12 +1,11 @@
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
-use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
 use crate::shortint::CompressedCiphertext;
-use crate::{ClientKey, FheBool};
+use crate::{ClientKey, FheBool, FheBoolConformanceParams};
 use serde::{Deserialize, Serialize};
 
 /// Compressed [FheBool]
@@ -70,12 +69,12 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
 }
 
 impl ParameterSetConformant for CompressedFheBool {
-    type ParameterSet = RadixCiphertextConformanceParams;
+    type ParameterSet = FheBoolConformanceParams;
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+    fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
         match self {
-            Self::Seeded(seeded) => seeded.is_conformant(&params.shortint_params),
-            Self::ModulusSwitched(ct) => ct.is_conformant(&params.shortint_params),
+            Self::Seeded(seeded) => seeded.is_conformant(&params.0),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&params.0),
         }
     }
 }

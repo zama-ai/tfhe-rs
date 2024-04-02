@@ -2,13 +2,13 @@ use super::FheBool;
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::CompactCiphertextList;
-use crate::integer::parameters::{
-    RadixCiphertextConformanceParams, RadixCompactCiphertextListConformanceParams,
-};
+use crate::integer::parameters::RadixCompactCiphertextListConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::Degree;
-use crate::CompactPublicKey;
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::PBSParameters;
+use crate::{CompactPublicKey, FheBoolConformanceParams, ServerKey};
 
 /// Compact [FheBool]
 ///
@@ -58,7 +58,8 @@ impl FheTryEncrypt<bool, CompactPublicKey> for CompactFheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let ciphertext = key.key.try_encrypt_compact(&[u8::from(value)], 1);
+        let mut ciphertext = key.key.try_encrypt_compact(&[u8::from(value)], 1);
+        ciphertext.ct_list.degree = Degree::new(1);
         Ok(Self { list: ciphertext })
     }
 }
@@ -68,12 +69,14 @@ impl Named for CompactFheBool {
 }
 
 impl ParameterSetConformant for CompactFheBool {
-    type ParameterSet = RadixCiphertextConformanceParams;
+    type ParameterSet = FheBoolConformanceParams;
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        let lsc = ListSizeConstraint::exact_size(1);
-
-        let params = params.to_ct_list_conformance_parameters(lsc);
+    fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
+        let params = RadixCompactCiphertextListConformanceParams {
+            shortint_params: params.0,
+            num_blocks_per_integer: 1,
+            num_integers_constraint: ListSizeConstraint::exact_size(1),
+        };
         self.list.is_conformant(&params)
     }
 }
@@ -148,10 +151,11 @@ impl<'a> FheTryEncrypt<&'a [bool], CompactPublicKey> for CompactFheBoolList {
     ///
     /// See [CompactFheBoolList] example.
     fn try_encrypt(values: &'a [bool], key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let ciphertext = key
+        let mut ciphertext = key
             .key
             .key
             .encrypt_iter_radix_compact(values.iter().copied().map(|v| v as u8), 1);
+        ciphertext.ct_list.degree = Degree::new(1);
         Ok(Self { list: ciphertext })
     }
 }
@@ -160,9 +164,51 @@ impl Named for CompactFheBoolList {
     const NAME: &'static str = "high_level_api::CompactFheBoolList";
 }
 
+pub struct CompactFheBoolListConformanceParams {
+    shortint_params: CiphertextConformanceParams,
+    len_constraint: ListSizeConstraint,
+}
+
+impl CompactFheBoolListConformanceParams {
+    fn new(
+        mut shortint_params: CiphertextConformanceParams,
+        len_constraint: ListSizeConstraint,
+    ) -> Self {
+        shortint_params.degree = Degree::new(1);
+        Self {
+            shortint_params,
+            len_constraint,
+        }
+    }
+}
+
+impl<P> From<(P, ListSizeConstraint)> for CompactFheBoolListConformanceParams
+where
+    P: Into<PBSParameters>,
+{
+    fn from((params, len_constraint): (P, ListSizeConstraint)) -> Self {
+        Self::new(
+            params.into().to_shortint_conformance_param(),
+            len_constraint,
+        )
+    }
+}
+
+impl From<(&ServerKey, ListSizeConstraint)> for CompactFheBoolListConformanceParams {
+    fn from((sk, len_constraint): (&ServerKey, ListSizeConstraint)) -> Self {
+        Self::new(sk.key.pbs_key().key.conformance_params(), len_constraint)
+    }
+}
+
 impl ParameterSetConformant for CompactFheBoolList {
-    type ParameterSet = RadixCompactCiphertextListConformanceParams;
-    fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
-        self.list.is_conformant(params)
+    type ParameterSet = CompactFheBoolListConformanceParams;
+
+    fn is_conformant(&self, params: &CompactFheBoolListConformanceParams) -> bool {
+        let params = RadixCompactCiphertextListConformanceParams {
+            shortint_params: params.shortint_params,
+            num_blocks_per_integer: 1,
+            num_integers_constraint: params.len_constraint,
+        };
+        self.list.is_conformant(&params)
     }
 }

@@ -16,6 +16,10 @@ macro_rules! expand_pub_use_fhe_type(
                     [<Compact $fhe_type_name>],
                     [<Compact $fhe_type_name List>],
                     [<$fhe_type_name Id>],
+
+                    // ConformanceParams
+                    [<$fhe_type_name ConformanceParams>],
+                    [<Compact $fhe_type_name ListConformanceParams>],
                 )*
             };
 
@@ -44,7 +48,8 @@ pub use keys::{
 mod tests;
 
 pub use crate::high_level_api::booleans::{
-    CompactFheBool, CompactFheBoolList, CompressedFheBool, FheBool,
+    CompactFheBool, CompactFheBoolList, CompactFheBoolListConformanceParams, CompressedFheBool,
+    FheBool, FheBoolConformanceParams,
 };
 expand_pub_use_fhe_type!(
     pub use crate::high_level_api::integers{
@@ -55,7 +60,7 @@ expand_pub_use_fhe_type!(
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
     };
 );
-pub use integers::safe_serialize::{safe_deserialize_conformant, safe_serialize};
+pub use safe_serialize::safe_serialize;
 
 mod config;
 mod global_state;
@@ -76,4 +81,21 @@ pub enum Device {
     Cpu,
     #[cfg(feature = "gpu")]
     CudaGpu,
+}
+
+pub mod safe_serialize {
+    use crate::named::Named;
+    use serde::Serialize;
+
+    pub fn safe_serialize<T>(
+        a: &T,
+        writer: impl std::io::Write,
+        serialized_size_limit: u64,
+    ) -> Result<(), String>
+    where
+        T: Named + Serialize,
+    {
+        crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
+            .map_err(|err| err.to_string())
+    }
 }

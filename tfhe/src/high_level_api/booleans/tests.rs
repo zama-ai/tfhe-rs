@@ -354,6 +354,11 @@ fn compact_bool_list_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
 
 mod cpu {
     use super::*;
+    use crate::conformance::ListSizeConstraint;
+    use crate::safe_deserialization::safe_deserialize_conformant;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::{CompactFheBoolListConformanceParams, FheBoolConformanceParams};
+    use rand::random;
 
     fn setup_default() -> ClientKey {
         let config = ConfigBuilder::default().build();
@@ -712,6 +717,116 @@ mod cpu {
 
         let clear: bool = a.decrypt(&client_key);
         assert_eq!(clear, true);
+    }
+
+    #[test]
+    fn test_safe_deserialize_conformant_fhe_bool() {
+        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let (client_key, server_key) =
+            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        set_server_key(server_key.clone());
+
+        let clear_a = random::<bool>();
+        let a = FheBool::encrypt(clear_a, &client_key);
+        let mut serialized = vec![];
+        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+        let params = FheBoolConformanceParams::from(&server_key);
+        let deserialized_a =
+            safe_deserialize_conformant::<FheBool>(serialized.as_slice(), 1 << 20, &params)
+                .unwrap();
+        let decrypted: bool = deserialized_a.decrypt(&client_key);
+        assert_eq!(decrypted, clear_a);
+
+        assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
+    }
+
+    #[test]
+    fn test_safe_deserialize_conformant_compressed_fhe_bool() {
+        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let (client_key, server_key) =
+            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        set_server_key(server_key.clone());
+        let clear_a = random::<bool>();
+        let a = CompressedFheBool::encrypt(clear_a, &client_key);
+        let mut serialized = vec![];
+        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+        let params = FheBoolConformanceParams::from(&server_key);
+        let deserialized_a = safe_deserialize_conformant::<CompressedFheBool>(
+            serialized.as_slice(),
+            1 << 20,
+            &params,
+        )
+        .unwrap();
+
+        assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
+
+        let decrypted: bool = deserialized_a.decompress().decrypt(&client_key);
+        assert_eq!(decrypted, clear_a);
+    }
+
+    #[test]
+    fn test_safe_deserialize_conformant_compact_fhe_bool() {
+        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let (client_key, server_key) =
+            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        set_server_key(server_key.clone());
+        let pk = CompactPublicKey::new(&client_key);
+
+        let clear_a = random::<bool>();
+        let a = CompactFheBool::encrypt(clear_a, &pk);
+        let mut serialized = vec![];
+        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
+
+        let params = FheBoolConformanceParams::from(&server_key);
+        let deserialized_a =
+            safe_deserialize_conformant::<CompactFheBool>(serialized.as_slice(), 1 << 20, &params)
+                .unwrap();
+
+        assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
+
+        let decrypted: bool = deserialized_a.expand().decrypt(&client_key);
+        assert_eq!(decrypted, clear_a);
+    }
+
+    #[test]
+    fn test_safe_deserialize_conformant_compact_fhe_bool_list() {
+        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let (client_key, server_key) =
+            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        set_server_key(server_key.clone());
+        let pk = CompactPublicKey::new(&client_key);
+
+        let clears = [random::<bool>(), random::<bool>(), random::<bool>()];
+        let compact_list = CompactFheBoolList::encrypt(&clears, &pk);
+
+        let mut serialized = vec![];
+        assert!(crate::safe_serialize(&compact_list, &mut serialized, 1 << 20).is_ok());
+
+        let params = CompactFheBoolListConformanceParams::from((
+            &server_key,
+            ListSizeConstraint::exact_size(3),
+        ));
+        let deserialized_list = safe_deserialize_conformant::<CompactFheBoolList>(
+            serialized.as_slice(),
+            1 << 20,
+            &params,
+        )
+        .unwrap();
+
+        assert!(
+            deserialized_list.is_conformant(&CompactFheBoolListConformanceParams::from((
+                block_params,
+                ListSizeConstraint::exact_size(3)
+            )))
+        );
+
+        let expanded_list = deserialized_list.expand();
+        for (fhe_uint, expected) in expanded_list.iter().zip(clears.into_iter()) {
+            let decrypted: bool = fhe_uint.decrypt(&client_key);
+            assert_eq!(decrypted, expected);
+        }
     }
 }
 

@@ -8,11 +8,12 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheEq, IfThenElse};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
-use crate::Device;
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::PBSParameters;
+use crate::{Device, ServerKey};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
@@ -49,14 +50,32 @@ impl Named for FheBool {
     const NAME: &'static str = "high_level_api::FheBool";
 }
 
-impl ParameterSetConformant for FheBool {
-    type ParameterSet = RadixCiphertextConformanceParams;
+pub struct FheBoolConformanceParams(pub(crate) CiphertextConformanceParams);
 
-    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
-        self.ciphertext
-            .on_cpu()
-            .0
-            .is_conformant(&params.shortint_params)
+impl<P> From<P> for FheBoolConformanceParams
+where
+    P: Into<PBSParameters>,
+{
+    fn from(params: P) -> Self {
+        let mut params = params.into().to_shortint_conformance_param();
+        params.degree = crate::shortint::ciphertext::Degree::new(1);
+        Self(params)
+    }
+}
+
+impl From<&ServerKey> for FheBoolConformanceParams {
+    fn from(sk: &ServerKey) -> Self {
+        let mut parameter_set = Self(sk.key.pbs_key().key.conformance_params());
+        parameter_set.0.degree = crate::shortint::ciphertext::Degree::new(1);
+        parameter_set
+    }
+}
+
+impl ParameterSetConformant for FheBool {
+    type ParameterSet = FheBoolConformanceParams;
+
+    fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
+        self.ciphertext.on_cpu().0.is_conformant(&params.0)
     }
 }
 
@@ -83,7 +102,7 @@ impl FheBool {
     /// Trivial ciphertexts are ciphertexts which are not encrypted
     /// meaning they can be decrypted by any key, or even without a key.
     ///
-    /// For debugging it can be useful to use trivial ciphertext to speed up
+    /// For debugging, it can be useful to use trivial ciphertext to speed up
     /// execution, and use [Self::try_decrypt_trivial] to decrypt temporary values
     /// and debug.
     ///
