@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "tfhe",
+    "tfhe-zk-pok",
     "tasks",
     "apps/trivium",
     "concrete-csprng",

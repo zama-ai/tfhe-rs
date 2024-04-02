@@ -283,9 +283,14 @@ clippy_concrete_csprng:
 		--features=$(TARGET_ARCH_FEATURE) \
 		-p concrete-csprng -- --no-deps -D warnings
 
+.PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
+clippy_zk_pok:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-zk-pok -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium
+clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
@@ -627,6 +632,11 @@ test_kreyvium: install_rs_build_toolchain
 test_concrete_csprng:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
+
+.PHONY: test_zk_pok # Run tfhe-zk-pok tests
+test_zk_pok:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		-p tfhe-zk-pok
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
