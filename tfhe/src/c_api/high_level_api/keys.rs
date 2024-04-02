@@ -120,7 +120,7 @@ pub unsafe extern "C" fn compressed_server_key_decompress(
 
         let c_sks = get_ref_checked(compressed_server_key).unwrap();
 
-        let sks = c_sks.0.clone().decompress();
+        let sks = c_sks.0.decompress();
 
         *result_server_key = Box::into_raw(Box::new(ServerKey(sks)));
     })
@@ -214,8 +214,6 @@ pub unsafe extern "C" fn compressed_compact_public_key_decompress(
     catch_panic(|| {
         let public_key = get_ref_checked(public_key).unwrap();
 
-        *result_public_key = Box::into_raw(Box::new(CompactPublicKey(
-            public_key.0.clone().decompress(),
-        )));
+        *result_public_key = Box::into_raw(Box::new(CompactPublicKey(public_key.0.decompress())));
     })
 }

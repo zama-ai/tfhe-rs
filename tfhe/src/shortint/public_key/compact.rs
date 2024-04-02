@@ -378,8 +378,8 @@ impl CompressedCompactPublicKey {
         }
     }
 
-    pub fn decompress(self) -> CompactPublicKey {
-        let decompressed_key = self.key.decompress_into_lwe_compact_public_key();
+    pub fn decompress(&self) -> CompactPublicKey {
+        let decompressed_key = self.key.as_view().decompress_into_lwe_compact_public_key();
         CompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,

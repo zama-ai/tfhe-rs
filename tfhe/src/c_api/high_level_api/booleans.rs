@@ -65,7 +65,7 @@ pub unsafe extern "C" fn compressed_fhe_bool_decompress(
     crate::c_api::utils::catch_panic(|| {
         let compressed = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-        let decompressed_inner = compressed.0.clone().decompress();
+        let decompressed_inner = compressed.0.decompress();
         *result = Box::into_raw(Box::new(FheBool(decompressed_inner)));
     })
 }
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn compact_fhe_bool_expand(
     crate::c_api::utils::catch_panic(|| {
         let compact = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-        let expanded = compact.0.clone().expand();
+        let expanded = compact.0.expand();
         *result = Box::into_raw(Box::new(FheBool(expanded)));
     })
 }

@@ -118,7 +118,7 @@ impl TfheCompressedPublicKey {
 
     #[wasm_bindgen]
     pub fn decompress(&self) -> Result<TfhePublicKey, JsError> {
-        catch_panic(|| TfhePublicKey(self.0.clone().decompress()))
+        catch_panic(|| TfhePublicKey(self.0.decompress()))
     }
 
     #[wasm_bindgen]
@@ -187,6 +187,6 @@ impl TfheCompressedCompactPublicKey {
 
     #[wasm_bindgen]
     pub fn decompress(&self) -> Result<TfheCompactPublicKey, JsError> {
-        catch_panic(|| TfheCompactPublicKey(self.0.clone().decompress()))
+        catch_panic(|| TfheCompactPublicKey(self.0.decompress()))
     }
 }

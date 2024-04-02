@@ -260,9 +260,9 @@ impl IntegerCompressedCompactPublicKey {
         Self { key }
     }
 
-    pub(in crate::high_level_api) fn decompress(self) -> IntegerCompactPublicKey {
+    pub(in crate::high_level_api) fn decompress(&self) -> IntegerCompactPublicKey {
         IntegerCompactPublicKey {
-            key: CompressedCompactPublicKey::decompress(self.key),
+            key: CompressedCompactPublicKey::decompress(&self.key),
         }
     }
 }
