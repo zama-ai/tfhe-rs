@@ -74,6 +74,10 @@ jobs:
         run: |
           make test_concrete_csprng
 
+      - name: Run tfhe-zk-pok tests
+        run: |
+          make test_zk_pok
+
       - name: Run core tests
         run: |
           make test_core_crypto
