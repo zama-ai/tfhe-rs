@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{ComparisonType, CudaServerKey};
 use crate::shortint::ciphertext::Degree;
