@@ -36,6 +36,7 @@ mod rotate;
 mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;
+mod div_mod;
 
 impl CudaServerKey {
     /// Create a trivial ciphertext filled with zeros on the GPU.
