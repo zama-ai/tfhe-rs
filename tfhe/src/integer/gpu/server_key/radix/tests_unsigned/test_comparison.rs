@@ -29,7 +29,7 @@ macro_rules! define_gpu_comparison_test_functions {
                 )
             }
 
-            fn [<integer_default_ $comparison_name $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
                 test_default_function(
@@ -41,7 +41,7 @@ macro_rules! define_gpu_comparison_test_functions {
             }
 
             create_gpu_parametrized_test!([<integer_unchecked_ $comparison_name _ $clear_type:lower>]);
-            create_gpu_parametrized_test!([<integer_default_ $comparison_name $clear_type:lower>]);
+            create_gpu_parametrized_test!([<integer_default_ $comparison_name _ $clear_type:lower>]);
         }
     };
 }
