@@ -1,6 +1,7 @@
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_comparison;
+pub(crate) mod test_div_mod;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
@@ -325,6 +326,44 @@ where
         (
             d_res.0.to_radix_ciphertext(&context.stream),
             d_res.1.to_boolean_block(&context.stream),
+        )
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), (RadixCiphertext, RadixCiphertext)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStream,
+    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a RadixCiphertext),
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.stream);
+        let d_ctxt_2: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.stream),
+            d_res.1.to_radix_ciphertext(&context.stream),
         )
     }
 }

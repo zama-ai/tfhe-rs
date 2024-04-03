@@ -1,19 +1,18 @@
 use crate::core_crypto::gpu::CudaStream;
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 impl CudaServerKey {
-
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unsigned_unchecked_div_rem_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub unsafe fn unsigned_unchecked_div_rem_assign_async(
         &self,
-        quotient: &mut T,
-        remainder: &mut T,
-        numerator: &T,
-        divisor: &T,
+        quotient: &mut CudaUnsignedRadixCiphertext,
+        remainder: &mut CudaUnsignedRadixCiphertext,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
     ) {
         // TODO add asserts from `unsigned_unchecked_div_rem_parallelized`
@@ -77,37 +76,50 @@ impl CudaServerKey {
         remainder.as_mut().info = remainder.as_ref().info.after_mul();
     }
 
-    pub fn unsigned_unchecked_div_rem<T: CudaIntegerRadixCiphertext>(
+    pub fn unsigned_unchecked_div_rem_assign(
         &self,
-        numerator: &T,
-        divisor: &T,
+        quotient: &mut CudaUnsignedRadixCiphertext,
+        remainder: &mut CudaUnsignedRadixCiphertext,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> (T, T) {
+    ) {
+        unsafe {
+            self.unsigned_unchecked_div_rem_assign_async(
+                quotient, remainder, numerator, divisor, stream,
+            );
+        }
+        stream.synchronize();
+    }
+
+    pub fn unchecked_div_rem(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext) {
         let mut quotient = unsafe { numerator.duplicate_async(stream) };
         let mut remainder = unsafe { numerator.duplicate_async(stream) };
 
         unsafe {
-            self.unsigned_unchecked_div_rem_assign_async(&mut quotient, &mut remainder, numerator, divisor, stream);
+            self.unsigned_unchecked_div_rem_assign_async(
+                &mut quotient,
+                &mut remainder,
+                numerator,
+                divisor,
+                stream,
+            );
         }
+        stream.synchronize();
         (quotient, remainder)
     }
 
-    pub fn unchecked_div_rem<T: CudaIntegerRadixCiphertext>(
+    pub fn div_rem(
         &self,
-        numerator: &T,
-        divisor: &T,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> (T, T) {
-        //TODO signed operation, now it is only unsigned
-        self.unsigned_unchecked_div_rem(numerator, divisor, stream)
-    }
-
-    pub fn div_rem<T: CudaIntegerRadixCiphertext>(
-        &self,
-        numerator: &T,
-        divisor: &T,
-        stream: &CudaStream,
-    ) -> (T, T) {
+    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext) {
         let mut tmp_numerator;
         let mut tmp_divisor;
 
@@ -117,18 +129,18 @@ impl CudaServerKey {
         ) {
             (true, true) => (numerator, divisor),
             (true, false) => {
-                tmp_divisor = unsafe {divisor.duplicate_async(stream) };
-                unsafe {self.full_propagate_assign_async(&mut tmp_divisor, stream) };
+                tmp_divisor = unsafe { divisor.duplicate_async(stream) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, stream) };
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
-                tmp_numerator = unsafe {numerator.duplicate_async(stream) };
+                tmp_numerator = unsafe { numerator.duplicate_async(stream) };
                 unsafe { self.full_propagate_assign_async(&mut tmp_numerator, stream) };
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
                 tmp_divisor = unsafe { divisor.duplicate_async(stream) };
-                tmp_numerator = unsafe {numerator.duplicate_async(stream) };
+                tmp_numerator = unsafe { numerator.duplicate_async(stream) };
                 unsafe {
                     self.full_propagate_assign_async(&mut tmp_numerator, stream);
                     self.full_propagate_assign_async(&mut tmp_divisor, stream);
@@ -140,14 +152,99 @@ impl CudaServerKey {
         self.unchecked_div_rem(numerator, divisor, stream)
     }
 
-    pub fn div<T: CudaIntegerRadixCiphertext>(
+    pub fn div_rem_assign(
         &self,
-        numerator: &T,
-        divisor: &T,
+        quotient: &mut CudaUnsignedRadixCiphertext,
+        remainder: &mut CudaUnsignedRadixCiphertext,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
         stream: &CudaStream,
-    ) -> T {
+    ) {
+        let mut tmp_numerator;
+        let mut tmp_divisor;
+
+        let (numerator, divisor) = match (
+            numerator.block_carries_are_empty(),
+            divisor.block_carries_are_empty(),
+        ) {
+            (true, true) => (numerator, divisor),
+            (true, false) => {
+                tmp_divisor = unsafe { divisor.duplicate_async(stream) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_divisor, stream) };
+                (numerator, &tmp_divisor)
+            }
+            (false, true) => {
+                tmp_numerator = unsafe { numerator.duplicate_async(stream) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, stream) };
+                (&tmp_numerator, divisor)
+            }
+            (false, false) => {
+                tmp_divisor = unsafe { divisor.duplicate_async(stream) };
+                tmp_numerator = unsafe { numerator.duplicate_async(stream) };
+                unsafe {
+                    self.full_propagate_assign_async(&mut tmp_numerator, stream);
+                    self.full_propagate_assign_async(&mut tmp_divisor, stream);
+                }
+                (&tmp_numerator, &tmp_divisor)
+            }
+        };
+
+        unsafe {
+            self.unsigned_unchecked_div_rem_assign_async(
+                quotient, remainder, numerator, divisor, stream,
+            );
+        }
+        stream.synchronize();
+    }
+
+    pub fn div(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext {
         let (q, _r) = self.div_rem(numerator, divisor, stream);
         q
     }
 
+    pub fn rem(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) -> CudaUnsignedRadixCiphertext {
+        let (_q, r) = self.div_rem(numerator, divisor, stream);
+        r
+    }
+    pub fn div_assign(
+        &self,
+        numerator: &mut CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) {
+        let mut remainder = numerator.duplicate(stream);
+        self.div_rem_assign(
+            numerator,
+            &mut remainder,
+            &numerator.duplicate(stream),
+            divisor,
+            stream,
+        );
+    }
+
+    pub fn rem_assign(
+        &self,
+        numerator: &mut CudaUnsignedRadixCiphertext,
+        divisor: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStream,
+    ) {
+        let mut quotient = numerator.duplicate(stream);
+        self.div_rem_assign(
+            &mut quotient,
+            numerator,
+            &numerator.duplicate(stream),
+            divisor,
+            stream,
+        );
+    }
 }

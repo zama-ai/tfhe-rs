@@ -2917,7 +2917,9 @@ impl CudaStream {
     ///
     /// - [CudaStream::synchronize] __must__ be called after this function
     /// as soon as synchronization is required
-    pub unsafe fn unchecked_unsigned_div_rem_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
+    pub unsafe fn unchecked_unsigned_div_rem_integer_radix_classic_kb_assign_async<
+        T: UnsignedInteger,
+    >(
         &self,
         quotient: &mut CudaVec<T>,
         remainder: &mut CudaVec<T>,
@@ -2975,7 +2977,9 @@ impl CudaStream {
     ///
     /// - [CudaStream::synchronize] __must__ be called after this function
     /// as soon as synchronization is required
-    pub unsafe fn unchecked_unsigned_div_rem_integer_radix_multibit_kb_assign_async<T: UnsignedInteger>(
+    pub unsafe fn unchecked_unsigned_div_rem_integer_radix_multibit_kb_assign_async<
+        T: UnsignedInteger,
+    >(
         &self,
         quotient: &mut CudaVec<T>,
         remainder: &mut CudaVec<T>,
@@ -3028,5 +3032,4 @@ impl CudaStream {
         );
         cleanup_cuda_integer_div_rem(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
     }
-
 }

@@ -287,14 +287,13 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
     PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
-    cuda_stream_t *stream, void *quotient, void *remainder,
-    void *numerator, void *divisor, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t num_blocks_in_radix);
+    cuda_stream_t *stream, void *quotient, void *remainder, void *numerator,
+    void *divisor, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t num_blocks_in_radix);
 
-void cleanup_cuda_integer_div_rem(cuda_stream_t *stream,
-                                                int8_t **mem_ptr_void);
+void cleanup_cuda_integer_div_rem(cuda_stream_t *stream, int8_t **mem_ptr_void);
 
-}   //extern C
+} // extern C
 
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
@@ -1608,9 +1607,9 @@ template <typename Torus> struct int_div_rem_memory {
                      uint32_t num_blocks, bool allocate_gpu_memory) {
     this->params = params;
     shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-        stream, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT,  params, num_blocks, true);
-    overflow_sub_mem = new int_overflowing_sub_memory<Torus>(
-        stream, params, num_blocks, true);
+        stream, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params, num_blocks, true);
+    overflow_sub_mem =
+        new int_overflowing_sub_memory<Torus>(stream, params, num_blocks, true);
   }
   void release(cuda_stream_t *stream) {
     shift_mem->release(stream);
@@ -1620,7 +1619,6 @@ template <typename Torus> struct int_div_rem_memory {
     delete overflow_sub_mem;
   }
 };
-
 
 template <typename Torus> struct int_zero_out_if_buffer {
 

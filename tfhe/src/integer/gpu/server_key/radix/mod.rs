@@ -32,11 +32,11 @@ mod scalar_rotate;
 
 mod rotate;
 
+mod div_mod;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;
-mod div_mod;
 
 impl CudaServerKey {
     /// Create a trivial ciphertext filled with zeros on the GPU.

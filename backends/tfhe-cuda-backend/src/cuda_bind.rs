@@ -990,9 +990,6 @@ extern "C" {
         num_blocks: u32,
     );
 
-    pub fn cleanup_cuda_integer_div_rem(
-        v_stream: *const c_void,
-        mem_ptr: *mut *mut i8,
-    );
+    pub fn cleanup_cuda_integer_div_rem(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
 } // extern "C"
