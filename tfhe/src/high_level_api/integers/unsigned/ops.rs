@@ -676,9 +676,17 @@ where
                 (FheUint::<Id>::new(q), FheUint::<Id>::new(r))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support division yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key.key.div_rem(
+                    &self.ciphertext.on_gpu(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+                (
+                    FheUint::<Id>::new(inner_result.0),
+                    FheUint::<Id>::new(inner_result.1),
+                )
+            }),
         })
     }
 }
@@ -1011,9 +1019,13 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result)
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("Division '/' is not yet supported by Cuda devices")
-                }
+                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .div(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                    FheUint::new(inner_result)
+                }),
             })
         }
     },
@@ -1057,9 +1069,13 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result)
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("Remainder/Modulo '%' is not yet supported by Cuda devices")
-                }
+                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .rem(&lhs.ciphertext.on_gpu(), &rhs.ciphertext.on_gpu(), stream);
+                    FheUint::new(inner_result)
+                }),
             })
         }
     },
@@ -1615,9 +1631,13 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support division");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.div_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }
@@ -1659,9 +1679,13 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support division");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                cuda_key.key.rem_assign(
+                    self.ciphertext.as_gpu_mut(),
+                    &rhs.ciphertext.on_gpu(),
+                    stream,
+                );
+            }),
         })
     }
 }

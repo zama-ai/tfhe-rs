@@ -172,6 +172,47 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
                      cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
 }
 
+template <typename Torus>
+__host__ void integer_radix_apply_bivariate_lookup_table_kb_factor(
+    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_array_1,
+    Torus *lwe_array_2, void *bsk, Torus *ksk, uint32_t num_radix_blocks,
+    int_radix_lut<Torus> *lut, uint32_t shift) {
+  cudaSetDevice(stream->gpu_index);
+  // apply_lookup_table_bivariate
+  auto params = lut->params;
+  auto pbs_type = params.pbs_type;
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto small_lwe_dimension = params.small_lwe_dimension;
+  auto ks_level = params.ks_level;
+  auto ks_base_log = params.ks_base_log;
+  auto pbs_level = params.pbs_level;
+  auto pbs_base_log = params.pbs_base_log;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto grouping_factor = params.grouping_factor;
+  auto message_modulus = params.message_modulus;
+
+  // Left message is shifted
+  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  pack_bivariate_blocks(stream, lwe_array_pbs_in, lut->lwe_trivial_indexes,
+                        lwe_array_1, lwe_array_2, lut->lwe_indexes_in,
+                        big_lwe_dimension, shift, num_radix_blocks);
+  check_cuda_error(cudaGetLastError());
+
+  // Apply LUT
+  cuda_keyswitch_lwe_ciphertext_vector(
+      stream, lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, lwe_array_pbs_in,
+      lut->lwe_trivial_indexes, ksk, big_lwe_dimension, small_lwe_dimension,
+      ks_base_log, ks_level, num_radix_blocks);
+
+  execute_pbs<Torus>(stream, lwe_array_out, lut->lwe_indexes_out, lut->lut,
+                     lut->lut_indexes, lut->tmp_lwe_after_ks,
+                     lut->lwe_trivial_indexes, bsk, lut->buffer, glwe_dimension,
+                     small_lwe_dimension, polynomial_size, pbs_base_log,
+                     pbs_level, grouping_factor, num_radix_blocks, 1, 0,
+                     cuda_get_max_shared_memory(stream->gpu_index), pbs_type);
+}
+
 // Rotates the slice in-place such that the first mid elements of the slice move
 // to the end while the last array_length elements move to the front. After
 // calling rotate_left, the element previously at index mid will become the
@@ -235,6 +276,24 @@ void generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
                                message_modulus, carry_modulus, wrapped_f);
 }
 
+template <typename Torus>
+void generate_lookup_table_bivariate_with_factor(
+    Torus *acc, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor) {
+
+  Torus factor_u64 = factor;
+  auto wrapped_f = [factor_u64, message_modulus, f](Torus input) -> Torus {
+    Torus lhs = (input / factor_u64) % message_modulus;
+    Torus rhs = (input % factor_u64) % message_modulus;
+
+    return f(lhs, rhs);
+  };
+
+  generate_lookup_table<Torus>(acc, glwe_dimension, polynomial_size,
+                               message_modulus, carry_modulus, wrapped_f);
+}
+
 /*
  *  generate bivariate accumulator for device pointer
  *    v_stream - cuda stream
@@ -266,7 +325,38 @@ void generate_device_accumulator_bivariate(
 }
 
 /*
- *  generate bivariate accumulator for device pointer
+ *  generate bivariate accumulator with factor scaling for device pointer
+ *    v_stream - cuda stream
+ *    acc - device pointer for bivariate accumulator
+ *    ...
+ *    f - wrapping function with two Torus inputs
+ */
+template <typename Torus>
+void generate_device_accumulator_bivariate_with_factor(
+    cuda_stream_t *stream, Torus *acc_bivariate, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor) {
+
+  // host lut
+  Torus *h_lut =
+      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+  // fill bivariate accumulator
+  generate_lookup_table_bivariate_with_factor<Torus>(
+      h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus, f,
+      factor);
+
+  // copy host lut and lut_indexes to device
+  cuda_memcpy_async_to_gpu(
+      acc_bivariate, h_lut,
+      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream);
+
+  // Release memory when possible
+  cuda_stream_add_callback(stream, host_free_on_stream_callback, h_lut);
+}
+
+/*
+ *  generate accumulator for device pointer
  *    v_stream - cuda stream
  *    acc - device pointer for accumulator
  *    ...

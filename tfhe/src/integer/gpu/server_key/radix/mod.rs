@@ -37,6 +37,7 @@ mod scalar_rotate;
 
 mod rotate;
 
+mod div_mod;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
