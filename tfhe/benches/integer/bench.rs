@@ -1539,6 +1539,11 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_div_rem,
+        display_name: div_rem
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_add,
         display_name: add
     );
@@ -1721,6 +1726,11 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
+        method_name: div_rem,
+        display_name: div_rem
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
         method_name: ne,
         display_name: not_equal
     );
@@ -1898,6 +1908,7 @@ mod cuda {
         cuda_unchecked_bitor,
         cuda_unchecked_bitxor,
         cuda_unchecked_mul,
+        cuda_unchecked_div_rem,
         cuda_unchecked_sub,
         cuda_unchecked_unsigned_overflowing_sub,
         cuda_unchecked_add,
@@ -1938,6 +1949,7 @@ mod cuda {
         cuda_unsigned_overflowing_sub,
         cuda_add,
         cuda_mul,
+        cuda_div_rem,
         cuda_eq,
         cuda_ne,
         cuda_ge,

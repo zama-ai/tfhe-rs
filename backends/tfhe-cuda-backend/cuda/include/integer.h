@@ -293,7 +293,23 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
 
 void cleanup_cuda_integer_radix_scalar_mul(cuda_stream_t *stream,
                                            int8_t **mem_ptr_void);
-}
+
+void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, bool allocate_gpu_memory);
+
+void cuda_integer_div_rem_radix_ciphertext_kb_64(
+    cuda_stream_t *stream, void *quotient, void *remainder, void *numerator,
+    void *divisor, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t num_blocks_in_radix);
+
+void cleanup_cuda_integer_div_rem(cuda_stream_t *stream, int8_t **mem_ptr_void);
+
+} // extern C
 
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
@@ -320,6 +336,11 @@ void generate_device_accumulator_bivariate(
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
     std::function<Torus(Torus, Torus)> f);
 
+template <typename Torus>
+void generate_device_accumulator_bivariate_with_factor(
+    cuda_stream_t *stream, Torus *acc_bivariate, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor);
 /*
  *  generate univariate accumulator (lut) for device pointer
  *    v_stream - cuda stream
@@ -2111,6 +2132,327 @@ template <typename Torus> struct int_comparison_buffer {
     }
     cuda_destroy_stream(lsb_stream);
     cuda_destroy_stream(msb_stream);
+  }
+};
+
+template <typename Torus> struct int_div_rem_memory {
+  int_radix_params params;
+  bool mem_reuse = false;
+
+  // memory objects for other operations
+  int_logical_scalar_shift_buffer<Torus> *shift_mem_1;
+  int_logical_scalar_shift_buffer<Torus> *shift_mem_2;
+  int_overflowing_sub_memory<Torus> *overflow_sub_mem;
+  int_comparison_buffer<Torus> *comparison_buffer;
+
+  // lookup tables
+  int_radix_lut<Torus> **masking_luts_1;
+  int_radix_lut<Torus> **masking_luts_2;
+  int_radix_lut<Torus> *message_extract_lut_1;
+  int_radix_lut<Torus> *message_extract_lut_2;
+  int_radix_lut<Torus> **zero_out_if_overflow_did_not_happen;
+  int_radix_lut<Torus> **zero_out_if_overflow_happened;
+  int_radix_lut<Torus> **merge_overflow_flags_luts;
+
+  // sub streams
+  cuda_stream_t *sub_stream_1;
+  cuda_stream_t *sub_stream_2;
+  cuda_stream_t *sub_stream_3;
+  cuda_stream_t *sub_stream_4;
+
+  // temporary device buffers
+  Torus *remainder1;
+  Torus *remainder2;
+  Torus *numerator_block_stack;
+  Torus *numerator_block_1;
+  Torus *tmp_radix;
+  Torus *interesting_remainder1;
+  Torus *interesting_remainder2;
+  Torus *interesting_divisor;
+  Torus *divisor_ms_blocks;
+  Torus *new_remainder;
+  Torus *subtraction_overflowed;
+  Torus *did_not_overflow;
+  Torus *overflow_sum;
+  Torus *overflow_sum_radix;
+  Torus *tmp_1;
+  Torus *at_least_one_upper_block_is_non_zero;
+  Torus *cleaned_merged_interesting_remainder;
+
+  // allocate and initialize if needed, temporary arrays used to calculate
+  // cuda integer div_rem operation
+  void init_temporary_buffers(cuda_stream_t *stream, uint32_t num_blocks) {
+    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
+
+    // non boolean temporary arrays, with `num_blocks` blocks
+    remainder1 = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    remainder2 = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    numerator_block_stack = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    interesting_remainder2 = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    interesting_divisor = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    divisor_ms_blocks = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    new_remainder = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    cleaned_merged_interesting_remainder = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    tmp_1 = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+
+    // temporary arrays used as stacks
+    tmp_radix = (Torus *)cuda_malloc_async(
+        big_lwe_size * (num_blocks + 1) * sizeof(Torus), stream);
+    interesting_remainder1 = (Torus *)cuda_malloc_async(
+        big_lwe_size * (num_blocks + 1) * sizeof(Torus), stream);
+    numerator_block_1 =
+        (Torus *)cuda_malloc_async(big_lwe_size * 2 * sizeof(Torus), stream);
+
+    // temporary arrays for boolean blocks
+    subtraction_overflowed =
+        (Torus *)cuda_malloc_async(big_lwe_size * 1 * sizeof(Torus), stream);
+    did_not_overflow =
+        (Torus *)cuda_malloc_async(big_lwe_size * 1 * sizeof(Torus), stream);
+    overflow_sum =
+        (Torus *)cuda_malloc_async(big_lwe_size * 1 * sizeof(Torus), stream);
+    overflow_sum_radix = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), stream);
+    at_least_one_upper_block_is_non_zero =
+        (Torus *)cuda_malloc_async(big_lwe_size * 1 * sizeof(Torus), stream);
+  }
+
+  // initialize lookup tables for div_rem operation
+  void init_lookup_tables(cuda_stream_t *stream, uint32_t num_blocks) {
+    uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
+
+    // create and generate masking_luts_1[] and masking_lut_2[]
+    // both of them are equal but because they are used in two different
+    // executions in parallel we need two different pbs_buffers.
+    masking_luts_1 = new int_radix_lut<Torus> *[params.message_modulus - 1];
+    masking_luts_2 = new int_radix_lut<Torus> *[params.message_modulus - 1];
+    for (int i = 0; i < params.message_modulus - 1; i++) {
+      uint32_t shifted_mask = i;
+      std::function<Torus(Torus)> lut_f_masking =
+          [shifted_mask](Torus x) -> Torus { return x & shifted_mask; };
+
+      masking_luts_1[i] =
+          new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+      masking_luts_2[i] =
+          new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+
+      Torus *luts[2] = {masking_luts_1[i]->lut, masking_luts_2[i]->lut};
+
+      for (int j = 0; j < 2; j++) {
+        generate_device_accumulator<Torus>(
+            stream, luts[j], params.glwe_dimension, params.polynomial_size,
+            params.message_modulus, params.carry_modulus, lut_f_masking);
+      }
+    }
+
+    // create and generate message_extract_lut_1 and message_extract_lut_2
+    // both of them are equal but because they are used in two different
+    // executions in parallel we need two different pbs_buffers.
+    message_extract_lut_1 =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+    message_extract_lut_2 =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+
+    auto message_modulus = params.message_modulus;
+    auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+
+    Torus *luts[2] = {message_extract_lut_1->lut, message_extract_lut_2->lut};
+    for (int j = 0; j < 2; j++) {
+      generate_device_accumulator<Torus>(
+          stream, luts[j], params.glwe_dimension, params.polynomial_size,
+          params.message_modulus, params.carry_modulus, lut_f_message_extract);
+    }
+
+    // Give name to closures to improve readability
+    auto overflow_happened = [](uint64_t overflow_sum) {
+      return overflow_sum != 0;
+    };
+    auto overflow_did_not_happen = [&overflow_happened](uint64_t overflow_sum) {
+      return !overflow_happened(overflow_sum);
+    };
+
+    // create and generate zero_out_if_overflow_did_not_happen
+    zero_out_if_overflow_did_not_happen = new int_radix_lut<Torus> *[2];
+    zero_out_if_overflow_did_not_happen[0] =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+    zero_out_if_overflow_did_not_happen[1] =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+
+    auto cur_lut_f = [&](Torus block, Torus overflow_sum) -> Torus {
+      if (overflow_did_not_happen(overflow_sum)) {
+        return 0;
+      } else {
+        return block;
+      }
+    };
+
+    generate_device_accumulator_bivariate_with_factor<Torus>(
+        stream, zero_out_if_overflow_did_not_happen[0]->lut,
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, cur_lut_f, 2);
+    generate_device_accumulator_bivariate_with_factor<Torus>(
+        stream, zero_out_if_overflow_did_not_happen[1]->lut,
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, cur_lut_f, 3);
+
+    // create and generate zero_out_if_overflow_happened
+    zero_out_if_overflow_happened = new int_radix_lut<Torus> *[2];
+    zero_out_if_overflow_happened[0] =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+    zero_out_if_overflow_happened[1] =
+        new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+
+    auto overflow_happened_f = [&](Torus block, Torus overflow_sum) -> Torus {
+      if (overflow_happened(overflow_sum)) {
+        return 0;
+      } else {
+        return block;
+      }
+    };
+
+    generate_device_accumulator_bivariate_with_factor<Torus>(
+        stream, zero_out_if_overflow_happened[0]->lut, params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        overflow_happened_f, 2);
+    generate_device_accumulator_bivariate_with_factor<Torus>(
+        stream, zero_out_if_overflow_happened[1]->lut, params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        overflow_happened_f, 3);
+
+    // merge_overflow_flags_luts
+    merge_overflow_flags_luts = new int_radix_lut<Torus> *[num_bits_in_message];
+    for (int i = 0; i < num_bits_in_message; i++) {
+      auto lut_f_bit = [i](Torus x, Torus y) -> Torus {
+        return (x == 0 && y == 0) << i;
+      };
+
+      merge_overflow_flags_luts[i] =
+          new int_radix_lut<Torus>(stream, params, 1, num_blocks, true);
+
+      generate_device_accumulator_bivariate<Torus>(
+          stream, merge_overflow_flags_luts[i]->lut, params.glwe_dimension,
+          params.polynomial_size, params.message_modulus, params.carry_modulus,
+          lut_f_bit);
+    }
+  }
+
+  int_div_rem_memory(cuda_stream_t *stream, int_radix_params params,
+                     uint32_t num_blocks, bool allocate_gpu_memory) {
+    this->params = params;
+    shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(
+        stream, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params, 2 * num_blocks, true);
+
+    shift_mem_2 = new int_logical_scalar_shift_buffer<Torus>(
+        stream, SHIFT_OR_ROTATE_TYPE::LEFT_SHIFT, params, 2 * num_blocks, true);
+
+    overflow_sub_mem =
+        new int_overflowing_sub_memory<Torus>(stream, params, num_blocks, true);
+
+    comparison_buffer = new int_comparison_buffer<Torus>(
+        stream, COMPARISON_TYPE::NE, params, num_blocks, false, true);
+
+    init_lookup_tables(stream, num_blocks);
+    init_temporary_buffers(stream, num_blocks);
+
+    sub_stream_1 = new cuda_stream_t(stream->gpu_index);
+    sub_stream_2 = new cuda_stream_t(stream->gpu_index);
+    sub_stream_3 = new cuda_stream_t(stream->gpu_index);
+    sub_stream_4 = new cuda_stream_t(stream->gpu_index);
+  }
+
+  void release(cuda_stream_t *stream) {
+    uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
+
+    // release and delete other operation memory objects
+    shift_mem_1->release(stream);
+    shift_mem_2->release(stream);
+    overflow_sub_mem->release(stream);
+    comparison_buffer->release(stream);
+    delete shift_mem_1;
+    delete shift_mem_2;
+    delete overflow_sub_mem;
+    delete comparison_buffer;
+
+    // release and delete lookup tables
+
+    // masking_luts_1 and masking_luts_2
+    for (int i = 0; i < params.message_modulus - 1; i++) {
+      masking_luts_1[i]->release(stream);
+      masking_luts_2[i]->release(stream);
+
+      delete masking_luts_1[i];
+      delete masking_luts_2[i];
+    }
+    delete[] masking_luts_1;
+    delete[] masking_luts_2;
+
+    // message_extract_lut_1 and message_extract_lut_2
+    message_extract_lut_1->release(stream);
+    message_extract_lut_2->release(stream);
+
+    delete message_extract_lut_1;
+    delete message_extract_lut_2;
+
+    // zero_out_if_overflow_did_not_happen
+    zero_out_if_overflow_did_not_happen[0]->release(stream);
+    zero_out_if_overflow_did_not_happen[1]->release(stream);
+
+    delete zero_out_if_overflow_did_not_happen[0];
+    delete zero_out_if_overflow_did_not_happen[1];
+
+    delete[] zero_out_if_overflow_did_not_happen;
+
+    // zero_out_if_overflow_happened
+    zero_out_if_overflow_happened[0]->release(stream);
+    zero_out_if_overflow_happened[1]->release(stream);
+
+    delete zero_out_if_overflow_happened[0];
+    delete zero_out_if_overflow_happened[1];
+
+    delete[] zero_out_if_overflow_happened;
+
+    // merge_overflow_flags_luts
+    for (int i = 0; i < num_bits_in_message; i++) {
+      merge_overflow_flags_luts[i]->release(stream);
+
+      delete merge_overflow_flags_luts[i];
+    }
+    delete[] merge_overflow_flags_luts;
+
+    // release sub streams
+    sub_stream_1->release();
+    sub_stream_2->release();
+    sub_stream_3->release();
+    sub_stream_4->release();
+
+    // drop temporary buffers
+    cuda_drop_async(remainder1, stream);
+    cuda_drop_async(remainder2, stream);
+    cuda_drop_async(numerator_block_stack, stream);
+    cuda_drop_async(numerator_block_1, stream);
+    cuda_drop_async(tmp_radix, stream);
+    cuda_drop_async(interesting_remainder1, stream);
+    cuda_drop_async(interesting_remainder2, stream);
+    cuda_drop_async(interesting_divisor, stream);
+    cuda_drop_async(divisor_ms_blocks, stream);
+    cuda_drop_async(new_remainder, stream);
+    cuda_drop_async(subtraction_overflowed, stream);
+    cuda_drop_async(did_not_overflow, stream);
+    cuda_drop_async(overflow_sum, stream);
+    cuda_drop_async(overflow_sum_radix, stream);
+    cuda_drop_async(tmp_1, stream);
+    cuda_drop_async(at_least_one_upper_block_is_non_zero, stream);
+    cuda_drop_async(cleaned_merged_interesting_remainder, stream);
   }
 };
 

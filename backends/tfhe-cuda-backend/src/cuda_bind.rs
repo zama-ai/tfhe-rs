@@ -990,4 +990,37 @@ extern "C" {
         mem_ptr: *mut *mut i8,
     );
 
+    pub fn scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+        v_stream: *const c_void,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_integer_div_rem_radix_ciphertext_kb_64(
+        v_stream: *const c_void,
+        quotient: *mut c_void,
+        remainder: *mut c_void,
+        numerator: *const c_void,
+        divisor: *const c_void,
+        mem_ptr: *mut i8,
+        bsk: *const c_void,
+        ksk: *const c_void,
+        num_blocks: u32,
+    );
+
+    pub fn cleanup_cuda_integer_div_rem(v_stream: *const c_void, mem_ptr: *mut *mut i8);
+
 } // extern "C"
