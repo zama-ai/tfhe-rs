@@ -498,35 +498,51 @@ __host__ void host_integer_radix_difference_check_kb(
   } else {
     // Packing is possible
     if (carry_modulus >= message_modulus) {
-      // Compare (num_radix_blocks - 2) / 2 packed blocks
-      compare_radix_blocks_kb(stream, comparisons, lhs, rhs, mem_ptr, bsk, ksk,
-                              packed_num_radix_blocks);
-
-      // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
       Torus *last_left_block_before_sign_block =
           diff_buffer->tmp_packed_left + packed_num_radix_blocks * big_lwe_size;
       Torus *last_right_block_before_sign_block =
           diff_buffer->tmp_packed_right +
           packed_num_radix_blocks * big_lwe_size;
-      integer_radix_apply_univariate_lookup_table_kb(
-          stream, last_left_block_before_sign_block,
-          lwe_array_left + (num_radix_blocks - 2) * big_lwe_size, bsk, ksk, 1,
-          identity_lut);
-      integer_radix_apply_univariate_lookup_table_kb(
-          stream, last_right_block_before_sign_block,
-          lwe_array_right + (num_radix_blocks - 2) * big_lwe_size, bsk, ksk, 1,
-          identity_lut);
-      compare_radix_blocks_kb(
-          stream, comparisons + packed_num_radix_blocks * big_lwe_size,
-          last_left_block_before_sign_block, last_right_block_before_sign_block,
-          mem_ptr, bsk, ksk, 1);
-      // Compare the sign block separately
-      integer_radix_apply_bivariate_lookup_table_kb(
-          stream, comparisons + (packed_num_radix_blocks + 1) * big_lwe_size,
-          lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
-          lwe_array_right + (num_radix_blocks - 1) * big_lwe_size, bsk, ksk, 1,
-          mem_ptr->signed_lut);
+      // Compare (num_radix_blocks - 2) / 2 packed blocks
+      compare_radix_blocks_kb(mem_ptr->local_stream_1, comparisons, lhs, rhs,
+                              mem_ptr, bsk, ksk, packed_num_radix_blocks);
+      // Since our CPU threads will be working on different streams we shall
+      // assert the work in the main stream is completed
+      stream->synchronize();
+#pragma omp parallel sections
+      {
+        // All sections may be executed in parallel
+#pragma omp section
+        {
+          // Compare the last block before the sign block separately
+          integer_radix_apply_univariate_lookup_table_kb(
+              mem_ptr->local_stream_1, last_left_block_before_sign_block,
+              lwe_array_left + (num_radix_blocks - 2) * big_lwe_size, bsk, ksk,
+              1, identity_lut);
+          integer_radix_apply_univariate_lookup_table_kb(
+              mem_ptr->local_stream_1, last_right_block_before_sign_block,
+              lwe_array_right + (num_radix_blocks - 2) * big_lwe_size, bsk, ksk,
+              1, identity_lut);
+          compare_radix_blocks_kb(
+              mem_ptr->local_stream_1,
+              comparisons + packed_num_radix_blocks * big_lwe_size,
+              last_left_block_before_sign_block,
+              last_right_block_before_sign_block, mem_ptr, bsk, ksk, 1);
+        }
+#pragma omp section
+        {
+          // Compare the sign block separately
+          integer_radix_apply_bivariate_lookup_table_kb(
+              mem_ptr->local_stream_2,
+              comparisons + (packed_num_radix_blocks + 1) * big_lwe_size,
+              lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
+              lwe_array_right + (num_radix_blocks - 1) * big_lwe_size, bsk, ksk,
+              1, mem_ptr->signed_lut);
+        }
+      }
+      cuda_synchronize_stream(mem_ptr->local_stream_1);
+      cuda_synchronize_stream(mem_ptr->local_stream_2);
       num_comparisons = packed_num_radix_blocks + 2;
 
     } else {

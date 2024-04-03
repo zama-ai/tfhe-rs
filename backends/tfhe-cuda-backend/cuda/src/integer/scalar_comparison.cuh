@@ -77,8 +77,8 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     auto lwe_array_msb_out = lwe_array_lsb_out + big_lwe_size;
 
     cuda_synchronize_stream(stream);
-    auto lsb_stream = mem_ptr->lsb_stream;
-    auto msb_stream = mem_ptr->msb_stream;
+    auto lsb_stream = mem_ptr->local_stream_1;
+    auto msb_stream = mem_ptr->local_stream_2;
 
 #pragma omp parallel sections
     {
@@ -305,8 +305,8 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
 
   cuda_synchronize_stream(stream);
 
-  auto lsb_stream = mem_ptr->lsb_stream;
-  auto msb_stream = mem_ptr->msb_stream;
+  auto lsb_stream = mem_ptr->local_stream_1;
+  auto msb_stream = mem_ptr->local_stream_2;
 
 #pragma omp parallel sections
   {

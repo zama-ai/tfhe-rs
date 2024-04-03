@@ -1974,9 +1974,9 @@ template <typename Torus> struct int_comparison_buffer {
   int_radix_lut<Torus> *signed_lut;
   bool is_signed;
 
-  // Used for scalar comparisons
-  cuda_stream_t *lsb_stream;
-  cuda_stream_t *msb_stream;
+  // Used for scalar comparisons & signed comparisons
+  cuda_stream_t *local_stream_1;
+  cuda_stream_t *local_stream_2;
 
   int_comparison_buffer(cuda_stream_t *stream, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
@@ -1988,8 +1988,8 @@ template <typename Torus> struct int_comparison_buffer {
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
     if (allocate_gpu_memory) {
-      lsb_stream = cuda_create_stream(stream->gpu_index);
-      msb_stream = cuda_create_stream(stream->gpu_index);
+      local_stream_1 = cuda_create_stream(stream->gpu_index);
+      local_stream_2 = cuda_create_stream(stream->gpu_index);
 
       tmp_lwe_array_out = (Torus *)cuda_malloc_async(
           (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus),
@@ -2125,12 +2125,12 @@ template <typename Torus> struct int_comparison_buffer {
     cuda_drop_async(tmp_block_comparisons, stream);
     cuda_drop_async(tmp_packed_input, stream);
 
+    cuda_destroy_stream(local_stream_1);
+    cuda_destroy_stream(local_stream_2);
     if (is_signed) {
       signed_lut->release(stream);
       delete (signed_lut);
     }
-    cuda_destroy_stream(lsb_stream);
-    cuda_destroy_stream(msb_stream);
   }
 };
 
