@@ -7,6 +7,7 @@ pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_mul;
+pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;

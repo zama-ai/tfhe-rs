@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::CastFrom;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::CudaServerKey;
 
@@ -9,15 +9,16 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_rotate_left_async<T>(
+    pub unsafe fn unchecked_scalar_rotate_left_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &T,
+        n: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate_async(stream);
         self.unchecked_scalar_rotate_left_assign_async(&mut result, n, stream);
@@ -28,14 +29,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_rotate_left_assign_async<T>(
+    pub unsafe fn unchecked_scalar_rotate_left_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &mut T,
+        n: Scalar,
         stream: &CudaStream,
     ) where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         match &self.bootstrapping_key {
@@ -89,15 +91,16 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_rotate_left<T>(
+    pub fn unchecked_scalar_rotate_left<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &T,
+        n: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let result = unsafe { self.unchecked_scalar_rotate_left_async(ct, n, stream) };
         stream.synchronize();
@@ -108,15 +111,16 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_rotate_right_async<T>(
+    pub unsafe fn unchecked_scalar_rotate_right_async<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &T,
+        n: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate_async(stream);
         self.unchecked_scalar_rotate_right_assign_async(&mut result, n, stream);
@@ -127,14 +131,15 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_scalar_rotate_right_assign_async<T>(
+    pub unsafe fn unchecked_scalar_rotate_right_assign_async<Scalar, T>(
         &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &mut T,
+        n: Scalar,
         stream: &CudaStream,
     ) where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         match &self.bootstrapping_key {
@@ -188,29 +193,27 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_rotate_right<T>(
+    pub fn unchecked_scalar_rotate_right<Scalar, T>(
         &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        n: T,
+        ct: &T,
+        n: Scalar,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    ) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let result = unsafe { self.unchecked_scalar_rotate_right_async(ct, n, stream) };
         stream.synchronize();
         result
     }
 
-    pub fn scalar_rotate_left_assign<T>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        n: T,
-        stream: &CudaStream,
-    ) where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+    pub fn scalar_rotate_left_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStream)
+    where
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             unsafe {
@@ -222,14 +225,11 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_rotate_right_assign<T>(
-        &self,
-        ct: &mut CudaUnsignedRadixCiphertext,
-        n: T,
-        stream: &CudaStream,
-    ) where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+    pub fn scalar_rotate_right_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStream)
+    where
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             unsafe {
@@ -241,30 +241,22 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_rotate_left<T>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        shift: T,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_rotate_left<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_rotate_left_assign(&mut result, shift, stream);
         result
     }
 
-    pub fn scalar_rotate_right<T>(
-        &self,
-        ct: &CudaUnsignedRadixCiphertext,
-        shift: T,
-        stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext
+    pub fn scalar_rotate_right<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
     where
-        T: CastFrom<u32>,
-        u32: CastFrom<T>,
+        T: CudaIntegerRadixCiphertext,
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
     {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.scalar_rotate_right_assign(&mut result, shift, stream);

@@ -9,6 +9,7 @@ pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
 pub(crate) mod test_scalar_mul;
+pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
@@ -498,10 +499,6 @@ create_parametrized_test!(
     }
 );
 // left/right rotations
-create_parametrized_test!(integer_unchecked_scalar_rotate_right);
-create_parametrized_test!(integer_unchecked_scalar_rotate_left);
-create_parametrized_test!(integer_default_scalar_rotate_right);
-create_parametrized_test!(integer_default_scalar_rotate_left);
 create_parametrized_test!(integer_default_scalar_div_rem);
 create_parametrized_test!(integer_smart_if_then_else);
 create_parametrized_test!(integer_default_if_then_else);
@@ -711,22 +708,6 @@ where
 // Unchecked Scalar Tests
 //=============================================================================
 
-fn integer_unchecked_scalar_rotate_right<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_rotate_right_parallelized);
-    unchecked_scalar_rotate_right_test(param, executor);
-}
-
-fn integer_unchecked_scalar_rotate_left<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_rotate_left_parallelized);
-    unchecked_scalar_rotate_left_test(param, executor);
-}
-
 //=============================================================================
 // Smart Tests
 //=============================================================================
@@ -890,22 +871,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
     default_checked_ilog2_test(param, executor);
-}
-
-fn integer_default_scalar_rotate_right<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
-    default_scalar_rotate_right_test(param, executor);
-}
-
-fn integer_default_scalar_rotate_left<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
-    default_scalar_rotate_left_test(param, executor);
 }
 
 fn integer_default_scalar_div_rem<P>(param: P)

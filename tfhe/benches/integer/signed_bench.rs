@@ -1722,6 +1722,18 @@ mod cuda {
         rng_func: shift_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_rotate_right,
+        display_name: rotate_right,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_scalar_rotate_left,
+        display_name: rotate_left,
+        rng_func: shift_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -1874,6 +1886,18 @@ mod cuda {
         rng_func: shift_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_rotate_left,
+        display_name: rotate_left,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: scalar_rotate_right,
+        display_name: rotate_right,
+        rng_func: shift_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -1908,6 +1932,8 @@ mod cuda {
         cuda_unchecked_scalar_bitxor,
         cuda_unchecked_scalar_left_shift,
         cuda_unchecked_scalar_right_shift,
+        cuda_unchecked_scalar_rotate_left,
+        cuda_unchecked_scalar_rotate_right,
     );
 
     criterion_group!(
@@ -1944,6 +1970,8 @@ mod cuda {
         cuda_scalar_bitxor,
         cuda_scalar_left_shift,
         cuda_scalar_right_shift,
+        cuda_scalar_rotate_left,
+        cuda_scalar_rotate_right,
     );
 }
 
