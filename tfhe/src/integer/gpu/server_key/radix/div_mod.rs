@@ -99,7 +99,7 @@ impl CudaServerKey {
         stream: &CudaStream,
     ) -> (T, T) {
         //TODO signed operation, now it is only unsigned
-        self.unsigned_unchecked_div_rem()
+        self.unsigned_unchecked_div_rem(numerator, divisor, stream)
     }
 
     pub fn div_rem<T: CudaIntegerRadixCiphertext>(
@@ -122,8 +122,8 @@ impl CudaServerKey {
                 (numerator, &tmp_divisor)
             }
             (false, true) => {
-                tmp_numerator = numerator.clone();
-                self.full_propagate_parallelized(&mut tmp_numerator);
+                tmp_numerator = unsafe {numerator.duplicate_async(stream) };
+                unsafe { self.full_propagate_assign_async(&mut tmp_numerator, stream) };
                 (&tmp_numerator, divisor)
             }
             (false, false) => {
