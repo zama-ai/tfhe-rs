@@ -9,6 +9,7 @@ pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
 pub(crate) mod test_scalar_mul;
+pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
@@ -511,83 +512,8 @@ where
 //================================================================================
 //     Unchecked Scalar Tests
 //================================================================================
-
-create_parametrized_test!(integer_signed_unchecked_scalar_rotate_left);
-create_parametrized_test!(integer_signed_unchecked_scalar_rotate_right);
 create_parametrized_test!(integer_signed_unchecked_scalar_div_rem);
 create_parametrized_test!(integer_signed_unchecked_scalar_div_rem_floor);
-
-fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
-
-        let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
-
-        // case when 0 <= rotate < nb_bits
-        {
-            let clear_shift = clear_shift % nb_bits;
-            let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-            let expected = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(expected, dec_res);
-        }
-
-        // case when rotate >= nb_bits
-        {
-            let clear_shift = clear_shift.saturating_add(nb_bits);
-            let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-            let expected = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(expected, dec_res);
-        }
-    }
-}
-
-fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
-
-        let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
-
-        // case when 0 <= rotate < nb_bits
-        {
-            let clear_shift = clear_shift % nb_bits;
-            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-            let expected = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(expected, dec_res);
-        }
-
-        // case when rotate >= nb_bits
-        {
-            let clear_shift = clear_shift.saturating_add(nb_bits);
-            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-            let expected = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(expected, dec_res);
-        }
-    }
-}
 
 fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -846,8 +772,6 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 //================================================================================
 
 create_parametrized_test!(integer_signed_default_scalar_div_rem);
-create_parametrized_test!(integer_signed_default_scalar_rotate_right);
-create_parametrized_test!(integer_signed_default_scalar_rotate_left);
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -898,132 +822,6 @@ fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
         let (q2_res, r2_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
         assert_eq!(q2_res, q_res, "Failed determinism check");
         assert_eq!(r2_res, r_res, "Failed determinism check");
-    }
-}
-
-fn integer_signed_default_scalar_rotate_left<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let ct_res = sks.scalar_rotate_left_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid left shift result, for '{clear}.rotate_left({clear_shift})', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = sks.scalar_rotate_left_parallelized(&ct, clear_shift);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-        }
-
-        // case when shift >= nb_bits
-        {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
-            let ct_res = sks.scalar_rotate_left_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res,
-                dec_res,
-                "Invalid rotate left result, for '{clear}.rotate_left({})', \
-                expected:  {clear_res}, got: {dec_res}",
-                clear_shift % nb_bits
-            );
-
-            let ct_res2 = sks.scalar_rotate_left_parallelized(&ct, clear_shift);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-        }
-    }
-}
-
-fn integer_signed_default_scalar_rotate_right<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let ct_res = sks.scalar_rotate_right_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid right shift result, for '{clear}.rotate_right({clear_shift})', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = sks.scalar_rotate_right_parallelized(&ct, clear_shift);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-        }
-
-        // case when shift >= nb_bits
-        {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
-            let ct_res = sks.scalar_rotate_right_parallelized(&ct, clear_shift);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid rotate right result, for '{clear}.rotate_right({clear_shift})', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = sks.scalar_rotate_right_parallelized(&ct, clear_shift);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-        }
     }
 }
 

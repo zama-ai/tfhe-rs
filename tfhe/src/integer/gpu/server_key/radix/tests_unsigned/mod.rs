@@ -8,6 +8,7 @@ pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
 pub(crate) mod test_scalar_mul;
+pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
@@ -85,8 +86,6 @@ impl<F> GpuFunctionExecutor<F> {
 
 // Unchecked operations
 create_gpu_parametrized_test!(integer_unchecked_if_then_else);
-create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_left);
-create_gpu_parametrized_test!(integer_unchecked_scalar_rotate_right);
 
 // Default operations
 create_gpu_parametrized_test!(integer_if_then_else);
@@ -475,22 +474,6 @@ where
         // Check the correctness
         assert_eq!(dec_res, if clear_condition == 1 { clear1 } else { clear2 });
     }
-}
-
-fn integer_unchecked_scalar_rotate_left<P>(param: P)
-where
-    P: Into<PBSParameters> + Copy,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_left);
-    unchecked_scalar_rotate_left_test(param, executor);
-}
-
-fn integer_unchecked_scalar_rotate_right<P>(param: P)
-where
-    P: Into<PBSParameters> + Copy,
-{
-    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_right);
-    unchecked_scalar_rotate_right_test(param, executor);
 }
 
 fn integer_if_then_else<P>(param: P)
