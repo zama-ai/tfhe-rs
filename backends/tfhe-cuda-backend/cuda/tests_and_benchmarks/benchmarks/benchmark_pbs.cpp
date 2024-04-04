@@ -307,29 +307,15 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
   // input_lwe_ciphertext_count
   std::vector<MultiBitPBSBenchmarkParams> params = {
-      // 4_bits_multi_bit_group_2
-      (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2, 0},
-      // 4_bits_multi_bit_group_3
-      (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3, 0},
+      (MultiBitPBSBenchmarkParams){772, 3, 512, 17, 1, 1, 4, 0},
   };
-
   // Add to the list of parameters to benchmark
   for (auto x : params) {
-    for (int input_lwe_ciphertext_count = 1; input_lwe_ciphertext_count <= 4096;
-         input_lwe_ciphertext_count *= 2) {
-      for (int lwe_chunk_size = 1;
-           lwe_chunk_size <= x.lwe_dimension / x.grouping_factor;
-           lwe_chunk_size *= 2)
-        b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
-                 x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
-                 x.grouping_factor, lwe_chunk_size});
-
-      int lwe_chunk_size = x.lwe_dimension / x.grouping_factor;
       b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
-               x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
-               x.grouping_factor, lwe_chunk_size});
-    }
+               x.pbs_base_log, x.pbs_level, 1,
+               x.grouping_factor, 0});
   }
+
 }
 
 static void
