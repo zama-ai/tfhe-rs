@@ -48,6 +48,12 @@ impl ClientKey {
         })
     }
 
+    #[cfg(test)]
+    /// Returns a view to the `glwe_secret_key`.
+    pub(crate) fn glwe_secret_key(&self) -> GlweSecretKeyView<'_, u64> {
+        self.glwe_secret_key.as_view()
+    }
+
     /// Returns a view to the `glwe_secret_key` interpreted as an LWE secret key.
     pub(crate) fn large_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
         self.glwe_secret_key.as_lwe_secret_key()
