@@ -38,7 +38,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
 
   switch (mem->params.polynomial_size) {
   case 512:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<512>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<512>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
@@ -46,7 +46,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks);
     break;
   case 1024:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<1024>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<1024>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
@@ -54,7 +54,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks);
     break;
   case 2048:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<2048>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<2048>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
@@ -62,7 +62,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks);
     break;
   case 4096:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<4096>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<4096>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
@@ -70,7 +70,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks);
     break;
   case 8192:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<8192>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<8192>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
@@ -78,7 +78,7 @@ void cuda_integer_radix_overflowing_sub_kb_64(
         static_cast<uint64_t *>(ksk), mem, num_blocks);
     break;
   case 16384:
-    host_integer_overflowing_sub_kb<uint64_t, Degree<16384>>(
+    host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<16384>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),

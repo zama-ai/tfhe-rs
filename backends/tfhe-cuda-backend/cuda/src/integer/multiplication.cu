@@ -129,7 +129,7 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
 
   switch (polynomial_size) {
   case 2048:
-    host_integer_mult_radix_kb<uint64_t, int64_t, Degree<2048>>(
+    host_integer_mult_radix_kb<uint64_t, int64_t, AmortizedDegree<2048>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -183,42 +183,42 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
 
   switch (mem->params.polynomial_size) {
   case 512:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<512>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<512>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
   case 1024:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<1024>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<1024>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
   case 2048:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<2048>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<2048>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
   case 4096:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<4096>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<4096>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
   case 8192:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<8192>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<8192>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,
         num_radix_in_vec);
     break;
   case 16384:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, Degree<16384>>(
+    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<16384>>(
         stream, static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsk,
         static_cast<uint64_t *>(ksk), mem, num_blocks_in_radix,

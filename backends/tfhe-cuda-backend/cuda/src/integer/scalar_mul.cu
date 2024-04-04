@@ -25,7 +25,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
 
   switch (polynomial_size) {
   case 512:
-    host_integer_scalar_mul_radix<uint64_t, Degree<512>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<512>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
@@ -33,7 +33,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         num_blocks, num_scalars);
     break;
   case 1024:
-    host_integer_scalar_mul_radix<uint64_t, Degree<1024>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<1024>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
@@ -41,7 +41,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         num_blocks, num_scalars);
     break;
   case 2048:
-    host_integer_scalar_mul_radix<uint64_t, Degree<2048>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<2048>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
@@ -49,7 +49,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         num_blocks, num_scalars);
     break;
   case 4096:
-    host_integer_scalar_mul_radix<uint64_t, Degree<4096>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<4096>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
@@ -57,7 +57,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         num_blocks, num_scalars);
     break;
   case 8192:
-    host_integer_scalar_mul_radix<uint64_t, Degree<8192>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<8192>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
@@ -65,7 +65,7 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         num_blocks, num_scalars);
     break;
   case 16384:
-    host_integer_scalar_mul_radix<uint64_t, Degree<16384>>(
+    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<16384>>(
         stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
