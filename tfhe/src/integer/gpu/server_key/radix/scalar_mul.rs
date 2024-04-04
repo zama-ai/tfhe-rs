@@ -231,7 +231,6 @@ impl CudaServerKey {
         };
 
         self.unchecked_scalar_mul_assign_async(ct, scalar, stream);
-        self.full_propagate_assign_async(ct, stream);
     }
 
     pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStream)
