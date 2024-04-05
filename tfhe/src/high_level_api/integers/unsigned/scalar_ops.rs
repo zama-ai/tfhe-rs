@@ -57,9 +57,12 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support equality with clear");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_eq(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 
@@ -91,9 +94,12 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("cuda devices do not support difference with clear")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner_result = cuda_key
+                    .key
+                    .scalar_ne(&self.ciphertext.on_gpu(), rhs, stream);
+                FheBool::new(inner_result)
+            }),
         })
     }
 }
@@ -449,6 +455,8 @@ macro_rules! generic_integer_impl_scalar_operation {
         )* // Closing first repeating pattern
     };
 }
+
+pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_operation;
 
 generic_integer_impl_scalar_operation!(
     rust_trait: Add(add),
@@ -962,6 +970,8 @@ macro_rules! generic_integer_impl_scalar_left_operation {
     };
 }
 
+pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_left_operation;
+
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Add(add),
     implem: {
@@ -1273,6 +1283,8 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
     }
 }
 
+pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_operation_assign;
+
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
     implem: {
@@ -1304,7 +1316,7 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint16,
         /// Adds a clear to a [super::FheUint16]
         ///
-        /// The operation is modular, i.e on overflow it wraps around.
+        /// The operation is modular, i.e. on overflow it wraps around.
         ///
         /// # Example
         ///

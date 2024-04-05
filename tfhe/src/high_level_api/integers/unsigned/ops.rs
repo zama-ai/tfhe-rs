@@ -1683,11 +1683,6 @@ where
 {
     /// Performs the `<<=` operation on [FheUint]
     ///
-    /// # Note
-    ///
-    /// If you need both the quotient and remainder, then prefer to use
-    /// [FheUint::div_rem], instead of using `/` and `%` separately.
-    ///
     /// # Example
     ///
     /// ```rust
@@ -1741,11 +1736,6 @@ where
     Id2: FheUintId,
 {
     /// Performs the `>>=` operation on [FheUint]
-    ///
-    /// # Note
-    ///
-    /// If you need both the quotient and remainder, then prefer to use
-    /// [FheUint::div_rem], instead of using `/` and `%` separately.
     ///
     /// # Example
     ///
@@ -1802,11 +1792,6 @@ where
 {
     /// Performs a left bit rotation and assign operation on [FheUint]
     ///
-    /// # Note
-    ///
-    /// If you need both the quotient and remainder, then prefer to use
-    /// [FheUint::div_rem], instead of using `/` and `%` separately.
-    ///
     /// # Example
     ///
     /// ```rust
@@ -1861,11 +1846,6 @@ where
     Id2: FheUintId,
 {
     /// Performs a right bit rotation and assign operation on [FheUint]
-    ///
-    /// # Note
-    ///
-    /// If you need both the quotient and remainder, then prefer to use
-    /// [FheUint::div_rem], instead of using `/` and `%` separately.
     ///
     /// # Example
     ///

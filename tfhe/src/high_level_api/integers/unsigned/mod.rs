@@ -20,6 +20,6 @@ mod encrypt;
 mod inner;
 mod ops;
 mod overflowing_ops;
-mod scalar_ops;
+pub(crate) mod scalar_ops;
 #[cfg(test)]
 mod tests;

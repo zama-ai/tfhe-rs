@@ -23,8 +23,8 @@ pub mod oprf;
 mod signed;
 mod unsigned;
 
-/// Trait to mark Id type for integers
-// The 'static restrains implementor from holding non static refs
+/// Trait to mark ID type for integers
+// The 'static restrains implementor from holding non-static refs
 // which is ok as it is meant to be impld by zero sized types.
 pub trait IntegerId: Copy + Default + 'static {
     fn num_bits() -> usize;

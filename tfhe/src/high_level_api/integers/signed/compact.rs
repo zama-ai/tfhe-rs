@@ -47,7 +47,9 @@ where
     ///
     /// See [CompactFheInt] example.
     pub fn expand(&self) -> FheInt<Id> {
-        let ct = self.list.expand_one();
+        let ct = self
+            .list
+            .expand_one::<crate::integer::SignedRadixCiphertext>();
         FheInt::new(ct)
     }
 
@@ -157,7 +159,7 @@ where
     /// See [CompactFheIntList] example.
     pub fn expand(&self) -> Vec<FheInt<Id>> {
         self.list
-            .expand()
+            .expand::<crate::integer::SignedRadixCiphertext>()
             .into_iter()
             .map(|ct| FheInt::new(ct))
             .collect::<Vec<_>>()

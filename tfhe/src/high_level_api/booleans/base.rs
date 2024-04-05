@@ -202,8 +202,8 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
         let new_ct = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => key.pbs_key().if_then_else_parallelized(
                 &ct_condition.ciphertext.on_cpu(),
-                &ct_then.ciphertext,
-                &ct_else.ciphertext,
+                &*ct_then.ciphertext.on_cpu(),
+                &*ct_else.ciphertext.on_cpu(),
             ),
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
