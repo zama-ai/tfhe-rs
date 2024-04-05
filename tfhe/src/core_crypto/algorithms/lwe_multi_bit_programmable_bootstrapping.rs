@@ -12,6 +12,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;
 
@@ -364,8 +365,6 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 
     assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
 
-    let work_queue = Mutex::new(work_queue);
-
     let lut_poly_size = accumulator.polynomial_size();
     let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
@@ -399,6 +398,9 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 
     let fft = Fft::new(multi_bit_bsk.polynomial_size());
     let fft = fft.as_view();
+
+    let work_index_counter = AtomicUsize::new(0);
+
     thread::scope(|s| {
         let produce_multi_bit_fourier_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
             let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
@@ -410,14 +412,13 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                 &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             loop {
-                let maybe_work = {
-                    let mut queue_lock = work_queue.lock().unwrap();
-                    queue_lock.pop()
-                };
-
-                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {
+                let work_index = work_index_counter.fetch_add(1, Ordering::Relaxed);
+                if work_queue.len() <= work_index {
                     break;
-                };
+                }
+
+                let (lwe_mask_elements, ggsw_group) = work_queue[work_index];
+
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
                 // Wait while the buffer is not ready for processing and wait on the condvar
@@ -1343,8 +1344,6 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
 
     assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
 
-    let work_queue = Mutex::new(work_queue);
-
     let lut_poly_size = accumulator.polynomial_size();
     let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
 
@@ -1378,6 +1377,9 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
 
     let fft = Fft::new(multi_bit_bsk.polynomial_size());
     let fft = fft.as_view();
+
+    let work_index_counter = AtomicUsize::new(0);
+
     thread::scope(|s| {
         let produce_multi_bit_fourier_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
             let mut buffers = ComputationBuffers::new();
@@ -1409,14 +1411,13 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                 &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             loop {
-                let maybe_work = {
-                    let mut queue_lock = work_queue.lock().unwrap();
-                    queue_lock.pop()
-                };
-
-                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {
+                let work_index = work_index_counter.fetch_add(1, Ordering::Relaxed);
+                if work_queue.len() <= work_index {
                     break;
-                };
+                }
+
+                let (lwe_mask_elements, ggsw_group) = work_queue[work_index];
+
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
                 // Wait while the buffer is not ready for processing and wait on the condvar
