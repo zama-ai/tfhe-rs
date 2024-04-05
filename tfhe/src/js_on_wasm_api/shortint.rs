@@ -462,6 +462,8 @@ impl Shortint {
         ks_level: usize,
         message_modulus: usize,
         carry_modulus: usize,
+        max_noise_level: usize,
+        p_fail: f64,
         modulus_power_of_2_exponent: usize,
         encryption_key_choice: ShortintEncryptionKeyChoice,
     ) -> ShortintParameters {
@@ -479,6 +481,8 @@ impl Shortint {
             ks_level: DecompositionLevelCount(ks_level),
             message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
             carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
+            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(max_noise_level),
+            p_fail,
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
                 modulus_power_of_2_exponent,
             )

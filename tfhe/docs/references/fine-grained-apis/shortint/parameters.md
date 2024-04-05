@@ -46,7 +46,7 @@ In the case of multiplication, two algorithms are implemented: the first one rel
 
 ## User-defined parameter sets
 
-It is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `ClassicPBSParameters` structure fields.
+It is possible to define new parameter sets. To do so, it is sufficient to use the function `new()` or to manually fill the `ClassicPBSParameters` structure fields.
 
 For instance:
 
@@ -72,6 +72,8 @@ fn main() {
             DecompositionLevelCount(4),
             MessageModulus(4),
             CarryModulus(1),
+            MaxNoiseLevel::new(2),
+            2.0f64.powi(-40),
             CiphertextModulus::new_native(),
             EncryptionKeyChoice::Big,
         )

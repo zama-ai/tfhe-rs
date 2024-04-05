@@ -5,7 +5,7 @@ use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
+use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
@@ -140,11 +140,6 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(
-            cks.parameters.message_modulus(),
-            cks.parameters.carry_modulus(),
-        );
-
         // Pack the keys in the server key set:
         ServerKey {
             key_switching_key,
@@ -152,7 +147,7 @@ impl ShortintEngine {
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
-            max_noise_level,
+            max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         }

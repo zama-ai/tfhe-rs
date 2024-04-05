@@ -10,7 +10,6 @@ use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
-use crate::shortint::ciphertext::NoiseLevel;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;

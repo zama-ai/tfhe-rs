@@ -23,11 +23,11 @@ impl std::error::Error for NotTrivialCiphertextError {}
 pub struct MaxNoiseLevel(usize);
 
 impl MaxNoiseLevel {
-    pub fn new(value: usize) -> Self {
+    pub const fn new(value: usize) -> Self {
         Self(value)
     }
 
-    pub fn get(&self) -> usize {
+    pub const fn get(&self) -> usize {
         self.0
     }
 
@@ -36,14 +36,14 @@ impl MaxNoiseLevel {
     //
     // TODO: remove this functions once noise norm2 constraint is decorrelated and stored in
     // parameter sets
-    pub fn from_msg_carry_modulus(
+    pub const fn from_msg_carry_modulus(
         msg_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
         Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
     }
 
-    pub fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
+    pub const fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
         if noise_level.0 > self.0 {
             return Err(CheckError::NoiseTooBig {
                 noise_level,

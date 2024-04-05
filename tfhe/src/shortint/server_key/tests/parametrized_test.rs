@@ -1,5 +1,4 @@
 use super::{NB_SUB_TEST_SMART, NB_TESTS, NB_TESTS_SMART};
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::server_key::{LookupTableOwned, ManyLookupTableOwned};
