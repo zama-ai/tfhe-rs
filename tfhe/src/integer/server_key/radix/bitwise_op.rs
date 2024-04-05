@@ -750,7 +750,6 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::tests::create_parametrized_test;
     use crate::integer::{BooleanBlock, IntegerKeyKind};
-    use crate::shortint::ciphertext::Degree;
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
     use crate::shortint::parameters::*;

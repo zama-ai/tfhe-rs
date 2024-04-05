@@ -7,7 +7,7 @@ pub use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize,
 };
 use crate::core_crypto::prelude::LweCiphertextParameters;
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
 };
@@ -30,6 +30,8 @@ pub struct MultiBitPBSParameters {
     pub ks_level: DecompositionLevelCount,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
+    pub p_fail: f64,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
     pub grouping_factor: LweBskGroupingFactor,
@@ -96,6 +98,8 @@ pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 6] = [
 // Group 2
 pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(764),
         glwe_dimension: GlweDimension(3),
         polynomial_size: PolynomialSize(512),
@@ -119,6 +123,8 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(818),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(2048),
@@ -142,6 +148,8 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(922),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(8192),
@@ -166,6 +174,8 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameter
 // Group 3
 pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(765),
         glwe_dimension: GlweDimension(3),
         polynomial_size: PolynomialSize(512),
@@ -189,6 +199,8 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(888),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(2048),
@@ -212,6 +224,8 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
+        max_noise_level: MaxNoiseLevel::new(5),
+        p_fail: 9.094947017729282e-13,
         lwe_dimension: LweDimension(972),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(8192),

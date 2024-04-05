@@ -10,7 +10,6 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
 };
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;

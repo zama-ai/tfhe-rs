@@ -6,7 +6,7 @@ pub use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize,
 };
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
 };
 use crate::shortint::ClassicPBSParameters;
 
@@ -70,6 +70,8 @@ pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 56] = [
 ];
 
 pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(638),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(1024),
@@ -89,6 +91,8 @@ pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(710),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -108,6 +112,8 @@ pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(756),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -127,6 +133,8 @@ pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(821),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -146,6 +154,8 @@ pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(888),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -165,6 +175,8 @@ pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(942),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -184,6 +196,8 @@ pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1029),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -203,6 +217,8 @@ pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(710),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -222,6 +238,8 @@ pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(756),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -241,6 +259,8 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(850),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -260,6 +280,8 @@ pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(877),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -279,6 +301,8 @@ pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(942),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -298,6 +322,8 @@ pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1030),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -317,6 +343,8 @@ pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(759),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -336,6 +364,8 @@ pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(862),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -355,6 +385,8 @@ pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(877),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -374,6 +406,8 @@ pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(942),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -393,6 +427,8 @@ pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1032),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -412,6 +448,8 @@ pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(820),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -431,6 +469,8 @@ pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(877),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -450,6 +490,8 @@ pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(943),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -469,6 +511,8 @@ pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1044),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -488,6 +532,8 @@ pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(877),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -507,6 +553,8 @@ pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(947),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -526,6 +574,8 @@ pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(997),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -545,6 +595,8 @@ pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(942),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -564,6 +616,8 @@ pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(998),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -583,6 +637,8 @@ pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1017),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -604,6 +660,8 @@ pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = Clas
 
 // Parameter set for small
 pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -623,6 +681,8 @@ pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -642,6 +702,8 @@ pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -661,6 +723,8 @@ pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -680,6 +744,8 @@ pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -699,6 +765,8 @@ pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -718,6 +786,8 @@ pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -737,6 +807,8 @@ pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -756,6 +828,8 @@ pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -775,6 +849,8 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -794,6 +870,8 @@ pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -813,6 +891,8 @@ pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -832,6 +912,8 @@ pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -851,6 +933,8 @@ pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -870,6 +954,8 @@ pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -889,6 +975,8 @@ pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -908,6 +996,8 @@ pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -927,6 +1017,8 @@ pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -946,6 +1038,8 @@ pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -965,6 +1059,8 @@ pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -984,6 +1080,8 @@ pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -1003,6 +1101,8 @@ pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -1022,6 +1122,8 @@ pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -1041,6 +1143,8 @@ pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -1060,6 +1164,8 @@ pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -1079,6 +1185,8 @@ pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -1098,6 +1206,8 @@ pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -1117,6 +1227,8 @@ pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
+    max_noise_level: MaxNoiseLevel::new(5),
+    p_fail: 9.094947017729282e-13,
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),

@@ -20,7 +20,7 @@ use super::tests_cases_unsigned::*;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::ciphertext::{Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
+use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;

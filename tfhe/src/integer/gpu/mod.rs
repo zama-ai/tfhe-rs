@@ -64,6 +64,7 @@ where
 
     // TODO
     // Manually manage the wopbs only case as a workaround pending wopbs rework
+    // WOPBS used for PBS have no known failure probability at the moment, putting 1.0 for now
     let shortint_parameters_set = if is_wopbs_only_params {
         let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
         let pbs_params = crate::shortint::parameters::ClassicPBSParameters {
@@ -78,6 +79,11 @@ where
             ks_level: wopbs_params.ks_level,
             message_modulus: wopbs_params.message_modulus,
             carry_modulus: wopbs_params.carry_modulus,
+            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::from_msg_carry_modulus(
+                wopbs_params.message_modulus,
+                wopbs_params.carry_modulus,
+            ),
+            p_fail: 1.0,
             ciphertext_modulus: wopbs_params.ciphertext_modulus,
             encryption_key_choice: wopbs_params.encryption_key_choice,
         };

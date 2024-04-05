@@ -64,8 +64,8 @@ pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub use key_switching_key::KeySwitchingKey;
 pub use parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
-    MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,
+    MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
     CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
@@ -96,6 +96,7 @@ where
 
     // TODO
     // Manually manage the wopbs only case as a workaround pending wopbs rework
+    // WOPBS used for PBS have no known failure probability at the moment, putting 1.0 for now
     let shortint_parameters_set = if is_wopbs_only_params {
         let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
         let pbs_params = ClassicPBSParameters {
@@ -110,6 +111,11 @@ where
             ks_level: wopbs_params.ks_level,
             message_modulus: wopbs_params.message_modulus,
             carry_modulus: wopbs_params.carry_modulus,
+            max_noise_level: MaxNoiseLevel::from_msg_carry_modulus(
+                wopbs_params.message_modulus,
+                wopbs_params.carry_modulus,
+            ),
+            p_fail: 1.0,
             ciphertext_modulus: wopbs_params.ciphertext_modulus,
             encryption_key_choice: wopbs_params.encryption_key_choice,
         };

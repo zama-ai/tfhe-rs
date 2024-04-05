@@ -1,5 +1,4 @@
 use super::NB_TESTS;
-use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::server_key::tests::parametrized_test::create_parametrized_test;

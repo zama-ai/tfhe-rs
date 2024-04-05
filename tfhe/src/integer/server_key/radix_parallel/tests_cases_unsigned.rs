@@ -9,7 +9,6 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{
     IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey,
 };
-use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;

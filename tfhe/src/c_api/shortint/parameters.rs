@@ -37,6 +37,8 @@ pub struct ShortintPBSParameters {
     pub ks_level: usize,
     pub message_modulus: usize,
     pub carry_modulus: usize,
+    pub max_noise_level: usize,
+    pub p_fail: f64,
     pub modulus_power_of_2_exponent: usize,
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
 }
@@ -60,6 +62,10 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
                 c_params.modulus_power_of_2_exponent,
             )?,
+            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(
+                c_params.max_noise_level,
+            ),
+            p_fail: c_params.p_fail,
             encryption_key_choice: c_params.encryption_key_choice.into(),
         })
     }
@@ -108,6 +114,8 @@ impl ShortintPBSParameters {
             ks_level: rust_params.ks_level.0,
             message_modulus: rust_params.message_modulus.0,
             carry_modulus: rust_params.carry_modulus.0,
+            max_noise_level: rust_params.max_noise_level.get(),
+            p_fail: rust_params.p_fail,
             modulus_power_of_2_exponent: convert_modulus(rust_params.ciphertext_modulus),
             encryption_key_choice: ShortintEncryptionKeyChoice::convert(
                 rust_params.encryption_key_choice,
