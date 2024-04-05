@@ -3,14 +3,14 @@
 Due to their nature, homomorphic operations are naturally slower than their cleartext equivalents. Some timings are exposed for basic operations. For completeness, benchmarks for other libraries are also given.
 
 {% hint style="info" %}
-All benchmarks were launched on an AWS hpc7a.96xlarge instance with the following specifications: AMD EPYC 9R14 CPU @ 2.60GHz and 740GB of RAM.
+All CPU benchmarks were launched on an AWS hpc7a.96xlarge instance with the following specifications: AMD EPYC 9R14 CPU @ 2.60GHz and 740GB of RAM.
 {% endhint %}
 
 ## Integer
 
 This measures the execution time for some operation sets of tfhe-rs::integer (the unsigned version). Note that the timings for `FheInt` (i.e., the signed integers) are similar.
 
-The table below reports the timing when the inputs of the benchmarked operation are encrypted.
+The table below reports the timing on CPU when the inputs of the benchmarked operation are encrypted.
 
 | Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
 | ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
@@ -27,7 +27,7 @@ The table below reports the timing when the inputs of the benchmarked operation 
 | Leading / Trailing zeros/ones                          | 85.7 ms    | 135 ms      | 151 ms      | 206 ms      | 250 ms       | 308 ms       |
 | Log2                                                   | 98.0 ms    | 151 ms      | 173 ms      | 231 ms      | 279 ms       | 333 ms       |
 
-The table below reports the timing when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size.
+The table below reports the timing on CPU when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size.
 
 | Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
 | ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
@@ -43,6 +43,8 @@ The table below reports the timing when the left input of the benchmarked operat
 | Left / Right Rotations (`left_rotate`, `right_rotate`) | 16.4 ms    | 16.6 ms     | 17.2 ms     | 18.4 ms     | 19.7 ms      | 22.2 ms      |
 
 All timings are related to parallelized Radix-based integer operations, where each block is encrypted using the default parameters (i.e., PARAM\_MESSAGE\_2\_CARRY\_2\_KS\_PBS, more information about parameters can be found [here](../references/fine-grained-apis/shortint/parameters.md)). To ensure predictable timings, the operation flavor is the `default` one: the carry is propagated if needed. The operation costs may be reduced by using `unchecked`, `checked`, or `smart`.
+
+Benchmark results on GPU for all these operations can be consulted [here](../guides/run_on_gpu.md#benchmarks).
 
 ## Shortint
 
