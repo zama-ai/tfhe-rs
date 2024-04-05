@@ -161,7 +161,6 @@ fn main() {
     assert_eq!(decrypted_result, clear_result);
 }
 ```
-
     
 # List of available operations
 
@@ -178,10 +177,10 @@ The GPU backend includes the following operations:
 | BitAnd                | `&`            | :heavy_check_mark:       | :heavy_check_mark:       |
 | BitOr                 | `\|`           | :heavy_check_mark:       | :heavy_check_mark:       |
 | BitXor                | `^`            | :heavy_check_mark:       | :heavy_check_mark:       |
-| Shr                   | `>>`           | :heavy_multiplication_x: | :heavy_check_mark:       |
-| Shl                   | `<<`           | :heavy_multiplication_x: | :heavy_check_mark:       |
-| Rotate right          | `rotate_right` | :heavy_multiplication_x: | :heavy_check_mark:       |
-| Rotate left           | `rotate_left`  | :heavy_multiplication_x: | :heavy_check_mark:       |
+| Shr                   | `>>`           | :heavy_check_mark:       | :heavy_check_mark:       |
+| Shl                   | `<<`           | :heavy_check_mark:       | :heavy_check_mark:       |
+| Rotate right          | `rotate_right` | :heavy_check_mark:       | :heavy_check_mark:       |
+| Rotate left           | `rotate_left`  | :heavy_check_mark:       | :heavy_check_mark:       |
 | Min                   | `min`          | :heavy_check_mark:       | :heavy_check_mark:       |
 | Max                   | `max`          | :heavy_check_mark:       | :heavy_check_mark:       |
 | Greater than          | `gt`           | :heavy_check_mark:       | :heavy_check_mark:       |
@@ -193,29 +192,36 @@ The GPU backend includes the following operations:
 | Cast (from src type)  | `cast_from`    | :heavy_multiplication_x: | N/A                      |
 | Ternary operator      | `if_then_else` | :heavy_check_mark:       | :heavy_multiplication_x: |
 
+The equivalent signed operations are also available.
+
 {% hint style="info" %}
 All operations follow the same syntax than the one described in [here](../getting_started/operations.md).
 {% endhint %}
 
-
-
 ### Benchmarks
-The tables below contain benchmarks for homomorphic operations running on a single V100 from AWS (p3.2xlarge machines), with the default parameters:
 
-| Operation \ Size | FheUint8  | FheUint16 | FheUint32 | FheUint64 | FheUint128 | FheUint256 |
-|------------------|-----------|-----------|-----------|-----------|------------|------------|
-| cuda_add         | 103.33 ms | 129.26 ms | 156.83 ms | 186.99 ms | 320.96 ms  | 528.15 ms  |
-| cuda_bitand      | 26.11 ms  | 26.21 ms  | 26.63 ms  | 27.24 ms  | 43.07 ms   | 65.01 ms   |
-| cuda_bitor       | 26.1 ms   | 26.21 ms  | 26.57 ms  | 27.23 ms  | 43.05 ms   | 65.0 ms    |
-| cuda_bitxor      | 26.08 ms  | 26.21 ms  | 26.57 ms  | 27.25 ms  | 43.06 ms   | 65.07 ms   |
-| cuda_eq          | 52.82 ms  | 53.0 ms   | 79.4 ms   | 79.58 ms  | 96.37 ms   | 145.25 ms  |
-| cuda_ge          | 104.7 ms  | 130.23 ms | 156.19 ms | 183.2 ms  | 213.43 ms  | 288.76 ms  |
-| cuda_gt          | 104.93 ms | 130.2 ms  | 156.33 ms | 183.38 ms | 213.47 ms  | 288.8 ms   |
-| cuda_le          | 105.14 ms | 130.47 ms | 156.48 ms | 183.44 ms | 213.33 ms  | 288.75 ms  |
-| cuda_lt          | 104.73 ms | 130.23 ms | 156.2 ms  | 183.14 ms | 213.33 ms  | 288.74 ms  |
-| cuda_max         | 156.7 ms  | 182.65 ms | 210.74 ms | 251.78 ms | 316.9 ms   | 442.71 ms  |
-| cuda_min         | 156.85 ms | 182.67 ms | 210.39 ms | 252.02 ms | 316.96 ms  | 442.95 ms  |
-| cuda_mul         | 219.73 ms | 302.11 ms | 465.91 ms | 955.66 ms | 2.71 s     | 9.15 s     |
-| cuda_ne          | 52.72 ms  | 52.91 ms  | 79.28 ms  | 79.59 ms  | 96.37 ms   | 145.36 ms  |
-| cuda_neg         | 103.26 ms | 129.4 ms  | 157.19 ms | 187.09 ms | 321.27 ms  | 530.11 ms  |
-| cuda_sub         | 103.34 ms | 129.42 ms | 156.87 ms | 187.01 ms | 321.04 ms  | 528.13 ms  |
+All GPU benchmarks presented here were obtained on a single H100 GPU, and rely on the multithreaded PBS algorithm.
+The cryptographic parameters PARAM\_MULTI\_BIT\_MESSAGE\_1\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
+Performance is the following when the inputs of the benchmarked operation are encrypted:
+
+| Operation \ Size                                       | `FheUint7` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
+| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
+| Negation (`-`)                                         | 46 ms      | 60 ms       | 75 ms       | 94 ms       | 150 ms       | 247 ms       |
+| Add / Sub (`+`,`-`)                                    | 46 ms      | 60 ms       | 75 ms       | 94 ms       | 150 ms       | 247 ms       |
+| Mul (`x`)                                              | 83 ms      | 121 ms      | 195 ms      | 456 ms      | 1.35 s       | 4.74 s       |
+| Equal / Not Equal (`eq`, `ne`)                         | 25 ms      | 26 ms       | 38 ms       | 41 ms       | 52 ms        | 78 ms        |
+| Comparisons  (`ge`, `gt`, `le`, `lt`)                  | 46 ms      | 60 ms       | 74 ms       | 90 ms       | 109 ms       | 153 ms       |
+| Max / Min   (`max`,`min`)                              | 71 ms      | 86 ms       | 101 ms      | 124 ms      | 165 ms       | 236 ms       |
+| Bitwise operations (`&`, `\|`, `^`)                    | 11 ms      | 12 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
+| Left / Right Shifts (`<<`, `>>`)                       | 71 ms      | 88 ms       | 109 ms      | 180 ms      | 279 ms       | 494 ms       |
+| Left / Right Rotations (`left_rotate`, `right_rotate`) | 71 ms      | 88 ms       | 109 ms      | 180 ms      | 279 ms       | 494 ms       |
+
+Performance is the following when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+
+| Operation \ Size                                       | `FheUint7` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
+| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
+| Add / Sub (`+`,`-`)                                    | 46 ms      | 60 ms       | 75 ms       | 94 ms       | 152 ms       | 251 ms       |
+| Mul (`*`)                                              | 67 ms      | 101 ms      | 149 ms      | 282 ms      | 727 ms       | 2.11 s       |
+| Bitwise operations (`&`, `\|`, `^`)                    | 11 ms      | 13 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
+| Left / Right Shifts (`<<`, `>>`)                       | 11 ms      | 12 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
+| Left / Right Rotations (`left_rotate`, `right_rotate`) | 11 ms      | 12 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
