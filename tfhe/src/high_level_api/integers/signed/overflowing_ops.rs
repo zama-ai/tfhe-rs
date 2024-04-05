@@ -14,7 +14,7 @@ where
 
     /// Adds two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -41,9 +41,10 @@ where
     fn overflowing_add(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key
-                    .key
-                    .signed_overflowing_add_parallelized(&self.ciphertext, &other.ciphertext);
+                let (result, overflow) = cpu_key.key.signed_overflowing_add_parallelized(
+                    &self.ciphertext.on_cpu(),
+                    &other.ciphertext.on_cpu(),
+                );
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
@@ -62,7 +63,7 @@ where
 
     /// Adds two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -100,7 +101,7 @@ where
 
     /// Adds a [FheInt] with a Clear and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -128,7 +129,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let (result, overflow) = cpu_key
                     .key
-                    .signed_overflowing_scalar_add_parallelized(&self.ciphertext, other);
+                    .signed_overflowing_scalar_add_parallelized(&self.ciphertext.on_cpu(), other);
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
@@ -148,7 +149,7 @@ where
 
     /// Adds a [FheInt] with a Clear and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -185,7 +186,7 @@ where
 
     /// Adds a Clear with a [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -223,7 +224,7 @@ where
 
     /// Subtracts two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -248,9 +249,10 @@ where
     fn overflowing_sub(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key
-                    .key
-                    .signed_overflowing_sub_parallelized(&self.ciphertext, &other.ciphertext);
+                let (result, overflow) = cpu_key.key.signed_overflowing_sub_parallelized(
+                    &self.ciphertext.on_cpu(),
+                    &other.ciphertext.on_cpu(),
+                );
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
@@ -269,7 +271,7 @@ where
 
     /// Subtracts two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -305,7 +307,7 @@ where
 
     /// Subtracts a [FheInt] with a Clear and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -331,7 +333,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let (result, overflow) = cpu_key
                     .key
-                    .signed_overflowing_scalar_sub_parallelized(&self.ciphertext, other);
+                    .signed_overflowing_scalar_sub_parallelized(&self.ciphertext.on_cpu(), other);
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
@@ -351,7 +353,7 @@ where
 
     /// Subtracts a [FheInt] with a Clear and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -385,7 +387,7 @@ where
 
     /// Multiplies two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example
@@ -410,9 +412,10 @@ where
     fn overflowing_mul(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key
-                    .key
-                    .signed_overflowing_mul_parallelized(&self.ciphertext, &other.ciphertext);
+                let (result, overflow) = cpu_key.key.signed_overflowing_mul_parallelized(
+                    &self.ciphertext.on_cpu(),
+                    &other.ciphertext.on_cpu(),
+                );
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
@@ -431,7 +434,7 @@ where
 
     /// Multiplies two [FheInt] and returns a boolean indicating overflow.
     ///
-    /// * The operation is modular, i.e on overflow the result wraps around.
+    /// * The operation is modular, i.e. on overflow the result wraps around.
     /// * On overflow the [FheBool] is true, otherwise false
     ///
     /// # Example

@@ -3,6 +3,7 @@ mod compact;
 mod compressed;
 
 mod encrypt;
+mod inner;
 mod ops;
 mod overflowing_ops;
 mod scalar_ops;

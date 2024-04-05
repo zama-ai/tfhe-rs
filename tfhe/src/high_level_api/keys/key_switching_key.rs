@@ -71,8 +71,8 @@ where
     Id: FheIntId,
 {
     fn keyswitch(&self, input: &FheInt<Id>) -> FheInt<Id> {
-        let radix = &input.ciphertext;
-        let casted = self.key.cast(radix);
+        let radix = input.ciphertext.on_cpu();
+        let casted = self.key.cast(&*radix);
         FheInt::new(casted)
     }
 }

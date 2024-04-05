@@ -571,7 +571,7 @@ where
                 panic!("Cuda devices do not support signed integers");
             };
             let casted = integer_key.pbs_key().cast_to_unsigned(
-                input.ciphertext,
+                input.ciphertext.into_cpu(),
                 IntoId::num_blocks(integer_key.message_modulus()),
             );
             Self::new(casted)

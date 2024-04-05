@@ -34,7 +34,7 @@ where
     /// assert_eq!(decrypted, 7288i32);
     /// ```
     fn decrypt(&self, key: &ClientKey) -> ClearType {
-        key.key.key.decrypt_signed_radix(&self.ciphertext)
+        key.key.key.decrypt_signed_radix(&self.ciphertext.on_cpu())
     }
 }
 
@@ -119,7 +119,10 @@ where
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
         let ciphertext = global_state::with_cpu_internal_keys(|sks| {
             sks.pbs_key()
-                .create_trivial_radix(value, Id::num_blocks(sks.message_modulus()))
+                .create_trivial_radix::<T, crate::integer::SignedRadixCiphertext>(
+                    value,
+                    Id::num_blocks(sks.message_modulus()),
+                )
         });
         Ok(Self::new(ciphertext))
     }

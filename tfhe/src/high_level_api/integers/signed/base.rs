@@ -1,22 +1,24 @@
+use super::inner::RadixCiphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::integer::SignedRadixCiphertext;
 use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
-use crate::{FheBool, ServerKey};
+use crate::{Device, FheBool, ServerKey};
 use std::marker::PhantomData;
 
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 pub trait FheIntId: IntegerId {}
 
 /// A Generic FHE signed integer
 ///
-/// This struct is generic over some Id, as its the Id
+/// This struct is generic over some ID, as it's the ID
 /// that controls how many bit they represent.
 ///
 /// You will need to use one of this type specialization (e.g., [FheInt8], [FheInt16]).
@@ -30,7 +32,7 @@ pub trait FheIntId: IntegerId {}
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct FheInt<Id: FheIntId> {
-    pub(in crate::high_level_api) ciphertext: SignedRadixCiphertext,
+    pub(in crate::high_level_api) ciphertext: RadixCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
 }
 
@@ -68,7 +70,7 @@ impl<Id: FheIntId> ParameterSetConformant for FheInt<Id> {
     type ParameterSet = FheIntConformanceParams<Id>;
 
     fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
-        self.ciphertext.is_conformant(&params.params)
+        self.ciphertext.on_cpu().is_conformant(&params.params)
     }
 }
 
@@ -80,20 +82,35 @@ impl<Id> FheInt<Id>
 where
     Id: FheIntId,
 {
-    pub(in crate::high_level_api) fn new(ciphertext: SignedRadixCiphertext) -> Self {
+    pub(in crate::high_level_api) fn new(ciphertext: impl Into<RadixCiphertext>) -> Self {
         Self {
-            ciphertext,
+            ciphertext: ciphertext.into(),
             id: Id::default(),
         }
     }
 
-    pub fn into_raw_parts(self) -> (SignedRadixCiphertext, Id) {
+    pub fn into_raw_parts(self) -> (crate::integer::SignedRadixCiphertext, Id) {
         let Self { ciphertext, id } = self;
-        (ciphertext, id)
+        (ciphertext.into_cpu(), id)
     }
 
-    pub fn from_raw_parts(ciphertext: SignedRadixCiphertext, id: Id) -> Self {
-        Self { ciphertext, id }
+    pub fn from_raw_parts(ciphertext: crate::integer::SignedRadixCiphertext, id: Id) -> Self {
+        Self {
+            ciphertext: ciphertext.into(),
+            id,
+        }
+    }
+
+    /// Moves (in-place) the ciphertext to the desired device.
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    pub fn move_to_device(&mut self, device: Device) {
+        self.ciphertext.move_to_device(device)
+    }
+
+    /// Returns the device where the ciphertext is currently on
+    pub fn current_device(&self) -> Device {
+        self.ciphertext.current_device()
     }
 
     /// Returns the absolute value
@@ -122,11 +139,18 @@ where
     /// assert_eq!(result, i16::MIN.wrapping_abs());
     /// ```
     pub fn abs(&self) -> Self {
-        let ciphertext = global_state::with_cpu_internal_keys(|keys| {
-            keys.pbs_key().abs_parallelized(&self.ciphertext)
-        });
-
-        Self::new(ciphertext)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let ciphertext = cpu_key
+                    .pbs_key()
+                    .abs_parallelized(&*self.ciphertext.on_cpu());
+                Self::new(ciphertext)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices does not support abs yet")
+            }
+        })
     }
 
     /// Returns the number of leading zeros in the binary representation of self.
@@ -151,7 +175,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let result = cpu_key
                     .pbs_key()
-                    .leading_zeros_parallelized(&self.ciphertext);
+                    .leading_zeros_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -187,7 +211,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let result = cpu_key
                     .pbs_key()
-                    .leading_ones_parallelized(&self.ciphertext);
+                    .leading_ones_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -223,7 +247,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let result = cpu_key
                     .pbs_key()
-                    .trailing_zeros_parallelized(&self.ciphertext);
+                    .trailing_zeros_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -259,7 +283,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let result = cpu_key
                     .pbs_key()
-                    .trailing_ones_parallelized(&self.ciphertext);
+                    .trailing_ones_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -295,7 +319,9 @@ where
     pub fn ilog2(&self) -> crate::FheUint32 {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let result = cpu_key.pbs_key().ilog2_parallelized(&self.ciphertext);
+                let result = cpu_key
+                    .pbs_key()
+                    .ilog2_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -337,7 +363,7 @@ where
             InternalServerKey::Cpu(cpu_key) => {
                 let (result, is_ok) = cpu_key
                     .pbs_key()
-                    .checked_ilog2_parallelized(&self.ciphertext);
+                    .checked_ilog2_parallelized(&*self.ciphertext.on_cpu());
                 let result = cpu_key.pbs_key().cast_to_unsigned(
                     result,
                     crate::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
@@ -386,7 +412,7 @@ where
     where
         Clear: RecomposableSignedInteger,
     {
-        self.ciphertext.decrypt_trivial()
+        self.ciphertext.on_cpu().decrypt_trivial()
     }
 }
 
@@ -413,12 +439,18 @@ where
     /// assert_eq!(decrypted, i32::MAX as i16);
     /// ```
     fn cast_from(input: FheInt<FromId>) -> Self {
-        global_state::with_cpu_internal_keys(|keys| {
-            let target_num_blocks = IntoId::num_blocks(keys.message_modulus());
-            let new_ciphertext = keys
-                .pbs_key()
-                .cast_to_signed(input.ciphertext, target_num_blocks);
-            Self::new(new_ciphertext)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let target_num_blocks = IntoId::num_blocks(cpu_key.message_modulus());
+                let new_ciphertext = cpu_key
+                    .pbs_key()
+                    .cast_to_signed(input.ciphertext.into_cpu(), target_num_blocks);
+                Self::new(new_ciphertext)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices does not support casting signed to signed yet")
+            }
         })
     }
 }
@@ -446,12 +478,18 @@ where
     /// assert_eq!(decrypted, u32::MAX as i16);
     /// ```
     fn cast_from(input: FheUint<FromId>) -> Self {
-        global_state::with_cpu_internal_keys(|keys| {
-            let new_ciphertext = keys.key.cast_to_signed(
-                input.ciphertext.on_cpu().to_owned(),
-                IntoId::num_blocks(keys.message_modulus()),
-            );
-            Self::new(new_ciphertext)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let new_ciphertext = cpu_key.key.cast_to_signed(
+                    input.ciphertext.on_cpu().to_owned(),
+                    IntoId::num_blocks(cpu_key.message_modulus()),
+                );
+                Self::new(new_ciphertext)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices does not support casting unsigned to signed yet")
+            }
         })
     }
 }
@@ -478,14 +516,31 @@ where
     /// assert_eq!(decrypted, i16::from(true));
     /// ```
     fn cast_from(input: FheBool) -> Self {
-        let ciphertext = global_state::with_cpu_internal_keys(|keys| {
-            input
-                .ciphertext
-                .on_cpu()
-                .into_owned()
-                .into_radix(Id::num_blocks(keys.message_modulus()), keys.pbs_key())
-        });
-
-        Self::new(ciphertext)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let ciphertext = input
+                    .ciphertext
+                    .on_cpu()
+                    .into_owned()
+                    .into_radix::<crate::integer::SignedRadixCiphertext>(
+                    Id::num_blocks(cpu_key.message_modulus()),
+                    cpu_key.pbs_key(),
+                );
+                Self::new(ciphertext)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner = cuda_key.key.cast_to_unsigned(
+                    input.ciphertext.into_gpu().0,
+                    Id::num_blocks(cuda_key.message_modulus()),
+                    stream,
+                );
+                let inner = crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext::new(
+                    inner.ciphertext.d_blocks,
+                    inner.ciphertext.info,
+                );
+                Self::new(inner)
+            }),
+        })
     }
 }

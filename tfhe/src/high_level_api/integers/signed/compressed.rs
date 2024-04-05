@@ -133,7 +133,7 @@ where
     pub fn compress(&self) -> CompressedFheInt<Id> {
         let a = with_cpu_internal_keys(|sk| {
             sk.key
-                .switch_modulus_and_compress_signed_parallelized(&self.ciphertext)
+                .switch_modulus_and_compress_signed_parallelized(&self.ciphertext.on_cpu())
         });
 
         CompressedFheInt::new(CompressedSignedRadixCiphertext::ModulusSwitched(a))
