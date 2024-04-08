@@ -28,6 +28,8 @@ fn main() {
 
 This example shows how to use compact public keys. The main difference is in the ConfigBuilder, where the parameter set has been changed.
 
+See [the guide on ZK proofs](zk-pok.md) to see how to encrypt data using compact public keys and generate a zero knowledge proof of correct encryption at the same time.
+
 ```rust
 use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompactPublicKey};

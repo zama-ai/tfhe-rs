@@ -15,7 +15,9 @@
 //! [`RandomGenerator`] instead.
 use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
 use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
+use std::ops::Bound;
 
+use crate::core_crypto::prelude::{CastInto, Numeric};
 /// Convenience alias for the most efficient CSPRNG implementation available.
 pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
@@ -101,6 +103,82 @@ impl Distribution for UniformBinary {}
 impl Distribution for UniformTernary {}
 impl<T: FloatingPoint> Distribution for Gaussian<T> {}
 impl<T: UnsignedInteger> Distribution for TUniform<T> {}
+
+pub trait BoundedDistribution<T>: Distribution {
+    fn low_bound(&self) -> Bound<T>;
+    fn high_bound(&self) -> Bound<T>;
+
+    fn contains(self, value: T) -> bool
+    where
+        T: Numeric,
+    {
+        {
+            match self.low_bound() {
+                Bound::Included(inclusive_low) => {
+                    if value < inclusive_low {
+                        return false;
+                    }
+                }
+                Bound::Excluded(exclusive_low) => {
+                    if value <= exclusive_low {
+                        return false;
+                    }
+                }
+                Bound::Unbounded => {}
+            }
+        }
+
+        {
+            match self.high_bound() {
+                Bound::Included(inclusive_high) => {
+                    if value > inclusive_high {
+                        return false;
+                    }
+                }
+                Bound::Excluded(exclusive_high) => {
+                    if value >= exclusive_high {
+                        return false;
+                    }
+                }
+                Bound::Unbounded => {}
+            }
+        }
+
+        true
+    }
+}
+
+impl<T> BoundedDistribution<T::Signed> for TUniform<T>
+where
+    T: UnsignedInteger,
+{
+    fn low_bound(&self) -> Bound<T::Signed> {
+        Bound::Included(self.min_value_inclusive())
+    }
+
+    fn high_bound(&self) -> Bound<T::Signed> {
+        Bound::Included(self.max_value_inclusive())
+    }
+}
+
+impl<T> BoundedDistribution<T::Signed> for DynamicDistribution<T>
+where
+    T: UnsignedInteger,
+{
+    fn low_bound(&self) -> Bound<T::Signed> {
+        match self {
+            Self::Gaussian(_) => Bound::Unbounded,
+            Self::TUniform(tu) => tu.low_bound(),
+        }
+    }
+
+    fn high_bound(&self) -> Bound<T::Signed> {
+        match self {
+            Self::Gaussian(_) => Bound::Unbounded,
+            Self::TUniform(tu) => tu.high_bound(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum DynamicDistribution<T: UnsignedInteger> {

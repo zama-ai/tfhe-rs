@@ -23,6 +23,13 @@ macro_rules! expand_pub_use_fhe_type(
                 )*
             };
 
+            #[cfg(feature = "zk-pok-experimental")]
+            pub use $module_path::{
+                $(
+                    [<ProvenCompact $fhe_type_name>],
+                    [<ProvenCompact $fhe_type_name List>],
+                )*
+            };
         }
     }
 );
@@ -30,7 +37,6 @@ macro_rules! expand_pub_use_fhe_type(
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::oprf::SignedRandomizationSpec;
 pub use config::{Config, ConfigBuilder};
-pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 
 pub use integers::{
@@ -51,6 +57,8 @@ pub use crate::high_level_api::booleans::{
     CompactFheBool, CompactFheBoolList, CompactFheBoolListConformanceParams, CompressedFheBool,
     FheBool, FheBoolConformanceParams,
 };
+#[cfg(feature = "zk-pok-experimental")]
+pub use crate::high_level_api::booleans::{ProvenCompactFheBool, ProvenCompactFheBoolList};
 expand_pub_use_fhe_type!(
     pub use crate::high_level_api::integers{
         FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
@@ -60,6 +68,7 @@ expand_pub_use_fhe_type!(
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
     };
 );
+
 pub use safe_serialize::safe_serialize;
 
 mod config;
@@ -68,12 +77,14 @@ mod keys;
 mod traits;
 
 mod booleans;
-pub mod errors;
+mod errors;
 mod integers;
 
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;
+#[cfg(feature = "zk-pok-experimental")]
+mod zk;
 
 /// Devices supported by tfhe-rs
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]

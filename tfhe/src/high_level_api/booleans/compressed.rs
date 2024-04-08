@@ -58,7 +58,7 @@ impl CompressedFheBool {
 }
 
 impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     /// Creates a compressed encryption of a boolean value
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {

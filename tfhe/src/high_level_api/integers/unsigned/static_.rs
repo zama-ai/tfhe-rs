@@ -1,3 +1,5 @@
+#[cfg(feature = "zk-pok-experimental")]
+use super::zk::{ProvenCompactFheUint, ProvenCompactFheUintList};
 use crate::high_level_api::integers::unsigned::base::{
     FheUint, FheUintConformanceParams, FheUintId,
 };
@@ -56,6 +58,12 @@ macro_rules! static_int_type {
 
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compact FheUint $num_bits ListConformanceParams>] = CompactFheUintListConformanceParams<[<FheUint $num_bits Id>]>;
+
+            #[cfg(feature = "zk-pok-experimental")]
+            pub type [<ProvenCompactFheUint $num_bits>] = ProvenCompactFheUint<[<FheUint $num_bits Id>]>;
+
+            #[cfg(feature = "zk-pok-experimental")]
+            pub type [<ProvenCompactFheUint $num_bits List>] = ProvenCompactFheUintList<[<FheUint $num_bits Id>]>;
         }
     };
 }

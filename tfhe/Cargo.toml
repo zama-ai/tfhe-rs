@@ -69,6 +69,8 @@ paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
 # While we wait for repeat_n in rust standard library
 itertools = "0.11.0"
+rand_core = { version = "0.6.4", features = ["std"] }
+tfhe-zk-pok = { version = "0.1.0", path = "../tfhe-zk-pok", optional = true }
 
 # wasm deps
 wasm-bindgen = { version = "0.2.86", features = [
@@ -87,6 +89,7 @@ shortint = []
 integer = ["shortint"]
 internal-keycache = ["dep:lazy_static", "dep:fs2"]
 gpu = ["tfhe-cuda-backend"]
+zk-pok-experimental = ["dep:tfhe-zk-pok"]
 
 pbs-stats = []
 

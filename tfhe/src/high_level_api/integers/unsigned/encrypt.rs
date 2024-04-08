@@ -45,7 +45,7 @@ where
     Id: FheUintId,
     T: DecomposableInto<u64> + UnsignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let cpu_ciphertext = key
@@ -65,7 +65,7 @@ where
     Id: FheUintId,
     T: DecomposableInto<u64> + UnsignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
         let cpu_ciphertext = key
@@ -84,7 +84,7 @@ where
     Id: FheUintId,
     T: DecomposableInto<u64> + UnsignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let cpu_ciphertext = key
@@ -102,7 +102,7 @@ where
     Id: FheUintId,
     T: DecomposableInto<u64> + UnsignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let cpu_ciphertext = key
@@ -121,7 +121,7 @@ where
     T: DecomposableInto<u64> + UnsignedNumeric,
     Id: FheUintId,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
         global_state::with_internal_keys(|key| match key {

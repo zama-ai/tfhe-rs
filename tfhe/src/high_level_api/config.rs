@@ -1,7 +1,7 @@
 use crate::high_level_api::keys::IntegerConfig;
 
 /// The config type
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub(crate) inner: IntegerConfig,
 }

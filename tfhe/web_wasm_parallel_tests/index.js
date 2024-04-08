@@ -31,12 +31,14 @@ async function setup() {
     "compactPublicKeyTest256BitSmall",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
+    "compactPublicKeyZeroKnowledge",
     "compactPublicKeyBench32BitBig",
     "compactPublicKeyBench32BitSmall",
     "compactPublicKeyBench256BitBig",
     "compactPublicKeyBench256BitSmall",
     "compressedServerKeyBenchMessage1Carry1",
     "compressedServerKeyBenchMessage2Carry2",
+    "compactPublicKeyZeroKnowledgeBench",
   ];
 
   function setupBtn(id) {

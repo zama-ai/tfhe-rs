@@ -139,3 +139,122 @@ pub unsafe extern "C" fn compact_fhe_bool_list_expand(
         }
     })
 }
+
+#[cfg(feature = "zk-pok-experimental")]
+mod zk {
+    use crate::c_api::high_level_api::utils::{
+        impl_clone_on_type, impl_destroy_on_type, impl_safe_serialize_on_type,
+        impl_serialize_deserialize_on_type,
+    };
+    use std::ffi::c_int;
+
+    pub struct ProvenCompactFheBool(crate::high_level_api::ProvenCompactFheBool);
+
+    impl_destroy_on_type!(ProvenCompactFheBool);
+    impl_clone_on_type!(ProvenCompactFheBool);
+    impl_serialize_deserialize_on_type!(ProvenCompactFheBool);
+    impl_safe_serialize_on_type!(ProvenCompactFheBool);
+
+    #[no_mangle]
+    pub unsafe extern "C" fn proven_compact_fhe_bool_try_encrypt(
+        message: bool,
+        public_params: &crate::c_api::high_level_api::zk::CompactPkePublicParams,
+        pk: &crate::c_api::high_level_api::keys::CompactPublicKey,
+        compute_load: crate::c_api::high_level_api::zk::ZkComputeLoad,
+        out_result: *mut *mut ProvenCompactFheBool,
+    ) -> c_int {
+        crate::c_api::utils::catch_panic(|| {
+            let result = crate::high_level_api::ProvenCompactFheBool::try_encrypt(
+                message,
+                &public_params.0,
+                &pk.0,
+                compute_load.into(),
+            )
+            .unwrap();
+
+            *out_result = Box::into_raw(Box::new(ProvenCompactFheBool(result)));
+        })
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn proven_compact_fhe_bool_verify_and_expand(
+        ct: *const ProvenCompactFheBool,
+        public_params: &crate::c_api::high_level_api::zk::CompactPkePublicParams,
+        pk: &crate::c_api::high_level_api::keys::CompactPublicKey,
+        out_result: *mut *mut super::FheBool,
+    ) -> c_int {
+        crate::c_api::utils::catch_panic(|| {
+            let ct = crate::c_api::utils::get_ref_checked(ct).unwrap();
+
+            let result =
+                ct.0.clone()
+                    .verify_and_expand(&public_params.0, &pk.0)
+                    .unwrap();
+
+            *out_result = Box::into_raw(Box::new(super::FheBool(result)));
+        })
+    }
+
+    pub struct ProvenCompactFheBoolList(crate::high_level_api::ProvenCompactFheBoolList);
+
+    impl_destroy_on_type!(ProvenCompactFheBoolList);
+    impl_clone_on_type!(ProvenCompactFheBoolList);
+    impl_serialize_deserialize_on_type!(ProvenCompactFheBoolList);
+    impl_safe_serialize_on_type!(ProvenCompactFheBoolList);
+
+    #[no_mangle]
+    pub unsafe extern "C" fn proven_compact_fhe_bool_list_try_encrypt(
+        input: *const bool,
+        input_len: usize,
+        public_params: &crate::c_api::high_level_api::zk::CompactPkePublicParams,
+        pk: &crate::c_api::high_level_api::keys::CompactPublicKey,
+        compute_load: crate::c_api::high_level_api::zk::ZkComputeLoad,
+        out_result: *mut *mut ProvenCompactFheBoolList,
+    ) -> ::std::os::raw::c_int {
+        crate::c_api::utils::catch_panic(|| {
+            let messages = std::slice::from_raw_parts(input, input_len);
+
+            let result = crate::high_level_api::ProvenCompactFheBoolList::try_encrypt(
+                messages,
+                &public_params.0,
+                &pk.0,
+                compute_load.into(),
+            )
+            .unwrap();
+
+            *out_result = Box::into_raw(Box::new(ProvenCompactFheBoolList(result)));
+        })
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn proven_compact_fhe_bool_list_len(
+        sself: *const ProvenCompactFheBoolList,
+        result: *mut usize,
+    ) -> ::std::os::raw::c_int {
+        crate::c_api::utils::catch_panic(|| {
+            let list = crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+            *result = list.0.len();
+        })
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn proven_compact_fhe_bool_list_verify_and_expand(
+        list: &ProvenCompactFheBoolList,
+        public_params: &crate::c_api::high_level_api::zk::CompactPkePublicParams,
+        pk: &crate::c_api::high_level_api::keys::CompactPublicKey,
+        output: *mut *mut super::FheBool,
+        output_len: usize,
+    ) -> ::std::os::raw::c_int {
+        crate::c_api::utils::catch_panic(|| {
+            let expanded = list.0.verify_and_expand(&public_params.0, &pk.0).unwrap();
+
+            let num_to_take = output_len.max(list.0.len());
+            let iter = expanded.into_iter().take(num_to_take).enumerate();
+            for (i, fhe_uint) in iter {
+                let ptr = output.wrapping_add(i);
+                *ptr = Box::into_raw(Box::new(super::FheBool(fhe_uint)));
+            }
+        })
+    }
+}

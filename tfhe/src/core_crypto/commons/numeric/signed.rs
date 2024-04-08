@@ -41,6 +41,10 @@ pub trait SignedInteger:
     /// Return a bit representation of the integer, where blocks of length `block_length` are
     /// separated by whitespaces to increase the readability.
     fn to_bits_string(&self, block_length: usize) -> String;
+
+    /// Return the absoluted balue
+    #[must_use]
+    fn wrapping_abs(self) -> Self;
 }
 
 macro_rules! implement {
@@ -76,6 +80,11 @@ macro_rules! implement {
                     strn.insert(i * break_every, ' ');
                 }
                 strn
+            }
+
+            #[inline]
+            fn wrapping_abs(self) -> Self {
+                self.wrapping_abs()
             }
         }
     };

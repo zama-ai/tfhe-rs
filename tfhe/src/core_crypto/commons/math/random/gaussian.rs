@@ -1,6 +1,5 @@
 use super::*;
 use crate::core_crypto::commons::math::torus::FromTorus;
-use crate::core_crypto::commons::numeric::{CastInto, Numeric};
 use serde::{Deserialize, Serialize};
 
 // Clippy false positive, does not repro with smaller code

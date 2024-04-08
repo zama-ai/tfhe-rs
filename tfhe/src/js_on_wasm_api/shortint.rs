@@ -31,16 +31,148 @@ pub struct Shortint {}
 pub struct ShortintParameters(pub(crate) crate::shortint::ClassicPBSParameters);
 
 #[wasm_bindgen]
+impl ShortintParameters {
+    #[wasm_bindgen]
+    pub fn lwe_dimension(&self) -> usize {
+        self.0.lwe_dimension.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_lwe_dimension(&mut self, new_value: usize) {
+        self.0.lwe_dimension.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn glwe_dimension(&self) -> usize {
+        self.0.glwe_dimension.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_glwe_dimension(&mut self, new_value: usize) {
+        self.0.glwe_dimension.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn polynomial_size(&self) -> usize {
+        self.0.polynomial_size.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_polynomial_size(&mut self, new_value: usize) {
+        self.0.polynomial_size.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn lwe_noise_distribution(&self) -> ShortintNoiseDistribution {
+        ShortintNoiseDistribution(self.0.lwe_noise_distribution)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_lwe_noise_distribution(&mut self, new_value: &ShortintNoiseDistribution) {
+        self.0.lwe_noise_distribution = new_value.0;
+    }
+
+    #[wasm_bindgen]
+    pub fn glwe_noise_distribution(&self) -> ShortintNoiseDistribution {
+        ShortintNoiseDistribution(self.0.lwe_noise_distribution)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_glwe_noise_distribution(&mut self, new_value: &ShortintNoiseDistribution) {
+        self.0.glwe_noise_distribution = new_value.0;
+    }
+
+    #[wasm_bindgen]
+    pub fn pbs_base_log(&self) -> usize {
+        self.0.pbs_base_log.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_pbs_base_log(&mut self, new_value: usize) {
+        self.0.pbs_base_log.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn pbs_level(&self) -> usize {
+        self.0.pbs_level.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_pbs_level(&mut self, new_value: usize) {
+        self.0.pbs_level.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn ks_base_log(&self) -> usize {
+        self.0.ks_base_log.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_ks_base_log(&mut self, new_value: usize) {
+        self.0.ks_base_log.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn ks_level(&self) -> usize {
+        self.0.ks_level.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_ks_level(&mut self, new_value: usize) {
+        self.0.ks_level.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn message_modulus(&self) -> usize {
+        self.0.message_modulus.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_message_modulus(&mut self, new_value: usize) {
+        self.0.message_modulus.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn carry_modulus(&self) -> usize {
+        self.0.carry_modulus.0
+    }
+
+    #[wasm_bindgen]
+    pub fn set_carry_modulus(&mut self, new_value: usize) {
+        self.0.carry_modulus.0 = new_value;
+    }
+
+    #[wasm_bindgen]
+    pub fn encryption_key_choice(&self) -> ShortintEncryptionKeyChoice {
+        self.0.encryption_key_choice.into()
+    }
+
+    #[wasm_bindgen]
+    pub fn set_encryption_key_choice(&mut self, new_value: ShortintEncryptionKeyChoice) {
+        self.0.encryption_key_choice = new_value.into();
+    }
+}
+
+#[wasm_bindgen]
 pub enum ShortintEncryptionKeyChoice {
     Big,
     Small,
 }
 
-impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
+impl From<ShortintEncryptionKeyChoice> for EncryptionKeyChoice {
     fn from(value: ShortintEncryptionKeyChoice) -> Self {
         match value {
             ShortintEncryptionKeyChoice::Big => Self::Big,
             ShortintEncryptionKeyChoice::Small => Self::Small,
+        }
+    }
+}
+
+impl From<EncryptionKeyChoice> for ShortintEncryptionKeyChoice {
+    fn from(value: EncryptionKeyChoice) -> Self {
+        match value {
+            EncryptionKeyChoice::Big => Self::Big,
+            EncryptionKeyChoice::Small => Self::Small,
         }
     }
 }

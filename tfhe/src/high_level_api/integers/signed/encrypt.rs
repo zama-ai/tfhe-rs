@@ -43,7 +43,7 @@ where
     Id: FheIntId,
     T: DecomposableInto<u64> + SignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let ciphertext = key
@@ -59,7 +59,7 @@ where
     Id: FheIntId,
     T: DecomposableInto<u64> + SignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key
@@ -74,7 +74,7 @@ where
     Id: FheIntId,
     T: DecomposableInto<u64> + SignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key
@@ -89,7 +89,7 @@ where
     Id: FheIntId,
     T: DecomposableInto<u64> + SignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key
@@ -105,7 +105,7 @@ where
     T: DecomposableInto<u64>,
     Id: FheIntId,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     /// Creates a trivial encryption of a signed integer.
     ///

@@ -15,7 +15,7 @@ pub struct TfheClientKey(pub(crate) hlapi::ClientKey);
 impl TfheClientKey {
     #[wasm_bindgen]
     pub fn generate(config: &TfheConfig) -> Result<TfheClientKey, JsError> {
-        catch_panic(|| Self(hlapi::ClientKey::generate(config.0.clone())))
+        catch_panic(|| Self(hlapi::ClientKey::generate(config.0)))
     }
 
     #[wasm_bindgen]
@@ -26,7 +26,7 @@ impl TfheClientKey {
         catch_panic_result(|| {
             let seed =
                 u128::try_from(seed).map_err(|_| JsError::new("Value does not fit in a u128"))?;
-            let key = hlapi::ClientKey::generate_with_seed(config.0.clone(), crate::Seed(seed));
+            let key = hlapi::ClientKey::generate_with_seed(config.0, crate::Seed(seed));
             Ok(Self(key))
         })
     }

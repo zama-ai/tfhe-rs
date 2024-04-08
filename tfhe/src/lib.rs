@@ -109,7 +109,8 @@ mod js_on_wasm_api;
     doctest,
     feature = "shortint",
     feature = "boolean",
-    feature = "integer"
+    feature = "integer",
+    feature = "zk-pok-experimental"
 ))]
 mod test_user_docs;
 
@@ -129,3 +130,10 @@ pub mod safe_deserialization;
 pub mod conformance;
 
 pub mod named;
+
+pub mod error;
+#[cfg(feature = "zk-pok-experimental")]
+pub mod zk;
+
+pub use error::{Error, ErrorKind};
+pub type Result<T> = std::result::Result<T, Error>;
