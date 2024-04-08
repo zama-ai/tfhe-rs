@@ -198,7 +198,7 @@ The equivalent signed operations are also available.
 All operations follow the same syntax than the one described in [here](../getting_started/operations.md).
 {% endhint %}
 
-### Benchmarks
+# Benchmarks
 
 All GPU benchmarks presented here were obtained on a single H100 GPU, and rely on the multithreaded PBS algorithm.
 The cryptographic parameters PARAM\_MULTI\_BIT\_MESSAGE\_1\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
@@ -222,6 +222,9 @@ Performance is the following when the left input of the benchmarked operation is
 | ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
 | Add / Sub (`+`,`-`)                                    | 46 ms      | 60 ms       | 75 ms       | 94 ms       | 152 ms       | 251 ms       |
 | Mul (`*`)                                              | 67 ms      | 101 ms      | 149 ms      | 282 ms      | 727 ms       | 2.11 s       |
+| Equal / Not Equal (`eq`, `ne`)                         | 26 ms      | 27 ms       | 27 ms       | 41 ms       | 45 ms        | 57 ms        |
+| Comparisons  (`ge`, `gt`, `le`, `lt`)                  | 29 ms      | 41 ms       | 54 ms       | 69 ms       | 87 ms        | 117 ms       |
+| Max / Min   (`max`,`min`)                              | 53 ms      | 65 ms       | 81 ms       | 102 ms      | 142 ms       | 200 ms       |
 | Bitwise operations (`&`, `\|`, `^`)                    | 11 ms      | 13 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
 | Left / Right Shifts (`<<`, `>>`)                       | 11 ms      | 12 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
 | Left / Right Rotations (`left_rotate`, `right_rotate`) | 11 ms      | 12 ms       | 13 ms       | 15 ms       | 23 ms        | 32 ms        |
