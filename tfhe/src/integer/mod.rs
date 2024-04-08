@@ -65,6 +65,11 @@ pub mod wopbs;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
+#[cfg(feature = "zk-pok-experimental")]
+mod zk;
+
+#[cfg(feature = "zk-pok-experimental")]
+pub use zk::ProvenCompactCiphertextList;
 
 pub use bigint::i256::I256;
 pub use bigint::i512::I512;
@@ -76,7 +81,9 @@ pub use ciphertext::{
     SignedRadixCiphertext,
 };
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
-pub use public_key::{CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
+pub use public_key::{
+    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
+};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Enum to indicate which kind of computations the [`ServerKey`] will be performing, this changes

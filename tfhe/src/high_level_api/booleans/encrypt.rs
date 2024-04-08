@@ -12,7 +12,7 @@ use crate::shortint::ciphertext::Degree;
 use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, PublicKey};
 
 impl FheTryEncrypt<bool, ClientKey> for FheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
@@ -23,7 +23,7 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
 }
 
 impl FheTryEncrypt<bool, CompactPublicKey> for FheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let mut ciphertext = key.key.key.encrypt_radix(value as u8, 1);
@@ -66,7 +66,7 @@ impl FheTrivialEncrypt<bool> for FheBool {
 }
 
 impl FheTryEncrypt<bool, CompressedPublicKey> for FheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
@@ -77,7 +77,7 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for FheBool {
 }
 
 impl FheTryEncrypt<bool, PublicKey> for FheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
@@ -95,7 +95,7 @@ impl FheDecrypt<bool> for FheBool {
 }
 
 impl FheTryTrivialEncrypt<bool> for FheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
         let ciphertext = global_state::with_internal_keys(|key| match key {

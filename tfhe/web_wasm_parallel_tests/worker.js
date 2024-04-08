@@ -11,17 +11,15 @@ import init, {
   TfheCompressedCompactPublicKey,
   TfheCompactPublicKey,
   TfheConfigBuilder,
-  CompressedFheUint8,
   FheUint8,
-  FheUint32,
-  CompactFheUint32,
   CompactFheUint32List,
-  CompressedFheUint128,
-  FheUint128,
-  CompressedFheUint256,
-  FheUint256,
-  CompactFheUint256,
   CompactFheUint256List,
+  ZkComputeLoad,
+  ProvenCompactFheUint64,
+  ProvenCompactFheUint64List,
+  CompactPkeCrs,
+  Shortint,
+  CompactFheUint64,
 } from "./pkg/tfhe.js";
 
 function assert(cond, text) {
@@ -74,7 +72,7 @@ async function compressedPublicKeyTest() {
 }
 
 async function publicKeyTest() {
-  let config = TfheConfigBuilder.default().use_small_encryption().build();
+  let config = TfheConfigBuilder.default_with_small_encryption().build();
 
   console.time("ClientKey Gen");
   let clientKey = TfheClientKey.generate(config);
@@ -379,6 +377,106 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
   }
 }
 
+function generateRandomBigInt(bitLen) {
+  let result = BigInt(0);
+  for (let i = 0; i < bitLen; i++) {
+    result << 1n;
+    result |= BigInt(Math.random() < 0.5);
+  }
+  return result;
+}
+
+async function compactPublicKeyZeroKnowledge() {
+  let block_params = new ShortintParameters(
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+  );
+  block_params.set_glwe_noise_distribution(Shortint.try_new_t_uniform(9));
+
+  let config = TfheConfigBuilder.default()
+    .use_custom_parameters(block_params)
+    .build();
+
+  let clientKey = TfheClientKey.generate(config);
+  let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  console.log("Start CRS generation");
+  console.time("CRS generation");
+  let crs = CompactPkeCrs.from_config(config, 4 * 64);
+  console.timeEnd("CRS generation");
+  let public_params = crs.public_params();
+
+  {
+    let input = generateRandomBigInt(64);
+    let start = performance.now();
+    let encrypted = ProvenCompactFheUint64.encrypt_with_compact_public_key(
+      input,
+      public_params,
+      publicKey,
+      ZkComputeLoad.Proof,
+    );
+    let end = performance.now();
+    console.log(
+      "Time to encrypt + prove CompactFheUint64: ",
+      end - start,
+      " ms",
+    );
+
+    let bytes = encrypted.serialize();
+    console.log("ProvenCompactFheUint64 size:", bytes.length);
+
+    assert_eq(encrypted.verifies(public_params, publicKey), true);
+
+    start = performance.now();
+    let expanded = encrypted.verify_and_expand(public_params, publicKey);
+    end = performance.now();
+    console.log(
+      "Time to verify + expand CompactFheUint64: ",
+      end - start,
+      " ms",
+    );
+
+    let decrypted = expanded.decrypt(clientKey);
+    assert_eq(decrypted, input);
+  }
+
+  {
+    let inputs = [
+      generateRandomBigInt(64),
+      generateRandomBigInt(64),
+      generateRandomBigInt(64),
+      generateRandomBigInt(64),
+    ];
+    let start = performance.now();
+    let encrypted = ProvenCompactFheUint64List.encrypt_with_compact_public_key(
+      inputs,
+      public_params,
+      publicKey,
+      ZkComputeLoad.Proof,
+    );
+    let end = performance.now();
+    console.log(
+      "Time to encrypt + prove CompactFheUint64List of 4: ",
+      end - start,
+      " ms",
+    );
+    assert_eq(encrypted.verifies(public_params, publicKey), true);
+
+    start = performance.now();
+    let expanded_list = encrypted.verify_and_expand(public_params, publicKey);
+    end = performance.now();
+    console.log(
+      "Time to verify + expand CompactFheUint64: ",
+      end - start,
+      " ms",
+    );
+
+    for (let i = 0; i < inputs.length; i++) {
+      let decrypted = expanded_list[i].decrypt(clientKey);
+      assert_eq(decrypted, inputs[i]);
+    }
+  }
+}
+
 async function compressedCompactPublicKeyTest256BitBig() {
   const block_params = new ShortintParameters(
     ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
@@ -550,6 +648,60 @@ async function compressedServerKeyBenchMessage2Carry2() {
   );
 }
 
+async function compactPublicKeyZeroKnowledgeBench() {
+  let block_params = new ShortintParameters(
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+  );
+  block_params.set_lwe_noise_distribution(Shortint.try_new_t_uniform(9));
+
+  let config = TfheConfigBuilder.default()
+    .use_custom_parameters(block_params)
+    .build();
+
+  let clientKey = TfheClientKey.generate(config);
+  let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  console.log("Start CRS generation");
+  console.time("CRS generation");
+  let crs = CompactPkeCrs.from_config(config, 4 * 64);
+  console.timeEnd("CRS generation");
+  let public_params = crs.public_params();
+
+  const bench_loops = 4; // The computation is expensive
+  let bench_results = {};
+  let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
+  const load_to_str = {
+    [ZkComputeLoad.Proof]: "compute_load_proof",
+    [ZkComputeLoad.Verify]: "compute_load_verify",
+  };
+  for (const loadChoice of load_choices) {
+    let timing = 0;
+    for (let i = 0; i < bench_loops; i++) {
+      let input = generateRandomBigInt(64);
+
+      const start = performance.now();
+      let _ = ProvenCompactFheUint64.encrypt_with_compact_public_key(
+        input,
+        public_params,
+        publicKey,
+        loadChoice,
+      );
+      const end = performance.now();
+      timing += end - start;
+    }
+    const mean = timing / bench_loops;
+
+    const bench_str =
+      "compact_fhe_uint64_proven_encryption_" +
+      load_to_str[loadChoice] +
+      "_mean";
+    console.log(bench_str, ": ", mean, " ms");
+    bench_results["compact_fhe_uint64_proven_encryption_"] = mean;
+  }
+
+  return bench_results;
+}
+
 async function main() {
   await init();
   await initThreadPool(navigator.hardwareConcurrency);
@@ -564,12 +716,14 @@ async function main() {
     compactPublicKeyTest256BitBig,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
+    compactPublicKeyZeroKnowledge,
     compactPublicKeyBench32BitBig,
     compactPublicKeyBench32BitSmall,
     compactPublicKeyBench256BitBig,
     compactPublicKeyBench256BitSmall,
     compressedServerKeyBenchMessage1Carry1,
     compressedServerKeyBenchMessage2Carry2,
+    compactPublicKeyZeroKnowledgeBench,
   });
 }
 

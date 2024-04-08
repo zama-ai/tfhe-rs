@@ -23,3 +23,5 @@ mod overflowing_ops;
 mod scalar_ops;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "zk-pok-experimental")]
+mod zk;

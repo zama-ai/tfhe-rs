@@ -51,12 +51,6 @@ impl<G: Curve> PublicParams<G> {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PrivateParams<G: Curve> {
-    alpha: G::Zp,
-}
-
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Proof<G: Curve> {
     c_hat: G::G2,
@@ -104,27 +98,24 @@ pub fn crs_gen<G: Curve>(
     q: u64,
     t: u64,
     rng: &mut dyn RngCore,
-) -> (PublicParams<G>, PrivateParams<G>) {
+) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     let b_r = d as u64 / 2 + 1;
 
     let big_d =
         d + k * t.ilog2() as usize + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
     let n = big_d + 1;
-    (
-        PublicParams {
-            g_lists: GroupElements::<G>::new(n, alpha),
-            big_d,
-            n,
-            d,
-            k,
-            b,
-            b_r,
-            q,
-            t,
-        },
-        PrivateParams { alpha },
-    )
+    PublicParams {
+        g_lists: GroupElements::<G>::new(n, alpha),
+        big_d,
+        n,
+        d,
+        k,
+        b,
+        b_r,
+        q,
+        t,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -990,8 +981,7 @@ mod tests {
             m_roundtrip[i] = result;
         }
 
-        let (public_param, _private_param) =
-            crs_gen::<crate::curve_api::Bls12_446>(d, k, b_i, q, t, rng);
+        let public_param = crs_gen::<crate::curve_api::Bls12_446>(d, k, b_i, q, t, rng);
 
         for use_fake_e1 in [false, true] {
             for use_fake_e2 in [false, true] {

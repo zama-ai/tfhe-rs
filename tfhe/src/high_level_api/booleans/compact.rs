@@ -36,7 +36,7 @@ use crate::{CompactPublicKey, FheBoolConformanceParams, ServerKey};
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct CompactFheBool {
-    list: CompactCiphertextList,
+    pub(in crate::high_level_api) list: CompactCiphertextList,
 }
 
 impl CompactFheBool {
@@ -55,7 +55,7 @@ impl CompactFheBool {
 }
 
 impl FheTryEncrypt<bool, CompactPublicKey> for CompactFheBool {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let mut ciphertext = key.key.try_encrypt_compact(&[u8::from(value)], 1);
@@ -145,7 +145,7 @@ impl CompactFheBoolList {
 }
 
 impl<'a> FheTryEncrypt<&'a [bool], CompactPublicKey> for CompactFheBoolList {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     /// Encrypts a slice of bool
     ///

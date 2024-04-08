@@ -1,5 +1,4 @@
 use super::*;
-use crate::core_crypto::commons::numeric::Numeric;
 use serde::{Deserialize, Serialize};
 
 /// The distribution $TUniform(1, -2^b, 2^b)$ is defined as follows, any value in the interval

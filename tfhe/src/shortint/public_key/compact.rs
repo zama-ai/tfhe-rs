@@ -1,3 +1,7 @@
+#[cfg(feature = "zk-pok-experimental")]
+use crate::core_crypto::algorithms::encrypt_and_prove_lwe_ciphertext_with_compact_public_key;
+#[cfg(feature = "zk-pok-experimental")]
+use crate::core_crypto::entities::Cleartext;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_seeded_lwe_compact_public_key,
     encrypt_lwe_ciphertext_with_compact_public_key, generate_lwe_compact_public_key,
@@ -5,8 +9,12 @@ use crate::core_crypto::prelude::{
     LweCompactPublicKeyOwned, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
+#[cfg(feature = "zk-pok-experimental")]
+use crate::shortint::ciphertext::{ProvenCiphertext, ProvenCompactCiphertextList};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
+#[cfg(feature = "zk-pok-experimental")]
+use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use serde::{Deserialize, Serialize};
 use std::iter::once;
 
@@ -162,12 +170,8 @@ impl CompactPublicKey {
         );
 
         let encryption_noise_distribution = match self.pbs_order {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => {
-                self.parameters.glwe_noise_distribution()
-            }
-            crate::shortint::PBSOrder::BootstrapKeyswitch => {
-                self.parameters.lwe_noise_distribution()
-            }
+            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
+            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
         };
 
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -193,6 +197,58 @@ impl CompactPublicKey {
         )
     }
 
+    #[cfg(feature = "zk-pok-experimental")]
+    pub fn encrypt_and_prove(
+        &self,
+        message: u64,
+        public_params: &CompactPkePublicParams,
+        load: ZkComputeLoad,
+    ) -> crate::Result<ProvenCiphertext> {
+        // This allocates the required ct
+        let mut encrypted_ct = LweCiphertextOwned::new(
+            0u64,
+            self.key.lwe_dimension().to_lwe_size(),
+            self.parameters.ciphertext_modulus(),
+        );
+
+        let encryption_noise_distribution = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
+            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
+        };
+
+        let plaintext_modulus =
+            (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+        let delta = (1u64 << 63) / plaintext_modulus;
+
+        let proof = ShortintEngine::with_thread_local_mut(|engine| {
+            encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
+                &self.key,
+                &mut encrypted_ct,
+                Cleartext(message),
+                delta,
+                encryption_noise_distribution,
+                encryption_noise_distribution,
+                &mut engine.secret_generator,
+                &mut engine.encryption_generator,
+                &mut engine.random_generator,
+                public_params,
+                load,
+            )
+        })?;
+
+        let message_modulus = self.parameters.message_modulus();
+        let ciphertext = Ciphertext::new(
+            encrypted_ct,
+            Degree::new(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
+            message_modulus,
+            self.parameters.carry_modulus(),
+            self.pbs_order,
+        );
+
+        Ok(ProvenCiphertext { ciphertext, proof })
+    }
+
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
         self.encrypt_iter(messages.iter().copied())
     }
@@ -211,12 +267,8 @@ impl CompactPublicKey {
         );
 
         let encryption_noise_distribution = match self.pbs_order {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => {
-                self.parameters.glwe_noise_distribution()
-            }
-            crate::shortint::PBSOrder::BootstrapKeyswitch => {
-                self.parameters.lwe_noise_distribution()
-            }
+            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
+            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
         };
 
         // No parallelism allowed
@@ -262,6 +314,91 @@ impl CompactPublicKey {
             pbs_order: self.pbs_order,
             noise_level: NoiseLevel::NOMINAL,
         }
+    }
+
+    #[cfg(feature = "zk-pok-experimental")]
+    pub fn encrypt_and_prove_slice(
+        &self,
+        messages: &[u64],
+        public_params: &CompactPkePublicParams,
+        load: ZkComputeLoad,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        let plaintext_modulus =
+            (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+        let delta = (1u64 << 63) / plaintext_modulus;
+
+        let max_num_message = public_params.k;
+        let num_lists = messages.len().div_ceil(max_num_message);
+        let mut proved_lists = Vec::with_capacity(num_lists);
+        for message_chunk in messages.chunks(max_num_message) {
+            let mut ct_list = LweCompactCiphertextListOwned::new(
+                0u64,
+                self.key.lwe_dimension().to_lwe_size(),
+                LweCiphertextCount(message_chunk.len()),
+                self.parameters.ciphertext_modulus(),
+            );
+
+            let encryption_noise_distribution = match self.pbs_order {
+                PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
+                PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
+            };
+
+            // No parallelism allowed
+            #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
+            let proof = {
+                use crate::core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                        &self.key,
+                        &mut ct_list,
+                        &message_chunk,
+                        delta,
+                        encryption_noise_distribution,
+                        encryption_noise_distribution,
+                        &mut engine.secret_generator,
+                        &mut engine.encryption_generator,
+                        &mut engine.random_generator,
+                        public_params,
+                        load,
+                    )
+                })
+            }?;
+
+            // Parallelism allowed  /
+            #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+            let proof = {
+                use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                        &self.key,
+                        &mut ct_list,
+                        &message_chunk,
+                        delta,
+                        encryption_noise_distribution,
+                        encryption_noise_distribution,
+                        &mut engine.secret_generator,
+                        &mut engine.encryption_generator,
+                        &mut engine.random_generator,
+                        public_params,
+                        load,
+                    )
+                })
+            }?;
+
+            let message_modulus = self.parameters.message_modulus();
+            let ciphertext = CompactCiphertextList {
+                ct_list,
+                degree: Degree::new(message_modulus.0 - 1),
+                message_modulus,
+                carry_modulus: self.parameters.carry_modulus(),
+                pbs_order: self.pbs_order,
+                noise_level: NoiseLevel::NOMINAL,
+            };
+
+            proved_lists.push((ciphertext, proof));
+        }
+
+        Ok(ProvenCompactCiphertextList { proved_lists })
     }
 
     pub fn size_elements(&self) -> usize {

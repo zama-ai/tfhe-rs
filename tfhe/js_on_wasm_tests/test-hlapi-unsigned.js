@@ -3,6 +3,7 @@ const assert = require('node:assert').strict;
 const {performance} = require('perf_hooks');
 const {
     init_panic_hook,
+    Shortint,
     ShortintParametersName,
     ShortintParameters,
     TfheClientKey,
@@ -21,9 +22,15 @@ const {
     CompressedFheUint256,
     CompactFheUint256,
     CompactFheUint256List,
+    ProvenCompactFheUint64,
+    ProvenCompactFheUint64List,
+    CompactPkeCrs,
+    ZkComputeLoad,
     FheUint256
 } = require("../pkg/tfhe.js");
-
+const {
+    randomBytes,
+} = require('node:crypto');
 
 const U256_MAX = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 const U128_MAX = BigInt("340282366920938463463374607431768211455");
@@ -638,4 +645,51 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_list_compact', (t) =>
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config);
+});
+
+function generateRandomBigInt(bitLength) {
+    const bytesNeeded = Math.ceil(bitLength / 8);
+    const randomBytesBuffer = randomBytes(bytesNeeded);
+
+    // Convert random bytes to BigInt
+    const randomBigInt = BigInt(`0x${randomBytesBuffer.toString('hex')}`);
+
+    return randomBigInt;
+}
+
+test('hlapi_compact_public_key_encrypt_and_prove_compact_uint256', (t) => {
+    let block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
+    block_params.set_lwe_noise_distribution(Shortint.try_new_t_uniform(9));
+
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
+        .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let publicKey = TfheCompactPublicKey.new(clientKey);
+
+    let crs = CompactPkeCrs.from_parameters(block_params, 128);
+    let public_params = crs.public_params();
+
+    {
+        let input = generateRandomBigInt(64)
+        let encrypted = ProvenCompactFheUint64.encrypt_with_compact_public_key(
+            input, public_params, publicKey, ZkComputeLoad.Proof);
+        assert.deepStrictEqual(encrypted.verifies(public_params, publicKey), true);
+        let expanded = encrypted.verify_and_expand(public_params, publicKey);
+        let decrypted = expanded.decrypt(clientKey);
+        assert.deepStrictEqual(decrypted, input);
+    }
+
+    {
+        let inputs = [generateRandomBigInt(64), generateRandomBigInt(64), generateRandomBigInt(64), generateRandomBigInt(64)];
+        let encrypted = ProvenCompactFheUint64List.encrypt_with_compact_public_key(
+            inputs, public_params, publicKey, ZkComputeLoad.Proof);
+        assert.deepStrictEqual(encrypted.verifies(public_params, publicKey), true);
+        let expanded_list = encrypted.verify_and_expand(public_params, publicKey);
+        for (let i = 0; i < inputs.length; i++) {
+            let decrypted = expanded_list[i].decrypt(clientKey);
+            assert.deepStrictEqual(decrypted, inputs[i]);
+        }
+    }
 });

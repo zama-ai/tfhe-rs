@@ -88,7 +88,7 @@ where
     Id: FheIntId,
     T: DecomposableInto<u64> + SignedNumeric,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;

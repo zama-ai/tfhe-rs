@@ -10,7 +10,7 @@ use crate::{
     CompressedPublicKey, Config, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16, FheUint256,
     FheUint32, FheUint32ConformanceParams,
 };
-use rand::{random, Rng};
+use rand::prelude::*;
 
 fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params
@@ -542,4 +542,50 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_list() {
         let decrypted: u32 = fhe_uint.decrypt(&client_key);
         assert_eq!(decrypted, expected);
     }
+}
+
+#[cfg(feature = "zk-pok-experimental")]
+#[test]
+fn test_fhe_uint_zk() {
+    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+
+    let mut params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+
+    let config = ConfigBuilder::with_custom_parameters(params, None).build();
+    let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+    let ck = ClientKey::generate(config);
+    let pk = CompactPublicKey::new(&ck);
+
+    let msg = random::<u32>();
+
+    let proven_compact_fhe_uint = crate::ProvenCompactFheUint32::try_encrypt(
+        msg,
+        crs.public_params(),
+        &pk,
+        ZkComputeLoad::Proof,
+    )
+    .unwrap();
+    let fhe_uint = proven_compact_fhe_uint
+        .verify_and_expand(crs.public_params(), &pk)
+        .unwrap();
+    let decrypted: u32 = fhe_uint.decrypt(&ck);
+    assert_eq!(decrypted, msg);
+
+    let messages = (0..4).map(|_| random()).collect::<Vec<u32>>();
+    let proven_compact_fhe_uint_list = crate::ProvenCompactFheUint32List::try_encrypt(
+        &messages,
+        crs.public_params(),
+        &pk,
+        ZkComputeLoad::Proof,
+    )
+    .unwrap();
+    let fhe_uints = proven_compact_fhe_uint_list
+        .verify_and_expand(crs.public_params(), &pk)
+        .unwrap();
+    let decrypted = fhe_uints
+        .iter()
+        .map(|fb| fb.decrypt(&ck))
+        .collect::<Vec<u32>>();
+    assert_eq!(decrypted.as_slice(), &messages);
 }

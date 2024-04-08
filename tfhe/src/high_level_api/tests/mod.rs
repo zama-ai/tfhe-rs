@@ -99,9 +99,9 @@ fn test_with_seed() {
     let builder = ConfigBuilder::default();
     let config = builder.build();
 
-    let cks1 = ClientKey::generate_with_seed(config.clone(), Seed(125));
-    let cks2 = ClientKey::generate(config.clone());
-    let cks3 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    let cks1 = ClientKey::generate_with_seed(config, Seed(125));
+    let cks2 = ClientKey::generate(config);
+    let cks3 = ClientKey::generate_with_seed(config, Seed(125));
     let cks4 = ClientKey::generate_with_seed(config, Seed(127));
 
     let cks1_serialized = bincode::serialize(&cks1).unwrap();

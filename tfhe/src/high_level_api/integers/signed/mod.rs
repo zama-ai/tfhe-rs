@@ -9,6 +9,8 @@ mod scalar_ops;
 mod static_;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "zk-pok-experimental")]
+mod zk;
 
 pub use base::{FheInt, FheIntId};
 pub use compact::{CompactFheInt, CompactFheIntList};

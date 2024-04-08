@@ -50,22 +50,26 @@ async function runActualTest(page, buttonId) {
   }
 }
 
+const TWENTY_MINUTES = 1200 * 1000;
+
 async function runTestAttachedToButton(buttonId) {
   let browser;
   if (isRoot()) {
     browser = await puppeteer.launch({
       headless: "new",
       args: ["--no-sandbox"],
+      protocolTimeout: TWENTY_MINUTES,
     });
   } else {
     browser = await puppeteer.launch({
       headless: "new",
+      protocolTimeout: TWENTY_MINUTES,
     });
   }
 
   let page = await browser.newPage();
 
-  await page.setDefaultTimeout(300000); // Five minutes timeout
+  await page.setDefaultTimeout(TWENTY_MINUTES);
   await page.goto("http://localhost:3000");
   page.on("console", (msg) => console.log("PAGE LOG:", msg.text()));
 

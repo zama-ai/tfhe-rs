@@ -69,7 +69,7 @@ where
     T: crate::integer::block_decomposition::DecomposableInto<u64>,
     Id: FheUintId,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key
@@ -175,7 +175,7 @@ where
     T: crate::integer::block_decomposition::DecomposableInto<u64>,
     Id: FheUintId,
 {
-    type Error = crate::high_level_api::errors::Error;
+    type Error = crate::Error;
 
     fn try_encrypt(values: &'a [T], key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key

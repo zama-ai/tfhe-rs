@@ -27,6 +27,11 @@ pub trait Recomposable:
     + Shl<u32, Output = Self>
     + Sub<Self, Output = Self>
 {
+    // TODO: need for wrapping arithmetic traits
+    // This is a wrapping add but to avoid conflicts with other parts of the code using external
+    // wrapping traits definition we change the name here
+    #[must_use]
+    fn recomposable_wrapping_add(self, other: Self) -> Self;
 }
 
 // Convenience traits have simpler bounds
@@ -39,7 +44,12 @@ macro_rules! impl_recomposable_decomposable {
     ) => {
         $(
             impl Decomposable for $type { }
-            impl Recomposable for $type { }
+            impl Recomposable for $type {
+                #[inline]
+                fn recomposable_wrapping_add(self, other: Self) -> Self {
+                    self.wrapping_add(other)
+                }
+            }
             impl RecomposableFrom<u64> for $type { }
             impl DecomposableInto<u64> for $type { }
             impl RecomposableFrom<u8> for $type { }
@@ -51,14 +61,26 @@ macro_rules! impl_recomposable_decomposable {
 impl_recomposable_decomposable!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128,);
 
 impl<const N: usize> Decomposable for StaticSignedBigInt<N> {}
-impl<const N: usize> Recomposable for StaticSignedBigInt<N> {}
+impl<const N: usize> Recomposable for StaticSignedBigInt<N> {
+    #[inline]
+    fn recomposable_wrapping_add(mut self, other: Self) -> Self {
+        self.add_assign(other);
+        self
+    }
+}
 impl<const N: usize> RecomposableFrom<u64> for StaticSignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u8> for StaticSignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticSignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticSignedBigInt<N> {}
 
 impl<const N: usize> Decomposable for StaticUnsignedBigInt<N> {}
-impl<const N: usize> Recomposable for StaticUnsignedBigInt<N> {}
+impl<const N: usize> Recomposable for StaticUnsignedBigInt<N> {
+    #[inline]
+    fn recomposable_wrapping_add(mut self, other: Self) -> Self {
+        self.add_assign(other);
+        self
+    }
+}
 impl<const N: usize> RecomposableFrom<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
@@ -258,7 +280,7 @@ where
         }
 
         block <<= self.bit_pos;
-        self.data += block;
+        self.data = self.data.recomposable_wrapping_add(block);
         self.bit_pos += self.num_bits_in_block;
 
         true

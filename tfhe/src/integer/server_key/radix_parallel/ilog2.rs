@@ -241,6 +241,7 @@ impl ServerKey {
         let counter_num_blocks = ((num_bits_in_ciphertext - 1).ilog2() + 1 + 1)
             .div_ceil(self.message_modulus().0.ilog2()) as usize;
 
+        // 11111000
         // x.ilog2() = (x.num_bit() - 1) - x.leading_zeros()
         // - (x.num_bit() - 1) is trivially known
         // - we can get leading zeros via a sum

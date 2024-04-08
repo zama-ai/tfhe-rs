@@ -87,6 +87,8 @@ pub trait UnsignedInteger:
     #[must_use]
     fn is_power_of_two(self) -> bool;
     #[must_use]
+    fn next_power_of_two(self) -> Self;
+    #[must_use]
     fn ilog2(self) -> u32;
     #[must_use]
     fn ceil_ilog2(self) -> u32 {
@@ -238,6 +240,10 @@ macro_rules! implement {
             #[inline]
             fn is_power_of_two(self) -> bool {
                 self.is_power_of_two()
+            }
+            #[inline]
+            fn next_power_of_two(self) -> Self {
+                self.next_power_of_two()
             }
             #[inline]
             fn ilog2(self) -> u32 {

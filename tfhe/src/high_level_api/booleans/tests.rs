@@ -825,7 +825,57 @@ mod cpu {
         let expanded_list = deserialized_list.expand();
         for (fhe_uint, expected) in expanded_list.iter().zip(clears.into_iter()) {
             let decrypted: bool = fhe_uint.decrypt(&client_key);
-            assert_eq!(decrypted, expected);
+            assert_eq!(decrypted, expected)
+        }
+    }
+
+    #[cfg(feature = "zk-pok-experimental")]
+    #[test]
+    fn test_fhe_bool_zk() {
+        use crate::core_crypto::prelude::DynamicDistribution;
+        use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+
+        let mut params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+
+        let config = ConfigBuilder::with_custom_parameters(params, None).build();
+        let crs = CompactPkeCrs::from_config(config, 2).unwrap();
+        let ck = ClientKey::generate(config);
+        let pk = CompactPublicKey::new(&ck);
+
+        for msg in [true, false] {
+            let proven_compact_fhe_bool = crate::ProvenCompactFheBool::try_encrypt(
+                msg,
+                crs.public_params(),
+                &pk,
+                ZkComputeLoad::Proof,
+            )
+            .unwrap();
+            let fhe_bool = proven_compact_fhe_bool
+                .verify_and_expand(crs.public_params(), &pk)
+                .unwrap();
+            let decrypted = fhe_bool.decrypt(&ck);
+            assert_eq!(decrypted, msg);
+            assert_degree_is_ok(&fhe_bool);
+        }
+
+        let proven_compact_fhe_bool_list = crate::ProvenCompactFheBoolList::try_encrypt(
+            &[true, false],
+            crs.public_params(),
+            &pk,
+            ZkComputeLoad::Proof,
+        )
+        .unwrap();
+        let fhe_bools = proven_compact_fhe_bool_list
+            .verify_and_expand(crs.public_params(), &pk)
+            .unwrap();
+        let decrypted = fhe_bools
+            .iter()
+            .map(|fb| fb.decrypt(&ck))
+            .collect::<Vec<_>>();
+        assert_eq!(decrypted.as_slice(), &[true, false]);
+        for fhe_bool in fhe_bools {
+            assert_degree_is_ok(&fhe_bool);
         }
     }
 }

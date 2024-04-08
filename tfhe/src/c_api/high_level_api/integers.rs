@@ -388,6 +388,7 @@ macro_rules! create_integer_wrapper_type {
                 })
             }
         }
+
         // The compact list version of the ciphertext type
         ::paste::paste! {
             pub struct [<Compact $name List>]($crate::high_level_api::[<Compact $name List>]);
@@ -424,6 +425,135 @@ macro_rules! create_integer_wrapper_type {
                     check_ptr_is_non_null_and_aligned(output).unwrap();
                     let list = $crate::c_api::utils::get_ref_checked(sself).unwrap();
                     let expanded = list.0.expand();
+
+                    let num_to_take = output_len.max(list.0.len());
+                    let iter = expanded.into_iter().take(num_to_take).enumerate();
+                    for (i, fhe_uint) in iter {
+                        let ptr = output.wrapping_add(i);
+                        *ptr = Box::into_raw(Box::new($name(fhe_uint)));
+                    }
+                })
+            }
+        }
+
+
+        // The zk compact proven version of the compact ciphertext type
+        #[cfg(feature = "zk-pok-experimental")]
+        ::paste::paste! {
+            pub struct [<ProvenCompact $name>]($crate::high_level_api::[<ProvenCompact $name>]);
+
+            impl_destroy_on_type!([<ProvenCompact $name>]);
+
+            impl_clone_on_type!([<ProvenCompact $name>]);
+
+            impl_serialize_deserialize_on_type!([<ProvenCompact $name>]);
+
+            impl_safe_serialize_on_type!([<ProvenCompact $name>]);
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<proven_compact_ $name:snake _try_encrypt>](
+                message: $clear_scalar_type,
+                public_params: &$crate::c_api::high_level_api::zk::CompactPkePublicParams,
+                pk: &$crate::c_api::high_level_api::keys::CompactPublicKey,
+                compute_load: $crate::c_api::high_level_api::zk::ZkComputeLoad,
+                out_result: *mut *mut [<ProvenCompact $name>],
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let message = <$clear_scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(message);
+
+                    let result = $crate::high_level_api::[<ProvenCompact $name>]::try_encrypt(
+                        message,
+                        &public_params.0,
+                        &pk.0,
+                        compute_load.into()
+                    ).unwrap();
+
+                    *out_result = Box::into_raw(Box::new([<ProvenCompact $name>](result)));
+                })
+            }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<proven_compact_ $name:snake _verify_and_expand>](
+                ct: *const [<ProvenCompact $name>],
+                public_params: &$crate::c_api::high_level_api::zk::CompactPkePublicParams,
+                pk: &$crate::c_api::high_level_api::keys::CompactPublicKey,
+                out_result: *mut *mut $name,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let ct = $crate::c_api::utils::get_ref_checked(ct).unwrap();
+
+                    let result = ct.0.clone().verify_and_expand(&public_params.0, &pk.0).unwrap();
+
+                    *out_result = Box::into_raw(Box::new($name(result)));
+                })
+            }
+        }
+
+        // The zk compact proven version of the compact ciphertext list type
+        #[cfg(feature = "zk-pok-experimental")]
+        ::paste::paste! {
+            pub struct [<ProvenCompact $name List>]($crate::high_level_api::[<ProvenCompact $name List>]);
+
+            impl_destroy_on_type!([<ProvenCompact $name List>]);
+
+            impl_clone_on_type!([<ProvenCompact $name List>]);
+
+            impl_serialize_deserialize_on_type!([<ProvenCompact $name List>]);
+
+            impl_safe_serialize_on_type!([<ProvenCompact $name List>]);
+
+
+            #[no_mangle]
+            pub unsafe extern "C" fn  [<proven_compact_ $name:snake _list_try_encrypt>](
+                input: *const $clear_scalar_type,
+                input_len: usize,
+                public_params: &$crate::c_api::high_level_api::zk::CompactPkePublicParams,
+                pk: &$crate::c_api::high_level_api::keys::CompactPublicKey,
+                compute_load: $crate::c_api::high_level_api::zk::ZkComputeLoad,
+                out_result: *mut *mut [<ProvenCompact $name List>],
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let messages = std::slice::from_raw_parts(input, input_len)
+                        .iter()
+                        .copied()
+                        .map(|value| {
+                            <$clear_scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(value)
+                        })
+                        .collect::<Vec<_>>();
+
+                   let result = $crate::high_level_api::[<ProvenCompact $name List>]::try_encrypt(
+                        &messages,
+                        &public_params.0,
+                        &pk.0,
+                        compute_load.into()
+                    ).unwrap();
+
+                    *out_result = Box::into_raw(Box::new([<ProvenCompact $name List>](result)));
+                })
+            }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<proven_compact_ $name:snake _list_len>](
+                sself: *const [<ProvenCompact $name List>],
+                result: *mut usize,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let list = $crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+                    *result = list.0.len();
+                })
+            }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<proven_compact_ $name:snake _list_verify_and_expand>](
+                list: &[<ProvenCompact $name List>],
+                public_params: &$crate::c_api::high_level_api::zk::CompactPkePublicParams,
+                pk: &$crate::c_api::high_level_api::keys::CompactPublicKey,
+                output: *mut *mut $name,
+                output_len: usize
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let expanded = list.0.verify_and_expand(&public_params.0, &pk.0).unwrap();
 
                     let num_to_take = output_len.max(list.0.len());
                     let iter = expanded.into_iter().take(num_to_take).enumerate();
@@ -803,7 +933,6 @@ macro_rules! impl_oprf_for_int {
                         crate::high_level_api::SignedRandomizationSpec::FullSigned,
                     );
                     *out_result = Box::into_raw(Box::new($name(result)));
-
                 })
             }
         }
