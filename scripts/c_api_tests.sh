@@ -39,6 +39,7 @@ done
 CURR_DIR="$(dirname "$0")"
 REPO_ROOT="${CURR_DIR}/.."
 TFHE_BUILD_DIR="${REPO_ROOT}/tfhe/build/"
+CPU_COUNT="$("${CURR_DIR}"/cpu_count.sh)"
 
 mkdir -p "${TFHE_BUILD_DIR}"
 
@@ -46,7 +47,7 @@ cd "${TFHE_BUILD_DIR}"
 
 cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" -DWITH_FEATURE_GPU="${WITH_FEATURE_GPU}"
 
-make -j
+make -j "${CPU_COUNT}"
 
 if [[ "${BUILD_ONLY}" == "1" ]]; then
     exit 0

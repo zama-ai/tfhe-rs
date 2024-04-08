@@ -86,15 +86,8 @@ fi
 CURR_DIR="$(dirname "$0")"
 ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
-nproc_bin=nproc
-
-# macOS detects CPUs differently
-if [[ $(uname) == "Darwin" ]]; then
-    nproc_bin="sysctl -n hw.logicalcpu"
-fi
-
 # TODO autodetect/have a finer CPU count depending on memory
-num_cpu_threads="$(${nproc_bin})"
+num_cpu_threads="$("${CURR_DIR}"/cpu_count.sh)"
 
 if uname -a | grep "arm64"; then
     if [[ $(uname) == "Darwin" ]]; then
