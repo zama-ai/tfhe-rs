@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
-use crate::shortint::parameters::parameters_compact_pk::*;
+use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
 use wasm_bindgen::prelude::*;
@@ -285,33 +285,9 @@ expose_predefined_parameters! {
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS,
     // CPK SMALL
     PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS,
     // Aliases to remove eventually
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
@@ -463,7 +439,7 @@ impl Shortint {
         message_modulus: usize,
         carry_modulus: usize,
         max_noise_level: usize,
-        p_fail: f64,
+        log2_p_fail: f64,
         modulus_power_of_2_exponent: usize,
         encryption_key_choice: ShortintEncryptionKeyChoice,
     ) -> ShortintParameters {
@@ -482,7 +458,7 @@ impl Shortint {
             message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
             carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
             max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(max_noise_level),
-            p_fail,
+            log2_p_fail,
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
                 modulus_power_of_2_exponent,
             )

@@ -14,11 +14,11 @@ pub use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::prelude::{LweCiphertextListParameters, LweCiphertextParameters};
 use serde::{Deserialize, Serialize};
 
+pub mod classic;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;
 pub mod key_switching;
 pub mod multi_bit;
-pub mod parameters_compact_pk;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
@@ -26,9 +26,10 @@ pub mod parameters_wopbs_only;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
+pub use crate::shortint::parameters::classic::compact_pk::*;
+use crate::shortint::parameters::classic::p_fail_2_minus_40::{ks_pbs, pbs_ks};
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
-pub use parameters_compact_pk::*;
 pub use parameters_wopbs::*;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
@@ -84,7 +85,7 @@ pub struct ClassicPBSParameters {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub max_noise_level: MaxNoiseLevel,
-    pub p_fail: f64,
+    pub log2_p_fail: f64,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
 }
@@ -111,7 +112,7 @@ impl ClassicPBSParameters {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         max_noise_level: MaxNoiseLevel,
-        p_fail: f64,
+        log2_p_fail: f64,
         ciphertext_modulus: CiphertextModulus,
         encryption_key_choice: EncryptionKeyChoice,
     ) -> Self {
@@ -128,7 +129,7 @@ impl ClassicPBSParameters {
             message_modulus,
             carry_modulus,
             max_noise_level,
-            p_fail,
+            log2_p_fail,
             ciphertext_modulus,
             encryption_key_choice,
         }
@@ -629,850 +630,6 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 16] 
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
 /// All parameter sets guarantee 128-bits of security and an error probability smaller than
 /// 2^{-40} for a PBS.
-pub const PARAM_MESSAGE_1_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(678),
-    glwe_dimension: GlweDimension(5),
-    polynomial_size: PolynomialSize(256),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000022810107419132102,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000037411618952047216,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(5),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(684),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00002043784477291318,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000034525330484572114,
-    )),
-    pbs_base_log: DecompositionBaseLog(18),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(656),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(512),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000034119201269311964,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000004053919869756513,
-    )),
-    pbs_base_log: DecompositionBaseLog(8),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(4),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(745),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000006692125069956277,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_4_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(742),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000007069849454709433,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(807),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(4096),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000021515145918907506,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(16),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(856),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(4096),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000008775214009854235,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(812),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(4096),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000019633637461248447,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_4_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(808),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(4096),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000021124945159091033,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_5_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(807),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(4096),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000021515145918907506,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(32),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(864),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000757998020150446,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(32),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(864),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000757998020150446,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(16),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(864),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000757998020150446,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_4_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(864),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000757998020150446,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(875),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000006197725091905067,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(32),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_6_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(915),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000029804653749339636,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(22),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(4),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(64),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_6_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(11),
-    pbs_level: DecompositionLevelCount(3),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(64),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(934),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000021050318566634375,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(32),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(16),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_4_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_5_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(32),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_6_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(64),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_7_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(930),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(16384),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000022649232786295453,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(128),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_1_CARRY_7_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1004),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000005845871624688967,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(11),
-    pbs_level: DecompositionLevelCount(3),
-    ks_level: DecompositionLevelCount(7),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(128),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_2_CARRY_6_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(987),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000007979529246348835,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(11),
-    pbs_level: DecompositionLevelCount(3),
-    ks_level: DecompositionLevelCount(7),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(64),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_3_CARRY_5_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(985),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000008277032914509569,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(11),
-    pbs_level: DecompositionLevelCount(3),
-    ks_level: DecompositionLevelCount(7),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(32),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(996),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000006767666038309478,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(7),
-    ks_base_log: DecompositionBaseLog(3),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(16),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_5_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1020),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000043618425315728666,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(32),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_6_CARRY_2_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1018),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000000045244666805696514,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(64),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_7_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1017),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000460803851108693,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(128),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-pub const PARAM_MESSAGE_8_CARRY_0_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1017),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000460803851108693,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(256),
-    carry_modulus: CarryModulus(1),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-
-pub const PARAM_MESSAGE_1_CARRY_1_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(783),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000033382067621812462,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000034525330484572114,
-    )),
-    pbs_base_log: DecompositionBaseLog(18),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(5),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
-
-pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(870),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000006791658447437413,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000000000000029403601535432533,
-    )),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(4),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(4),
-    carry_modulus: CarryModulus(4),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
-
-pub const PARAM_MESSAGE_3_CARRY_3_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1025),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(8192),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000003980397588319241,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(8),
-    carry_modulus: CarryModulus(8),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
-
-pub const PARAM_MESSAGE_4_CARRY_4_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
-    max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
-    lwe_dimension: LweDimension(1214),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(32768),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000012520482863081104,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000000000000002168404344971009,
-    )),
-    pbs_base_log: DecompositionBaseLog(15),
-    pbs_level: DecompositionLevelCount(2),
-    ks_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(16),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Small,
-};
 
 /// Return a parameter set from a message and carry moduli.
 ///
@@ -1517,6 +674,87 @@ pub fn get_parameters_from_message_and_carry(
 }
 
 // Aliases, to be deprecated in subsequent versions once we e.g. have the "parameter builder"
+pub const PARAM_MESSAGE_1_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_3_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_4_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_5_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_6_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_7_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_4_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_5_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_6_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_3_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_4_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_5_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_3_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_5_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_5_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_5_CARRY_3_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_6_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_6_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_6_CARRY_2_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_7_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_7_CARRY_1_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_8_CARRY_0_KS_PBS: ClassicPBSParameters =
+    ks_pbs::PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_1_CARRY_1_PBS_KS: ClassicPBSParameters =
+    pbs_ks::PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS: ClassicPBSParameters =
+    pbs_ks::PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_3_CARRY_3_PBS_KS: ClassicPBSParameters =
+    pbs_ks::PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M40;
+pub const PARAM_MESSAGE_4_CARRY_4_PBS_KS: ClassicPBSParameters =
+    pbs_ks::PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M40;
+
 pub const PARAM_MESSAGE_1_CARRY_0: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_0_KS_PBS;
 pub const PARAM_MESSAGE_1_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_1_KS_PBS;
 pub const PARAM_MESSAGE_1_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_1_CARRY_2_KS_PBS;

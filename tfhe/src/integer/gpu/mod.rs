@@ -83,7 +83,7 @@ where
                 wopbs_params.message_modulus,
                 wopbs_params.carry_modulus,
             ),
-            p_fail: 1.0,
+            log2_p_fail: 1.0,
             ciphertext_modulus: wopbs_params.ciphertext_modulus,
             encryption_key_choice: wopbs_params.encryption_key_choice,
         };

@@ -3,7 +3,6 @@ pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
-pub use crate::shortint::parameters::parameters_compact_pk::*;
 pub use crate::shortint::parameters::*;
 use std::os::raw::c_int;
 
@@ -38,7 +37,7 @@ pub struct ShortintPBSParameters {
     pub message_modulus: usize,
     pub carry_modulus: usize,
     pub max_noise_level: usize,
-    pub p_fail: f64,
+    pub log2_p_fail: f64,
     pub modulus_power_of_2_exponent: usize,
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
 }
@@ -65,7 +64,7 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             max_noise_level: crate::shortint::parameters::MaxNoiseLevel::new(
                 c_params.max_noise_level,
             ),
-            p_fail: c_params.p_fail,
+            log2_p_fail: c_params.log2_p_fail,
             encryption_key_choice: c_params.encryption_key_choice.into(),
         })
     }
@@ -115,7 +114,7 @@ impl ShortintPBSParameters {
             message_modulus: rust_params.message_modulus.0,
             carry_modulus: rust_params.carry_modulus.0,
             max_noise_level: rust_params.max_noise_level.get(),
-            p_fail: rust_params.p_fail,
+            log2_p_fail: rust_params.log2_p_fail,
             modulus_power_of_2_exponent: convert_modulus(rust_params.ciphertext_modulus),
             encryption_key_choice: ShortintEncryptionKeyChoice::convert(
                 rust_params.encryption_key_choice,
@@ -203,6 +202,7 @@ expose_as_shortint_pbs_parameters!(
     PARAM_MESSAGE_3_CARRY_3_PBS_KS,
     PARAM_MESSAGE_4_CARRY_4_PBS_KS,
     // CPK
+    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS,
@@ -232,33 +232,9 @@ expose_as_shortint_pbs_parameters!(
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS,
     // CPK SMALL
     PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS,
     // Aliases to remove eventually
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,

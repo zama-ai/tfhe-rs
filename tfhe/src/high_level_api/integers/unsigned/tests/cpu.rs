@@ -3,6 +3,7 @@ use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
 use crate::safe_deserialization::safe_deserialize_conformant;
+use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactFheUint32, CompactFheUint32List, CompactFheUint32ListConformanceParams,
