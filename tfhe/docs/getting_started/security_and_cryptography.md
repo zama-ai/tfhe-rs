@@ -93,7 +93,9 @@ As an example, consider adding two ciphertexts. Adding two values could end up o
 
 By default, the cryptographic parameters provided by `TFHE-rs` ensure at least 128 bits of security. The security has been evaluated using the latest versions of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.RC.BDGL16`.
 
-For all sets of parameters, the error probability when computing a univariate function over one ciphertext is $$2^{-40}$$. Note that univariate functions might be performed when arithmetic functions are computed (i.e., the multiplication of two ciphertexts).
+The default parameters for the TFHE-rs library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error = $2^{-40}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [1].
+
+[1] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
 
 ### Classical public key encryption.
 
