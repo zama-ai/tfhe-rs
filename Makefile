@@ -3,6 +3,7 @@ OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
+CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 RS_BUILD_TOOLCHAIN:=stable
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
@@ -436,7 +437,7 @@ test_cuda_backend:
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
-		make -j && \
+		make -j "$(CPU_COUNT)" && \
 		make test
 
 .PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
@@ -700,7 +701,7 @@ check_compile_tests_benches_gpu: install_rs_build_toolchain
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
-		make -j
+		make -j "$(CPU_COUNT)"
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:
