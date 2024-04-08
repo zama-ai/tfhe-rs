@@ -123,7 +123,7 @@ TFHE-rs includes the possibility to leverage the high number of threads given by
 To do so, the configuration should be updated with
 
 ```Rust
-let config = ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
+let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
 ```
 
 The complete example becomes:
@@ -131,11 +131,11 @@ The complete example becomes:
 ```rust 
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, ClientKey, CompressedServerKey};
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
 
 fn main() {
 
-    let config = ConfigBuilder::with_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
+    let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
 
     let client_key= ClientKey::generate(config);
     let compressed_server_key = CompressedServerKey::new(&client_key);
@@ -201,7 +201,7 @@ All operations follow the same syntax than the one described in [here](../gettin
 # Benchmarks
 
 All GPU benchmarks presented here were obtained on a single H100 GPU, and rely on the multithreaded PBS algorithm.
-The cryptographic parameters PARAM\_MULTI\_BIT\_MESSAGE\_1\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
+The cryptographic parameters PARAM\_GPU\_MULTI\_BIT\_MESSAGE\_1\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
 Performance is the following when the inputs of the benchmarked operation are encrypted:
 
 | Operation \ Size                                       | `FheUint7` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |

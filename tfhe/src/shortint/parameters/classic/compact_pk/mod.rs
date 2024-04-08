@@ -2,6 +2,7 @@ use crate::shortint::parameters::classic::compact_pk::gaussian::p_fail_2_minus_4
     ks_pbs, pbs_ks,
 };
 use crate::shortint::ClassicPBSParameters;
+pub use tuniform::p_fail_2_minus_40::ks_pbs::*;
 
 pub mod gaussian;
 pub mod tuniform;
