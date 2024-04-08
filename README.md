@@ -206,6 +206,12 @@ with `red_cost_model = reduction.RC.BDGL16`.
 
 When a new update is published in the Lattice Estimator, we update parameters accordingly.
 
+### Security Model
+
+The default parameters for the TFHE-rs library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error = $2^{-40}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [1]. 
+
+[1] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
+
 #### Side-Channel Attacks
 
 Mitigation for side-channel attacks has not yet been implemented in TFHE-rs,
