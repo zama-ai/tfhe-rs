@@ -1,6 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey};
+use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::*;

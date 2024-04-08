@@ -1,10 +1,10 @@
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
+use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::*;
 use crate::shortint::parameters::multi_bit::*;
-use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
@@ -93,33 +93,9 @@ named_params_impl!( ShortintParameterSet =>
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS,
     // CPK SMALL
     PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS,
-    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS,
     // Wopbs
     WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,

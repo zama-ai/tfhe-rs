@@ -30,7 +30,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters = Classi
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     max_noise_level: MaxNoiseLevel::new(5),
-    p_fail: 9.094947017729282e-13,
+    log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
@@ -52,7 +52,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters = Classi
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(8),
     max_noise_level: MaxNoiseLevel::new(10),
-    p_fail: 9.094947017729282e-13,
+    log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
@@ -74,7 +74,7 @@ pub const COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters = Classi
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(2),
     max_noise_level: MaxNoiseLevel::new(2),
-    p_fail: 9.094947017729282e-13,
+    log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
@@ -97,7 +97,7 @@ pub const COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBS
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
-        p_fail: 9.094947017729282e-13,
+        log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(2),
@@ -122,7 +122,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParamete
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
-        p_fail: 9.094947017729282e-13,
+        log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
@@ -145,7 +145,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParamete
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
-        p_fail: 9.094947017729282e-13,
+        log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
     };

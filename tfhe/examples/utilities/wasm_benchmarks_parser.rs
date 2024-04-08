@@ -13,10 +13,10 @@ use tfhe::shortint::keycache::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_NAME, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME, PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME,
 };
-use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+use tfhe::shortint::parameters::classic::compact_pk::{
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
+use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
 
 const BENCHMARK_NAME_PREFIX: &str = "wasm::";
