@@ -42,7 +42,7 @@ macro_rules! create_gpu_parametrized_test{
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
+            PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
         });
     };
 }
