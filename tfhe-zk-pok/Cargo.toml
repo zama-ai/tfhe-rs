@@ -2,6 +2,12 @@
 name = "tfhe-zk-pok"
 version = "0.1.0"
 edition = "2021"
+keywords = ["zero", "knowledge", "proof", "vector-commitments"]
+homepage = "https://zama.ai/"
+documentation = "https://docs.zama.ai/tfhe-rs"
+repository = "https://github.com/zama-ai/tfhe-rs"
+license = "BSD-3-Clause-Clear"
+description = "tfhe-zk-pok: An implementation of zero-knowledge proofs of encryption for TFHE."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
