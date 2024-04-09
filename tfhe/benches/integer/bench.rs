@@ -1982,7 +1982,7 @@ mod cuda {
         display_name: &str,
         cast_op: F,
     ) where
-        F: Fn(&CudaServerKey, CudaUnsignedRadixCiphertext, usize),
+        F: Fn(&CudaServerKey, CudaUnsignedRadixCiphertext, usize, &CudaStream),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -2021,7 +2021,7 @@ mod cuda {
                     b.iter_batched(
                         encrypt_one_value,
                         |ct| {
-                            cast_op(&gpu_sks, ct, target_num_blocks);
+                            cast_op(&gpu_sks, ct, target_num_blocks, &stream);
                         },
                         criterion::BatchSize::SmallInput,
                     )
@@ -2046,12 +2046,12 @@ mod cuda {
         (method_name: $server_key_method:ident, display_name:$name:ident) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
-                    bench_server_key_cast_function(
+                    cuda_bench_server_key_cast_function(
                         c,
                         concat!("integer::cuda::", stringify!($server_key_method)),
                         stringify!($name),
-                        |server_key, lhs, rhs| {
-                            server_key.$server_key_method(lhs, rhs);
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, rhs, stream);
                         })
                 }
             }
@@ -2406,7 +2406,7 @@ fn go_through_gpu_bench_groups(val: &str) {
         "default" => {
             default_cuda_ops();
             default_scalar_cuda_ops();
-            cuda_cast_ops()
+            cuda_cast_ops();
         }
         "unchecked" => {
             unchecked_cuda_ops();

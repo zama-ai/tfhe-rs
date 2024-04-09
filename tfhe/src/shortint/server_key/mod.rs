@@ -567,7 +567,14 @@ impl ServerKey {
             self.bootstrapping_key.polynomial_size(),
             self.ciphertext_modulus,
         );
-        let max_value = fill_accumulator(&mut acc, self, f);
+        let max_value = fill_accumulator(
+            &mut acc,
+            self.bootstrapping_key.polynomial_size(),
+            self.bootstrapping_key.glwe_size(),
+            self.message_modulus,
+            self.carry_modulus,
+            f,
+        );
 
         LookupTableOwned {
             acc,

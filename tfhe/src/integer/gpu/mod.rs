@@ -5,12 +5,13 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStream;
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, PolynomialSize, UnsignedInteger,
+    LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
 use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
+use std::ffi::c_void;
 use tfhe_cuda_backend::cuda_bind::*;
 
 #[repr(u32)]
@@ -27,13 +28,13 @@ pub enum BitOpType {
 
 #[allow(dead_code)]
 #[repr(u32)]
-enum PBSType {
+pub enum PBSType {
     MultiBit = 0,
     Classical = 1,
 }
 
 #[repr(u32)]
-enum ShiftRotateType {
+pub enum ShiftRotateType {
     LeftShift = 0,
     RightShift = 1,
     LeftRotate = 2,
@@ -2917,4 +2918,60 @@ impl CudaStream {
             std::ptr::addr_of_mut!(mem_ptr),
         );
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStream::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
+    stream: &CudaStream,
+    radix_lwe_output: *mut c_void,
+    radix_lwe_input: *const c_void,
+    input_lut: &[T],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_apply_univariate_lut_kb_64(
+        stream.as_c_ptr(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        input_lut.as_ptr().cast(),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_apply_univariate_lut_kb_64(
+        stream.as_c_ptr(),
+        radix_lwe_output,
+        radix_lwe_input,
+        mem_ptr,
+        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_apply_univariate_lut_kb_64(stream.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
 }

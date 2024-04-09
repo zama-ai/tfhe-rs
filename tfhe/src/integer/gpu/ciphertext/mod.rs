@@ -428,7 +428,7 @@ impl CudaRadixCiphertext {
     ///
     /// assert_eq!(msg, msg_copied);
     /// ```
-    fn duplicate(&self, stream: &CudaStream) -> Self {
+    pub(crate) fn duplicate(&self, stream: &CudaStream) -> Self {
         let ct = unsafe { self.duplicate_async(stream) };
         stream.synchronize();
         ct

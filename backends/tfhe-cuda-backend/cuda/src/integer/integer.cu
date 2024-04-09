@@ -141,3 +141,41 @@ void cleanup_cuda_propagate_single_carry(cuda_stream_t *stream,
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release(stream);
 }
+
+void scratch_cuda_apply_univariate_lut_kb_64(
+    cuda_stream_t *stream, int8_t **mem_ptr, void *input_lut,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
+    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory) {
+
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          glwe_dimension * polynomial_size, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus);
+
+  scratch_cuda_apply_univariate_lut_kb<uint64_t>(
+      stream, (int_radix_lut<uint64_t> **)mem_ptr,
+      static_cast<uint64_t *>(input_lut), num_radix_blocks, params,
+      allocate_gpu_memory);
+}
+
+void cuda_apply_univariate_lut_kb_64(cuda_stream_t *stream,
+                                     void *output_radix_lwe,
+                                     void *input_radix_lwe, int8_t *mem_ptr,
+                                     void *ksk, void *bsk,
+                                     uint32_t num_blocks) {
+
+  host_apply_univariate_lut_kb<uint64_t>(
+      stream, static_cast<uint64_t *>(output_radix_lwe),
+      static_cast<uint64_t *>(input_radix_lwe),
+      (int_radix_lut<uint64_t> *)mem_ptr, static_cast<uint64_t *>(ksk), bsk,
+      num_blocks);
+}
+
+void cleanup_cuda_apply_univariate_lut_kb_64(cuda_stream_t *stream,
+                                             int8_t **mem_ptr_void) {
+  int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
+  mem_ptr->release(stream);
+}

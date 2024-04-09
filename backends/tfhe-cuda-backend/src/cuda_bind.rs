@@ -687,6 +687,37 @@ extern "C" {
 
     pub fn cleanup_cuda_full_propagation(v_stream: *const c_void, mem_ptr: *mut *mut i8);
 
+    pub fn scratch_cuda_apply_univariate_lut_kb_64(
+        v_stream: *const c_void,
+        mem_ptr: *mut *mut i8,
+        input_lut: *const c_void,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_apply_univariate_lut_kb_64(
+        v_stream: *const c_void,
+        output_radix_lwe: *mut c_void,
+        input_radix_lwe: *const c_void,
+        mem_ptr: *mut i8,
+        ksk: *const c_void,
+        bsk: *const c_void,
+        num_blocks: u32,
+    );
+
+    pub fn cleanup_cuda_apply_univariate_lut_kb_64(v_stream: *const c_void, mem_ptr: *mut *mut i8);
+
     pub fn scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
         v_stream: *const c_void,
         mem_ptr: *mut *mut i8,

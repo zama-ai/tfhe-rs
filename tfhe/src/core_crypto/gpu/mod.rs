@@ -1,5 +1,6 @@
 pub mod algorithms;
 pub mod entities;
+mod slice;
 pub mod vec;
 
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -13,7 +14,7 @@ pub use entities::*;
 use std::ffi::c_void;
 use tfhe_cuda_backend::cuda_bind::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct CudaPtr {
     ptr: *mut c_void,
     device: CudaDevice,
@@ -522,17 +523,6 @@ impl CudaPtr {
     /// Returns an unsafe mutable pointer to the vector’s buffer.
     pub fn as_mut_c_ptr(&mut self) -> *mut c_void {
         self.ptr
-    }
-}
-
-impl Drop for CudaPtr {
-    /// Free memory for pointer `ptr` synchronously
-    fn drop(&mut self) {
-        // Synchronizes the device to be sure no stream is still using this pointer
-        let device = self.device;
-        device.synchronize_device();
-
-        unsafe { cuda_drop(self.as_mut_c_ptr(), device.gpu_index()) };
     }
 }
 

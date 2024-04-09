@@ -1,10 +1,11 @@
+use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::{CudaDevice, CudaPtr, CudaStream};
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{
-    cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu,
+    cuda_drop, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu,
     cuda_memcpy_async_to_gpu, cuda_memset_async,
 };
 
@@ -149,7 +150,7 @@ impl<T: Numeric> CudaVec<T> {
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
     {
-        let (start, end) = src.range_bounds_to_start_end(range).into_inner();
+        let (start, end) = range_bounds_to_start_end(src.len(), range).into_inner();
         // size is > 0 thanks to this check
         if end < start {
             return;
@@ -177,7 +178,7 @@ impl<T: Numeric> CudaVec<T> {
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
     {
-        let (start, end) = self.range_bounds_to_start_end(range).into_inner();
+        let (start, end) = range_bounds_to_start_end(self.len(), range).into_inner();
         // size is > 0 thanks to this check
         if end < start {
             return;
@@ -223,8 +224,77 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr.as_c_ptr()
     }
 
+    pub(crate) fn as_slice<R>(&self, range: R) -> Option<CudaSlice<T>>
+    where
+        R: std::ops::RangeBounds<usize>,
+        T: Numeric,
+    {
+        let (start, end) = range_bounds_to_start_end(self.len(), range).into_inner();
+
+        // Check the range is compatible with the vec
+        if end <= start || end > self.len - 1 {
+            None
+        } else {
+            // Shift ptr
+            let shifted_ptr: *mut c_void = unsafe {
+                self.ptr
+                    .clone()
+                    .as_mut_c_ptr()
+                    .cast::<u8>()
+                    .add(start * std::mem::size_of::<T>())
+                    .cast()
+            };
+            let new_cuda_ptr = CudaPtr {
+                ptr: shifted_ptr,
+                device: self.ptr.device,
+            };
+
+            // Compute the length
+            let new_len = end - start + 1;
+
+            // Create the slice
+            Some(unsafe { CudaSlice::new(new_cuda_ptr, new_len) })
+        }
+    }
+
+    pub(crate) fn as_mut_slice<R>(&mut self, range: R) -> Option<CudaSliceMut<T>>
+    where
+        R: std::ops::RangeBounds<usize>,
+        T: Numeric,
+    {
+        let (start, end) = range_bounds_to_start_end(self.len(), range).into_inner();
+
+        // Check the range is compatible with the vec
+        if end <= start || end > self.len - 1 {
+            None
+        } else {
+            // Shift ptr
+            let shifted_ptr: *mut c_void = unsafe {
+                self.ptr
+                    .as_mut_c_ptr()
+                    .cast::<u8>()
+                    .add(start * std::mem::size_of::<T>())
+                    .cast()
+            };
+            let new_cuda_ptr = CudaPtr {
+                ptr: shifted_ptr,
+                device: self.ptr.device,
+            };
+
+            // Compute the length
+            let new_len = end - start + 1;
+
+            // Create the slice
+            Some(unsafe { CudaSliceMut::new(new_cuda_ptr, new_len) })
+        }
+    }
+
     pub fn gpu_index(&self) -> u32 {
         self.device.gpu_index()
+    }
+
+    pub fn device(&self) -> CudaDevice {
+        self.device
     }
 
     /// Returns the number of elements in the vector, also referred to as its ‘length’.
@@ -235,25 +305,6 @@ impl<T: Numeric> CudaVec<T> {
     /// Returns `true` if the CudaVec contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len == 0
-    }
-
-    pub(crate) fn range_bounds_to_start_end<R>(&self, range: R) -> std::ops::RangeInclusive<usize>
-    where
-        R: std::ops::RangeBounds<usize>,
-    {
-        let start = match range.start_bound() {
-            Unbounded => 0usize,
-            Included(start) => *start,
-            Excluded(start) => *start + 1,
-        };
-
-        let end = match range.end_bound() {
-            Unbounded => self.len().saturating_sub(1),
-            Included(end) => *end,
-            Excluded(end) => end.saturating_sub(1),
-        };
-
-        start..=end
     }
 }
 
@@ -269,3 +320,32 @@ impl<T: Numeric> CudaVec<T> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T> Send for CudaVec<T> where T: Send + Numeric {}
 unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
+
+impl<T: Numeric> Drop for CudaVec<T> {
+    /// Free memory for pointer `ptr` synchronously
+    fn drop(&mut self) {
+        // Synchronizes the device to be sure no stream is still using this pointer
+        let device = self.device();
+        device.synchronize_device();
+        unsafe { cuda_drop(self.as_mut_c_ptr(), device.gpu_index()) };
+    }
+}
+
+pub(crate) fn range_bounds_to_start_end<R>(len: usize, range: R) -> std::ops::RangeInclusive<usize>
+where
+    R: std::ops::RangeBounds<usize>,
+{
+    let start = match range.start_bound() {
+        Unbounded => 0usize,
+        Included(start) => *start,
+        Excluded(start) => *start + 1,
+    };
+
+    let end = match range.end_bound() {
+        Unbounded => len.saturating_sub(1),
+        Included(end) => *end,
+        Excluded(end) => end.saturating_sub(1),
+    };
+
+    start..=end
+}
