@@ -550,8 +550,7 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_list() {
 fn test_fhe_uint_zk() {
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 
-    let mut params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+    let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
 
     let config = ConfigBuilder::with_custom_parameters(params, None).build();
     let crs = CompactPkeCrs::from_config(config, 32).unwrap();

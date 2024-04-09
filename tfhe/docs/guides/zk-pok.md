@@ -22,8 +22,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let max_num_message = 1;
 
-    let mut params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
-    params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+    let mut params =
+        tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
 
     let client_key = tfhe::ClientKey::generate(tfhe::ConfigBuilder::with_custom_parameters(params, None));
     // This is done in an offline phase and the CRS is shared to all clients and the server

@@ -94,15 +94,13 @@ impl ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use crate::integer::{ClientKey, CompactPublicKey};
-    use crate::shortint::parameters::DynamicDistribution;
-    use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let mut params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
 
         let num_blocks = 4usize;
         let modulus = (params.message_modulus.0 as u64)

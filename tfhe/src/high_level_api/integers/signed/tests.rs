@@ -805,11 +805,10 @@ fn test_safe_deserialize_conformant_compact_fhe_int32_list() {
 #[cfg(feature = "zk-pok-experimental")]
 #[test]
 fn test_fhe_int_zk() {
-    use crate::core_crypto::prelude::DynamicDistribution;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 
-    let mut params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(9);
+    let params =
+        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
 
     let config = ConfigBuilder::with_custom_parameters(params, None).build();
     let crs = CompactPkeCrs::from_config(config, 32).unwrap();
