@@ -1,16 +1,21 @@
-use crate::core_crypto::entities::LweCiphertextList;
+use crate::core_crypto::entities::{GlweCiphertext, LweCiphertextList};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::{ContiguousEntityContainerMut, LweCiphertextCount};
+use crate::core_crypto::gpu::{CudaLweList, CudaStream};
+use crate::core_crypto::prelude::{
+    ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
+};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{apply_univariate_lut_kb_async, CudaServerKey, PBSType};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::engine::fill_accumulator;
+use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::PBSOrder;
 
 mod add;
@@ -533,14 +538,158 @@ impl CudaServerKey {
         T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
     }
 
-    /// Cast a [`CudaUnsignedRadixCiphertext`] to a [`CudaUnsignedRadixCiphertext`]
-    /// with a possibly different number of blocks
+    pub(crate) fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        let (glwe_size, polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+        };
+        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
+        let max_value = fill_accumulator(
+            &mut acc,
+            polynomial_size,
+            glwe_size,
+            self.message_modulus,
+            self.carry_modulus,
+            f,
+        );
+
+        LookupTableOwned {
+            acc,
+            degree: Degree::new(max_value as usize),
+        }
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronized
+    pub(crate) fn extend_radix_with_sign_msb<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        num_blocks: usize,
+        stream: &CudaStream,
+    ) -> T {
+        let message_modulus = self.message_modulus.0 as u64;
+        let num_bits_in_block = message_modulus.ilog2();
+        let padding_block_creator_lut = self.generate_lookup_table(|x| {
+            let x = x % message_modulus;
+            let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+            // padding is a message full of 1 if sign bit is one
+            // else padding is a zero message
+            (message_modulus - 1) * x_sign_bit
+        });
+        let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let new_num_ct_blocks = num_ct_blocks + num_blocks;
+
+        assert_ne!(num_ct_blocks, 0, "Cannot sign extend an empty ciphertext");
+        let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
+
+        // Allocate the necessary amount of memory
+        let mut output_radix = CudaVec::new(new_num_ct_blocks * lwe_size, stream);
+        unsafe {
+            output_radix.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, stream);
+            // Get the last ct block
+            let last_block = ct
+                .as_ref()
+                .d_blocks
+                .0
+                .d_vec
+                .as_slice(lwe_size * (num_ct_blocks - 1)..)
+                .unwrap();
+            let mut output_slice = output_radix
+                .as_mut_slice(lwe_size * num_ct_blocks..lwe_size * new_num_ct_blocks)
+                .unwrap();
+            let (padding_block, new_blocks) = output_slice.split_at_mut(lwe_size);
+            let mut padding_block = padding_block.unwrap();
+            let mut new_blocks = new_blocks.unwrap();
+
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    apply_univariate_lut_kb_async(
+                        stream,
+                        padding_block.as_mut_c_ptr(),
+                        last_block.as_c_ptr(),
+                        padding_block_creator_lut.acc.as_ref(),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        1u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    apply_univariate_lut_kb_async(
+                        stream,
+                        padding_block.as_mut_c_ptr(),
+                        last_block.as_c_ptr(),
+                        padding_block_creator_lut.acc.as_ref(),
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        1u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                    );
+                }
+            }
+            for i in 0..num_blocks - 1 {
+                let mut output_block = new_blocks
+                    .get_mut(lwe_size * i..lwe_size * (i + 1))
+                    .unwrap();
+                output_block.copy_from_gpu_async(&padding_block, stream);
+            }
+        }
+        stream.synchronize();
+        let output_lwe_list = CudaLweCiphertextList(CudaLweList {
+            d_vec: output_radix,
+            lwe_ciphertext_count: LweCiphertextCount(new_num_ct_blocks),
+            lwe_dimension: ct.as_ref().d_blocks.0.lwe_dimension,
+            ciphertext_modulus: self.ciphertext_modulus,
+        });
+        let mut info = ct.as_ref().info.clone();
+        let last_block_info = ct.as_ref().info.blocks.last().unwrap();
+        for _ in num_ct_blocks..new_num_ct_blocks {
+            info.blocks.push(*last_block_info);
+        }
+
+        T::from(CudaRadixCiphertext::new(output_lwe_list, info))
+    }
+    /// Cast a [`CudaUnsignedRadixCiphertext`] or a [`CudaSignedRadixCiphertext`]
+    /// to a [`CudaUnsignedRadixCiphertext`] with a possibly different number of blocks
     ///
     /// # Example
     ///
     ///```rust
     /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -553,12 +702,11 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let msg = 2u8;
+    /// let msg = -2i8;
     ///
-    /// let mut d_ct1: CudaUnsignedRadixCiphertext =
-    ///     sks.create_trivial_radix(msg, num_blocks, &mut stream);
-    /// let ct1 = d_ct1.to_radix_ciphertext(&mut stream);
+    /// let mut ct1 = cks.encrypt_signed(msg);
     /// assert_eq!(ct1.blocks().len(), 4);
+    /// let d_ct1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct1, &stream);
     ///
     /// let d_ct_res = sks.cast_to_unsigned(d_ct1, 8, &mut stream);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
@@ -568,26 +716,150 @@ impl CudaServerKey {
     /// let res: u16 = cks.decrypt(&ct_res);
     /// assert_eq!(msg as u16, res);
     /// ```
-    pub fn cast_to_unsigned(
+    pub fn cast_to_unsigned<T>(
         &self,
-        mut source: CudaUnsignedRadixCiphertext,
+        mut source: T,
         target_num_blocks: usize,
         stream: &CudaStream,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         if !source.block_carries_are_empty() {
             unsafe {
                 self.full_propagate_assign_async(&mut source, stream);
             }
             stream.synchronize();
         }
-        let current_num_blocks = source.ciphertext.info.blocks.len();
-        // Casting from unsigned to unsigned, this is just about trimming/extending with zeros
-        if target_num_blocks > current_num_blocks {
-            let num_blocks_to_add = target_num_blocks - current_num_blocks;
-            self.extend_radix_with_trivial_zero_blocks_msb(&source, num_blocks_to_add, stream)
+        let current_num_blocks = source.as_ref().info.blocks.len();
+        if T::IS_SIGNED {
+            // Casting from signed to unsigned
+            // We have to trim or sign extend first
+            if target_num_blocks > current_num_blocks {
+                let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                let signed_res: T =
+                    self.extend_radix_with_sign_msb(&source, num_blocks_to_add, stream);
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    signed_res.into_inner(),
+                )
+            } else {
+                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                let signed_res = self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream);
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    signed_res.into_inner(),
+                )
+            }
         } else {
-            let num_blocks_to_remove = current_num_blocks - target_num_blocks;
-            self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream)
+            // Casting from unsigned to unsigned, this is just about trimming/extending with zeros
+            if target_num_blocks > current_num_blocks {
+                let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                let unsigned_res = self.extend_radix_with_trivial_zero_blocks_msb(
+                    &source,
+                    num_blocks_to_add,
+                    stream,
+                );
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    unsigned_res.into_inner(),
+                )
+            } else {
+                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                let unsigned_res =
+                    self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream);
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    unsigned_res.into_inner(),
+                )
+            }
+        }
+    }
+
+    /// Cast a `CudaUnsignedRadixCiphertext` or `CudaSignedRadixCiphertext` to a
+    /// `CudaSignedRadixCiphertext` with a possibly different number of blocks
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let num_blocks = 8;
+    /// let gpu_index = 0;
+    /// let device = CudaDevice::new(gpu_index);
+    /// let mut stream = CudaStream::new_unchecked(device);
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    ///
+    /// let msg = u16::MAX;
+    ///
+    /// let mut ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), num_blocks);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &stream);
+    ///
+    /// let d_ct_res = sks.cast_to_signed(d_ct1, 4, &mut stream);
+    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&mut stream);
+    /// assert_eq!(ct_res.blocks().len(), 4);
+    ///
+    /// // Decrypt
+    /// let res: i8 = cks.decrypt_signed(&ct_res);
+    /// assert_eq!(msg as i8, res);
+    /// ```
+    pub fn cast_to_signed<T>(
+        &self,
+        mut source: T,
+        target_num_blocks: usize,
+        stream: &CudaStream,
+    ) -> CudaSignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        if !source.block_carries_are_empty() {
+            unsafe {
+                self.full_propagate_assign_async(&mut source, stream);
+            }
+            stream.synchronize();
+        }
+
+        let current_num_blocks = source.as_ref().info.blocks.len();
+
+        if T::IS_SIGNED {
+            // Casting from signed to signed
+            if target_num_blocks > current_num_blocks {
+                let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                let unsigned_res: T =
+                    self.extend_radix_with_sign_msb(&source, num_blocks_to_add, stream);
+                <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    unsigned_res.into_inner(),
+                )
+            } else {
+                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                let unsigned_res =
+                    self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream);
+                <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    unsigned_res.into_inner(),
+                )
+            }
+        } else {
+            // casting from unsigned to signed
+            if target_num_blocks > current_num_blocks {
+                let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                let signed_res = self.extend_radix_with_trivial_zero_blocks_msb(
+                    &source,
+                    num_blocks_to_add,
+                    stream,
+                );
+                <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    signed_res.into_inner(),
+                )
+            } else {
+                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                let signed_res = self.trim_radix_blocks_msb(&source, num_blocks_to_remove, stream);
+                <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
+                    signed_res.into_inner(),
+                )
+            }
         }
     }
 }

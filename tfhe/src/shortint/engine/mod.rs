@@ -11,10 +11,11 @@ use crate::core_crypto::commons::generators::{
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::core_crypto::prelude::{ContainerMut, GlweSize};
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
-use crate::shortint::ServerKey;
+use crate::shortint::prelude::PolynomialSize;
+use crate::shortint::{CarryModulus, MessageModulus, ServerKey};
 use std::cell::RefCell;
 use std::fmt::Debug;
 
@@ -74,34 +75,31 @@ impl Memory {
 
 pub(crate) fn fill_accumulator<F, C>(
     accumulator: &mut GlweCiphertext<C>,
-    server_key: &ServerKey,
+    polynomial_size: PolynomialSize,
+    glwe_size: GlweSize,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
     f: F,
 ) -> u64
 where
     C: ContainerMut<Element = u64>,
     F: Fn(u64) -> u64,
 {
-    assert_eq!(
-        accumulator.polynomial_size(),
-        server_key.bootstrapping_key.polynomial_size()
-    );
-    assert_eq!(
-        accumulator.glwe_size(),
-        server_key.bootstrapping_key.glwe_size()
-    );
+    assert_eq!(accumulator.polynomial_size(), polynomial_size);
+    assert_eq!(accumulator.glwe_size(), glwe_size);
 
     let mut accumulator_view = accumulator.as_mut_view();
 
     accumulator_view.get_mut_mask().as_mut().fill(0);
 
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = server_key.message_modulus.0 * server_key.carry_modulus.0;
+    let modulus_sup = message_modulus.0 * carry_modulus.0;
 
     // N/(p/2) = size of each block
-    let box_size = server_key.bootstrapping_key.polynomial_size().0 / modulus_sup;
+    let box_size = polynomial_size.0 / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
+    let delta = (1_u64 << 63) / (message_modulus.0 * carry_modulus.0) as u64;
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();

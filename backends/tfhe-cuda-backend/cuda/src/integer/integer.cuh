@@ -771,4 +771,31 @@ __host__ void reduce_signs(cuda_stream_t *stream, Torus *signs_array_out,
                                                    signs_a, bsk, ksk, 1, lut);
   }
 }
+
+template <typename Torus>
+void scratch_cuda_apply_univariate_lut_kb(cuda_stream_t *stream,
+                                          int_radix_lut<Torus> **mem_ptr,
+                                          Torus *input_lut,
+                                          uint32_t num_radix_blocks,
+                                          int_radix_params params,
+                                          bool allocate_gpu_memory) {
+
+  *mem_ptr = new int_radix_lut<Torus>(stream, params, 1, num_radix_blocks,
+                                      allocate_gpu_memory);
+  cuda_memcpy_async_to_gpu((*mem_ptr)->lut, input_lut,
+                           (params.glwe_dimension + 1) *
+                               params.polynomial_size * sizeof(Torus),
+                           stream);
+}
+
+template <typename Torus>
+void host_apply_univariate_lut_kb(cuda_stream_t *stream, Torus *radix_lwe_out,
+                                  Torus *radix_lwe_in,
+                                  int_radix_lut<Torus> *mem, Torus *ksk,
+                                  void *bsk, uint32_t num_blocks) {
+
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
+      stream, radix_lwe_out, radix_lwe_in, bsk, ksk, num_blocks, mem);
+}
+
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
