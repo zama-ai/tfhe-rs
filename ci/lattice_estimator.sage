@@ -57,7 +57,7 @@ def check_security(filename):
             estimator_level = log(min(usvp_level["rop"], dual_level["rop"]),2 )
             security_level = f"security level = {estimator_level} bits"
             if estimator_level < 127:
-                print("FAIL\t({security_level})")
+                print(f"FAIL\t({security_level})")
                 reason = f"attained {security_level} target is 128 bits"
                 to_update.append((param, reason))
                 continue
