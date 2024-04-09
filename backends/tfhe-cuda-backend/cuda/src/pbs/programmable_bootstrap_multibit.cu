@@ -384,6 +384,9 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t ct_count) {
 #if CUDA_ARCH >= 900
   // Tesla H100
   return (ct_count > 10000) ? 30 : 64;
+#elif CUDA_ARCH >= 890
+  // Tesla RTX4090
+  return 8;
 #elif CUDA_ARCH >= 800
   // Tesla A100
   return (ct_count > 10000) ? 30 : 45;
