@@ -658,8 +658,7 @@ function generateRandomBigInt(bitLength) {
 }
 
 test('hlapi_compact_public_key_encrypt_and_prove_compact_uint256', (t) => {
-    let block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    block_params.set_lwe_noise_distribution(Shortint.try_new_t_uniform(9));
+    let block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40);
 
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)

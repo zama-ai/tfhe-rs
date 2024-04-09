@@ -388,9 +388,8 @@ function generateRandomBigInt(bitLen) {
 
 async function compactPublicKeyZeroKnowledge() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
   );
-  block_params.set_glwe_noise_distribution(Shortint.try_new_t_uniform(9));
 
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
@@ -650,9 +649,8 @@ async function compressedServerKeyBenchMessage2Carry2() {
 
 async function compactPublicKeyZeroKnowledgeBench() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
   );
-  block_params.set_lwe_noise_distribution(Shortint.try_new_t_uniform(9));
 
   let config = TfheConfigBuilder.default()
     .use_custom_parameters(block_params)
