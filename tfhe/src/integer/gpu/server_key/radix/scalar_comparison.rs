@@ -35,7 +35,6 @@ impl CudaServerKey {
                 .collect::<Vec<_>>();
 
         let ct_len = ct.as_ref().d_blocks.lwe_ciphertext_count();
-
         if T::IS_SIGNED {
             let sign_bit_pos = self.message_modulus.0.ilog2() - 1;
             let sign_bit_is_set = scalar_blocks
@@ -118,7 +117,7 @@ impl CudaServerKey {
         if scalar < Scalar::ZERO {
             // ct represents an unsigned (always >= 0)
             let value = match op {
-                ComparisonType::GT | ComparisonType::GE => 1,
+                ComparisonType::GT | ComparisonType::GE | ComparisonType::NE => 1,
                 _ => 0,
             };
             let ct_res: T = self.create_trivial_radix(value, 1, stream);
@@ -137,9 +136,10 @@ impl CudaServerKey {
         let is_scalar_obviously_bigger = scalar_blocks
             .get(ct.as_ref().d_blocks.lwe_ciphertext_count().0..)
             .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
+
         if is_scalar_obviously_bigger {
             let value = match op {
-                ComparisonType::LT | ComparisonType::LE => 1,
+                ComparisonType::LT | ComparisonType::LE | ComparisonType::NE => 1,
                 _ => 0,
             };
             let ct_res: T = self.create_trivial_radix(value, 1, stream);
