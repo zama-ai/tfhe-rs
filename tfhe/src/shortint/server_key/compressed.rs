@@ -115,6 +115,7 @@ pub struct CompressedServerKey {
     pub carry_modulus: CarryModulus,
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
+    pub max_noise_level: MaxNoiseLevel,
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
 }
@@ -146,6 +147,7 @@ impl CompressedServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         } = self;
@@ -258,7 +260,7 @@ impl CompressedServerKey {
         let message_modulus = *message_modulus;
         let carry_modulus = *carry_modulus;
         let max_degree = *max_degree;
-        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
+        let max_noise_level = *max_noise_level;
         let ciphertext_modulus = *ciphertext_modulus;
         let pbs_order = *pbs_order;
 
@@ -283,6 +285,7 @@ impl CompressedServerKey {
         MessageModulus,
         CarryModulus,
         MaxDegree,
+        MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
     ) {
@@ -292,6 +295,7 @@ impl CompressedServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         } = self;
@@ -302,6 +306,7 @@ impl CompressedServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         )
@@ -312,12 +317,14 @@ impl CompressedServerKey {
     /// # Panics
     ///
     /// Panics if the constituents are not compatible with each others.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
         bootstrapping_key: ShortintCompressedBootstrappingKey,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         max_degree: MaxDegree,
+        max_noise_level: MaxNoiseLevel,
         ciphertext_modulus: CiphertextModulus,
         pbs_order: PBSOrder,
     ) -> Self {
@@ -370,6 +377,7 @@ impl CompressedServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         }
