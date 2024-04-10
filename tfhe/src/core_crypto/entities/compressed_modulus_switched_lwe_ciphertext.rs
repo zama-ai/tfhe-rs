@@ -1,3 +1,4 @@
+use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
@@ -57,9 +58,8 @@ use crate::core_crypto::prelude::*;
 /// ```
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedInteger> {
-    packed_coeffs: Vec<Scalar>,
+    packed_integers: PackedIntegers<Scalar>,
     lwe_dimension: LweDimension,
-    log_modulus: CiphertextModulusLog,
     uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
@@ -70,10 +70,6 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
         ct: &LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,
     ) -> Self {
-        let switch_modulus = |x| modulus_switch(x, log_modulus);
-
-        let log_modulus = log_modulus.0;
-
         let uncompressed_ciphertext_modulus = ct.ciphertext_modulus();
 
         assert!(
@@ -89,77 +85,23 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
             };
 
         assert!(
-            log_modulus <= uncompressed_ciphertext_modulus_log,
-            "The log_modulus (={log_modulus}) for modulus switch compression must be smaller than the uncompressed ciphertext_modulus_log (={uncompressed_ciphertext_modulus_log})",
+            log_modulus.0 <= uncompressed_ciphertext_modulus_log,
+            "The log_modulus (={}) for modulus switch compression must be smaller than the uncompressed ciphertext_modulus_log (={})",
+            log_modulus.0,
+            uncompressed_ciphertext_modulus_log,
         );
 
-        let lwe_size = ct.lwe_size().0;
-
-        let number_bits_to_pack = lwe_size * log_modulus;
-
-        let len = number_bits_to_pack.div_ceil(Scalar::BITS);
-
-        let slice = ct.as_ref();
-        // Lowest bits are on the right
-        //
-        // Target mapping:
-        //                          log_modulus
-        //                           |-------|
-        //
-        // slice        :    |  k+2  |  k+1  |   k   |
-        // packed_coeffs:  i+1   |       i       |     i-1
-        //
-        //                       |---------------|
-        //                         Scalar::BITS
-        //
-        //                                       |---|
-        //                                    start_shift
-        //
-        //                                   |---|
-        //                                   shift1
-        //                             (1st loop iteration)
-        //
-        //                           |-----------|
-        //                               shift2
-        //                        (2nd loop iteration)
-        //
-        // packed_coeffs[i] =
-        //                    slice[k] >> start_shift
-        //                  | slice[k+1] << shift1
-        //                  | slice[k+2] << shift2
-        //
-        // In the lowest bits of packed_coeffs[i], we want the highest bits of slice[k],
-        // hence the right shift
-        // The next bits should be the bits of slice[k+1] which we must left shifted to avoid
-        // overlapping
-        // This goes on
-        let packed_coeffs = (0..len)
-            .map(|i| {
-                let k = Scalar::BITS * i / log_modulus;
-                let mut j = k;
-
-                let start_shift = i * Scalar::BITS - j * log_modulus;
-
-                let mut value = switch_modulus(slice[j]) >> start_shift;
-                j += 1;
-
-                while j * log_modulus < ((i + 1) * Scalar::BITS) && j < lwe_size {
-                    let shift = j * log_modulus - i * Scalar::BITS;
-
-                    value |= switch_modulus(slice[j]) << shift;
-
-                    j += 1;
-                }
-                value
-            })
+        let modulus_switched: Vec<_> = ct
+            .as_ref()
+            .iter()
+            .map(|a| modulus_switch(*a, log_modulus))
             .collect();
 
-        let log_modulus = CiphertextModulusLog(log_modulus);
+        let packed_integers = PackedIntegers::pack(&modulus_switched, log_modulus);
 
         Self {
-            packed_coeffs,
+            packed_integers,
             lwe_dimension: ct.lwe_size().to_lwe_dimension(),
-            log_modulus,
             uncompressed_ciphertext_modulus,
         }
     }
@@ -170,92 +112,22 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
     pub fn extract(&self) -> LweCiphertextOwned<Scalar> {
         let lwe_size = self.lwe_dimension.to_lwe_size().0;
 
-        let number_bits_to_pack = lwe_size * self.log_modulus.0;
+        let log_modulus = self.packed_integers.log_modulus.0;
 
-        let len = number_bits_to_pack.div_ceil(Scalar::BITS);
+        let number_bits_to_unpack = lwe_size * log_modulus;
+
+        let len = number_bits_to_unpack.div_ceil(Scalar::BITS);
 
         assert_eq!(
-            self.packed_coeffs.len(),
+            self.packed_integers.packed_coeffs.len(),
             len,
             "Mismatch between actual(={}) and expected(={len}) CompressedModulusSwitchedLweCiphertext packed_coeffs size",
-            self.packed_coeffs.len(),
+            self.packed_integers.packed_coeffs.len(),
         );
 
-        let log_modulus = self.log_modulus.0;
-
-        let container = (0..(self.lwe_dimension.to_lwe_size().0))
-            .map(|i| {
-                let start = i * log_modulus;
-                let end = (i + 1) * log_modulus;
-
-                let start_block = start / Scalar::BITS;
-                let start_remainder = start % Scalar::BITS;
-
-                let end_block_inclusive = (end - 1) / Scalar::BITS;
-
-                if start_block == end_block_inclusive {
-                    // Lowest bits are on the right
-                    //
-                    // Target mapping:
-                    //                                   Scalar::BITS
-                    //                                |---------------|
-                    //
-                    // packed_coeffs: | start_block+1 |  start_block  |
-                    // container    :             |  i+1  |   i   |  i-1  |
-                    //
-                    //                                    |-------|
-                    //                                   log_modulus
-                    //
-                    //                                            |---|
-                    //                                       start_remainder
-                    //
-                    // In container[i] we want the bits of packed_coeffs[start_block] starting from
-                    // index start_remainder
-                    //
-                    // container[i] = lowest_bits of single_part
-                    //
-                    // The highest bits of single_part will be discarded during scaling
-                    //
-                    // single_part =
-                    self.packed_coeffs[start_block] >> start_remainder
-                } else {
-                    // Lowest bits are on the right
-                    //
-                    // Target mapping:
-                    //                                   Scalar::BITS
-                    //                                 |---------------|
-                    //
-                    // packed_coeffs:  | start_block+1 |  start_block  |
-                    // container    :      |  i+1  |   i   |  i-1  |
-                    //
-                    //                             |-------|
-                    //                            log_modulus
-                    //
-                    //                                     |-----------|
-                    //                                    start_remainder
-                    //
-                    //                                 |---|
-                    //                     Scalar::BITS - start_remainder
-                    //
-                    // In the lowest bits of container[i] we want the highest bits of
-                    // packed_coeffs[start_block] starting from index start_remainder
-                    //
-                    // In the next bits, we want the lowest bits of packed_coeffs[start_block + 1]
-                    // left shifted to avoid overlapping
-                    //
-                    // container[i] = lowest_bits of (first_part|second_part)
-                    //
-                    // The highest bits of (first_part|second_part) will be discarded during scaling
-                    assert_eq!(end_block_inclusive, start_block + 1);
-
-                    let first_part = self.packed_coeffs[start_block] >> start_remainder;
-
-                    let second_part =
-                        self.packed_coeffs[start_block + 1] << (Scalar::BITS - start_remainder);
-
-                    first_part | second_part
-                }
-            })
+        let container = self
+            .packed_integers
+            .unpack()
             // Scaling
             .map(|a| a << (Scalar::BITS - log_modulus))
             .collect();
@@ -272,11 +144,11 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
     fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
         let lwe_size = self.lwe_dimension.to_lwe_size().0;
 
-        let number_bits_to_pack = lwe_size * self.log_modulus.0;
+        let number_bits_to_pack = lwe_size * self.packed_integers.log_modulus.0;
 
         let len = number_bits_to_pack.div_ceil(Scalar::BITS);
 
-        self.packed_coeffs.len() == len
+        self.packed_integers.packed_coeffs.len() == len
             && self.lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && self.uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
