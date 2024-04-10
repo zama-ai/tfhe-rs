@@ -1,7 +1,6 @@
-#include "tfhe.h"
+#include <tfhe.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <tfhe.h>
 
 int main(void) {
   // We want to use zk-proof, which requires bounded random distributions
