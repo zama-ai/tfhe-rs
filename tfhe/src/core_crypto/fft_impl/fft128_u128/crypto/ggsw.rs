@@ -401,8 +401,6 @@ fn collect_next_term_split_avx2(
         type Output = ();
 
         #[inline(always)]
-        // _ is used for variables beginning with a number , which is not allowed
-        #[allow(clippy::used_underscore_binding)]
         fn call(self) -> Self::Output {
             use super::super::math::fft::{wrapping_add_avx2, wrapping_sub_avx2};
 
