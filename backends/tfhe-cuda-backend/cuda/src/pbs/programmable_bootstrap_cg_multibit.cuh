@@ -240,7 +240,9 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
   }
 
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_lwe_chunk_size(input_lwe_ciphertext_count);
+    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+        stream->gpu_index, input_lwe_ciphertext_count, polynomial_size,
+        max_shared_memory);
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
@@ -336,7 +338,8 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
   cudaSetDevice(stream->gpu_index);
 
   if (!lwe_chunk_size)
-    lwe_chunk_size = get_lwe_chunk_size(num_samples);
+    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+        stream->gpu_index, num_samples, polynomial_size, max_shared_memory);
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {

@@ -378,25 +378,69 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
   x->release(stream);
 }
 
-// Returns a chunk size that is not optimal but close to
-__host__ uint32_t get_lwe_chunk_size(uint32_t ct_count) {
+/**
+ * Computes divisors of the product of num_sms (streaming multiprocessors on the
+ * GPU) and max_blocks_per_sm (maximum active blocks per SM to launch
+ * device_multi_bit_programmable_bootstrap_keybundle) smaller than its square
+ * root, based on max_num_pbs. If log2(max_num_pbs) <= 13, selects the first
+ * suitable divisor. If greater, calculates an offset as max(1,log2(max_num_pbs)
+ * - 13) for additional logic.
+ *
+ * The value 13 was empirically determined based on memory requirements for
+ * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
+ */
+template <typename Torus, class params>
+__host__ uint32_t get_lwe_chunk_size(int gpu_index, uint32_t max_num_pbs,
+                                     uint32_t polynomial_size,
+                                     uint32_t max_shared_memory) {
 
-#if CUDA_ARCH >= 900
-  // Tesla H100
-  return (ct_count > 10000) ? 30 : 64;
-#elif CUDA_ARCH >= 890
-  // Tesla RTX4090
-  return 8;
-#elif CUDA_ARCH >= 800
-  // Tesla A100
-  return (ct_count > 10000) ? 30 : 45;
-#elif CUDA_ARCH >= 700
-  // Tesla V100
-  return (ct_count > 10000) ? 4 : 18;
-#else
-  // Generic case
-  return (ct_count > 10000) ? 2 : 1;
+  uint64_t full_sm_keybundle =
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
+          polynomial_size);
+
+  int max_blocks_per_sm;
+  if (max_shared_memory < full_sm_keybundle)
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
+        polynomial_size / params::opt, full_sm_keybundle);
+  else
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
+                                                          FULLSM>,
+        polynomial_size / params::opt, 0);
+
+  int num_sms = 0;
+  check_cuda_error(cudaDeviceGetAttribute(
+      &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
+
+  int x = num_sms * max_blocks_per_sm;
+  int count = 0;
+
+  int divisor = 1;
+  int ith_divisor = 0;
+
+#if CUDA_ARCH < 900
+  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
+  // multiplication can run
+  int log2_max_num_pbs = std::log2(max_num_pbs);
+  if (log2_max_num_pbs > 13)
+    ith_divisor = log2_max_num_pbs - 11;
 #endif
+
+  for (int i = sqrt(x); i >= 1; i--) {
+    if (x % i == 0) {
+      if (count == ith_divisor) {
+        divisor = i;
+        break;
+      } else {
+        count++;
+      }
+    }
+  }
+
+  return divisor;
 }
 
 template void scratch_cuda_multi_bit_programmable_bootstrap<uint64_t, int64_t>(

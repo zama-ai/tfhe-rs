@@ -317,6 +317,9 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   for (auto x : params) {
     for (int input_lwe_ciphertext_count = 1; input_lwe_ciphertext_count <= 4096;
          input_lwe_ciphertext_count *= 2) {
+      b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
+               x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
+               x.grouping_factor, 0});
       for (int lwe_chunk_size = 1;
            lwe_chunk_size <= x.lwe_dimension / x.grouping_factor;
            lwe_chunk_size *= 2)
