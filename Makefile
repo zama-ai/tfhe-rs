@@ -271,7 +271,7 @@ clippy_js_wasm_api: install_rs_check_toolchain
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
-clippy_tasks:
+clippy_tasks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		-p tasks -- --no-deps -D warnings
 
@@ -281,19 +281,19 @@ clippy_trivium: install_rs_check_toolchain
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
-clippy_all_targets:
+clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok-experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
-clippy_concrete_csprng:
+clippy_concrete_csprng: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE) \
 		-p concrete-csprng -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
-clippy_zk_pok:
+clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
 
@@ -444,14 +444,14 @@ test_cuda_backend:
 test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
-test_core_crypto_gpu: install_rs_build_toolchain install_rs_check_toolchain
+test_core_crypto_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
-test_integer_gpu: install_rs_build_toolchain install_rs_check_toolchain
+test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
@@ -479,14 +479,14 @@ test_c_api_rs: install_rs_check_toolchain
 
 .PHONY: test_c_api_c # Run the C tests for the C API
 test_c_api_c: build_c_api
-	./scripts/c_api_tests.sh
+	./scripts/c_api_tests.sh --cargo-profile "$(CARGO_PROFILE)"
 
 .PHONY: test_c_api # Run all the tests for the C API
 test_c_api: test_c_api_rs test_c_api_c
 
 .PHONY: test_c_api_gpu # Run the C tests for the C API
 test_c_api_gpu: build_c_api_gpu
-	./scripts/c_api_tests.sh --gpu
+	./scripts/c_api_tests.sh --gpu --cargo-profile "$(CARGO_PROFILE)"
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
@@ -638,12 +638,12 @@ test_kreyvium: install_rs_build_toolchain
 		-p tfhe-trivium -- --test-threads=1 kreyvium::
 
 .PHONY: test_concrete_csprng # Run concrete-csprng tests
-test_concrete_csprng:
+test_concrete_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
 
 .PHONY: test_zk_pok # Run tfhe-zk-pok-experimental tests
-test_zk_pok:
+test_zk_pok: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok
 
@@ -683,14 +683,14 @@ check_md_docs_are_tested:
 	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
 
 .PHONY: check_compile_tests # Build tests in debug without running them
-check_compile_tests:
+check_compile_tests: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
 		-p $(TFHE_SPEC)
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
-		./scripts/c_api_tests.sh --build-only; \
+		./scripts/c_api_tests.sh --build-only --cargo-profile "$(CARGO_PROFILE)"; \
 	fi
 
 .PHONY: check_compile_tests_benches_gpu # Build tests in debug without running them
@@ -813,8 +813,6 @@ bench_oprf: install_rs_check_toolchain
 	--bench oprf-integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
-
-
 .PHONY: bench_shortint_multi_bit # Run benchmarks for shortint using multi-bit parameters
 bench_shortint_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \
@@ -822,7 +820,6 @@ bench_shortint_multi_bit: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-bench \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
-
 
 .PHONY: bench_boolean # Run benchmarks for boolean
 bench_boolean: install_rs_check_toolchain
@@ -867,6 +864,7 @@ ci_bench_web_js_api_parallel: build_web_js_api_parallel
 #
 # Utility tools
 #
+
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
