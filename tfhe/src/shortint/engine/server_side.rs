@@ -263,6 +263,7 @@ impl ShortintEngine {
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
+            max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         }

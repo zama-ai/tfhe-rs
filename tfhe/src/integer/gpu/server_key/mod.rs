@@ -8,7 +8,7 @@ use crate::core_crypto::prelude::{
     LweMultiBitBootstrapKeyOwned,
 };
 use crate::integer::ClientKey;
-use crate::shortint::ciphertext::MaxDegree;
+use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 
@@ -33,6 +33,7 @@ pub struct CudaServerKey {
     pub carry_modulus: CarryModulus,
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
+    pub max_noise_level: MaxNoiseLevel,
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
@@ -147,6 +148,7 @@ impl CudaServerKey {
             message_modulus: cks.parameters().message_modulus(),
             carry_modulus: cks.parameters().carry_modulus(),
             max_degree,
+            max_noise_level: cks.parameters().max_noise_level(),
             ciphertext_modulus: cks.parameters().ciphertext_modulus(),
             pbs_order: cks.parameters().encryption_key_choice().into(),
         }
@@ -195,6 +197,7 @@ impl CudaServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         } = cpu_key.key.clone();
@@ -239,6 +242,7 @@ impl CudaServerKey {
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         }
