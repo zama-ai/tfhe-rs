@@ -8,11 +8,13 @@ function usage() {
     echo "--help                    Print this message"
     echo "--build-only              Pass to only build the tests without running them"
     echo "--gpu                     Enable GPU support"
+    echo "--cargo-profile           The profile used to build TFHE-rs, release by default"
     echo
 }
 
 BUILD_ONLY=0
 WITH_FEATURE_GPU="OFF"
+CARGO_PROFILE="release"
 while [ -n "$1" ]
 do
     case "$1" in
@@ -28,6 +30,12 @@ do
         "--gpu" )
             WITH_FEATURE_GPU="ON"
             ;;
+
+        "--cargo-profile" )
+            shift
+            CARGO_PROFILE="$1"
+            ;;
+
         *)
             echo "Unknown param : $1"
             exit 1
