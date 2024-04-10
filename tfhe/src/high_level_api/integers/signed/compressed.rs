@@ -64,6 +64,16 @@ where
     pub fn from_raw_parts(ciphertext: CompressedSignedRadixCiphertext, id: Id) -> Self {
         Self { ciphertext, id }
     }
+
+    pub fn from_integer_compressed_signed_radix_ciphertext(
+        ciphertext: IntegerCompressedSignedRadixCiphertext,
+        id: Id,
+    ) -> Self {
+        Self {
+            ciphertext: CompressedSignedRadixCiphertext::Seeded(ciphertext),
+            id,
+        }
+    }
 }
 
 impl<Id> CompressedFheInt<Id>
