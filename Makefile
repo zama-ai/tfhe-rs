@@ -376,7 +376,7 @@ build_c_api_gpu: install_rs_check_toolchain
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok-experimental,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
