@@ -9,7 +9,6 @@ pub struct ClassicBootstrapKeys<Scalar: UnsignedInteger> {
     pub small_lwe_sk: LweSecretKey<Vec<Scalar>>,
     pub big_lwe_sk: LweSecretKey<Vec<Scalar>>,
     pub bsk: LweBootstrapKeyOwned<Scalar>,
-
     pub fbsk: FourierLweBootstrapKeyOwned,
 }
 
