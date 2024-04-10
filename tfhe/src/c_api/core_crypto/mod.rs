@@ -170,10 +170,10 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
         let seed = (seed_high_bytes << 64) | seed_low_bytes;
 
         let seed = Seed(seed);
-        let mut determinisitic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
         let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-            determinisitic_seeder.seed(),
-            &mut determinisitic_seeder,
+            deterministic_seeder.seed(),
+            &mut deterministic_seeder,
         );
 
         let plaintext = Plaintext(pt);
@@ -219,10 +219,10 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
         let seed = (seed_high_bytes << 64) | seed_low_bytes;
 
         let seed = Seed(seed);
-        let mut determinisitic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let mut deterministic_seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
         let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-            determinisitic_seeder.seed(),
-            &mut determinisitic_seeder,
+            deterministic_seeder.seed(),
+            &mut deterministic_seeder,
         );
 
         let plaintext = Plaintext(pt);
