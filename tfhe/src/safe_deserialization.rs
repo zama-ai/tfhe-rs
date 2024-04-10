@@ -13,7 +13,7 @@ use serde::Serialize;
 // release.
 // When this happens, it also gives a clear version mismatch error rather than a generic
 // deserialization error or worse, a garbage object.
-const SERIALIZATION_VERSION: &str = "0.2";
+const SERIALIZATION_VERSION: &str = "0.3";
 
 // `VERSION_LENGTH_LIMIT` is the maximum `SERIALIZATION_VERSION` size which `safe_deserialization`
 // is going to try to read (it returns an error if it's too big).
