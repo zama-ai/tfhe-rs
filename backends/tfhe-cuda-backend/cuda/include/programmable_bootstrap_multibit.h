@@ -232,10 +232,9 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   }
 };
 
-#ifdef __CUDACC__
-
-__host__ uint32_t get_lwe_chunk_size(uint32_t ct_count);
-
-#endif
+template <typename Torus, class params>
+__host__ uint32_t get_lwe_chunk_size(int gpu_index, uint32_t max_num_pbs,
+                                     uint32_t polynomial_size,
+                                     uint32_t max_shared_memory);
 
 #endif // CUDA_MULTI_BIT_H
