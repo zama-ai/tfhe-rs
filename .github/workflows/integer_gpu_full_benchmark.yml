@@ -2,31 +2,9 @@
 name: Integer GPU full benchmarks
 
 on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-    inputs:
-      instance_id:
-        description: "Instance ID"
-        type: string
-      instance_image_id:
-        description: "Instance AMI ID"
-        type: string
-      instance_type:
-        description: "Instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: "Slab request ID"
-        type: string
-      # This input is not used in this workflow but still mandatory since a calling workflow could
-      # use it. If a triggering command include a user_inputs field, then the triggered workflow
-      # must include this very input, otherwise the workflow won't be called.
-      # See start_full_benchmarks.yml as example.
-      user_inputs:
-        description: "Type of benchmarks to run"
-        type: string
-        default: "weekly_benchmarks"
+  pull_request:
 
 env:
   CARGO_TERM_COLOR: always
@@ -36,11 +14,28 @@ env:
   RUST_MIN_STACK: "8388608"
 
 jobs:
-  integer-benchmarks:
-    name: Execute integer benchmarks for all operations flavor
-    runs-on: ${{ github.event.inputs.runner_name }}
+  setup-ec2:
+    name: Setup EC2 instance (cuda-full-benchmarks)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: hyperstack
+          profile: gpu-bench
+
+  cuda-integer-full-benchmarks:
+    name: CUDA integer full benchmarks
+    needs: setup-ec2
+    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
-    if: ${{ !cancelled() }}
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -52,16 +47,22 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
-            gcc: 9
+            gcc: 11
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+      CMAKE_VERSION: 3.29.1
+
     steps:
-      - name: Instance configuration used
+      - name: Install dependencies
         run: |
-          echo "IDs: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
 
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
@@ -121,7 +122,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware ${{ inputs.instance_type }} \
+          --hardware "n2-H100x1" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
@@ -151,19 +152,39 @@ jobs:
           -d @${{ env.RESULTS_FILENAME }} \
           ${{ secrets.SLAB_URL }}
 
-  slack-notification:
-    name: Slack Notification
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !success() && !cancelled() }}
-    needs: integer-benchmarks
+  # FIXME This action needs docker to be installed on the machine beforehand.
+  #      - name: Slack Notification
+  #        if: ${{ !success() && !cancelled() }}
+  #        continue-on-error: true
+  #        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+  #        env:
+  #          SLACK_COLOR: ${{ job.status }}
+  #          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  #          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  #          SLACK_MESSAGE: "Integer GPU full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+  #          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  #          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-ec2:
+    name: Teardown EC2 instance (cuda-full-benchmarks)
+    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
+    needs: [ setup-ec2, cuda-integer-full-benchmarks ]
+    runs-on: ubuntu-latest
     steps:
-      - name: Notify
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-ec2.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "Integer GPU full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_MESSAGE: "EC2 teardown (cuda-full-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
