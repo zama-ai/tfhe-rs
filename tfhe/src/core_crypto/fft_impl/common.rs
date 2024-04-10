@@ -1,4 +1,3 @@
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
@@ -8,14 +7,14 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
-pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
+pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
     input: Scalar,
     polynomial_size: PolynomialSize,
 ) -> usize {
     modulus_switch(input, CiphertextModulusLog(polynomial_size.log2().0 + 1)).cast_into()
 }
 
-pub fn modulus_switch<Scalar: UnsignedTorus>(
+pub fn modulus_switch<Scalar: UnsignedInteger>(
     input: Scalar,
     log_modulus: CiphertextModulusLog,
 ) -> Scalar {
