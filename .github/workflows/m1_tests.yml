@@ -86,6 +86,13 @@ jobs:
         run: |
           make test_boolean
 
+      # Because we do "illegal" things with the build system which Cargo does not seem to like much
+      # we need to clear the cache to make sure the C API is built properly and does not use a stale
+      # cached version
+      - name: Clear build cache
+        run: |
+          cargo clean
+
       - name: Run C API tests
         run: |
           make test_c_api
