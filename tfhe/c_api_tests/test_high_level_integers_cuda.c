@@ -1,5 +1,5 @@
 #if defined(WITH_FEATURE_GPU)
-#include <tfhe.h>
+#include "tfhe.h"
 
 #include <assert.h>
 #include <inttypes.h>

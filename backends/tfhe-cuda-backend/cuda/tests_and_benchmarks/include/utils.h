@@ -1,9 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "tfhe.h"
 #include <device.h>
 #include <functional>
-#include <tfhe.h>
 
 typedef struct Seed {
   uint64_t lo;
