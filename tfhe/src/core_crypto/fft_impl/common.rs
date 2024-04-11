@@ -11,7 +11,7 @@ pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
     input: Scalar,
     polynomial_size: PolynomialSize,
 ) -> usize {
-    modulus_switch(input, CiphertextModulusLog(polynomial_size.log2().0 + 1)).cast_into()
+    modulus_switch(input, polynomial_size.to_blind_rotation_input_modulus_log()).cast_into()
 }
 
 pub fn modulus_switch<Scalar: UnsignedInteger>(

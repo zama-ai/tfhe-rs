@@ -44,7 +44,7 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send>(
             // Can be stored using much less space than the standard lwe ciphertexts
             let compressed = CompressedModulusSwitchedLweCiphertext::compress(
                 &lwe,
-                CiphertextModulusLog(params.polynomial_size.log2().0 + 1),
+                params.polynomial_size.to_blind_rotation_input_modulus_log(),
             );
 
             let lwe_ms_ed = compressed.extract();
