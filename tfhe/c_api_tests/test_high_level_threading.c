@@ -24,7 +24,7 @@
  *      - NUM_CPU: number of CPU threads (tfhe internally automatically creates them)
  */
 
-#include <tfhe.h>
+#include "tfhe.h"
 
 #include <assert.h>
 #include <pthread.h>

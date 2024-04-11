@@ -1,8 +1,8 @@
 // If this test break the c_api doc needs to be updated
 
+#include "tfhe.h"
 #include <assert.h>
 #include <stdio.h>
-#include <tfhe.h>
 
 int main(void) {
   int ok = 0;
