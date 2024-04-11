@@ -194,7 +194,7 @@ jobs:
     name: Remove 4090 bench label
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs: [cuda-integer-benchmarks, cuda-core-crypto-benchmarks]
-    runs-on: ["self-hosted", "4090-desktop"]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
