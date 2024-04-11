@@ -121,6 +121,13 @@ impl PolynomialSize {
         );
         FourierPolynomialSize(self.0 / 2)
     }
+
+    /// Inputs of a blind rotation are monomials which degree may be up to 2 * N because of the
+    /// negacyclicity
+    /// Converts a polynomial size into the log modulus of the inputs of a blind rotation
+    pub fn to_blind_rotation_input_modulus_log(&self) -> CiphertextModulusLog {
+        CiphertextModulusLog(self.log2().0 + 1)
+    }
 }
 
 /// The number of elements in the container of a fourier polynomial.

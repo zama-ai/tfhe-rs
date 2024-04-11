@@ -1,6 +1,6 @@
 use super::ShortintBootstrappingKey;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, CiphertextModulusLog, LweCiphertext};
+use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweCiphertext};
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, NoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
@@ -31,7 +31,9 @@ impl ServerKey {
 
                     CompressedModulusSwitchedLweCiphertext::compress(
                         &ciphertext_buffers.buffer_lwe_after_ks,
-                        CiphertextModulusLog(self.bootstrapping_key.polynomial_size().log2().0 + 1),
+                        self.bootstrapping_key
+                            .polynomial_size()
+                            .to_blind_rotation_input_modulus_log(),
                     )
                 });
 
@@ -39,7 +41,9 @@ impl ServerKey {
             }
             PBSOrder::BootstrapKeyswitch => CompressedModulusSwitchedLweCiphertext::compress(
                 &ct.ct,
-                CiphertextModulusLog(self.bootstrapping_key.polynomial_size().log2().0 + 1),
+                self.bootstrapping_key
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log(),
             ),
         };
 
