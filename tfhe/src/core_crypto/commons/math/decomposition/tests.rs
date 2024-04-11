@@ -6,9 +6,11 @@ use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{Numeric, SignedInteger, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use crate::core_crypto::commons::test_tools::{any_uint, any_usize, random_usize_between};
+use crate::core_crypto::commons::test_tools::any_uint;
 use crate::core_crypto::commons::traits::CastInto;
 use std::fmt::Debug;
+
+pub const NB_TESTS: usize = 10_000_000;
 
 fn valid_decomposers<T: UnsignedInteger>() -> Vec<SignedDecomposer<T>> {
     let mut valid_decomposers = vec![];
@@ -16,12 +18,11 @@ fn valid_decomposers<T: UnsignedInteger>() -> Vec<SignedDecomposer<T>> {
         for level_count in (1..T::BITS).map(DecompositionLevelCount) {
             if base_log.0 * level_count.0 < T::BITS {
                 valid_decomposers.push(SignedDecomposer::new(base_log, level_count));
-                continue;
+            } else {
+                // If the current base_log * level_count exceeds T::BITS then as level_count
+                // increases all the decomposers after it won't be valid, so break
+                break;
             }
-
-            // If the current base_log * level_count exceeds T::BITS then as level_count increases
-            // all the decomposers after it won't be valid, so break
-            break;
         }
     }
 
@@ -33,7 +34,7 @@ where
     <T as UnsignedInteger>::Signed: Debug + SignedInteger,
 {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
+    let runs_per_decomposer = NB_TESTS.div_ceil(valid_decomposers.len());
 
     for decomposer in valid_decomposers {
         for _ in 0..runs_per_decomposer {
@@ -76,7 +77,7 @@ fn test_decompose_recompose_u64() {
 
 fn test_round_to_closest_representable<T: UnsignedTorus>() {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
+    let runs_per_decomposer = NB_TESTS.div_ceil(valid_decomposers.len());
 
     // Checks that the decomposing and recomposing a value brings the closest representable
     for decomposer in valid_decomposers {
@@ -112,7 +113,7 @@ fn test_round_to_closest_representable_u64() {
 
 fn test_round_to_closest_twice<T: UnsignedTorus + Debug>() {
     let valid_decomposers = valid_decomposers::<T>();
-    let runs_per_decomposer = 100_000.div_ceil(valid_decomposers.len());
+    let runs_per_decomposer = NB_TESTS.div_ceil(valid_decomposers.len());
 
     for decomposer in valid_decomposers {
         for _ in 0..runs_per_decomposer {
@@ -136,170 +137,66 @@ fn test_round_to_closest_twice_u64() {
     test_round_to_closest_twice::<u64>();
 }
 
-// Return a random decomposition valid for the size of the T type.
-fn random_decomp_non_native<T: UnsignedInteger>(
+fn valid_non_native_decomposers<T: UnsignedInteger>(
     ciphertext_modulus: CiphertextModulus<T>,
-) -> SignedDecomposerNonNative<T> {
-    let mut base_log;
-    let mut level_count;
-    loop {
-        base_log = random_usize_between(1..T::BITS);
-        level_count = random_usize_between(1..T::BITS);
-        if base_log * level_count < T::BITS {
-            break;
+) -> Vec<SignedDecomposerNonNative<T>> {
+    let ciphertext_modulus_bit_count: usize = ciphertext_modulus
+        .get_custom_modulus()
+        .ceil_ilog2()
+        .try_into()
+        .unwrap();
+    let mut valid_decomposers = vec![];
+
+    for base_log in (1..ciphertext_modulus_bit_count).map(DecompositionBaseLog) {
+        for level_count in (1..ciphertext_modulus_bit_count).map(DecompositionLevelCount) {
+            if base_log.0 * level_count.0 < ciphertext_modulus_bit_count {
+                valid_decomposers.push(SignedDecomposerNonNative::new(
+                    base_log,
+                    level_count,
+                    ciphertext_modulus,
+                ));
+            } else {
+                // If the current base_log * level_count exceeds ciphertext_modulus_bit_count then
+                // as level_count increases all the decomposers after it won't be
+                // valid, so break
+                break;
+            }
         }
     }
-    SignedDecomposerNonNative::new(
-        DecompositionBaseLog(base_log),
-        DecompositionLevelCount(level_count),
-        ciphertext_modulus,
-    )
+
+    valid_decomposers
 }
 
-fn test_round_to_closest_representable_non_native<T: UnsignedTorus>(
-    ciphertext_modulus: CiphertextModulus<T>,
-) {
-    // Manage limit cases
-    {
-        let log_b = any_usize();
-        let level_max = any_usize();
-        let bits = T::BITS;
-        let log_b = (log_b % ((bits / 4) - 1)) + 1;
-        let level_count = (level_max % 4) + 1;
-        let rep_bits: usize = log_b * level_count;
+fn test_decompose_recompose_non_native<T: UnsignedTorus>(ciphertext_modulus: CiphertextModulus<T>) {
+    let ciphertext_modulus_as_t: T = ciphertext_modulus.get_custom_modulus().cast_into();
 
-        let base_to_the_level_u128 = 1u128 << rep_bits;
-        let smallest_representable_u128 =
-            ciphertext_modulus.get_custom_modulus() / base_to_the_level_u128;
-        let sub_smallest_representable_u128 = smallest_representable_u128 / 2;
-        // Compute an epsilon that should not change the result of a closest representable
-        let epsilon_u128 = any_uint::<u128>() % sub_smallest_representable_u128;
+    let valid_decomposers = valid_non_native_decomposers::<T>(ciphertext_modulus);
+    let runs_per_decomposer = NB_TESTS.div_ceil(valid_decomposers.len());
 
-        // Around 0
-        let val = T::ZERO;
+    for decomposer in valid_decomposers {
+        for _ in 0..runs_per_decomposer {
+            let input = any_uint::<T>() % ciphertext_modulus_as_t;
 
-        let decomposer = SignedDecomposerNonNative::new(
-            DecompositionBaseLog(log_b),
-            DecompositionLevelCount(level_count),
-            ciphertext_modulus,
-        );
+            let dec = decomposer.decompose(input);
+            let rec = decomposer.recompose(dec).unwrap();
 
-        let val_u128: u128 = val.cast_into();
-        let val_plus_epsilon: T = val_u128
-            .wrapping_add(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
+            println!("input={input:?}");
+            println!("rec={rec:?}");
+            println!("closest={:?}", decomposer.closest_representable(input));
 
-        let closest = decomposer.closest_representable(val_plus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_plus_epsilon:          {val_plus_epsilon:064b}, \n \
-        expected_closest:           {val:064b}, \n \
-        closest:                    {closest:064b}\n \
-        decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
-
-        let val_minus_epsilon: T = val_u128
-            .wrapping_add(ciphertext_modulus.get_custom_modulus())
-            .wrapping_sub(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
-
-        let closest = decomposer.closest_representable(val_minus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_minus_epsilon:          {val_minus_epsilon:064b}, \n \
-        expected_closest:           {val:064b}, \n \
-        closest:                    {closest:064b}\n \
-        decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
-    }
-
-    for _ in 0..1000 {
-        let log_b = any_usize();
-        let level_max = any_usize();
-        let bits = T::BITS;
-        let log_b = (log_b % ((bits / 4) - 1)) + 1;
-        let level_count = (level_max % 4) + 1;
-        let rep_bits: usize = log_b * level_count;
-
-        let base_to_the_level_u128 = 1u128 << rep_bits;
-        let base_to_the_level = T::ONE << rep_bits;
-        let smallest_representable_u128 =
-            ciphertext_modulus.get_custom_modulus() / base_to_the_level_u128;
-        let smallest_representable: T = smallest_representable_u128.cast_into();
-        let sub_smallest_representable_u128 = smallest_representable_u128 / 2;
-        // Compute an epsilon that should not change the result of a closest representable
-        let epsilon_u128 = any_uint::<u128>() % sub_smallest_representable_u128;
-
-        let multiple_of_smallest_representable = any_uint::<T>() % base_to_the_level;
-        let val = multiple_of_smallest_representable * smallest_representable;
-
-        let decomposer = SignedDecomposerNonNative::new(
-            DecompositionBaseLog(log_b),
-            DecompositionLevelCount(level_count),
-            ciphertext_modulus,
-        );
-
-        let val_u128: u128 = val.cast_into();
-        let val_plus_epsilon: T = val_u128
-            .wrapping_add(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
-
-        let closest = decomposer.closest_representable(val_plus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_plus_epsilon:          {val_plus_epsilon:064b}, \n \
-            expected_closest:           {val:064b}, \n \
-            closest:                    {closest:064b}\n \
-            decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
-
-        let val_minus_epsilon: T = val_u128
-            .wrapping_add(ciphertext_modulus.get_custom_modulus())
-            .wrapping_sub(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
-
-        let closest = decomposer.closest_representable(val_minus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_minus_epsilon:          {val_minus_epsilon:064b}, \n \
-            expected_closest:           {val:064b}, \n \
-            closest:                    {closest:064b}\n \
-            decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
+            assert_eq!(decomposer.closest_representable(input), rec);
+        }
     }
 }
 
 #[test]
-fn test_round_to_closest_representable_non_native_u64() {
-    test_round_to_closest_representable_non_native::<u64>(
+fn test_decompose_recompose_non_native_solinas_u64() {
+    test_decompose_recompose_non_native::<u64>(
         CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     );
-}
-
-fn test_round_to_closest_twice_non_native<T: UnsignedTorus + Debug>(
-    ciphertext_modulus: CiphertextModulus<T>,
-) {
-    for _ in 0..1000 {
-        let decomp = random_decomp_non_native(ciphertext_modulus);
-        let input: T = any_uint();
-
-        let rounded_once = decomp.closest_representable(input);
-        let rounded_twice = decomp.closest_representable(rounded_once);
-        assert_eq!(rounded_once, rounded_twice);
-    }
 }
 
 #[test]
-fn test_round_to_closest_twice_non_native_u64() {
-    test_round_to_closest_twice_non_native::<u64>(
-        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
-    );
+fn test_decompose_recompose_non_native_edge_mod_round_up_u64() {
+    test_decompose_recompose_non_native::<u64>(CiphertextModulus::try_new((1 << 48) + 1).unwrap());
 }

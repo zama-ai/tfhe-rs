@@ -117,7 +117,12 @@ where
     }
 }
 
-fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b_mask: S) -> S {
+#[inline]
+pub(crate) fn decompose_one_level<S: UnsignedInteger>(
+    base_log: usize,
+    state: &mut S,
+    mod_b_mask: S,
+) -> S {
     let res = *state & mod_b_mask;
     *state >>= base_log;
     let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
@@ -133,7 +138,7 @@ fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b
 /// This iterator yields the decomposition in reverse order. That means that the highest level
 /// will be yielded first.
 #[derive(Clone, Debug)]
-pub struct SignedDecompositionIterNonNative<T>
+pub struct SignedDecompositionNonNativeIter<T>
 where
     T: UnsignedInteger,
 {
@@ -152,32 +157,39 @@ where
     ciphertext_modulus: CiphertextModulus<T>,
     // A flag which store whether the iterator is a fresh one (for the recompose method)
     fresh: bool,
+    // The sign of the input value, for the algorithm we use, returned values require an adaptation
+    // depending of the sign of the input
+    input_sign: ValueSign,
 }
 
-impl<T> SignedDecompositionIterNonNative<T>
+#[derive(Debug, Clone, Copy)]
+pub enum ValueSign {
+    Positive,
+    Negative,
+}
+
+impl<T> SignedDecompositionNonNativeIter<T>
 where
     T: UnsignedInteger,
 {
     pub(crate) fn new(
         input: T,
+        input_sign: ValueSign,
         base_log: DecompositionBaseLog,
         level: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<T>,
     ) -> Self {
-        let base_to_the_level = 1 << (base_log.0 * level.0);
-        let smallest_representable = ciphertext_modulus.get_custom_modulus() / base_to_the_level;
-
-        let input_128: u128 = input.cast_into();
-        let state = T::cast_from(input_128 / smallest_representable);
-
         Self {
             base_log: base_log.0,
             level_count: level.0,
-            state,
+            state: input
+                >> (ciphertext_modulus.get_custom_modulus().ceil_ilog2() as usize
+                    - base_log.0 * level.0),
             current_level: level.0,
             mod_b_mask: (T::ONE << base_log.0) - T::ONE,
             ciphertext_modulus,
             fresh: true,
+            input_sign,
         }
     }
 
@@ -234,7 +246,7 @@ where
     }
 }
 
-impl<T> Iterator for SignedDecompositionIterNonNative<T>
+impl<T> Iterator for SignedDecompositionNonNativeIter<T>
 where
     T: UnsignedInteger,
 {
@@ -248,12 +260,11 @@ where
             return None;
         }
         // We decompose the current level
-        let output = decompose_one_level_non_native(
-            self.base_log,
-            &mut self.state,
-            self.mod_b_mask,
-            T::cast_from(self.ciphertext_modulus.get_custom_modulus()),
-        );
+        let output = decompose_one_level(self.base_log, &mut self.state, self.mod_b_mask);
+        let output = match self.input_sign {
+            ValueSign::Positive => output,
+            ValueSign::Negative => output.wrapping_neg(),
+        };
         self.current_level -= 1;
         // We return the output for this level
         Some(DecompositionTermNonNative::new(
@@ -263,20 +274,4 @@ where
             self.ciphertext_modulus,
         ))
     }
-}
-
-fn decompose_one_level_non_native<S: UnsignedInteger>(
-    base_log: usize,
-    state: &mut S,
-    mod_b_mask: S,
-    ciphertext_modulus: S,
-) -> S {
-    let res = *state & mod_b_mask;
-    *state >>= base_log;
-    let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
-    carry >>= base_log - 1;
-    *state += carry;
-    res.wrapping_add(ciphertext_modulus)
-        .wrapping_sub(carry << base_log)
-        .wrapping_rem(ciphertext_modulus)
 }
