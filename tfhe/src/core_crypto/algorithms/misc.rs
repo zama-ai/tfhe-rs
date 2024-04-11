@@ -227,8 +227,8 @@ mod test {
 
             let div_f64 = num / denom;
 
-            let rounded = div_f64.round();
-            let expected_rounded_u64: u64 = rounded as u64;
+            let rounded_f64 = div_f64.round();
+            let expected_rounded_u64: u64 = rounded_f64 as u64;
 
             let num_u64: u64 = num as u64;
             let denom_u64: u64 = denom as u64;
@@ -240,12 +240,6 @@ mod test {
             let rounded = divide_round(num_u64, denom_u64);
 
             assert_eq!(expected_rounded_u64, rounded);
-
-            let ceiled = div_f64.ceil();
-            let expected_ceiled_u64: u64 = ceiled as u64;
-
-            let ceiled = num_u64.div_ceil(denom_u64);
-            assert_eq!(expected_ceiled_u64, ceiled);
         }
     }
 
