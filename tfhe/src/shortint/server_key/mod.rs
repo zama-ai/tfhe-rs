@@ -513,14 +513,6 @@ impl ServerKey {
             "Maximum valid MaxDegree is {max_max_degree:?}, got ({max_degree:?})"
         );
 
-        let expected_max_noise_level =
-            MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
-
-        assert_eq!(
-            max_noise_level, expected_max_noise_level,
-            "Expected MaxNoiseLevel {expected_max_noise_level:?}, got ({max_noise_level:?})"
-        );
-
         Self {
             key_switching_key,
             bootstrapping_key,

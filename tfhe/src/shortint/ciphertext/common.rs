@@ -31,18 +31,6 @@ impl MaxNoiseLevel {
         self.0
     }
 
-    // This function is valid for current parameters as they guarantee the p-error for a norm2 noise
-    // limit equal to the norm2 limit which guarantees a clean padding bit
-    //
-    // TODO: remove this functions once noise norm2 constraint is decorrelated and stored in
-    // parameter sets
-    pub(crate) const fn from_msg_carry_modulus(
-        msg_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) -> Self {
-        Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
-    }
-
     pub const fn validate(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
         if noise_level.0 > self.0 {
             return Err(CheckError::NoiseTooBig {
@@ -273,14 +261,6 @@ mod tests {
         let random_positive_multiplier = rng.gen_range(1usize..=usize::MAX);
         let mul = max_noise_level * random_positive_multiplier;
         assert_eq!(mul, NoiseLevel::MAX);
-    }
-
-    #[test]
-    fn test_max_noise_level_from_msg_carry_modulus() {
-        let max_noise_level =
-            MaxNoiseLevel::from_msg_carry_modulus(MessageModulus(4), CarryModulus(4));
-
-        assert_eq!(max_noise_level.0, 5);
     }
 
     #[test]
