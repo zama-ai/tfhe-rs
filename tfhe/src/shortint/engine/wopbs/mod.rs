@@ -1,7 +1,7 @@
 //! # WARNING: this module is experimental.
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
+use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
@@ -134,11 +134,6 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        let max_noise_level_wopbs = MaxNoiseLevel::from_msg_carry_modulus(
-            parameters.message_modulus,
-            parameters.carry_modulus,
-        );
-
         let wopbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
             bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
@@ -148,15 +143,10 @@ impl ShortintEngine {
                 parameters.message_modulus,
                 parameters.carry_modulus,
             ),
-            max_noise_level: max_noise_level_wopbs,
+            max_noise_level: parameters.max_noise_level,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
         };
-
-        let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
-            cks.parameters.message_modulus(),
-            cks.parameters.carry_modulus(),
-        );
 
         let pbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_pbs_small,
@@ -167,7 +157,7 @@ impl ShortintEngine {
                 cks.parameters.message_modulus(),
                 cks.parameters.carry_modulus(),
             ),
-            max_noise_level: max_noise_level_pbs,
+            max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         };

@@ -2,6 +2,7 @@
 
 pub use super::parameters_wopbs_message_carry::*;
 pub use super::parameters_wopbs_only::*;
+use super::MaxNoiseLevel;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -32,6 +33,7 @@ pub struct WopbsParameters {
     pub cbs_base_log: DecompositionBaseLog,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
 }

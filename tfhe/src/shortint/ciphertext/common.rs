@@ -36,7 +36,7 @@ impl MaxNoiseLevel {
     //
     // TODO: remove this functions once noise norm2 constraint is decorrelated and stored in
     // parameter sets
-    pub const fn from_msg_carry_modulus(
+    pub(crate) const fn from_msg_carry_modulus(
         msg_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
