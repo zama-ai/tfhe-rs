@@ -51,7 +51,8 @@ where
         self.value << shift
     }
 
-    /// Return the value of the term.
+    /// Return the value of the term. For the native modulus it is also the modular value of the
+    /// term.
     ///
     /// If our member represents one $\tilde{\theta}\_i$, this returns its actual value.
     ///
@@ -90,8 +91,9 @@ where
 
 /// A member of the decomposition.
 ///
-/// If we decompose a value $\theta$ as a sum $\sum\_{i=1}^l\tilde{\theta}\_i\frac{q}{B^i}$, this
-/// represents a $\tilde{\theta}\_i$.
+/// If we decompose a value $\theta$ as a sum
+/// $\sum\_{i=1}^l\tilde{\theta}\_i\frac{v}{B^i}$, where $\lambda = \lceil{\log_2{q}}\rceil$ and
+/// $ v = 2^{\lambda} $. this represents a $\tilde{\theta}\_i$.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DecompositionTermNonNative<T>
 where
@@ -107,7 +109,12 @@ impl<T> DecompositionTermNonNative<T>
 where
     T: UnsignedInteger,
 {
-    // Creates a new decomposition term.
+    /// Creates a new decomposition term.
+    ///
+    /// The value is the actual (non modular) value of the decomposition term.
+    ///
+    /// To get the actual modular value for the given `ciphertext_modulus` use
+    /// [`Self::modular_value`].
     pub(crate) fn new(
         level: DecompositionLevel,
         base_log: DecompositionBaseLog,
@@ -125,7 +132,8 @@ where
     /// Turn this term into a summand.
     ///
     /// If our member represents one $\tilde{\theta}\_i$ of the decomposition, this method returns
-    /// $\tilde{\theta}\_i\frac{q}{B^i}$.
+    /// $\tilde{\theta}\_i\frac{v}{B^i}$ where $\lambda = \lceil{\log_2{q}}\rceil$ and
+    /// $ v = 2^{\lambda} $.
     ///
     /// # Example
     ///
@@ -137,20 +145,22 @@ where
     /// let decomposer = SignedDecomposerNonNative::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
-    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
-    /// assert_eq!(output.to_recomposition_summand(), 1048576);
+    /// let output = decomposer.decompose(2u64.pow(52)).next().unwrap();
+    /// assert_eq!(output.to_approximate_recomposition_summand(), 2u64.pow(52));
     /// ```
-    pub fn to_recomposition_summand(&self) -> T {
-        // Floored approach
-        // * floor(q / B^j)
-        let base_to_the_level = 1 << (self.base_log * self.level);
-        let digit_radix = self.ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+    pub fn to_approximate_recomposition_summand(&self) -> T {
+        let modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
+        let ciphertext_modulus_bit_count: usize = modulus_as_t.ceil_ilog2().try_into().unwrap();
+        let shift: usize = ciphertext_modulus_bit_count - self.base_log * self.level;
 
-        let value_u128: u128 = self.value.cast_into();
-        let summand_u128 = value_u128 * digit_radix;
-        T::cast_from(summand_u128)
+        let value = self.value;
+        if value.into_signed() >= T::Signed::ZERO {
+            value << shift
+        } else {
+            modulus_as_t.wrapping_add(value << shift)
+        }
     }
 
     /// Return the value of the term.
@@ -167,13 +177,25 @@ where
     /// let decomposer = SignedDecomposerNonNative::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
-    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
+    /// let output = decomposer.decompose(2u64.pow(52)).next().unwrap();
     /// assert_eq!(output.value(), 1);
     /// ```
     pub fn value(&self) -> T {
         self.value
+    }
+
+    /// Return the value of the term modulo the modulus given when building the
+    /// [`DecompositionTermNonNative`].
+    pub fn modular_value(&self) -> T {
+        let value = self.value;
+        if value.into_signed() >= T::Signed::ZERO {
+            value
+        } else {
+            let modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
+            modulus_as_t.wrapping_add(value)
+        }
     }
 
     /// Return the level of the term.
@@ -192,9 +214,9 @@ where
     /// let decomposer = SignedDecomposerNonNative::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
-    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
+    /// let output = decomposer.decompose(2u64.pow(52)).next().unwrap();
     /// assert_eq!(output.level(), DecompositionLevel(3));
     /// ```
     pub fn level(&self) -> DecompositionLevel {

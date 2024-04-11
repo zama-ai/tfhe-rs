@@ -1,3 +1,4 @@
+use crate::core_crypto::commons::math::decomposition::decompose_one_level;
 pub use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
@@ -73,14 +74,4 @@ impl<'buffers, Scalar: UnsignedInteger> TensorSignedDecompositionLendingIter<'bu
                 .map(move |state| decompose_one_level(base_log, state, mod_b_mask)),
         ))
     }
-}
-
-#[inline]
-fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b_mask: S) -> S {
-    let res = *state & mod_b_mask;
-    *state >>= base_log;
-    let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
-    carry >>= base_log - 1;
-    *state += carry;
-    res.wrapping_sub(carry << base_log)
 }
