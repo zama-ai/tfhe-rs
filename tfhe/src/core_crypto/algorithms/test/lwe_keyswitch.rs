@@ -10,6 +10,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -60,7 +61,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 plaintext,
-                lwe_noise_distribution,
+                glwe_noise_distribution,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );
@@ -106,7 +107,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_ks_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_ks_decrypt_custom_mod);
 
 #[test]
 fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
