@@ -473,7 +473,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory);
+      max_shared_memory, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>

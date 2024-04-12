@@ -138,10 +138,8 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   pbs_buffer(cuda_stream_t *stream, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
-             bool allocate_gpu_memory) {
+             uint32_t max_shared_memory, bool allocate_gpu_memory) {
     this->pbs_variant = pbs_variant;
-
-    auto max_shared_memory = cuda_get_max_shared_memory(stream->gpu_index);
 
     if (allocate_gpu_memory) {
       switch (pbs_variant) {

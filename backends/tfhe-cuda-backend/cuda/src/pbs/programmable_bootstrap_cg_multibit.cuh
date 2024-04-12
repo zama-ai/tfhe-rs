@@ -241,10 +241,11 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
 
   if (!lwe_chunk_size)
     lwe_chunk_size = get_lwe_chunk_size(input_lwe_ciphertext_count);
+
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
-      allocate_gpu_memory);
+      max_shared_memory, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
