@@ -71,7 +71,7 @@ fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
 }
 
 fn main() {
-	let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+	let config = ConfigBuilder::default().build();
 	let (client_key, server_key) = generate_keys(config);
 
 	let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -143,7 +143,7 @@ use tfhe::prelude::*;
 use tfhe_trivium::TriviumStreamShortint;
 
 fn test_shortint() {
-	let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+	let config = ConfigBuilder::default().build();
 	let (hl_client_key, hl_server_key) = generate_keys(config);
 	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 	let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));

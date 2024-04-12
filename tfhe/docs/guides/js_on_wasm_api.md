@@ -35,8 +35,7 @@ function fhe_uint32_example() {
     init_panic_hook();
 
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
     let clientKey = TfheClientKey.generate(config);
