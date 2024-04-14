@@ -64,7 +64,7 @@ jobs:
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@dc6353516c68da0f06325f42ad880f76a5e77ec9
+        uses: dtolnay/rust-toolchain@7164405e8653277d57afd42ba081b5aa02a70396
         with:
           toolchain: stable
 
