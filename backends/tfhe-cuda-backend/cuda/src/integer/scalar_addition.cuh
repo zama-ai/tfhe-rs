@@ -27,10 +27,11 @@ __global__ void device_integer_radix_scalar_addition_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_addition_inplace(
-    cuda_stream_t *stream, Torus *lwe_array, Torus *scalar_input,
-    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus) {
-  cudaSetDevice(stream->gpu_index);
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus) {
+  cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -44,8 +45,7 @@ __host__ void host_integer_radix_scalar_addition_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_scalar_addition_inplace<<<grid, thds, 0,
-                                                 stream->stream>>>(
+  device_integer_radix_scalar_addition_inplace<<<grid, thds, 0, streams[0]>>>(
       lwe_array, scalar_input, input_lwe_ciphertext_count, lwe_dimension,
       delta);
   check_cuda_error(cudaGetLastError());
@@ -65,10 +65,11 @@ __global__ void device_integer_radix_add_scalar_one_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_add_scalar_one_inplace(
-    cuda_stream_t *stream, Torus *lwe_array, uint32_t lwe_dimension,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *lwe_array, uint32_t lwe_dimension,
     uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
     uint32_t carry_modulus) {
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -82,8 +83,7 @@ __host__ void host_integer_radix_add_scalar_one_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_add_scalar_one_inplace<<<grid, thds, 0,
-                                                stream->stream>>>(
+  device_integer_radix_add_scalar_one_inplace<<<grid, thds, 0, streams[0]>>>(
       lwe_array, input_lwe_ciphertext_count, lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
 }
@@ -104,10 +104,11 @@ __global__ void device_integer_radix_scalar_subtraction_inplace(
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_subtraction_inplace(
-    cuda_stream_t *stream, Torus *lwe_array, Torus *scalar_input,
-    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus) {
-  cudaSetDevice(stream->gpu_index);
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *lwe_array, Torus *scalar_input, uint32_t lwe_dimension,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus) {
+  cudaSetDevice(gpu_indexes[0]);
 
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
@@ -122,7 +123,7 @@ __host__ void host_integer_radix_scalar_subtraction_inplace(
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
   device_integer_radix_scalar_subtraction_inplace<<<grid, thds, 0,
-                                                    stream->stream>>>(
+                                                    streams[0]>>>(
       lwe_array, scalar_input, input_lwe_ciphertext_count, lwe_dimension,
       delta);
   check_cuda_error(cudaGetLastError());

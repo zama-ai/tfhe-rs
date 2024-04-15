@@ -1,6 +1,8 @@
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{unchecked_mul_integer_radix_kb_assign_async, PBSType};
 
 impl CudaServerKey {
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
@@ -12,7 +14,7 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -20,8 +22,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 2;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
@@ -52,7 +53,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_mul_assign(&mut result, ct_right, stream);
@@ -67,13 +68,14 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_mul_integer_radix_classic_kb_assign_async(
+                unchecked_mul_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -88,10 +90,13 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     self.key_switching_key.decomposition_level_count(),
                     num_blocks,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_mul_integer_radix_multibit_kb_assign_async(
+                unchecked_mul_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -105,8 +110,9 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count(),
                     self.key_switching_key.decomposition_base_log(),
                     self.key_switching_key.decomposition_level_count(),
-                    d_multibit_bsk.grouping_factor,
                     num_blocks,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         };
@@ -118,7 +124,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.unchecked_mul_assign_async(ct_left, ct_right, stream);
@@ -135,7 +141,7 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -143,8 +149,7 @@ impl CudaServerKey {
     /// let number_of_blocks = 2;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
@@ -175,7 +180,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.mul_assign(&mut result, ct_right, stream);
@@ -190,7 +195,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -225,7 +230,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.mul_assign_async(ct_left, ct_right, stream);

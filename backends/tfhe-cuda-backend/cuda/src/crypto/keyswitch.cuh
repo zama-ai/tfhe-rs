@@ -98,12 +98,12 @@ keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lwe_array_in,
 /// assume lwe_array_in in the gpu
 template <typename Torus>
 __host__ void cuda_keyswitch_lwe_ciphertext_vector(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *ksk,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples) {
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
+    Torus *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   constexpr int ideal_threads = 128;
 
   int lwe_size = lwe_dimension_out + 1;
@@ -124,13 +124,14 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
 
   int shared_mem = sizeof(Torus) * lwe_size;
 
-  cuda_memset_async(lwe_array_out, 0, sizeof(Torus) * lwe_size_after, stream);
+  cuda_memset_async(lwe_array_out, 0, sizeof(Torus) * lwe_size_after, stream,
+                    gpu_index);
   check_cuda_error(cudaGetLastError());
 
   dim3 grid(num_samples, 1, 1);
   dim3 threads(ideal_threads, 1, 1);
 
-  keyswitch<Torus><<<grid, threads, shared_mem, stream->stream>>>(
+  keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count, lwe_lower,
       lwe_upper, cutoff);

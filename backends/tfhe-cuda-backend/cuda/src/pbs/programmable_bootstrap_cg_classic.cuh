@@ -246,11 +246,13 @@ __global__ void device_programmable_bootstrap_cg(
 
 template <typename Torus, typename STorus, typename params>
 __host__ void scratch_programmable_bootstrap_cg(
-    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    cudaStream_t stream, uint32_t gpu_index,
+    pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-  cudaSetDevice(stream->gpu_index);
+
+  cudaSetDevice(gpu_index);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
@@ -276,7 +278,7 @@ __host__ void scratch_programmable_bootstrap_cg(
   }
 
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
-      stream, glwe_dimension, polynomial_size, level_count,
+      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, PBS_VARIANT::CG, allocate_gpu_memory);
 }
 
@@ -285,14 +287,14 @@ __host__ void scratch_programmable_bootstrap_cg(
  */
 template <typename Torus, class params>
 __host__ void host_programmable_bootstrap_cg(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, double2 *bootstrapping_key,
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
+    Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_luts, uint32_t max_shared_memory) {
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -332,18 +334,18 @@ __host__ void host_programmable_bootstrap_cg(
     kernel_args[13] = &full_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, grid,
-        thds, (void **)kernel_args, 0, stream->stream));
+        thds, (void **)kernel_args, 0, stream));
   } else if (max_shared_memory < full_sm) {
     kernel_args[13] = &partial_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
-        grid, thds, (void **)kernel_args, partial_sm, stream->stream));
+        grid, thds, (void **)kernel_args, partial_sm, stream));
   } else {
     int no_dm = 0;
     kernel_args[13] = &no_dm;
     check_cuda_error(cudaLaunchCooperativeKernel(
         (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, grid,
-        thds, (void **)kernel_args, full_sm, stream->stream));
+        thds, (void **)kernel_args, full_sm, stream));
   }
 
   check_cuda_error(cudaGetLastError());

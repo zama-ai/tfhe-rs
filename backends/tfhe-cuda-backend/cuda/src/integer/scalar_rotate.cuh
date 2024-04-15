@@ -13,22 +13,25 @@
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_scalar_rotate_kb(
-    cuda_stream_t *stream, int_logical_scalar_shift_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
+    cudaStream_t stream, uint32_t gpu_index,
+    int_logical_scalar_shift_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, SHIFT_OR_ROTATE_TYPE shift_type,
+    bool allocate_gpu_memory) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
-      stream, shift_type, params, num_radix_blocks, allocate_gpu_memory);
+      stream, gpu_index, shift_type, params, num_radix_blocks,
+      allocate_gpu_memory);
 }
 
 template <typename Torus>
 __host__ void host_integer_radix_scalar_rotate_kb_inplace(
-    cuda_stream_t *stream, Torus *lwe_array, uint32_t n,
-    int_logical_scalar_shift_buffer<Torus> *mem, void *bsk, Torus *ksk,
-    uint32_t num_blocks) {
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *lwe_array, uint32_t n, int_logical_scalar_shift_buffer<Torus> *mem,
+    void *bsk, Torus *ksk, uint32_t num_blocks) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_indexes[0]);
+
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -57,11 +60,12 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   // block_count blocks will be used in the grid
   // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
-    radix_blocks_rotate_right<<<num_blocks, 256, 0, stream->stream>>>(
+    radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
         rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
-                                 num_blocks * big_lwe_size_bytes, stream);
+                                 num_blocks * big_lwe_size_bytes, streams[0],
+                                 gpu_indexes[0]);
 
     if (shift_within_block == 0) {
       return;
@@ -69,20 +73,21 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    radix_blocks_rotate_right<<<num_blocks, 256, 0, stream->stream>>>(
+    radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
         giver_blocks, lwe_array, 1, num_blocks, big_lwe_size);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        stream, lwe_array, receiver_blocks, giver_blocks, bsk, ksk, num_blocks,
-        lut_bivariate);
+        streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
+        giver_blocks, bsk, ksk, num_blocks, lut_bivariate);
 
   } else {
     // left shift
-    radix_blocks_rotate_left<<<num_blocks, 256, 0, stream->stream>>>(
+    radix_blocks_rotate_left<<<num_blocks, 256, 0, streams[0]>>>(
         rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
-                                 num_blocks * big_lwe_size_bytes, stream);
+                                 num_blocks * big_lwe_size_bytes, streams[0],
+                                 gpu_indexes[0]);
 
     if (shift_within_block == 0) {
       return;
@@ -90,12 +95,12 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    radix_blocks_rotate_left<<<num_blocks, 256, 0, stream->stream>>>(
+    radix_blocks_rotate_left<<<num_blocks, 256, 0, streams[0]>>>(
         giver_blocks, lwe_array, 1, num_blocks, big_lwe_size);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        stream, lwe_array, receiver_blocks, giver_blocks, bsk, ksk, num_blocks,
-        lut_bivariate);
+        streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
+        giver_blocks, bsk, ksk, num_blocks, lut_bivariate);
   }
 }
 

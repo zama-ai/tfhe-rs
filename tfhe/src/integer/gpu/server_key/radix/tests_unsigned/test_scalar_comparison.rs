@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::{CudaDevice, CudaStream};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parametrized_test, GpuFunctionExecutor,
@@ -92,9 +92,7 @@ where
     let p = param.into();
     let num_block = (128f64 / (p.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
+    let stream = CudaStreams::new_multi_gpu();
 
     let (cks, sks) = gen_keys_gpu(p, &stream);
 

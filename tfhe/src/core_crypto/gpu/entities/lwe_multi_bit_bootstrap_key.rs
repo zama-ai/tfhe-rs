@@ -1,5 +1,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::{
+    convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams,
+};
 use crate::core_crypto::prelude::{
     lwe_multi_bit_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
@@ -28,7 +30,7 @@ pub struct CudaLweMultiBitBootstrapKey {
 impl CudaLweMultiBitBootstrapKey {
     pub fn from_lwe_multi_bit_bootstrap_key<InputBskCont: Container>(
         bsk: &LweMultiBitBootstrapKey<InputBskCont>,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> Self
     where
         InputBskCont::Element: UnsignedInteger,
@@ -51,12 +53,13 @@ impl CudaLweMultiBitBootstrapKey {
                     grouping_factor,
                 )
                 .unwrap(),
-                stream,
+                streams,
             )
         };
         // Copy to the GPU
         unsafe {
-            stream.convert_lwe_multi_bit_programmable_bootstrap_key_async(
+            convert_lwe_multi_bit_programmable_bootstrap_key_async(
+                streams,
                 &mut d_vec,
                 bsk.as_ref(),
                 input_lwe_dimension,
@@ -66,7 +69,7 @@ impl CudaLweMultiBitBootstrapKey {
                 grouping_factor,
             );
         }
-        stream.synchronize();
+        streams.synchronize();
         Self {
             d_vec,
             input_lwe_dimension,

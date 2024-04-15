@@ -176,7 +176,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::vec::CudaVec;
-    use tfhe::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaDevice, CudaStream};
+    use tfhe::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaStreams};
     use tfhe::core_crypto::prelude::*;
 
     fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
@@ -194,8 +194,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let streams = CudaStreams::new_single_gpu(gpu_index);
 
         for (name, params) in benchmark_parameters::<Scalar>().iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
@@ -227,7 +226,7 @@ mod cuda {
                 &mut encryption_generator,
             );
             let ksk_big_to_small_gpu =
-                CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &stream);
+                CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &streams);
 
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
@@ -236,23 +235,24 @@ mod cuda {
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
-            let mut ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &stream);
+            let mut ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &streams);
 
             let output_ct = LweCiphertext::new(
                 Scalar::ZERO,
                 lwe_sk.lwe_dimension().to_lwe_size(),
                 CiphertextModulus::new_native(),
             );
-            let mut output_ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &stream);
+            let mut output_ct_gpu =
+                CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &streams);
 
             let h_indexes = &[Scalar::ZERO];
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams);
             }
-            stream.synchronize();
+            streams.synchronize();
 
             let id = format!("{bench_name}::{name}");
             {
@@ -264,7 +264,7 @@ mod cuda {
                             &mut output_ct_gpu,
                             &d_input_indexes,
                             &d_output_indexes,
-                            &stream,
+                            &streams,
                         );
                         black_box(&mut ct_gpu);
                     })

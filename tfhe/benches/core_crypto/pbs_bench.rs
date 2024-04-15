@@ -580,7 +580,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::vec::CudaVec;
     use tfhe::core_crypto::gpu::{
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
-        cuda_programmable_bootstrap_lwe_ciphertext, CudaDevice, CudaStream,
+        cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
     use tfhe::keycache::NamedParam;
@@ -646,8 +646,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_single_gpu(gpu_index);
 
         for (name, params) in cuda_benchmark_parameters::<Scalar>().iter() {
             // Create the LweSecretKey
@@ -770,8 +769,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_single_gpu(gpu_index);
 
         for (name, params, grouping_factor) in multi_bit_benchmark_parameters::<Scalar>().iter() {
             // Create the LweSecretKey
@@ -895,8 +893,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_single_gpu(gpu_index);
 
         for (name, params) in throughput_benchmark_parameters::<Scalar>().iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1037,8 +1034,7 @@ mod cuda {
             SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
         let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_single_gpu(gpu_index);
 
         for (name, params, grouping_factor) in multi_bit_benchmark_parameters::<Scalar>().iter() {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(

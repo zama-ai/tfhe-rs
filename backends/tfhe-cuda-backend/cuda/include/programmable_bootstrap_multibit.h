@@ -11,59 +11,59 @@ bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t num_samples, uint32_t max_shared_memory);
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
-    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size,
-    uint32_t grouping_factor);
+    void *stream, uint32_t gpu_index, void *dest, void *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size, uint32_t grouping_factor);
 
 void scratch_cuda_multi_bit_programmable_bootstrap_64(
-    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
-    uint32_t max_shared_memory, bool allocate_gpu_memory,
-    uint32_t chunk_size = 0);
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t grouping_factor,
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
+    bool allocate_gpu_memory, uint32_t chunk_size = 0);
 
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-    cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
-    void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
-    void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void *lwe_output_indexes, void *lut_vector, void *lut_vector_indexes,
+    void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
+    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
 
 void scratch_cuda_generic_multi_bit_programmable_bootstrap_64(
-    cuda_stream_t *stream, int8_t **pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
-    uint32_t max_shared_memory, bool allocate_gpu_memory,
-    uint32_t lwe_chunk_size = 0);
-
-void cuda_generic_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-    cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
-    void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
-    void *lwe_input_indexes, void *bootstrapping_key, int8_t *pbs_buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
-
-void cleanup_cuda_multi_bit_programmable_bootstrap(cuda_stream_t *stream,
-                                                   int8_t **pbs_buffer);
-}
-
-template <typename Torus, typename STorus>
-void scratch_cuda_cg_multi_bit_programmable_bootstrap(
-    cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t grouping_factor,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0);
 
+void cuda_generic_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void *lwe_output_indexes, void *lut_vector, void *lut_vector_indexes,
+    void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
+    int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
+
+void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
+                                                   uint32_t gpu_index,
+                                                   int8_t **pbs_buffer);
+}
+
+template <typename Torus, typename STorus>
+void scratch_cuda_cg_multi_bit_programmable_bootstrap(
+    void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
+    bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0);
+
 template <typename Torus>
 void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
+    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -72,7 +72,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 
 template <typename Torus, typename STorus>
 void scratch_cuda_multi_bit_programmable_bootstrap(
-    cuda_stream_t *stream, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
+    void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t grouping_factor,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
@@ -80,9 +80,9 @@ void scratch_cuda_multi_bit_programmable_bootstrap(
 
 template <typename Torus>
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
+    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
@@ -126,12 +126,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
   PBS_VARIANT pbs_variant;
 
-  pbs_buffer(cuda_stream_t *stream, uint32_t glwe_dimension,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory) {
     this->pbs_variant = pbs_variant;
-    auto max_shared_memory = cuda_get_max_shared_memory(stream->gpu_index);
+    auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
     uint64_t full_sm_keybundle =
         get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
@@ -166,31 +166,34 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       // Keybundle
       if (max_shared_memory < full_sm_keybundle)
         d_mem_keybundle = (int8_t *)cuda_malloc_async(
-            num_blocks_keybundle * full_sm_keybundle, stream);
+            num_blocks_keybundle * full_sm_keybundle, stream, gpu_index);
 
       switch (pbs_variant) {
       case DEFAULT:
         // Accumulator step one
         if (max_shared_memory < partial_sm_accumulate_step_one)
           d_mem_acc_step_one = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_step_one * full_sm_accumulate_step_one, stream);
+              num_blocks_acc_step_one * full_sm_accumulate_step_one, stream,
+              gpu_index);
         else if (max_shared_memory < full_sm_accumulate_step_one)
           d_mem_acc_step_one = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream);
+              num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream,
+              gpu_index);
 
         // Accumulator step two
         if (max_shared_memory < full_sm_accumulate_step_two)
           d_mem_acc_step_two = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_step_two * full_sm_accumulate_step_two, stream);
+              num_blocks_acc_step_two * full_sm_accumulate_step_two, stream,
+              gpu_index);
         break;
       case CG:
         // Accumulator CG
         if (max_shared_memory < partial_sm_cg_accumulate)
           d_mem_acc_cg = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_cg * full_sm_cg_accumulate, stream);
+              num_blocks_acc_cg * full_sm_cg_accumulate, stream, gpu_index);
         else if (max_shared_memory < full_sm_cg_accumulate)
           d_mem_acc_cg = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_cg * partial_sm_cg_accumulate, stream);
+              num_blocks_acc_cg * partial_sm_cg_accumulate, stream, gpu_index);
         break;
       default:
         PANIC("Cuda error (PBS): unsupported implementation variant.")
@@ -198,37 +201,38 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
       keybundle_fft = (double2 *)cuda_malloc_async(
           num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2),
-          stream);
+          stream, gpu_index);
       global_accumulator = (Torus *)cuda_malloc_async(
-          num_blocks_acc_step_two * polynomial_size * sizeof(Torus), stream);
+          num_blocks_acc_step_two * polynomial_size * sizeof(Torus), stream,
+          gpu_index);
       global_accumulator_fft = (double2 *)cuda_malloc_async(
           num_blocks_acc_step_one * (polynomial_size / 2) * sizeof(double2),
-          stream);
+          stream, gpu_index);
     }
   }
 
-  void release(cuda_stream_t *stream) {
+  void release(cudaStream_t stream, uint32_t gpu_index) {
 
     if (d_mem_keybundle)
-      cuda_drop_async(d_mem_keybundle, stream);
+      cuda_drop_async(d_mem_keybundle, stream, gpu_index);
     switch (pbs_variant) {
     case DEFAULT:
       if (d_mem_acc_step_one)
-        cuda_drop_async(d_mem_acc_step_one, stream);
+        cuda_drop_async(d_mem_acc_step_one, stream, gpu_index);
       if (d_mem_acc_step_two)
-        cuda_drop_async(d_mem_acc_step_two, stream);
+        cuda_drop_async(d_mem_acc_step_two, stream, gpu_index);
       break;
     case CG:
       if (d_mem_acc_cg)
-        cuda_drop_async(d_mem_acc_cg, stream);
+        cuda_drop_async(d_mem_acc_cg, stream, gpu_index);
       break;
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
 
-    cuda_drop_async(keybundle_fft, stream);
-    cuda_drop_async(global_accumulator, stream);
-    cuda_drop_async(global_accumulator_fft, stream);
+    cuda_drop_async(keybundle_fft, stream, gpu_index);
+    cuda_drop_async(global_accumulator, stream, gpu_index);
+    cuda_drop_async(global_accumulator_fft, stream, gpu_index);
   }
 };
 

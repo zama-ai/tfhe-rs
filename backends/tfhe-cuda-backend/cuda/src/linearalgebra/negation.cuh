@@ -22,11 +22,11 @@ __global__ void negation(T *output, T *input, uint32_t num_entries) {
 }
 
 template <typename T>
-__host__ void host_negation(cuda_stream_t *stream, T *output, T *input,
-                            uint32_t input_lwe_dimension,
+__host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
+                            T *input, uint32_t input_lwe_dimension,
                             uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -37,7 +37,7 @@ __host__ void host_negation(cuda_stream_t *stream, T *output, T *input,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  negation<<<grid, thds, 0, stream->stream>>>(output, input, num_entries);
+  negation<<<grid, thds, 0, stream>>>(output, input, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 

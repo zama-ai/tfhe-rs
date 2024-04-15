@@ -3,9 +3,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaDevice, CudaStream,
-};
+use crate::core_crypto::gpu::{cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaStreams};
 use itertools::Itertools;
 
 #[allow(clippy::too_many_arguments)]
@@ -30,8 +28,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     let grouping_factor = params.grouping_factor;
 
     let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
+    let stream = CudaStreams::new_single_gpu(gpu_index);
 
     let mut rsc = TestResources::new();
 

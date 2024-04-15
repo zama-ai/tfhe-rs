@@ -6,9 +6,10 @@
 #include <cuda_runtime.h>
 #endif
 
-#include "../utils/kernel_dimensions.cuh"
 #include "device.h"
+#include "helper.h"
 #include "linear_algebra.h"
+#include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
 
 template <typename T>
@@ -27,21 +28,22 @@ __global__ void plaintext_addition(T *output, T *lwe_input, T *plaintext_input,
 }
 
 template <typename T>
-__host__ void host_addition_plaintext(cuda_stream_t *stream, T *output,
-                                      T *lwe_input, T *plaintext_input,
-                                      uint32_t lwe_dimension,
-                                      uint32_t lwe_ciphertext_count) {
+__host__ void
+host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
+                        T *lwe_input, T *plaintext_input,
+                        uint32_t lwe_dimension, uint32_t lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = lwe_ciphertext_count;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cuda_memcpy_async_gpu_to_gpu(
-      output, lwe_input, (lwe_dimension + 1) * lwe_ciphertext_count, stream);
-  plaintext_addition<<<grid, thds, 0, stream->stream>>>(
+  cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
+                               (lwe_dimension + 1) * lwe_ciphertext_count,
+                               stream, gpu_index);
+  plaintext_addition<<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -60,11 +62,12 @@ __global__ void addition(T *output, T *input_1, T *input_2,
 
 // Coefficient-wise addition
 template <typename T>
-__host__ void host_addition(cuda_stream_t *stream, T *output, T *input_1,
-                            T *input_2, uint32_t input_lwe_dimension,
+__host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
+                            T *input_1, T *input_2,
+                            uint32_t input_lwe_dimension,
                             uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -75,8 +78,7 @@ __host__ void host_addition(cuda_stream_t *stream, T *output, T *input_1,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  addition<<<grid, thds, 0, stream->stream>>>(output, input_1, input_2,
-                                              num_entries);
+  addition<<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -94,11 +96,12 @@ __global__ void subtraction(T *output, T *input_1, T *input_2,
 
 // Coefficient-wise subtraction
 template <typename T>
-__host__ void host_subtraction(cuda_stream_t *stream, T *output, T *input_1,
-                               T *input_2, uint32_t input_lwe_dimension,
+__host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
+                               T *output, T *input_1, T *input_2,
+                               uint32_t input_lwe_dimension,
                                uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -109,8 +112,7 @@ __host__ void host_subtraction(cuda_stream_t *stream, T *output, T *input_1,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  subtraction<<<grid, thds, 0, stream->stream>>>(output, input_1, input_2,
-                                                 num_entries);
+  subtraction<<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -130,12 +132,13 @@ __global__ void radix_body_subtraction_inplace(T *lwe_ct, T *plaintext_input,
 }
 
 template <typename T>
-__host__ void host_subtraction_plaintext(cuda_stream_t *stream, T *output,
+__host__ void host_subtraction_plaintext(cudaStream_t stream,
+                                         uint32_t gpu_index, T *output,
                                          T *lwe_input, T *plaintext_input,
                                          uint32_t input_lwe_dimension,
                                          uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = input_lwe_ciphertext_count;
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -145,9 +148,9 @@ __host__ void host_subtraction_plaintext(cuda_stream_t *stream, T *output,
   cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
                                input_lwe_ciphertext_count *
                                    (input_lwe_dimension + 1) * sizeof(T),
-                               stream);
+                               stream, gpu_index);
 
-  radix_body_subtraction_inplace<<<grid, thds, 0, stream->stream>>>(
+  radix_body_subtraction_inplace<<<grid, thds, 0, stream>>>(
       output, plaintext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -175,11 +178,11 @@ __global__ void unchecked_sub_with_correcting_term(
 template <typename T>
 
 __host__ void host_unchecked_sub_with_correcting_term(
-    cuda_stream_t *stream, T *output, T *input_1, T *input_2,
+    cudaStream_t stream, uint32_t gpu_index, T *output, T *input_1, T *input_2,
     uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, uint32_t degree) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -190,7 +193,7 @@ __host__ void host_unchecked_sub_with_correcting_term(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  unchecked_sub_with_correcting_term<<<grid, thds, 0, stream->stream>>>(
+  unchecked_sub_with_correcting_term<<<grid, thds, 0, stream>>>(
       output, input_1, input_2, num_entries, lwe_size, message_modulus,
       carry_modulus, degree);
   check_cuda_error(cudaGetLastError());

@@ -19,8 +19,8 @@ class FourierTransformTestPrimitives_u64
 protected:
   size_t polynomial_size;
   int samples;
-  cuda_stream_t *stream;
-  int gpu_index = 0;
+  cudaStream_t stream;
+  uint32_t gpu_index = 0;
 
   double *poly1;
   double *poly2; // will be used as extracted result for cuda mult
@@ -38,8 +38,8 @@ public:
     polynomial_size = (int)GetParam().polynomial_size;
     samples = (int)GetParam().samples;
 
-    fft_setup(stream, &poly1, &poly2, &h_cpoly1, &h_cpoly2, &d_cpoly1,
-              &d_cpoly2, polynomial_size, samples);
+    fft_setup(stream, gpu_index, &poly1, &poly2, &h_cpoly1, &h_cpoly2,
+              &d_cpoly1, &d_cpoly2, polynomial_size, samples);
 
     // allocate memory
     poly_exp_result =
@@ -67,7 +67,8 @@ public:
   }
 
   void TearDown() {
-    fft_teardown(stream, poly1, poly2, h_cpoly1, h_cpoly2, d_cpoly1, d_cpoly2);
+    fft_teardown(stream, gpu_index, poly1, poly2, h_cpoly1, h_cpoly2, d_cpoly1,
+                 d_cpoly2);
     free(poly_exp_result);
   }
 };
@@ -81,13 +82,13 @@ TEST_P(FourierTransformTestPrimitives_u64, cuda_fft_mult) {
   auto cur_poly2 = &poly2[r * polynomial_size * samples];
   auto cur_expected = &poly_exp_result[r * polynomial_size * 2 * samples];
 
-  cuda_fourier_polynomial_mul(cur_input1, cur_input2, cur_input2, stream,
-                              polynomial_size, samples);
+  cuda_fourier_polynomial_mul(stream, gpu_index, cur_input1, cur_input2,
+                              cur_input2, polynomial_size, samples);
 
   cuda_memcpy_async_to_cpu(cur_h_c_res, cur_input2,
                            polynomial_size / 2 * samples * sizeof(double2),
-                           stream);
-  cuda_synchronize_stream(stream);
+                           stream, gpu_index);
+  cuda_synchronize_stream(stream, gpu_index);
 
   for (int p = 0; p < samples; p++) {
     for (size_t i = 0; i < (size_t)polynomial_size / 2; i++) {

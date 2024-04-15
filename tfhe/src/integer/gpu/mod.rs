@@ -2,7 +2,7 @@ pub mod ciphertext;
 pub mod server_key;
 
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::{get_max_shared_memory, CudaStreams};
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, Numeric, PolynomialSize, UnsignedInteger,
@@ -53,7 +53,7 @@ pub enum ComparisonType {
     MIN = 7,
 }
 
-pub fn gen_keys_gpu<P>(parameters_set: P, stream: &CudaStream) -> (ClientKey, CudaServerKey)
+pub fn gen_keys_gpu<P>(parameters_set: P, streams: &CudaStreams) -> (ClientKey, CudaServerKey)
 where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
     <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
@@ -98,9 +98,9 @@ where
         shortint_parameters_set
     };
 
-    let gen_keys_inner = |parameters_set, stream: &CudaStream| {
+    let gen_keys_inner = |parameters_set, streams: &CudaStreams| {
         let cks = ClientKey::new(parameters_set);
-        let sks = CudaServerKey::new(&cks, stream);
+        let sks = CudaServerKey::new(&cks, streams);
 
         (cks, sks)
     };
@@ -117,7 +117,7 @@ where
     // }
     // #[cfg(all(not(test), not(feature = "internal-keycache")))]
     // {
-    gen_keys_inner(shortint_parameters_set, stream)
+    gen_keys_inner(shortint_parameters_set, streams)
     // }
 }
 
@@ -126,2807 +126,1927 @@ where
 /// Contrary to [gen_keys_gpu], this returns a [RadixClientKey]
 ///
 /// ```rust
-/// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+/// use tfhe::core_crypto::gpu::CudaStreams;
 /// use tfhe::integer::gpu::gen_keys_radix_gpu;
 /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 ///
 /// let gpu_index = 0;
-/// let device = CudaDevice::new(gpu_index);
-/// let mut stream = CudaStream::new_unchecked(device);
+/// let mut streams = CudaStreams::new_single_gpu(gpu_index);
 /// // generate the client key and the server key:
 /// let num_blocks = 4;
-/// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+/// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
 /// ```
 pub fn gen_keys_radix_gpu<P>(
     parameters_set: P,
     num_blocks: usize,
-    stream: &CudaStream,
+    streams: &CudaStreams,
 ) -> (RadixClientKey, CudaServerKey)
 where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
     <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
 {
-    let (cks, sks) = gen_keys_gpu(parameters_set, stream);
+    let (cks, sks) = gen_keys_gpu(parameters_set, streams);
 
     (RadixClientKey::from((cks, num_blocks)), sks)
-}
-
-impl CudaStream {
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array: &mut CudaVec<T>,
-        scalar_input: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-    ) {
-        cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
-            self.as_c_ptr(),
-            lwe_array.as_mut_c_ptr(),
-            scalar_input.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-            message_modulus,
-            carry_modulus,
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_mul_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        lwe_array: &mut CudaVec<T>,
-        decomposed_scalar: &[T],
-        has_at_least_one_set: &[T],
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        lwe_dimension: LweDimension,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        num_blocks: u32,
-        num_scalars: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_scalar_mul_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-
-        cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
-            self.as_c_ptr(),
-            lwe_array.as_mut_c_ptr(),
-            decomposed_scalar.as_ptr().cast::<u64>(),
-            has_at_least_one_set.as_ptr().cast::<u64>(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            (glwe_dimension.0 * polynomial_size.0) as u32,
-            polynomial_size.0 as u32,
-            message_modulus.0 as u32,
-            num_blocks,
-            num_scalars,
-        );
-
-        cleanup_cuda_integer_radix_scalar_mul(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_mul_integer_radix_multibit_kb_async<T: UnsignedInteger>(
-        &self,
-        lwe_array: &mut CudaVec<T>,
-        decomposed_scalar: &[T],
-        has_at_least_one_set: &[T],
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        lwe_dimension: LweDimension,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        num_scalars: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_scalar_mul_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-
-        cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
-            self.as_c_ptr(),
-            lwe_array.as_mut_c_ptr(),
-            decomposed_scalar.as_ptr().cast::<u64>(),
-            has_at_least_one_set.as_ptr().cast::<u64>(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            (glwe_dimension.0 * polynomial_size.0) as u32,
-            polynomial_size.0 as u32,
-            message_modulus.0 as u32,
-            num_blocks,
-            num_scalars,
-        );
-
-        cleanup_cuda_integer_radix_scalar_mul(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_blocks: u32,
-    ) {
-        cuda_add_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_blocks,
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_mul_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_left: &CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            0,
-            num_blocks,
-            PBSType::Classical as u32,
-            self.device().get_max_shared_memory() as u32,
-            true,
-        );
-        cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            mem_ptr,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            0,
-            num_blocks,
-            PBSType::Classical as u32,
-            self.device().get_max_shared_memory() as u32,
-        );
-        cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_mul_integer_radix_multibit_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_left: &CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            PBSType::MultiBit as u32,
-            self.device().get_max_shared_memory() as u32,
-            true,
-        );
-        cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            mem_ptr,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            PBSType::MultiBit as u32,
-            self.device().get_max_shared_memory() as u32,
-        );
-        cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_mul_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            0,
-            num_blocks,
-            PBSType::Classical as u32,
-            self.device().get_max_shared_memory() as u32,
-            true,
-        );
-        cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            mem_ptr,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            0,
-            num_blocks,
-            PBSType::Classical as u32,
-            self.device().get_max_shared_memory() as u32,
-        );
-        cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_mul_integer_radix_multibit_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-        grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            PBSType::MultiBit as u32,
-            self.device().get_max_shared_memory() as u32,
-            true,
-        );
-        cuda_integer_mult_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            mem_ptr,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            glwe_dimension.0 as u32,
-            lwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            PBSType::MultiBit as u32,
-            self.device().get_max_shared_memory() as u32,
-        );
-        cleanup_cuda_integer_mult(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_bitop_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_left: &CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        op: BitOpType,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            op as u32,
-            true,
-        );
-        cuda_bitop_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_bitop_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        op: BitOpType,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            op as u32,
-            true,
-        );
-        cuda_bitop_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_bitnot_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            BitOpType::Not as u32,
-            true,
-        );
-        cuda_bitnot_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_bitnot_integer_radix_multibit_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            BitOpType::Not as u32,
-            true,
-        );
-        cuda_bitnot_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_bitop_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe: &mut CudaVec<T>,
-        clear_blocks: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        grouping_factor: LweBskGroupingFactor,
-        op: BitOpType,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            op as u32,
-            true,
-        );
-        cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe.as_mut_c_ptr(),
-            radix_lwe.as_mut_c_ptr(),
-            clear_blocks.as_c_ptr(),
-            min(clear_blocks.len() as u32, num_blocks),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-            op as u32,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_bitop_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe: &mut CudaVec<T>,
-        clear_blocks: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        op: BitOpType,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            op as u32,
-            true,
-        );
-        cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe.as_mut_c_ptr(),
-            radix_lwe.as_mut_c_ptr(),
-            clear_blocks.as_c_ptr(),
-            min(clear_blocks.len() as u32, num_blocks),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-            op as u32,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_bitop_integer_radix_multibit_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        op: BitOpType,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_bitop_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            op as u32,
-            true,
-        );
-        cuda_bitop_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_bitop(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_comparison_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_left: &CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        op: ComparisonType,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_comparison_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            op as u32,
-            is_signed,
-            true,
-        );
-
-        cuda_comparison_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-
-        cleanup_cuda_integer_comparison(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_comparison_integer_radix_multibit_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_left: &CudaVec<T>,
-        radix_lwe_right: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        op: ComparisonType,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_comparison_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            op as u32,
-            is_signed,
-            true,
-        );
-        cuda_comparison_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_left.as_c_ptr(),
-            radix_lwe_right.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_comparison(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_comparison_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_in: &CudaVec<T>,
-        scalar_blocks: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        num_scalar_blocks: u32,
-        op: ComparisonType,
-        signed_with_positive_scalar: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_comparison_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            op as u32,
-            signed_with_positive_scalar,
-            true,
-        );
-
-        cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_in.as_c_ptr(),
-            scalar_blocks.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-            num_scalar_blocks,
-        );
-
-        cleanup_cuda_integer_comparison(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_comparison_integer_radix_multibit_kb_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_in: &CudaVec<T>,
-        scalar_blocks: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        num_scalar_blocks: u32,
-        op: ComparisonType,
-        signed_with_positive_scalar: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_comparison_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            op as u32,
-            signed_with_positive_scalar,
-            true,
-        );
-        cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_in.as_c_ptr(),
-            scalar_blocks.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-            num_scalar_blocks,
-        );
-        cleanup_cuda_integer_comparison(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn full_propagate_classic_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_input: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_full_propagation_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_level.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-        cuda_full_propagation_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_input.as_mut_c_ptr(),
-            mem_ptr,
-            keyswitch_key.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            0,
-            num_blocks,
-        );
-        cleanup_cuda_full_propagation(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn full_propagate_multibit_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_input: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_full_propagation_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            pbs_level.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-        cuda_full_propagation_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_input.as_mut_c_ptr(),
-            mem_ptr,
-            keyswitch_key.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            ks_base_log.0 as u32,
-            ks_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-        );
-        cleanup_cuda_full_propagation(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn propagate_single_carry_classic_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_input: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
-        scratch_cuda_propagate_single_carry_kb_64_inplace(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-        cuda_propagate_single_carry_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_input.as_mut_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_propagate_single_carry(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn propagate_single_carry_multibit_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_input: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
-        scratch_cuda_propagate_single_carry_kb_64_inplace(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-        cuda_propagate_single_carry_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_input.as_mut_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_propagate_single_carry(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_shift_left_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::LeftShift as u32,
-            true,
-        );
-        cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_shift_left_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::LeftShift as u32,
-            true,
-        );
-        cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_logical_shift_right_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_logical_shift_right_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_logical_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_arithmetic_shift_right_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_arithmetic_shift_right_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        shift: u32,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            shift,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_shift_right_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::RightShift as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_shift_right_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::RightShift as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_shift_left_integer_radix_classic_kb_assign_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::LeftShift as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_shift_left_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::LeftShift as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_rotate_right_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::RightRotate as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_rotate_right_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::RightRotate as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_rotate_left_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::LeftRotate as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_rotate_left_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        radix_shift: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        is_signed: bool,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::LeftRotate as u32,
-            is_signed,
-            true,
-        );
-        cuda_integer_radix_shift_and_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            radix_shift.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_shift_and_rotate(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_cmux_integer_radix_classic_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_condition: &CudaVec<T>,
-        radix_lwe_true: &CudaVec<T>,
-        radix_lwe_false: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_cmux_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-        cuda_cmux_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_condition.as_c_ptr(),
-            radix_lwe_true.as_c_ptr(),
-            radix_lwe_false.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_cmux(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_cmux_integer_radix_multibit_kb_async<T: UnsignedInteger>(
-        &self,
-        radix_lwe_out: &mut CudaVec<T>,
-        radix_lwe_condition: &CudaVec<T>,
-        radix_lwe_true: &CudaVec<T>,
-        radix_lwe_false: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_cmux_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-        cuda_cmux_integer_radix_ciphertext_kb_64(
-            self.as_c_ptr(),
-            radix_lwe_out.as_mut_c_ptr(),
-            radix_lwe_condition.as_c_ptr(),
-            radix_lwe_true.as_c_ptr(),
-            radix_lwe_false.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_cmux(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_rotate_left_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        n: u32,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::LeftShift as u32,
-            true,
-        );
-        cuda_integer_radix_scalar_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            n,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_scalar_rotate(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_rotate_left_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        n: u32,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::LeftShift as u32,
-            true,
-        );
-        cuda_integer_radix_scalar_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            n,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_scalar_rotate(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_rotate_right_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        n: u32,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_scalar_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            n,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_scalar_rotate(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_scalar_rotate_right_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        radix_lwe_left: &mut CudaVec<T>,
-        n: u32,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_scalar_rotate_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            ShiftRotateType::RightShift as u32,
-            true,
-        );
-        cuda_integer_radix_scalar_rotate_kb_64_inplace(
-            self.as_c_ptr(),
-            radix_lwe_left.as_mut_c_ptr(),
-            n,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_scalar_rotate(self.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_sum_ciphertexts_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        result: &mut CudaVec<T>,
-        radix_list: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-        num_radixes: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            num_radixes,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-        cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-            self.as_c_ptr(),
-            result.as_mut_c_ptr(),
-            radix_list.as_mut_c_ptr(),
-            num_radixes,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_sum_ciphertexts_vec(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_sum_ciphertexts_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        result: &mut CudaVec<T>,
-        radix_list: &mut CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-        num_radixes: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            num_radixes,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-        cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-            self.as_c_ptr(),
-            result.as_mut_c_ptr(),
-            radix_list.as_mut_c_ptr(),
-            num_radixes,
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_sum_ciphertexts_vec(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_classic_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        ct_res: &mut CudaVec<T>,
-        ct_overflowed: &mut CudaVec<T>,
-        lhs: &CudaVec<T>,
-        rhs: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_overflowing_sub_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            0,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::Classical as u32,
-            true,
-        );
-        cuda_integer_radix_overflowing_sub_kb_64(
-            self.as_c_ptr(),
-            ct_res.as_mut_c_ptr(),
-            ct_overflowed.as_mut_c_ptr(),
-            lhs.as_c_ptr(),
-            rhs.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_overflowing_sub(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// # Safety
-    ///
-    /// - [CudaStream::synchronize] __must__ be called after this function
-    /// as soon as synchronization is required
-    pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_multibit_kb_assign_async<
-        T: UnsignedInteger,
-    >(
-        &self,
-        ct_res: &mut CudaVec<T>,
-        ct_overflowed: &mut CudaVec<T>,
-        lhs: &CudaVec<T>,
-        rhs: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        keyswitch_key: &CudaVec<u64>,
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        big_lwe_dimension: LweDimension,
-        small_lwe_dimension: LweDimension,
-        ks_level: DecompositionLevelCount,
-        ks_base_log: DecompositionBaseLog,
-        pbs_level: DecompositionLevelCount,
-        pbs_base_log: DecompositionBaseLog,
-        pbs_grouping_factor: LweBskGroupingFactor,
-        num_blocks: u32,
-    ) {
-        let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_integer_radix_overflowing_sub_kb_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            big_lwe_dimension.0 as u32,
-            small_lwe_dimension.0 as u32,
-            ks_level.0 as u32,
-            ks_base_log.0 as u32,
-            pbs_level.0 as u32,
-            pbs_base_log.0 as u32,
-            pbs_grouping_factor.0 as u32,
-            num_blocks,
-            message_modulus.0 as u32,
-            carry_modulus.0 as u32,
-            PBSType::MultiBit as u32,
-            true,
-        );
-        cuda_integer_radix_overflowing_sub_kb_64(
-            self.as_c_ptr(),
-            ct_res.as_mut_c_ptr(),
-            ct_overflowed.as_mut_c_ptr(),
-            lhs.as_c_ptr(),
-            rhs.as_c_ptr(),
-            mem_ptr,
-            bootstrapping_key.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            num_blocks,
-        );
-        cleanup_cuda_integer_radix_overflowing_sub(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(mem_ptr),
-        );
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStream::synchronize] __must__ be called after this function
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaVec<T>,
+    scalar_input: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+    message_modulus: u32,
+    carry_modulus: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        scalar_input.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        lwe_array.as_mut_c_ptr(),
+        scalar_input.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+        message_modulus,
+        carry_modulus,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaVec<T>,
+    decomposed_scalar: &[T],
+    has_at_least_one_set: &[T],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    num_blocks: u32,
+    num_scalars: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_scalar_mul_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+
+    cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        lwe_array.as_mut_c_ptr(),
+        decomposed_scalar.as_ptr().cast::<u64>(),
+        has_at_least_one_set.as_ptr().cast::<u64>(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+        polynomial_size.0 as u32,
+        message_modulus.0 as u32,
+        num_blocks,
+        num_scalars,
+    );
+
+    cleanup_cuda_integer_radix_scalar_mul(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_lwe_right: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_blocks: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    cuda_add_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_c_ptr(),
+        radix_lwe_right.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_blocks,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_lwe_right: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    lwe_dimension: LweDimension,
+    polynomial_size: PolynomialSize,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_mult_radix_ciphertext_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        glwe_dimension.0 as u32,
+        lwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        pbs_base_log.0 as u32,
+        pbs_level.0 as u32,
+        ks_base_log.0 as u32,
+        ks_level.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        pbs_type as u32,
+        get_max_shared_memory(streams.gpu_indexes[0]) as u32,
+        true,
+    );
+    cuda_integer_mult_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_c_ptr(),
+        radix_lwe_right.as_c_ptr(),
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        mem_ptr,
+        polynomial_size.0 as u32,
+        num_blocks,
+    );
+    cleanup_cuda_integer_mult(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_lwe_right: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    op: BitOpType,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_bitop_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        op as u32,
+        true,
+    );
+    cuda_bitop_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_c_ptr(),
+        radix_lwe_right.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_bitop(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_bitop_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        BitOpType::Not as u32,
+        true,
+    );
+    cuda_bitnot_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_bitop(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe: &mut CudaVec<T>,
+    clear_blocks: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    op: BitOpType,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        clear_blocks.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_bitop_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        op as u32,
+        true,
+    );
+    cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe.as_mut_c_ptr(),
+        radix_lwe.as_mut_c_ptr(),
+        clear_blocks.as_c_ptr(),
+        min(clear_blocks.len() as u32, num_blocks),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+        op as u32,
+    );
+    cleanup_cuda_integer_bitop(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaVec<T>,
+    radix_lwe_left: &CudaVec<T>,
+    radix_lwe_right: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    op: ComparisonType,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_comparison_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        op as u32,
+        is_signed,
+        true,
+    );
+
+    cuda_comparison_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_out.as_mut_c_ptr(),
+        radix_lwe_left.as_c_ptr(),
+        radix_lwe_right.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+
+    cleanup_cuda_integer_comparison(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaVec<T>,
+    radix_lwe_in: &CudaVec<T>,
+    scalar_blocks: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    num_scalar_blocks: u32,
+    op: ComparisonType,
+    signed_with_positive_scalar: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_in.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        scalar_blocks.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_comparison_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        op as u32,
+        signed_with_positive_scalar,
+        true,
+    );
+
+    cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_out.as_mut_c_ptr(),
+        radix_lwe_in.as_c_ptr(),
+        scalar_blocks.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+        num_scalar_blocks,
+    );
+
+    cleanup_cuda_integer_comparison(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_input: &mut CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_full_propagation_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        pbs_level.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_full_propagation_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_input.as_mut_c_ptr(),
+        mem_ptr,
+        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        ks_base_log.0 as u32,
+        ks_level.0 as u32,
+        pbs_base_log.0 as u32,
+        pbs_level.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+    );
+    cleanup_cuda_full_propagation(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_input: &mut CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+    scratch_cuda_propagate_single_carry_kb_64_inplace(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_propagate_single_carry_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_input.as_mut_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_propagate_single_carry(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    shift: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::LeftShift as u32,
+        true,
+    );
+    cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        shift,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_logical_scalar_shift(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    shift: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightShift as u32,
+        true,
+    );
+    cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        shift,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_logical_scalar_shift(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    shift: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightShift as u32,
+        true,
+    );
+    cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        shift,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_arithmetic_scalar_shift(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_shift: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_shift.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightShift as u32,
+        is_signed,
+        true,
+    );
+    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_shift.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_shift_and_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_shift: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_shift.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::LeftShift as u32,
+        is_signed,
+        true,
+    );
+    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_shift.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_shift_and_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_shift: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_shift.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightRotate as u32,
+        is_signed,
+        true,
+    );
+    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_shift.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_shift_and_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    radix_shift: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_shift.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::LeftRotate as u32,
+        is_signed,
+        true,
+    );
+    cuda_integer_radix_shift_and_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        radix_shift.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_shift_and_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaVec<T>,
+    radix_lwe_condition: &CudaVec<T>,
+    radix_lwe_true: &CudaVec<T>,
+    radix_lwe_false: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_condition.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_true.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_false.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_cmux_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_cmux_integer_radix_ciphertext_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_out.as_mut_c_ptr(),
+        radix_lwe_condition.as_c_ptr(),
+        radix_lwe_true.as_c_ptr(),
+        radix_lwe_false.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_cmux(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    n: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_scalar_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::LeftShift as u32,
+        true,
+    );
+    cuda_integer_radix_scalar_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        n,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_scalar_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_left: &mut CudaVec<T>,
+    n: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_left.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_scalar_rotate_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightShift as u32,
+        true,
+    );
+    cuda_integer_radix_scalar_rotate_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        radix_lwe_left.as_mut_c_ptr(),
+        n,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_scalar_rotate(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    result: &mut CudaVec<T>,
+    radix_list: &mut CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    num_radixes: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        result.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_list.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        num_radixes,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        result.as_mut_c_ptr(),
+        radix_list.as_mut_c_ptr(),
+        num_radixes,
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_sum_ciphertexts_vec(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
+/// as soon as synchronization is required
+pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    ct_res: &mut CudaVec<T>,
+    ct_overflowed: &mut CudaVec<T>,
+    lhs: &CudaVec<T>,
+    rhs: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ct_res.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        ct_overflowed.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_radix_overflowing_sub_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension.0 as u32,
+        small_lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_integer_radix_overflowing_sub_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        ct_res.as_mut_c_ptr(),
+        ct_overflowed.as_mut_c_ptr(),
+        lhs.as_c_ptr(),
+        rhs.as_c_ptr(),
+        mem_ptr,
+        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        num_blocks,
+    );
+    cleanup_cuda_integer_radix_overflowing_sub(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function
 /// as soon as synchronization is required
 pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
-    stream: &CudaStream,
+    streams: &CudaStreams,
     radix_lwe_output: *mut c_void,
     radix_lwe_input: *const c_void,
     input_lut: &[T],
@@ -2945,9 +2065,20 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_apply_univariate_lut_kb_64(
-        stream.as_c_ptr(),
+        streams.ptr[0],
+        streams.gpu_indexes[0],
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
         lwe_dimension.0 as u32,
@@ -2965,7 +2096,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         true,
     );
     cuda_apply_univariate_lut_kb_64(
-        stream.as_c_ptr(),
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
         radix_lwe_output,
         radix_lwe_input,
         mem_ptr,
@@ -2973,5 +2106,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         bootstrapping_key.as_c_ptr(),
         num_blocks,
     );
-    cleanup_cuda_apply_univariate_lut_kb_64(stream.as_c_ptr(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_apply_univariate_lut_kb_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
 }

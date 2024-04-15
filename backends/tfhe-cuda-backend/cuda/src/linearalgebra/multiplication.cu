@@ -5,11 +5,12 @@
  * cleartext vector. See the equivalent operation on u64 data for more details.
  */
 void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
-    cuda_stream_t *stream, void *lwe_array_out, void *lwe_array_in,
+    void *stream, uint32_t gpu_index, void *lwe_array_out, void *lwe_array_in,
     void *cleartext_array_in, uint32_t input_lwe_dimension,
     uint32_t input_lwe_ciphertext_count) {
 
-  host_cleartext_multiplication(stream, static_cast<uint32_t *>(lwe_array_out),
+  host_cleartext_multiplication(static_cast<cudaStream_t>(stream), gpu_index,
+                                static_cast<uint32_t *>(lwe_array_out),
                                 static_cast<uint32_t *>(lwe_array_in),
                                 static_cast<uint32_t *>(cleartext_array_in),
                                 input_lwe_dimension,
@@ -44,11 +45,12 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
  * function that performs the operation on the GPU.
  */
 void cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
-    cuda_stream_t *stream, void *lwe_array_out, void *lwe_array_in,
+    void *stream, uint32_t gpu_index, void *lwe_array_out, void *lwe_array_in,
     void *cleartext_array_in, uint32_t input_lwe_dimension,
     uint32_t input_lwe_ciphertext_count) {
 
-  host_cleartext_multiplication(stream, static_cast<uint64_t *>(lwe_array_out),
+  host_cleartext_multiplication(static_cast<cudaStream_t>(stream), gpu_index,
+                                static_cast<uint64_t *>(lwe_array_out),
                                 static_cast<uint64_t *>(lwe_array_in),
                                 static_cast<uint64_t *>(cleartext_array_in),
                                 input_lwe_dimension,

@@ -2,7 +2,7 @@ use super::*;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaDevice, CudaStream};
+use crate::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaStreams};
 use itertools::Itertools;
 
 fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
@@ -18,9 +18,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
     let ks_decomp_base_log = params.ks_base_log;
     let ks_decomp_level_count = params.ks_level;
 
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
+    let stream = CudaStreams::new_single_gpu(0);
 
     let mut rsc = TestResources::new();
 
