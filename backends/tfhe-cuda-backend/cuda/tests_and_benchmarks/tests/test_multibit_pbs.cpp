@@ -227,7 +227,13 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
             888, 1, 16384,
             new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
             new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 21, 1, 2, 2,
-            128, 3, 1, 10});
+            128, 3, 1, 10},
+        (MultiBitProgrammableBootstrapTestParams){
+            972, 1, 8192,
+            new_gaussian_from_std_dev(sqrt(4.9571231961752025e-12)),
+            new_gaussian_from_std_dev(sqrt(9.9409770026944e-32)), 14, 2, 8, 8,
+            68, 3, 1, 1});
+
 std::string printParamName(
     ::testing::TestParamInfo<MultiBitProgrammableBootstrapTestParams> p) {
   MultiBitProgrammableBootstrapTestParams params = p.param;
