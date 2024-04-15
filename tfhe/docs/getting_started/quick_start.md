@@ -1,15 +1,19 @@
 # Quick start
 
-The basic steps for using the high-level API of TFHE-rs are:
+This document explains the basic steps of using the high-level API of **TFHE-rs.**
 
-1. [Importing the TFHE-rs prelude](quick\_start.md#imports);
-2. Client-side: [Configuring and creating keys](../fundamentals/configure-and-generate-keys.md);
-3. Client-side: [Encrypting data](../fundamentals/encrypt-data.md);
-4. Server-side: [Setting the server key](../fundamentals/set-the-server-key.md);
-5. Server-side: [Computing over encrypted data](../fundamentals/compute.md);
-6. Client-side: [Decrypting data](../fundamentals/decrypt-data.md).
+## Workflow explanation
 
-Here is a full example (combining the client and server parts):
+These are the steps to use the **TFHE-rs** high-level API:
+
+1. [Import the **TFHE-rs** prelude](quick\_start.md#imports)
+2. Client-side: [configure and generate keys](../fundamentals/configure-and-generate-keys.md)
+3. Client-side: [encrypt data](../fundamentals/encrypt-data.md)
+4. Server-side: [set the server key](../fundamentals/set-the-server-key.md)
+5. Server-side: [compute over encrypted data](../fundamentals/compute.md)
+6. Client-side: [decrypt data](../fundamentals/decrypt-data.md)
+
+This example demonstrates the basic workflow combining the client and server parts:
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
@@ -40,19 +44,19 @@ fn main() {
 }
 ```
 
-The default configuration for x86 Unix machines:
+The default configuration for x86 Unix machines is as follows:
 
 ```toml
 tfhe = { version = "0.6.1", features = ["integer", "x86_64-unix"]}
 ```
 
-Configuration options for different platforms can be found [here](installation.md). Other rust and homomorphic types features can be found [here](../guides/rust\_configuration.md).
+Refer to the [installation documentation](installation.md) for configuration options of different platforms.Learn more about homomorphic types features in the [configuration documentation.](../guides/rust\_configuration.md)
 
-### Imports
+## Step1: Importing
 
-`tfhe` uses `traits` to have a consistent API for creating FHE types and enable users to write generic functions. To be able to use associated functions and methods of a trait, the trait has to be in scope.
+**TFHE-rs** uses `traits` to implement consistent APIs and generic functions. To use `traits`, they must be in scope.
 
-To make it easier, the `prelude` 'pattern' is used. All of the important `tfhe` traits are in a `prelude` module that you can **glob import**. With this, there is no need to remember or know the traits that you want to import.
+The `prelude` pattern provides a convenient way to globally import all important **TFHE-rs** traits at once. This approach saves time and avoids confusion.
 
 ```rust
 use tfhe::prelude::*;

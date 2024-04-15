@@ -1,10 +1,14 @@
-# Serialization/Deserialization
+# Serialization/deserialization
 
-As explained in the Introduction, most types are meant to be shared with the server that performs the computations.
+This document explains the `serialization` and `deserialization` features that are useful to send data to a server to perform the computations.
 
-The easiest way to send these data to a server is to use the `serialization` and `deserialization` features. `tfhe` uses the [serde](https://crates.io/crates/serde) framework. Serde's `Serialize` and `Deserialize` functions are implemented on TFHE's types.
+## Serialization/deserialization
 
-To serialize our data, a [data format](https://serde.rs/#data-formats) should be picked. Here, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is a binary format.
+**TFHE-rs** uses the [Serde](https://crates.io/crates/serde) framework and implements Serde's `Serialize` and `Deserialize` traits.
+
+To serialize the data, you need to choose a [data format](https://serde.rs/#data-formats). In the following example, we use [bincode](https://crates.io/crates/bincode) for its binary format.
+
+Here is a full example:
 
 ```toml
 # Cargo.toml
@@ -68,29 +72,26 @@ fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error
 }
 ```
 
+## Safe serialization/deserialization
 
-# Safe Serialization/Deserialization
+When dealing with sensitive types, it's important to implement safe serialization and safe deserialization functions to prevent runtime errors and enhance security. The safe serialization and deserialization use `bincode` internally.
 
-For some types, safe serialization and deserialization functions are available.
-Bincode is used internally.
+The safe deserialization must take the output of a safe-serialization as input. During the process, the following validation occurs:
 
-Safe-deserialization must take as input the output of a safe-serialization.
-On this condition, validation of the following is done:
-- type: trying to deserialize `type A` from a serialized `type B` raises an error along the lines of *On deserialization, expected type A, got type B* instead of a generic deserialization error (or less likely a meaningless result of `type A`)
-- version: trying to deserialize `type A` (version 0.2) from a serialized `type A` (incompatible version 0.1) raises an error along the lines of *On deserialization, expected serialization version 0.2, got version 0.1* instead of a generic deserialization error (or less likely a meaningless result of `type A` (version 0.2))
-- parameter compatibility: trying to deserialize into an object of `type A` with some crypto parameters from a an object of `type A` with other crypto parameters raises an error along the lines of *Deserialized object of type A not conformant with given parameter set*.
-If both parameters sets 1 and 2 have the same lwe dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2 even if doing this deserialization may not make sense.
-Also, this check can't distinguish ciphertexts/server keys from independent client keys with the same parameters (which makes no sense combining to do homomorphic operations).
-This check is meant to prevent runtime errors in server homomorphic operations by checking that server keys and ciphertexts are compatible with the same parameter set.
+* **Type match**: deserializing `type A` from a serialized `type B` raises an error indicating "On deserialization, expected type A, got type B".
+* **Version compatibility**: deserializing `type A` of a newer version (for example, version 0.2) from a serialized `type A` of an older version (for example, version 0.1) raises an error indicating "On deserialization, expected serialization version 0.2, got version 0.1".
+* **Parameter compatibility**: deserializing an object of `type A` with one set of crypto parameters from an object of `type A` with another set of crypto parameters raises an error indicating "Deserialized object of type A not conformant with given parameter set"
+  * If both parameter sets have the same LWE dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2.
+  * This check can't distinguish ciphertexts/server keys from independent client keys with the same parameters.
+  * This check is meant to prevent runtime errors in server homomorphic operations by checking that server keys and ciphertexts are compatible with the same parameter set.
+  * You can use the standalone `is_conformant` method to check parameter compatibility. Besides, the `safe_deserialize_conformant` function includes the parameter compatibility check, and the `safe_deserialize` function does not include the compatibility check.
+* **Size limit**: both serialization and deserialization processes expect a size limit (measured in bytes) for the serialized data:
+  * On serialization, an error is raised if the serialized output exceeds the specific limit.
+  * On deserialization, an error is raised if the serialized input exceeds the specific limit.
 
-Moreover, a size limit (in number of bytes) for the serialized data is expected on both serialization and deserialization.
-On serialization, an error is raised if the serialized output would be bigger than the given limit.
-On deserialization, an error is raised if the serialized input is bigger than the given limit.
-It is meant to gracefully return an error in case of an attacker trying to cause an out of memory error on deserialization. 
+This feature aims to gracefully return an error in case of an attacker trying to cause an out-of-memory error on deserialization.
 
-A standalone `is_conformant` method is also available on those types to do a parameter compatibility check.
-
-Parameter compatibility check is done by `safe_deserialize_conformant` function but a `safe_deserialize` function without this check is also available.
+Here is an example:
 
 ```rust
 // main.rs

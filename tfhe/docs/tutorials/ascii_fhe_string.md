@@ -1,23 +1,24 @@
-# A first complete example: FheAsciiString (Integer)
+# Homomorphic case changing on Ascii string
 
-The goal of this tutorial is to build a data type that represents a ASCII string in FHE while implementing the `to_lower` and `to_upper` functions.
+This tutorial demonstrates how to build a data type that represents an ASCII string in Fully Homomorphic Encryption (FHE) by implementing to\_lower and to\_upper functions.
 
-An ASCII character is stored in 7 bits.
-To store an encrypted ASCII we use the `FheUint8`.
+An ASCII character is stored in 7 bits. To store an encrypted ASCII, we use the `FheUint8`:
 
 * The uppercase letters are in the range \[65, 90]
 * The lowercase letters are in the range \[97, 122]
 
-`lower_case = upper_case + UP_LOW_DISTANCE` <=> `upper_case = lower_case - UP_LOW_DISTANCE`
+The relationship between uppercase and lowercase letters is defined as follows:
+
+* `lower_case` = `upper_case` + `UP_LOW_DISTANCE`
+* `upper_case` = `lower_case` - `UP_LOW_DISTANCE`
 
 Where `UP_LOW_DISTANCE = 32`
 
+## Types and methods
 
-## Types and methods.
+This type stores the encrypted characters as a `Vec<FheUint8>` to implement case conversion functions.
 
-This type will hold the encrypted characters as a `Vec<FheUint8>` to implement the functions that change the case.
-
-To use the `FheUint8` type, the `integer` feature must be activated:
+To use the `FheUint8` type, enable the `integer` feature:
 
 ```toml
 # Cargo.toml
@@ -27,16 +28,11 @@ To use the `FheUint8` type, the `integer` feature must be activated:
 tfhe = { version = "0.6.1", features = ["integer", "x86_64-unix"]}
 ```
 
-Other configurations can be found [here](../getting_started/installation.md).
+Refer to the [installation guide](../getting\_started/installation.md) for other configurations.
 
+The `FheAsciiString::encrypt` function performs data validation to ensure the input string contains only ASCII characters.
 
-
-In the `FheAsciiString::encrypt` function, some data validation is done:
-
-* The input string can only contain ascii characters.
-
-It is not possible to branch on an encrypted value, however it is possible to evaluate a boolean condition and use it to get the desired result.
-Checking if the 'char' is an uppercase letter to modify it to a lowercase can be done without using a branch, like this:
+In FHE operations, direct branching on encrypted values is not possible. However, you can evaluate a boolean condition to obtain the desired outcome. Here is an example to check and convert the 'char' to a lowercase without using a branch:
 
 ```rust
 pub const UP_LOW_DISTANCE: u8 = 32;
@@ -50,7 +46,7 @@ fn to_lower(c: u8) -> u8 {
 }
 ```
 
-We can remove the branch this way:
+You can remove the branch this way:
 
 ```rust
 pub const UP_LOW_DISTANCE: u8 = 32;
@@ -60,7 +56,7 @@ fn to_lower(c: u8) -> u8 {
 }
 ```
 
-On an homomorphic integer, this gives
+This method can adapt to operations on homomorphic integers:
 
 ```rust
 use tfhe::prelude::*;
@@ -73,7 +69,7 @@ fn to_lower(c: &FheUint8) -> FheUint8 {
 }
 ```
 
-The whole code is:
+Full example:
 
 ```rust
 use tfhe::prelude::*;

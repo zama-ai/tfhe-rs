@@ -1,8 +1,10 @@
 # Compute on encrypted data
 
-Computations on encrypted data should be as easy to write as normal Rust, thanks to the usage of operator overloading.
+This document describes how to perform computation on encrypted data.
 
-In the following example, the full encryption, computation with Rust's built-in operators and decryption flow is described:
+With **TFHE-rs,** the program can be as straightforward as conventional Rust coding by using operator overloading.
+
+The following example illustrates the complete process of encryption, computation using Rust’s built-in operators, and decryption:
 
 ```rust
 use tfhe::prelude::*;

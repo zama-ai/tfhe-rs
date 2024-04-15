@@ -1,44 +1,43 @@
 # Installation
 
+This document provides instructions to set up **TFHE-rs** in your project.
 
+## Importing
 
-## Importing into your project
+First, add **TFHE-rs** as a dependency in your `Cargo.toml`.
 
-To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`.
+**For `x86_64` machine running a Unix-like OS:**
 
-If you are using an `x86_64` machine running a Unix-like OS:
 ```toml
 tfhe = { version = "0.6.1", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
 ```
 
-If you are using an `ARM` machine running a Unix-like OS:
+**For `ARM` machine running a Unix-like OS:**
+
 ```toml
 tfhe = { version = "0.6.1", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
 ```
 
-If you are using an `x86_64` machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
+**For `x86_64` machines with the** [**`rdseed instruction`**](https://en.wikipedia.org/wiki/RDRAND) **running Windows:**
 
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
 ```
 
-
 {% hint style="info" %}
-You need to use a Rust version >= 1.73 to compile TFHE-rs.
+**Rust version**: a minimum Rust version of 1.73 is required to compile **TFHE-rs**.
 {% endhint %}
 
 {% hint style="success" %}
-When running code that uses `TFHE-rs`, it is highly recommended to run in release mode with cargo's `--release` flag to have the best possible performance
+**Performance**: for optimal performance, it is highly recommended to run code that uses **`TFHE-rs`** in release mode with cargo's `--release` flag.
 {% endhint %}
-
-
 
 ## Supported platforms
 
-TFHE-rs is supported on Linux (x86, aarch64), macOS (x86, aarch64) and Windows (x86 with `RDSEED` instruction).
+**TFHE-rs** currently supports the following platforms:
 
-| OS      | x86           | aarch64          |
-| ------- | ------------- | ---------------- |
-| Linux   | `x86_64-unix` | `aarch64-unix`\* |
-| macOS   | `x86_64-unix` | `aarch64-unix`\* |
-| Windows | `x86_64`      | Unsupported      |
+| OS      | x86                                | aarch64          |
+| ------- | ---------------------------------- | ---------------- |
+| Linux   | `x86_64-unix`                      | `aarch64-unix`\* |
+| macOS   | `x86_64-unix`                      | `aarch64-unix`\* |
+| Windows | `x86_64` with `RDSEED` instruction | Unsupported      |
