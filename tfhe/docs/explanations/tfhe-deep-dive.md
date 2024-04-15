@@ -13,6 +13,6 @@ Here are a series of articles that guide you to go deeper into the understanding
 
 The article [Guide to Fully Homomorphic Encryption over the Discretized Torus](https://eprint.iacr.org/2021/1402.pdf) gives more mathematical details about the TFHE scheme.
 
-You can also watch the video record of the original talk by Ilaria Chillotti for FHE.org:&#x20;
+You can also watch the video record of the original talk by Ilaria Chillotti for FHE.org:
 
 {% embed url="https://youtu.be/npoHSR6-oRw" %}

@@ -1,6 +1,6 @@
 # Generate encrypted pseudo random values
 
-TFHE-rs supports generating pseudo random values in FHE that are not known by the server.
+This document gives an example of generating pseudo random values in FHE that are not known by the server.
 
 ```rust
 use tfhe::prelude::FheDecrypt;

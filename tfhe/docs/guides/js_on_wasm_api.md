@@ -1,20 +1,20 @@
-# Tutorial
+# JS on WASM API
 
+This document outlines how to use the **TFHE-rs** WebAssembly (WASM) client API for key generation, encryption, and decryption, providing setup examples for Node.js and web browsers.
 
-TFHE-rs supports WASM for the client api, that is, it supports key generation, encryption, decryption but not doing actual computations.
+**TFHE-rs** supports WASM client API, which includes functionality for key generation, encryption, and decryption. However, it does not support FHE computations.
 
-TFHE-rs supports 3 WASM 'targets':
-- nodejs: to be used in a nodejs app/package
-- web: to be used in a web browser
-- web-parallel: to be used in a web browser with multi-threading support
+**TFHE-rs** supports 3 WASM `targets`:
 
-In all cases, the core of the API is same, only few initialization function
-changes.
+* Node.js: For use in Node.js applications or packages
+* Web: For use in web browsers
+* Web-parallel: For use in web browsers with multi-threading support
 
+The core of the API remains the same, requiring only minor changes in the initialization functions.
 
-## Example
+## Node.js
 
-### nodejs
+Example:
 
 ```javascript
 
@@ -58,12 +58,11 @@ function fhe_uint32_example() {
 }
 ```
 
-### Web
+## Web
 
-- When using the Web WASM target, there is an additional `init` function to call.
-- When using the Web WASM target with parallelism enabled, there is also one more initialization function to call `initThreadPool`
+When using the Web WASM target,  you should call an additional `init` function. With parallelism enabled, you need to call another additional `initThreadPool` function.
 
-#### Example
+Example:
 
 ```js
 import init, {
@@ -87,35 +86,31 @@ async function example() {
 
 ## Compiling the WASM API
 
-The TFHE-rs repo has a Makefile that contains targets for each of the 3 possible variants of the API:
+Use the provided Makefile in the **TFHE-rs** repository to compile for the desired target:
 
-- `make build_node_js_api` to build the nodejs API
-- `make build_web_js_api` to build the browser API
-- `make build_web_js_api_parallel` to build the browser API with parallelism
+* `make build_node_js_api` for the Node.js API
+* `make build_web_js_api` for the browser API
+* `make build_web_js_api_parallel` for the browser API with parallelism
 
-The compiled WASM package will be in tfhe/pkg.
+The compiled WASM packages are located in `tfhe/pkg`.
 
 {% hint style="info" %}
-The sequential browser API and the nodejs API are published as npm packages.
-You can add the browser API to your project using the command `npm i tfhe`.
-You can add the nodejs API to your project using the command `npm i node-tfhe`.
+The browser API and the Node.js API are available as npm packages. Using `npm i tfhe` for the browser API and `npm i node-tfhe` for the Node.js API.
 {% endhint %}
 
 ## Using the JS on WASM API
 
-TFHE-rs uses WASM to expose a JS binding to the client-side primitives, like key generation and encryption, of the Boolean and shortint modules.
+**TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the Boolean and shortint modules.
 
-There are several limitations at this time. Due to a lack of threading support in WASM, key generation can be too slow to be practical for bigger parameter sets.
+Currently, there are several limitations. Due to a lack of threading support in WASM, key generation can be too slow to be practical for bigger parameter sets.
 
-Some parameter sets lead to FHE keys that are too big to fit in the 2GB memory space of WASM. This means that some parameter sets are virtually unusable.
+Some parameter sets lead to the FHE keys exceeding the 2GB memory limit of WASM, making these parameter sets virtually unusable.
 
 ## First steps using TFHE-rs JS on WASM API
 
-### Setting-up TFHE-rs JS on WASM API for use in nodejs programs.
+### Setting up TFHE-rs JS on WASM API for Node.js programs.
 
-To build the JS on WASM bindings for TFHE-rs, you need to install [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) in addition to a compatible [`rust toolchain`](https://rustup.rs/).
-
-In a shell, then run the following to clone the TFHE-rs repo (one may want to checkout a specific tag, here the default branch is used for the build):
+To build the JS on WASM bindings for **TFHE-rs**, install [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) and the necessary [`rust toolchain`](https://rustup.rs/). Cone the **TFHE-rs** repository and build using the following commands (this will build using the default branch, you can check out a specific tag depending on your requirements):
 
 ```shell
 $ git clone https://github.com/zama-ai/tfhe-rs.git
@@ -130,11 +125,11 @@ $ rustup run wasm-pack build --release --target=nodejs --features=boolean-client
 [INFO]: :-) Your wasm pkg is ready to publish at ...
 ```
 
-The command above targets nodejs. A binding for a web browser can be generated as well using `--target=web`. This use case will not be discussed in this tutorial.
+The command above targets Node.js. To generate a binding for a web browser, use `--target=web`. However, this tutorial does not cover that particular use case.
 
-Both Boolean and shortint features are enabled here, but it's possible to use one without the other.
+Both Boolean and shortint features are enabled here, but it's possible to use them individually.
 
-After the build, a new directory _**pkg**_ is present in the `tfhe` directory.
+After the build, a new directory **pkg** is available in the `tfhe` directory.
 
 ```shell
 $ ls pkg
@@ -145,7 +140,7 @@ $
 ### Commented code to generate keys for shortint and encrypt a ciphertext
 
 {% hint style="info" %}
-Be sure to update the path of the required clause in the example below for the TFHE package that was just built.
+Make sure to update the path of the required clause in the example below to match the location of the TFHE package that was just built.
 {% endhint %}
 
 ```javascript
@@ -195,7 +190,7 @@ function shortint_example() {
 shortint_example();
 ```
 
-The `example.js` script can then be run using [`node`](https://nodejs.org/), like so:
+Then, you can run the `example.js` script using [`node`](https://nodejs.org/) as follows:
 
 ```shell
 $ node example.js

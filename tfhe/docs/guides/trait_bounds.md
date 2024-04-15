@@ -1,15 +1,10 @@
-# Generic Bounds
+# Generic trait bounds
 
-If you wish to write generic functions which use operators with mixed reference and non-reference,
-it might get tricky at first to specify the trait [bounds](https://doc.rust-lang.org/rust-by-example/generics/bounds.html). 
-This page should serve as a _cookbook_ to help you.
+This document serves as a practical reference for implementing generic functions in Rust that use operators across mixed references and values. The following explanations help you to understand the trait [bounds](https://doc.rust-lang.org/rust-by-example/generics/bounds.html) necessary to handle such operations.
 
-Operators (+, *, >>, etc) are tied to traits in `std:::ops`, e.g. `+` is `std::ops::Add`,
-so to write a generic function which uses the `+` operator, you need to use add `std::ops::Add`
-as a trait bound.
+Operators such as `+`, `*`, `>>,` and so on are tied to traits in `std:::ops`. For instance, the `+` operator corresponds to `std::ops::Add`. When writing a generic function that uses the `+` operator, you need to specify `std::ops::Add` as a trait bound.
 
-Then, depending on if the left hand side / right hand side is an owned value or a reference, the trait bound
-is slightly different. The table below shows the possibilities.
+The trait bound varies slightly depending on whether the left-hand side / right-hand side is an owned value or a reference. The following table shows the different scenarios:
 
 | operation   | trait bound                           |
 | ----------- | ------------------------------------- |
@@ -19,12 +14,11 @@ is slightly different. The table below shows the possibilities.
 | `&T $op &T` | `for<'a> &'a T: $Op<&'a T, Output=T>` |
 
 {% hint style="info" %}
-The `for<'a>` syntax is something called [Higher-Rank Trait Bounds](https://doc.rust-lang.org/nomicon/hrtb.html), often shortened as __HRTB__
+The `for<'a>` syntax refers to the [Higher-Rank Trait Bounds(HRTB)](https://doc.rust-lang.org/nomicon/hrtb.html).
 {% endhint %}
 
 {% hint style="info" %}
-Writing generic functions will also allow you to call them using clear inputs,
-only allowing easier debugging.
+Using generic functions allows for clearer input handling, which simplifies the debugging.
 {% endhint %}
 
 ## Example

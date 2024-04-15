@@ -1,8 +1,10 @@
 # Encrypt data
 
-Encrypting data is achieved via the `encrypt` associated function of the FheEncrypt trait.
+This document explains how to encrypt data.
 
-Types exposed by this crate implement at least one of FheEncrypt or FheTryEncrypt to allow encryption.
+To encrypt data, use the `encrypt` method from the `FheEncrypt` trait. This crate provides types that implement either `FheEncrypt` or `FheTryEncrypt` or both, to enable encryption.
+
+Here is an example:
 
 ```rust
 use tfhe::prelude::*;
