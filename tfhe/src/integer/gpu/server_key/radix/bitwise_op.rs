@@ -1,7 +1,11 @@
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::{BitOpType, CudaServerKey};
+use crate::integer::gpu::{
+    unchecked_bitnot_integer_radix_kb_assign_async, unchecked_bitop_integer_radix_kb_assign_async,
+    BitOpType, CudaServerKey, PBSType,
+};
 
 impl CudaServerKey {
     /// Computes homomorphically bitnot for an encrypted integer value.
@@ -15,15 +19,14 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use std::ops::Not;
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -49,7 +52,7 @@ impl CudaServerKey {
     pub fn unchecked_bitnot<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.unchecked_bitnot_assign(&mut result, stream);
@@ -63,13 +66,14 @@ impl CudaServerKey {
     pub unsafe fn unchecked_bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_bitnot_integer_radix_classic_kb_assign_async(
+                unchecked_bitnot_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -88,10 +92,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_bitnot_integer_radix_multibit_kb_assign_async(
+                unchecked_bitnot_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -109,8 +116,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -119,7 +127,7 @@ impl CudaServerKey {
     pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.unchecked_bitnot_assign_async(ct, stream);
@@ -137,15 +145,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -175,7 +182,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitand_assign(&mut result, ct_right, stream);
@@ -191,7 +198,7 @@ impl CudaServerKey {
         ct_left: &mut T,
         ct_right: &T,
         op: BitOpType,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
@@ -206,7 +213,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_bitop_integer_radix_classic_kb_assign_async(
+                unchecked_bitop_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -227,10 +235,13 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     op,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_bitop_integer_radix_multibit_kb_assign_async(
+                unchecked_bitop_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -249,9 +260,10 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     op,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -261,7 +273,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::And, stream);
@@ -280,15 +292,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -318,7 +329,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitor_assign(&mut result, ct_right, stream);
@@ -329,7 +340,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Or, stream);
@@ -348,15 +359,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -386,7 +396,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.unchecked_bitxor_assign(&mut result, ct_right, stream);
@@ -397,7 +407,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Xor, stream);
@@ -416,15 +426,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -454,7 +463,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitand_assign(&mut result, ct_right, stream);
@@ -469,7 +478,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -504,7 +513,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.bitand_assign_async(ct_left, ct_right, stream);
@@ -522,15 +531,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -560,7 +568,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitor_assign(&mut result, ct_right, stream);
@@ -575,7 +583,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -609,7 +617,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.bitor_assign_async(ct_left, ct_right, stream);
@@ -627,15 +635,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -665,7 +672,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut result = unsafe { ct_left.duplicate_async(stream) };
         self.bitxor_assign(&mut result, ct_right, stream);
@@ -680,7 +687,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -714,7 +721,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         unsafe {
             self.bitxor_assign_async(ct_left, ct_right, stream);
@@ -733,15 +740,14 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use std::ops::Not;
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -764,7 +770,7 @@ impl CudaServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, stream: &CudaStream) -> T {
+    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, stream: &CudaStreams) -> T {
         let mut result = unsafe { ct.duplicate_async(stream) };
         self.bitnot_assign(&mut result, stream);
         result
@@ -777,7 +783,7 @@ impl CudaServerKey {
     pub unsafe fn bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign_async(ct, stream);
@@ -786,7 +792,7 @@ impl CudaServerKey {
         self.unchecked_bitnot_assign_async(ct, stream);
     }
 
-    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, stream: &CudaStream) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, stream: &CudaStreams) {
         unsafe {
             self.bitnot_assign_async(ct, stream);
         }

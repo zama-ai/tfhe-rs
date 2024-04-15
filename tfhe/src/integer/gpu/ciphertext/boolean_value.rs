@@ -1,7 +1,7 @@
 use crate::core_crypto::entities::{LweCiphertextList, LweCiphertextOwned};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweSize};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -53,7 +53,7 @@ impl CudaBooleanBlock {
         Self(CudaUnsignedRadixCiphertext { ciphertext: ct })
     }
 
-    pub fn from_boolean_block(boolean_block: &BooleanBlock, stream: &CudaStream) -> Self {
+    pub fn from_boolean_block(boolean_block: &BooleanBlock, streams: &CudaStreams) -> Self {
         let mut h_boolean_block = boolean_block.clone();
 
         let lwe_size = boolean_block.0.ct.as_ref().len();
@@ -63,7 +63,7 @@ impl CudaBooleanBlock {
             LweSize(lwe_size),
             CiphertextModulus::new_native(),
         );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, stream);
+        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
 
         let info = CudaBlockInfo {
             degree: boolean_block.0.degree,
@@ -80,16 +80,16 @@ impl CudaBooleanBlock {
         })
     }
 
-    pub fn copy_from_boolean_block(&mut self, boolean_block: &BooleanBlock, stream: &CudaStream) {
+    pub fn copy_from_boolean_block(&mut self, boolean_block: &BooleanBlock, streams: &CudaStreams) {
         unsafe {
             self.0
                 .ciphertext
                 .d_blocks
                 .0
                 .d_vec
-                .copy_from_cpu_async(boolean_block.0.ct.as_ref(), stream);
+                .copy_from_cpu_async(boolean_block.0.ct.as_ref(), streams);
         }
-        stream.synchronize();
+        streams.synchronize();
 
         let info = CudaBlockInfo {
             degree: boolean_block.0.degree,
@@ -103,7 +103,7 @@ impl CudaBooleanBlock {
     }
 
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
@@ -111,25 +111,24 @@ impl CudaBooleanBlock {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 1;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
     ///
     /// let msg1 = 1u32;
     /// let ct1 = BooleanBlock::try_new(&cks.encrypt(msg1)).unwrap();
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &mut stream);
-    /// let ct2 = d_ct1.to_boolean_block(&mut stream);
+    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &mut streams);
+    /// let ct2 = d_ct1.to_boolean_block(&mut streams);
     /// let res = cks.decrypt_bool(&ct2);
     ///
     /// assert_eq!(msg1, res);
     /// ```
-    pub fn to_boolean_block(&self, stream: &CudaStream) -> BooleanBlock {
-        let h_lwe_ciphertext_list = self.0.ciphertext.d_blocks.to_lwe_ciphertext_list(stream);
+    pub fn to_boolean_block(&self, streams: &CudaStreams) -> BooleanBlock {
+        let h_lwe_ciphertext_list = self.0.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
         let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
 
         let block = Ciphertext {
@@ -149,14 +148,14 @@ impl CudaBooleanBlock {
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub(crate) unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub(crate) unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
         let lwe_ciphertext_count = self.0.ciphertext.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.0.ciphertext.d_blocks.ciphertext_modulus();
 
-        let mut d_ct = CudaVec::new_async(self.0.ciphertext.d_blocks.0.d_vec.len(), stream);
-        d_ct.copy_from_gpu_async(&self.0.ciphertext.d_blocks.0.d_vec, stream);
+        let mut d_ct = CudaVec::new_async(self.0.ciphertext.d_blocks.0.d_vec.len(), streams);
+        d_ct.copy_from_gpu_async(&self.0.ciphertext.d_blocks.0.d_vec, streams);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
@@ -169,9 +168,9 @@ impl CudaBooleanBlock {
         })
     }
 
-    pub(crate) fn duplicate(&self, stream: &CudaStream) -> Self {
-        let ct = unsafe { self.duplicate_async(stream) };
-        stream.synchronize();
+    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let ct = unsafe { self.duplicate_async(streams) };
+        streams.synchronize();
         ct
     }
 }

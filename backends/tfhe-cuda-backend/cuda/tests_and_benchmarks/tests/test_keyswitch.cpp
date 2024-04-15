@@ -32,8 +32,8 @@ protected:
   int number_of_inputs;
   int payload_modulus;
   uint64_t delta;
-  cuda_stream_t *stream;
-  int gpu_index = 0;
+  cudaStream_t stream;
+  uint32_t gpu_index = 0;
   uint64_t *lwe_sk_in_array;
   uint64_t *lwe_sk_out_array;
   uint64_t *plaintexts;
@@ -63,9 +63,9 @@ public:
     Seed seed;
     init_seed(&seed);
 
-    keyswitch_setup(stream, &seed, &lwe_sk_in_array, &lwe_sk_out_array,
-                    &d_ksk_array, &plaintexts, &d_lwe_ct_in_array,
-                    &lwe_input_indexes, &d_lwe_ct_out_array,
+    keyswitch_setup(stream, gpu_index, &seed, &lwe_sk_in_array,
+                    &lwe_sk_out_array, &d_ksk_array, &plaintexts,
+                    &d_lwe_ct_in_array, &lwe_input_indexes, &d_lwe_ct_out_array,
                     &lwe_output_indexes, input_lwe_dimension,
                     output_lwe_dimension, noise_distribution, ksk_base_log,
                     ksk_level, message_modulus, carry_modulus, &payload_modulus,
@@ -73,9 +73,10 @@ public:
   }
 
   void TearDown() {
-    keyswitch_teardown(stream, lwe_sk_in_array, lwe_sk_out_array, d_ksk_array,
-                       plaintexts, d_lwe_ct_in_array, lwe_input_indexes,
-                       d_lwe_ct_out_array, lwe_output_indexes);
+    keyswitch_teardown(stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array,
+                       d_ksk_array, plaintexts, d_lwe_ct_in_array,
+                       lwe_input_indexes, d_lwe_ct_out_array,
+                       lwe_output_indexes);
   }
 };
 
@@ -94,16 +95,16 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
                       (input_lwe_dimension + 1));
       // Execute keyswitch
       cuda_keyswitch_lwe_ciphertext_vector_64(
-          stream, (void *)d_lwe_ct_out_array, (void *)lwe_output_indexes,
-          (void *)d_lwe_ct_in, (void *)lwe_input_indexes, (void *)d_ksk,
-          input_lwe_dimension, output_lwe_dimension, ksk_base_log, ksk_level,
-          number_of_inputs);
+          stream, gpu_index, (void *)d_lwe_ct_out_array,
+          (void *)lwe_output_indexes, (void *)d_lwe_ct_in,
+          (void *)lwe_input_indexes, (void *)d_ksk, input_lwe_dimension,
+          output_lwe_dimension, ksk_base_log, ksk_level, number_of_inputs);
 
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_out_ct, d_lwe_ct_out_array,
                                number_of_inputs * (output_lwe_dimension + 1) *
                                    sizeof(uint64_t),
-                               stream);
+                               stream, gpu_index);
       for (int i = 0; i < number_of_inputs; i++) {
         uint64_t plaintext = plaintexts[r * SAMPLES * number_of_inputs +
                                         s * number_of_inputs + i];

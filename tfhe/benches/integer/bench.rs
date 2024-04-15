@@ -1179,7 +1179,7 @@ define_server_key_bench_default_fn!(
 mod cuda {
     use super::*;
     use criterion::criterion_group;
-    use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
@@ -1190,7 +1190,7 @@ mod cuda {
         display_name: &str,
         unary_op: F,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, &CudaStream),
+        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, &CudaStreams),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1198,9 +1198,7 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(60));
         let mut rng = rand::thread_rng();
 
-        let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let streams = CudaStreams::new_multi_gpu();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1209,7 +1207,7 @@ mod cuda {
 
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+                let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                 let encrypt_gpu = || {
                     let clearlow = rng.gen::<u128>();
@@ -1217,13 +1215,13 @@ mod cuda {
                     let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &stream)
+                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams)
                 };
 
                 b.iter_batched(
                     encrypt_gpu,
                     |mut ct_0| {
-                        unary_op(&gpu_sks, &mut ct_0, &stream);
+                        unary_op(&gpu_sks, &mut ct_0, &streams);
                     },
                     criterion::BatchSize::SmallInput,
                 )
@@ -1255,7 +1253,7 @@ mod cuda {
             &CudaServerKey,
             &mut CudaUnsignedRadixCiphertext,
             &mut CudaUnsignedRadixCiphertext,
-            &CudaStream,
+            &CudaStreams,
         ),
     {
         let mut bench_group = c.benchmark_group(bench_name);
@@ -1264,9 +1262,7 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(60));
         let mut rng = rand::thread_rng();
 
-        let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let streams = CudaStreams::new_multi_gpu();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1275,7 +1271,7 @@ mod cuda {
 
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &stream);
+                let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                 let encrypt_two_values = || {
                     let clearlow = rng.gen::<u128>();
@@ -1289,9 +1285,9 @@ mod cuda {
                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
                     let d_ctxt_1 =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams);
                     let d_ctxt_2 =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
+                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams);
 
                     (d_ctxt_1, d_ctxt_2)
                 };
@@ -1299,7 +1295,7 @@ mod cuda {
                 b.iter_batched(
                     encrypt_two_values,
                     |(mut ct_0, mut ct_1)| {
-                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &streams);
                     },
                     criterion::BatchSize::SmallInput,
                 )
@@ -1326,7 +1322,7 @@ mod cuda {
         binary_op: F,
         rng_func: G,
     ) where
-        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, ScalarType, &CudaStream),
+        F: Fn(&CudaServerKey, &mut CudaUnsignedRadixCiphertext, ScalarType, &CudaStreams),
         G: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
@@ -1335,9 +1331,7 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(60));
         let mut rng = rand::thread_rng();
 
-        let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_multi_gpu();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1397,9 +1391,7 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(60));
         let mut rng = rand::thread_rng();
 
-        let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_multi_gpu();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1994,7 +1986,7 @@ mod cuda {
         display_name: &str,
         cast_op: F,
     ) where
-        F: Fn(&CudaServerKey, CudaUnsignedRadixCiphertext, usize, &CudaStream),
+        F: Fn(&CudaServerKey, CudaUnsignedRadixCiphertext, usize, &CudaStreams),
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -2003,9 +1995,7 @@ mod cuda {
         let mut rng = rand::thread_rng();
 
         let env_config = EnvConfig::new();
-        let gpu_index = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_multi_gpu();
 
         for (param, num_blocks, bit_size) in ParamsAndNumBlocksIter::default() {
             let all_num_blocks = env_config

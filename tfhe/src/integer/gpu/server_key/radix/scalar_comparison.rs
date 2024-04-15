@@ -1,13 +1,15 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::ComparisonType;
+use crate::integer::gpu::{
+    unchecked_scalar_comparison_integer_radix_kb_async, ComparisonType, PBSType,
+};
 use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
@@ -108,7 +110,7 @@ impl CudaServerKey {
         scalar: Scalar,
         op: ComparisonType,
         signed_with_positive_scalar: bool,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -171,7 +173,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_comparison_integer_radix_classic_kb_async(
+                unchecked_scalar_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
                     &ct.as_ref().d_blocks.0.d_vec,
                     &d_scalar_blocks,
@@ -195,10 +198,13 @@ impl CudaServerKey {
                     scalar_blocks.len() as u32,
                     op,
                     signed_with_positive_scalar,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_comparison_integer_radix_multibit_kb_async(
+                unchecked_scalar_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
                     &ct.as_ref().d_blocks.0.d_vec,
                     &d_scalar_blocks,
@@ -218,11 +224,12 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     signed_with_positive_scalar,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -239,7 +246,7 @@ impl CudaServerKey {
         ct: &T,
         scalar: Scalar,
         op: ComparisonType,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -307,7 +314,7 @@ impl CudaServerKey {
         ct: &T,
         scalar: Scalar,
         op: ComparisonType,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -328,7 +335,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_comparison_integer_radix_classic_kb_async(
+                unchecked_scalar_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct.as_ref().d_blocks.0.d_vec,
                     &d_scalar_blocks,
@@ -352,10 +360,13 @@ impl CudaServerKey {
                     scalar_blocks.len() as u32,
                     op,
                     T::IS_SIGNED,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_comparison_integer_radix_multibit_kb_async(
+                unchecked_scalar_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct.as_ref().d_blocks.0.d_vec,
                     &d_scalar_blocks,
@@ -375,11 +386,12 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     scalar_blocks.len() as u32,
                     op,
                     T::IS_SIGNED,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -395,7 +407,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -408,7 +420,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -427,7 +439,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -454,15 +466,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     ///
@@ -490,7 +501,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -509,7 +520,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -536,15 +547,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     ///
@@ -572,7 +582,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -591,7 +601,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -604,7 +614,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -623,7 +633,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -636,7 +646,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -655,7 +665,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -668,7 +678,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -687,7 +697,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -700,7 +710,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -719,7 +729,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -732,7 +742,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -750,7 +760,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -772,7 +782,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -791,7 +801,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -813,7 +823,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -832,7 +842,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -854,7 +864,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -872,7 +882,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -894,7 +904,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         Scalar: DecomposableInto<u64>,
@@ -913,7 +923,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: DecomposableInto<u64>,
@@ -922,7 +932,7 @@ impl CudaServerKey {
         self.unchecked_scalar_minmax_async(ct, scalar, ComparisonType::MAX, stream)
     }
 
-    pub fn unchecked_scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn unchecked_scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -940,7 +950,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: DecomposableInto<u64>,
@@ -949,7 +959,7 @@ impl CudaServerKey {
         self.unchecked_scalar_minmax_async(ct, scalar, ComparisonType::MIN, stream)
     }
 
-    pub fn unchecked_scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn unchecked_scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -967,7 +977,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: DecomposableInto<u64>,
@@ -985,7 +995,7 @@ impl CudaServerKey {
         self.unchecked_scalar_max_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -1003,7 +1013,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: DecomposableInto<u64>,
@@ -1021,7 +1031,7 @@ impl CudaServerKey {
         self.unchecked_scalar_min_async(lhs, scalar, stream)
     }
 
-    pub fn scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: DecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,

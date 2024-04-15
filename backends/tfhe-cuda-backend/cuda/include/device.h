@@ -26,31 +26,15 @@ inline void cuda_error(cudaError_t code, const char *file, int line) {
     std::abort();                                                              \
   }
 
-struct cuda_stream_t {
-  cudaStream_t stream;
-  uint32_t gpu_index;
+cudaStream_t cuda_create_stream(uint32_t gpu_index);
 
-  cuda_stream_t(uint32_t gpu_index) {
-    this->gpu_index = gpu_index;
+void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index);
 
-    check_cuda_error(cudaStreamCreate(&stream));
-  }
-
-  void release() {
-    check_cuda_error(cudaSetDevice(gpu_index));
-    check_cuda_error(cudaStreamDestroy(stream));
-  }
-
-  void synchronize() { check_cuda_error(cudaStreamSynchronize(stream)); }
-};
-
-cuda_stream_t *cuda_create_stream(uint32_t gpu_index);
-
-void cuda_destroy_stream(cuda_stream_t *stream);
+void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index);
 
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 
-void *cuda_malloc_async(uint64_t size, cuda_stream_t *stream);
+void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
@@ -59,16 +43,16 @@ bool cuda_check_support_cooperative_groups();
 bool cuda_check_support_thread_block_clusters();
 
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
-                              cuda_stream_t *stream);
+                              cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
-                                  cuda_stream_t *stream);
+                                  cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
-                              cuda_stream_t *stream);
+                              cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
-                       cuda_stream_t *stream);
+                       cudaStream_t stream, uint32_t gpu_index);
 
 int cuda_get_number_of_gpus();
 
@@ -76,20 +60,18 @@ void cuda_synchronize_device(uint32_t gpu_index);
 
 void cuda_drop(void *ptr, uint32_t gpu_index);
 
-void cuda_drop_async(void *ptr, cuda_stream_t *stream);
+void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index);
 
 int cuda_get_max_shared_memory(uint32_t gpu_index);
 
-void cuda_synchronize_stream(cuda_stream_t *stream);
-
-void cuda_stream_add_callback(cuda_stream_t *stream,
+void cuda_stream_add_callback(cudaStream_t stream, uint32_t gpu_index,
                               cudaStreamCallback_t callback, void *user_data);
+}
 
 void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
                                   void *host_pointer);
-}
 
 template <typename Torus>
-void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
-                          Torus n);
+void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
+                          Torus *d_array, Torus value, Torus n);
 #endif

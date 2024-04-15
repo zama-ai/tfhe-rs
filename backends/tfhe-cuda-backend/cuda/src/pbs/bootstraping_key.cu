@@ -1,36 +1,38 @@
 #include "bootstrapping_key.cuh"
 
 void cuda_convert_lwe_programmable_bootstrap_key_32(
-    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
-    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size) {
+    void *stream, uint32_t gpu_index, void *dest, void *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size) {
   uint32_t total_polynomials =
       input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
-      (double2 *)dest, (int32_t *)src, stream, input_lwe_dim, glwe_dim,
-      level_count, polynomial_size, total_polynomials);
+      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
+      (int32_t *)src, polynomial_size, total_polynomials);
 }
 
 void cuda_convert_lwe_programmable_bootstrap_key_64(
-    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
-    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size) {
+    void *stream, uint32_t gpu_index, void *dest, void *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size) {
   uint32_t total_polynomials =
       input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
-      (double2 *)dest, (int64_t *)src, stream, input_lwe_dim, glwe_dim,
-      level_count, polynomial_size, total_polynomials);
+      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
+      (int64_t *)src, polynomial_size, total_polynomials);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-    void *dest, void *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
-    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size,
-    uint32_t grouping_factor) {
+    void *stream, uint32_t gpu_index, void *dest, void *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size, uint32_t grouping_factor) {
   uint32_t total_polynomials = input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) *
                                level_count * (1 << grouping_factor) /
                                grouping_factor;
   size_t buffer_size = total_polynomials * polynomial_size * sizeof(uint64_t);
 
   cuda_memcpy_async_to_gpu((uint64_t *)dest, (uint64_t *)src, buffer_size,
-                           stream);
+                           static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 // We need these lines so the compiler knows how to specialize these functions

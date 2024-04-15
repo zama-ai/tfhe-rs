@@ -1,6 +1,6 @@
 use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
+use crate::high_level_api::global_state::{self, with_thread_local_cuda_streams};
 use crate::integer::BooleanBlock;
 use crate::Device;
 use serde::{Deserializer, Serializer};
@@ -18,7 +18,7 @@ impl Clone for InnerBoolean {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                with_thread_local_cuda_stream(|stream| Self::Cuda(inner.duplicate(stream)))
+                with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
             }
         }
     }
@@ -75,8 +75,8 @@ impl InnerBoolean {
         match self {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
             #[cfg(feature = "gpu")]
-            Self::Cuda(ct) => with_thread_local_cuda_stream(|stream| {
-                MaybeCloned::Cloned(ct.to_boolean_block(stream))
+            Self::Cuda(ct) => with_thread_local_cuda_streams(|streams| {
+                MaybeCloned::Cloned(ct.to_boolean_block(streams))
             }),
         }
     }
@@ -88,12 +88,12 @@ impl InnerBoolean {
         &self,
     ) -> MaybeCloned<'_, crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext> {
         match self {
-            Self::Cpu(ct) => with_thread_local_cuda_stream(|stream| {
+            Self::Cpu(ct) => with_thread_local_cuda_streams(|streams| {
                 let ct_as_radix = crate::integer::RadixCiphertext::from(vec![ct.0.clone()]);
                 let cuda_ct =
                     crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                         &ct_as_radix,
-                        stream,
+                        streams,
                     );
                 MaybeCloned::Cloned(cuda_ct)
             }),
@@ -131,9 +131,9 @@ impl InnerBoolean {
         self,
     ) -> crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock {
         match self {
-            Self::Cpu(cpu_ct) => with_thread_local_cuda_stream(|stream| {
+            Self::Cpu(cpu_ct) => with_thread_local_cuda_streams(|streams| {
                 crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock::from_boolean_block(
-                    &cpu_ct, stream,
+                    &cpu_ct, streams,
                 )
             }),
             Self::Cuda(ct) => ct,
@@ -151,17 +151,18 @@ impl InnerBoolean {
             }
             #[cfg(feature = "gpu")]
             (Self::Cpu(ct), Device::CudaGpu) => {
-                let new_inner = with_thread_local_cuda_stream(|stream| {
+                let new_inner = with_thread_local_cuda_streams(|streams| {
                     crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock::from_boolean_block(
                         ct,
-                        stream,
+                        streams,
                     )
                 });
                 *self = Self::Cuda(new_inner);
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner = with_thread_local_cuda_stream(|stream| ct.to_boolean_block(stream));
+                let new_inner =
+                    with_thread_local_cuda_streams(|streams| ct.to_boolean_block(streams));
                 *self = Self::Cpu(new_inner);
             }
         }

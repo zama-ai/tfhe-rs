@@ -1,12 +1,15 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{
+    unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
+};
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
@@ -20,18 +23,17 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
     ///
     /// let msg_1 = 12;
     /// let msg_2 = 10;
@@ -41,13 +43,13 @@ impl CudaServerKey {
     /// let ctxt_2 = cks.encrypt(msg_2);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_sub(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.unchecked_sub(&d_ct1, &d_ct2, &streams);
     ///
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -57,10 +59,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> T {
-        let result = unsafe { self.unchecked_sub_async(ct_left, ct_right, stream) };
-        stream.synchronize();
+        let result = unsafe { self.unchecked_sub_async(ct_left, ct_right, streams) };
+        streams.synchronize();
         result
     }
 
@@ -72,10 +74,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = ct_left.duplicate_async(stream);
-        self.unchecked_sub_assign_async(&mut result, ct_right, stream);
+        let mut result = ct_left.duplicate_async(streams);
+        self.unchecked_sub_assign_async(&mut result, ct_right, streams);
         result
     }
 
@@ -87,10 +89,10 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) {
-        let neg = self.unchecked_neg_async(ct_right, stream);
-        self.unchecked_add_assign_async(ct_left, &neg, stream);
+        let neg = self.unchecked_neg_async(ct_right, streams);
+        self.unchecked_add_assign_async(ct_left, &neg, streams);
     }
 
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -103,19 +105,18 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
     ///
     /// let msg_1 = 128;
     /// let msg_2 = 99;
@@ -125,13 +126,13 @@ impl CudaServerKey {
     /// let ctxt_2 = cks.encrypt(msg_2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// sks.unchecked_sub_assign(&mut d_ct1, &d_ct2, &mut stream);
+    /// sks.unchecked_sub_assign(&mut d_ct1, &d_ct2, &streams);
     ///
-    /// let ct_res = d_ct1.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct1.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -141,12 +142,12 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.unchecked_sub_assign_async(ct_left, ct_right, stream);
+            self.unchecked_sub_assign_async(ct_left, ct_right, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -163,18 +164,17 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &streams);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -184,13 +184,13 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg_2 as u64);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
     ///
     /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.sub(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.sub(&d_ct1, &d_ct2, &streams);
     ///
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
     /// let res: u64 = cks.decrypt(&ct_res);
@@ -200,10 +200,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> T {
-        let result = unsafe { self.sub_async(ct_left, ct_right, stream) };
-        stream.synchronize();
+        let result = unsafe { self.sub_async(ct_left, ct_right, streams) };
+        streams.synchronize();
         result
     }
 
@@ -215,10 +215,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = ct_left.duplicate_async(stream);
-        self.sub_assign_async(&mut result, ct_right, stream);
+        let mut result = ct_left.duplicate_async(streams);
+        self.sub_assign_async(&mut result, ct_right, streams);
         result
     }
 
@@ -226,12 +226,12 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.sub_assign_async(ct_left, ct_right, stream);
+            self.sub_assign_async(ct_left, ct_right, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// # Safety
@@ -242,7 +242,7 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -252,32 +252,32 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                self.full_propagate_assign_async(ct_left, stream);
+                self.full_propagate_assign_async(ct_left, streams);
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
 
-                self.full_propagate_assign_async(ct_left, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(ct_left, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
         };
 
-        self.unchecked_sub_assign_async(lhs, rhs, stream);
-        self.propagate_single_carry_assign_async(lhs, stream);
+        self.unchecked_sub_assign_async(lhs, rhs, streams);
+        self.propagate_single_carry_assign_async(lhs, streams);
     }
 
     pub fn unsigned_overflowing_sub(
         &self,
         ct_left: &CudaUnsignedRadixCiphertext,
         ct_right: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
@@ -320,7 +320,7 @@ impl CudaServerKey {
         &self,
         lhs: &CudaUnsignedRadixCiphertext,
         rhs: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         assert_eq!(
             lhs.as_ref().d_blocks.lwe_ciphertext_count(),
@@ -349,7 +349,7 @@ impl CudaServerKey {
         &self,
         lhs: &CudaUnsignedRadixCiphertext,
         rhs: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         let num_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
         let mut tmp: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, stream);
@@ -376,7 +376,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_unsigned_overflowing_sub_integer_radix_classic_kb_assign_async(
+                unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_res.as_mut().d_blocks.0.d_vec,
                     &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
                     &lhs.as_ref().d_blocks.0.d_vec,
@@ -398,10 +399,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     num_blocks,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_unsigned_overflowing_sub_integer_radix_multibit_kb_assign_async(
+                unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct_res.as_mut().d_blocks.0.d_vec,
                     &mut ct_overflowed.as_mut().ciphertext.d_blocks.0.d_vec,
                     &lhs.as_ref().d_blocks.0.d_vec,
@@ -422,8 +426,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     num_blocks,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         };

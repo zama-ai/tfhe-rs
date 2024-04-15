@@ -2,7 +2,7 @@ use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextL
 use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::{programmable_bootstrap_async, CudaStreams};
 use crate::core_crypto::prelude::{
     CastInto, LweCiphertextCount, LweCiphertextIndex, UnsignedTorus,
 };
@@ -21,7 +21,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     input_indexes: &CudaVec<Scalar>,
     num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
-    stream: &CudaStream,
+    stream: &CudaStreams,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
@@ -32,7 +32,8 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         accumulator.ciphertext_modulus()
     );
 
-    stream.bootstrap_async(
+    programmable_bootstrap_async(
+        stream,
         &mut output.0.d_vec,
         output_indexes,
         &accumulator.0.d_vec,
@@ -60,7 +61,7 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
     input_indexes: &CudaVec<Scalar>,
     num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
-    stream: &CudaStream,
+    stream: &CudaStreams,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

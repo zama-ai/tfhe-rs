@@ -1,6 +1,6 @@
 pub mod algorithms;
 pub mod entities;
-mod slice;
+pub mod slice;
 pub mod vec;
 
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -12,518 +12,511 @@ use crate::core_crypto::prelude::{
 pub use algorithms::*;
 pub use entities::*;
 use std::ffi::c_void;
-use tfhe_cuda_backend::cuda_bind::*;
+pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 
-#[derive(Debug, Copy, Clone)]
-pub struct CudaPtr {
-    ptr: *mut c_void,
-    device: CudaDevice,
+pub struct CudaStreams {
+    pub ptr: Vec<*mut c_void>,
+    pub gpu_indexes: Vec<u32>,
+    pub len: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct CudaStream {
-    ptr: *mut c_void,
-    device: CudaDevice,
-}
+impl CudaStreams {
+    pub fn new_multi_gpu() -> Self {
+        let gpu_count = setup_multi_gpu();
+        let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
+        let mut ptr_array = Vec::with_capacity(gpu_count as usize);
 
-impl CudaStream {
-    pub fn new_unchecked(device: CudaDevice) -> Self {
-        let gpu_index = device.gpu_index();
-        unsafe {
-            let ptr = cuda_create_stream(gpu_index);
-
-            Self { ptr, device }
+        for i in 0..gpu_count {
+            ptr_array.push(unsafe { cuda_create_stream(i as u32) });
+            gpu_indexes.push(i as u32);
+        }
+        Self {
+            ptr: ptr_array,
+            gpu_indexes,
+            len: gpu_count as usize,
         }
     }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be a valid pointer
-    pub unsafe fn as_mut_c_ptr(&mut self) -> *mut c_void {
-        self.ptr
+    pub fn new_single_gpu(gpu_index: u32) -> Self {
+        Self {
+            ptr: vec![unsafe { cuda_create_stream(gpu_index) }],
+            gpu_indexes: vec![gpu_index],
+            len: 1,
+        }
     }
-
-    /// # Safety
-    ///
-    /// - `stream` __must__ be a valid pointer
-    pub unsafe fn as_c_ptr(&self) -> *const c_void {
-        self.ptr.cast_const()
-    }
-
-    pub fn device(&self) -> CudaDevice {
-        self.device
-    }
-
-    /// Synchronizes the stream
     pub fn synchronize(&self) {
-        unsafe { cuda_synchronize_stream(self.as_c_ptr()) };
-    }
-
-    /// Discarding bootstrap on a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn bootstrap_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_out_indexes: &CudaVec<T>,
-        test_vector: &CudaVec<T>,
-        test_vector_indexes: &CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        lwe_in_indexes: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<f64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        base_log: DecompositionBaseLog,
-        level: DecompositionLevelCount,
-        num_samples: u32,
-        lwe_idx: LweCiphertextIndex,
-    ) {
-        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_programmable_bootstrap_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
-            num_samples,
-            self.device().get_max_shared_memory() as u32,
-            true,
-        );
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_out_indexes.as_c_ptr(),
-            test_vector.as_c_ptr(),
-            test_vector_indexes.as_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            lwe_in_indexes.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
-            num_samples,
-            num_samples,
-            lwe_idx.0 as u32,
-            self.device().get_max_shared_memory() as u32,
-        );
-        cleanup_cuda_programmable_bootstrap(self.as_c_ptr(), std::ptr::addr_of_mut!(pbs_buffer));
-    }
-
-    /// Discarding bootstrap on a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        output_indexes: &CudaVec<T>,
-        test_vector: &CudaVec<T>,
-        test_vector_indexes: &CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        input_indexes: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
-        lwe_dimension: LweDimension,
-        glwe_dimension: GlweDimension,
-        polynomial_size: PolynomialSize,
-        base_log: DecompositionBaseLog,
-        level: DecompositionLevelCount,
-        grouping_factor: LweBskGroupingFactor,
-        num_samples: u32,
-        lwe_idx: LweCiphertextIndex,
-    ) {
-        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-        scratch_cuda_multi_bit_programmable_bootstrap_64(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
-            grouping_factor.0 as u32,
-            num_samples,
-            self.device().get_max_shared_memory() as u32,
-            true,
-            0u32,
-        );
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            output_indexes.as_c_ptr(),
-            test_vector.as_c_ptr(),
-            test_vector_indexes.as_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            input_indexes.as_c_ptr(),
-            bootstrapping_key.as_c_ptr(),
-            pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
-            num_samples,
-            num_samples,
-            lwe_idx.0 as u32,
-            self.device().get_max_shared_memory() as u32,
-            0u32,
-        );
-        cleanup_cuda_multi_bit_programmable_bootstrap(
-            self.as_c_ptr(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
-    }
-
-    /// Discarding keyswitch on a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn keyswitch_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_out_indexes: &CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        lwe_in_indexes: &CudaVec<T>,
-        input_lwe_dimension: LweDimension,
-        output_lwe_dimension: LweDimension,
-        keyswitch_key: &CudaVec<T>,
-        base_log: DecompositionBaseLog,
-        l_gadget: DecompositionLevelCount,
-        num_samples: u32,
-    ) {
-        cuda_keyswitch_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_out_indexes.as_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            lwe_in_indexes.as_c_ptr(),
-            keyswitch_key.as_c_ptr(),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
-            base_log.0 as u32,
-            l_gadget.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Convert keyswitch key
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
-        &self,
-        dest: &mut CudaVec<T>,
-        src: &[T],
-    ) {
-        dest.copy_from_cpu_async(src, self);
-    }
-
-    /// Convert programmable bootstrap key
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
-        &self,
-        dest: &mut CudaVec<f64>,
-        src: &[T],
-        input_lwe_dim: LweDimension,
-        glwe_dim: GlweDimension,
-        l_gadget: DecompositionLevelCount,
-        polynomial_size: PolynomialSize,
-    ) {
-        let size = std::mem::size_of_val(src);
-        assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-
-        cuda_convert_lwe_programmable_bootstrap_key_64(
-            dest.as_mut_c_ptr(),
-            src.as_ptr().cast(),
-            self.as_c_ptr(),
-            input_lwe_dim.0 as u32,
-            glwe_dim.0 as u32,
-            l_gadget.0 as u32,
-            polynomial_size.0 as u32,
-        );
-    }
-
-    /// Convert multi-bit programmable bootstrap key
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: UnsignedInteger>(
-        &self,
-        dest: &mut CudaVec<u64>,
-        src: &[T],
-        input_lwe_dim: LweDimension,
-        glwe_dim: GlweDimension,
-        l_gadget: DecompositionLevelCount,
-        polynomial_size: PolynomialSize,
-        grouping_factor: LweBskGroupingFactor,
-    ) {
-        let size = std::mem::size_of_val(src);
-        assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-        cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-            dest.as_mut_c_ptr(),
-            src.as_ptr().cast(),
-            self.as_c_ptr(),
-            input_lwe_dim.0 as u32,
-            glwe_dim.0 as u32,
-            l_gadget.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-        )
-    }
-
-    /// Discarding addition of a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_array_in_1: &CudaVec<T>,
-        lwe_array_in_2: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_add_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_in_1.as_c_ptr(),
-            lwe_array_in_2.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Discarding assigned addition of a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_add_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_out.as_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Discarding addition of a vector of LWE ciphertexts with a vector of plaintexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        plaintext_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            plaintext_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Discarding assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        plaintext_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_out.as_c_ptr(),
-            plaintext_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Discarding negation of a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_negate_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Discarding assigned negation of a vector of LWE ciphertexts
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_negate_lwe_ciphertext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_out.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// Discarding assign negation of a vector of LWE ciphertexts representing an integer
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn negate_integer_radix_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array: &mut CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-    ) {
-        cuda_negate_integer_radix_ciphertext_64_inplace(
-            self.as_c_ptr(),
-            lwe_array.as_mut_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-            message_modulus,
-            carry_modulus,
-        );
-    }
-
-    /// Multiplication of a vector of LWEs with a vector of cleartexts (assigned)
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector_assign_async<T: UnsignedInteger>(
-        &self,
-        lwe_array: &mut CudaVec<T>,
-        cleartext_array_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
-            self.as_c_ptr(),
-            lwe_array.as_mut_c_ptr(),
-            lwe_array.as_c_ptr(),
-            cleartext_array_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-
-    /// Multiplication of a vector of LWEs with a vector of cleartexts.
-    ///
-    /// # Safety
-    ///
-    /// [CudaStream::synchronize] __must__ be called as soon as synchronization is
-    /// required
-    pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
-        &self,
-        lwe_array_out: &mut CudaVec<T>,
-        lwe_array_in: &CudaVec<T>,
-        cleartext_array_in: &CudaVec<T>,
-        lwe_dimension: LweDimension,
-        num_samples: u32,
-    ) {
-        cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
-            self.as_c_ptr(),
-            lwe_array_out.as_mut_c_ptr(),
-            lwe_array_in.as_c_ptr(),
-            cleartext_array_in.as_c_ptr(),
-            lwe_dimension.0 as u32,
-            num_samples,
-        );
-    }
-}
-
-impl Drop for CudaStream {
-    fn drop(&mut self) {
-        self.synchronize();
-        unsafe {
-            cuda_destroy_stream(self.as_mut_c_ptr());
+        for i in 0..self.len {
+            unsafe {
+                cuda_synchronize_stream(self.ptr[i], self.gpu_indexes[i]);
+            }
         }
     }
 }
 
-impl CudaPtr {
-    /// Returns a raw pointer to the vector’s buffer.
-    pub fn as_c_ptr(&self) -> *const c_void {
-        self.ptr.cast_const()
-    }
+/// Discarding bootstrap on a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_out_indexes: &CudaVec<T>,
+    test_vector: &CudaVec<T>,
+    test_vector_indexes: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    lwe_in_indexes: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<f64>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
+    level: DecompositionLevelCount,
+    num_samples: u32,
+    lwe_idx: LweCiphertextIndex,
+) {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_programmable_bootstrap_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(pbs_buffer),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        level.0 as u32,
+        num_samples,
+        get_max_shared_memory(0) as u32,
+        true,
+    );
+    cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_out_indexes.as_c_ptr(),
+        test_vector.as_c_ptr(),
+        test_vector_indexes.as_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        lwe_in_indexes.as_c_ptr(),
+        bootstrapping_key.as_c_ptr(),
+        pbs_buffer,
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        base_log.0 as u32,
+        level.0 as u32,
+        num_samples,
+        num_samples,
+        lwe_idx.0 as u32,
+        get_max_shared_memory(streams.gpu_indexes[0]) as u32,
+    );
+    cleanup_cuda_programmable_bootstrap(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
+}
 
-    /// Returns an unsafe mutable pointer to the vector’s buffer.
-    pub fn as_mut_c_ptr(&mut self) -> *mut c_void {
-        self.ptr
-    }
+/// Discarding bootstrap on a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    output_indexes: &CudaVec<T>,
+    test_vector: &CudaVec<T>,
+    test_vector_indexes: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    input_indexes: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<u64>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
+    level: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    num_samples: u32,
+    lwe_idx: LweCiphertextIndex,
+) {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_multi_bit_programmable_bootstrap_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(pbs_buffer),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        level.0 as u32,
+        grouping_factor.0 as u32,
+        num_samples,
+        get_max_shared_memory(0) as u32,
+        true,
+        0u32,
+    );
+    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        output_indexes.as_c_ptr(),
+        test_vector.as_c_ptr(),
+        test_vector_indexes.as_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        input_indexes.as_c_ptr(),
+        bootstrapping_key.as_c_ptr(),
+        pbs_buffer,
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        grouping_factor.0 as u32,
+        base_log.0 as u32,
+        level.0 as u32,
+        num_samples,
+        num_samples,
+        lwe_idx.0 as u32,
+        get_max_shared_memory(0) as u32,
+        0u32,
+    );
+    cleanup_cuda_multi_bit_programmable_bootstrap(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
+}
+
+/// Discarding keyswitch on a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn keyswitch_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_out_indexes: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    lwe_in_indexes: &CudaVec<T>,
+    input_lwe_dimension: LweDimension,
+    output_lwe_dimension: LweDimension,
+    keyswitch_key: &CudaVec<T>,
+    base_log: DecompositionBaseLog,
+    l_gadget: DecompositionLevelCount,
+    num_samples: u32,
+) {
+    cuda_keyswitch_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_out_indexes.as_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        lwe_in_indexes.as_c_ptr(),
+        keyswitch_key.as_c_ptr(),
+        input_lwe_dimension.0 as u32,
+        output_lwe_dimension.0 as u32,
+        base_log.0 as u32,
+        l_gadget.0 as u32,
+        num_samples,
+    );
+}
+
+/// Convert keyswitch key
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    dest: &mut CudaVec<T>,
+    src: &[T],
+) {
+    dest.copy_from_cpu_async(src, streams);
+}
+
+/// Convert programmable bootstrap key
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    dest: &mut CudaVec<f64>,
+    src: &[T],
+    input_lwe_dim: LweDimension,
+    glwe_dim: GlweDimension,
+    l_gadget: DecompositionLevelCount,
+    polynomial_size: PolynomialSize,
+) {
+    let size = std::mem::size_of_val(src);
+    assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
+
+    cuda_convert_lwe_programmable_bootstrap_key_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        dest.as_mut_c_ptr(),
+        src.as_ptr().cast(),
+        input_lwe_dim.0 as u32,
+        glwe_dim.0 as u32,
+        l_gadget.0 as u32,
+        polynomial_size.0 as u32,
+    );
+}
+
+/// Convert multi-bit programmable bootstrap key
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    dest: &mut CudaVec<u64>,
+    src: &[T],
+    input_lwe_dim: LweDimension,
+    glwe_dim: GlweDimension,
+    l_gadget: DecompositionLevelCount,
+    polynomial_size: PolynomialSize,
+    grouping_factor: LweBskGroupingFactor,
+) {
+    let size = std::mem::size_of_val(src);
+    assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
+    cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        dest.as_mut_c_ptr(),
+        src.as_ptr().cast(),
+        input_lwe_dim.0 as u32,
+        glwe_dim.0 as u32,
+        l_gadget.0 as u32,
+        polynomial_size.0 as u32,
+        grouping_factor.0 as u32,
+    )
+}
+
+/// Discarding addition of a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in_1: &CudaVec<T>,
+    lwe_array_in_2: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_in_1.as_c_ptr(),
+        lwe_array_in_2.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Discarding assigned addition of a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_out.as_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Discarding addition of a vector of LWE ciphertexts with a vector of plaintexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    plaintext_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        plaintext_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Discarding assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    plaintext_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_out.as_c_ptr(),
+        plaintext_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Discarding negation of a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_negate_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Discarding assigned negation of a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_negate_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_out.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// Discarding assign negation of a vector of LWE ciphertexts representing an integer
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn negate_integer_radix_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+    message_modulus: u32,
+    carry_modulus: u32,
+) {
+    cuda_negate_integer_radix_ciphertext_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len as u32,
+        lwe_array.as_mut_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+        message_modulus,
+        carry_modulus,
+    );
+}
+
+/// Multiplication of a vector of LWEs with a vector of cleartexts (assigned)
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector_assign_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaVec<T>,
+    cleartext_array_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array.as_mut_c_ptr(),
+        lwe_array.as_c_ptr(),
+        cleartext_array_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
+}
+
+/// Multiplication of a vector of LWEs with a vector of cleartexts.
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    cleartext_array_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+) {
+    cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(),
+        lwe_array_in.as_c_ptr(),
+        cleartext_array_in.as_c_ptr(),
+        lwe_dimension.0 as u32,
+        num_samples,
+    );
 }
 
 #[derive(Debug)]
@@ -552,35 +545,30 @@ pub struct CudaGlweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CudaDevice {
-    gpu_index: u32,
+/// Get the maximum amount of shared memory on a device
+pub fn get_max_shared_memory(gpu_index: u32) -> i32 {
+    unsafe { cuda_get_max_shared_memory(gpu_index) }
 }
 
-impl CudaDevice {
-    /// Creates a CudaDevice related to the GPU with index gpu_index
-    pub fn new(gpu_index: u32) -> Self {
-        Self { gpu_index }
-    }
+/// Get the number of GPUs on the machine
+pub fn get_number_of_gpus() -> i32 {
+    unsafe { cuda_get_number_of_gpus() }
+}
 
-    pub fn gpu_index(&self) -> u32 {
-        self.gpu_index
-    }
+/// Setup multi-GPU and return the number of GPUs used
+pub fn setup_multi_gpu() -> i32 {
+    unsafe { cuda_setup_multi_gpu() }
+}
 
-    /// Synchronizes the device
-    #[allow(dead_code)]
-    pub fn synchronize_device(&self) {
-        unsafe { cuda_synchronize_device(self.gpu_index()) };
-    }
+/// Synchronize device
+pub fn synchronize_device(gpu_index: u32) {
+    unsafe { cuda_synchronize_device(gpu_index) }
+}
 
-    /// Get the maximum amount of shared memory
-    pub fn get_max_shared_memory(&self) -> i32 {
-        unsafe { cuda_get_max_shared_memory(self.gpu_index()) }
-    }
-
-    /// Synchronizes the stream
-    pub fn get_number_of_gpus(&self) -> i32 {
-        unsafe { cuda_get_number_of_gpus() }
+/// Synchronize all devices
+pub fn synchronize_devices(gpu_count: u32) {
+    for i in 0..gpu_count {
+        unsafe { cuda_synchronize_device(i) }
     }
 }
 
@@ -590,17 +578,14 @@ mod tests {
 
     #[test]
     fn print_gpu_info() {
-        println!("Number of GPUs: {}", unsafe { cuda_get_number_of_gpus() });
+        println!("Number of GPUs: {}", get_number_of_gpus());
         let gpu_index: u32 = 0;
-        let device = CudaDevice::new(gpu_index);
-        println!("Max shared memory: {}", device.get_max_shared_memory())
+        println!("Max shared memory: {}", get_max_shared_memory(gpu_index))
     }
     #[test]
     fn allocate_and_copy() {
         let vec = vec![1_u64, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let gpu_index: u32 = 0;
-        let device = CudaDevice::new(gpu_index);
-        let stream = CudaStream::new_unchecked(device);
+        let stream = CudaStreams::new_single_gpu(0);
         unsafe {
             let mut d_vec: CudaVec<u64> = CudaVec::<u64>::new_async(vec.len(), &stream);
             d_vec.copy_from_cpu_async(&vec, &stream);
