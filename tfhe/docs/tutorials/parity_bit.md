@@ -1,19 +1,18 @@
-## A more complex example: Parity Bit (Boolean)
+# Homomorphic parity bit
 
-This example is dedicated to the building of a small function that homomorphically computes a parity bit.
+This tutorial shows how to build a small function that homomorphically computes a parity bit in 2 steps:
 
-First, a non-generic function is written. Then, generics are used to handle the case where the function inputs are both `FheBool`s and clear `bool`s.
+1. Write a non-generic function
+2. Use generics to handle the case where the function inputs are both `FheBool`s and clear `bool`s.
 
-The parity bit function takes as input two parameters:
+The parity bit function processes two parameters:
 
 * A slice of Boolean
 * A mode (`Odd` or `Even`)
 
-This function returns a Boolean that will be either `true` or `false` so that the sum of Booleans (in the input and the returned one) is either an `Odd` or `Even` number, depending on the requested mode.
+This function returns a Boolean (`true` or `false`) so that the total count of `true` values across the input and the result matches with the specified parity mode (`Odd` or `Even`).
 
-***
-
-### Non-generic version.
+## Non-generic version
 
 ```toml
 # Cargo.toml
@@ -22,16 +21,13 @@ This function returns a Boolean that will be either `true` or `false` so that th
 tfhe = { version = "0.6.0", features = ["integer", "x86_64-unix"]}
 ```
 
-Other configurations can be found [here](../getting_started/installation.md).
+Refer to the [installation](../getting\_started/installation.md) for other configurations.
 
+First, define the verification function.
 
-#### function definition
+The function initializes the parity bit to `false`, then applies the `XOR` operation across all bits, adding negation based on the requested mode.
 
-First, the verification function is defined.
-
-The way to find the parity bit is to initialize it to `false, then` `XOR` it with all the bits, one after the other, adding negation depending on the requested mode.
-
-A validation function is also defined to sum together the number of the bit set within the input with the computed parity bit and check that the sum is an even or odd number, depending on the mode.
+The validation function also adds the number of the bits set in the input to the computed parity bit and checks whether the sum is even or odd, depending on the mode.
 
 ```rust
 use tfhe::FheBool;
@@ -78,9 +74,7 @@ fn check_parity_bit_validity(bits: &[bool], mode: ParityMode, parity_bit: bool) 
 }
 ```
 
-#### final code
-
-After the mandatory configuration steps, the function is called:
+After configurations, call the function:
 
 ```rust
 use tfhe::{FheBool, ConfigBuilder, generate_keys, set_server_key};
@@ -156,19 +150,15 @@ fn main() {
 }
 ```
 
-***
+## Generic version
 
-### Generic version.
+To enable the `compute_parity_bit` function to operate with both encrypted `FheBool` and plain bool, we introduce generics. This approach allows for validation using clear data and facilitates debugging.
 
-To make the `compute_parity_bit` function compatible with both `FheBool` and `bool`, generics have to be used.
+Writing generic functions that incorporate operator overloading for our Fully Homomorphic Encryption (FHE) types is more complex than usual because FHE types do not implement the `Copy` trait. Consequently, it is necessary to use references (&) with these types, unlike native types, which typically implement `Copy`.
 
-Writing a generic function that accepts `FHE` types as well as clear types can help test the function to see if it is correct. If the function is generic, it can run with clear data, allowing the use of print-debugging or a debugger to spot errors.
+This complicates generic bounds at first.
 
-Writing generic functions that use operator overloading for our FHE types can be trickier than normal, since `FHE` types are not copy. So using the reference `&` is mandatory, even though this is not the case when using native types, which are all `Copy`.
-
-This will make the generic bounds trickier at first.
-
-#### writing the correct trait bounds
+### Writing the correct trait bounds
 
 The function has the following signature:
 
@@ -179,7 +169,7 @@ fn check_parity_bit_validity(
 ) -> bool
 ```
 
-To make it generic, the first step is:
+To make it generic, the first steps is:
 
 ```Rust
 fn compute_parity_bit<BoolType>(
@@ -188,14 +178,14 @@ fn compute_parity_bit<BoolType>(
 ) -> BoolType
 ```
 
-Next, the generic bounds have to be defined with the `where` clause.
+Next, define the generic bounds with the `where` clause.
 
-In the function, the following operators are used:
+In the function, you can use the following operators:
 
 * `!` (trait: `Not`)
 * `^` (trait: `BitXor`)
 
-By adding them to `where`, this gives:
+Adding them to `where`, it gives:
 
 ```Rust
 where
@@ -203,9 +193,9 @@ where
     BoolType: BitXor<BoolType, Output=BoolType>,
 ```
 
-However, the compiler will complain:
+However, the compiler will return an error:
 
-```text
+```console
 ---- src/user_doc_tests.rs - user_doc_tests (line 199) stdout ----
 error[E0369]: no implementation for `&BoolType ^ BoolType`
 --> src/user_doc_tests.rs:218:30
@@ -222,7 +212,7 @@ help: consider extending the `where` bound, but there might be an alternative be
 error: aborting due to previous error
 ```
 
-`fhe_bit` is a reference to a `BoolType` (`&BoolType`) since it is borrowed from the `fhe_bits` slice when iterating over its elements. The first try is to change the `BitXor` bounds to what the Compiler suggests by requiring `&BoolType` to implement `BitXor` and not `BoolType`.
+`fhe_bit` is a reference to a `BoolType` (`&BoolType`), because `BoolType` is borrowed from the `fhe_bits` slice during iteration. To fix the error, the first approach could be changing the `BitXor` bounds to what the Compiler suggests, by requiring `&BoolType` to implement `BitXor` rather than `BoolType`.
 
 ```Rust
 where
@@ -230,9 +220,9 @@ where
     &BoolType: BitXor<BoolType, Output=BoolType>,
 ```
 
-The Compiler is still not happy:
+However, this approach still leads to an error:
 
-```text
+```console
 ---- src/user_doc_tests.rs - user_doc_tests (line 236) stdout ----
 error[E0637]: `&` without an explicit lifetime name cannot be used here
   --> src/user_doc_tests.rs:251:5
@@ -252,7 +242,7 @@ help: consider adding an explicit lifetime bound...
    |
 ```
 
-The way to fix this is to use `Higher-Rank Trait Bounds`:
+To fix this error, use `Higher-Rank Trait Bounds`:
 
 ```Rust
 where
@@ -260,7 +250,7 @@ where
     for<'a> &'a BoolType: BitXor<BoolType, Output = BoolType>,
 ```
 
-The final code will look like this:
+The final code is as follows:
 
 ```rust
 use std::ops::{Not, BitXor};
@@ -289,8 +279,6 @@ where
     }
 }
 ```
-
-#### final code
 
 Here is a complete example that uses this function for both clear and FHE values:
 

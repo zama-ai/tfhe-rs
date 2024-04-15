@@ -1,8 +1,10 @@
 # Set the server key
 
-The next step is to call `set_server_key`
+This document explains how to call the function `set_server_key`.
 
-This function will **move** the server key to an internal state of the crate and manage the details to give a simpler interface.
+This function will **move** the server key to an internal state of the crate and manage the details for a simpler interface.
+
+Here is an example:
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, set_server_key};

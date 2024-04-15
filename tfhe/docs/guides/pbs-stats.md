@@ -1,12 +1,12 @@
-# PBS Statistics
+# PBS statistics
 
-The `shortint` API now keeps track of how many PBS were executed with a global counter when enabling the `pbs-stats` feature.
+This document explains how to use the PBS statistics feature in **TFHE-rs'** shortint API to assess the overall computational intensity in FHE applications.
 
-This allows knowing precisely how many PBS are executed in a circuit and estimate the overall compute intensity of FHE code using either the `shortint`, `integer` or High-Level APIs.
+The `shortint` API now includes a global counter to track the number of Programmable Bootstrapping (PBS) executed with the `pbs-stats` feature. This feature enables precise tracking of PBS executions in a circuit. It helps to estimate the overall compute intensity of FHE code using either the `shortint`, `integer,` or High-Level APIs.
 
-You can query how many PBSes were executed by calling `get_pbs_count`. You can reset the PBS count by calling `reset_pbs_count` to more easily know how many PBSes were executed by each part of your code.
+To know how many PBSes were executed, call `get_pbs_count`. To reset the PBS count, call `reset_pbs_count`. You can combine two functions to understand how many PBSes were executed in each part of your code.
 
-Combined with the [`debug mode`](`debug.md`) it can allow to have estimations very quickly while iterating on the FHE code.
+When combined with the [`debug mode`](../fundamentals/debug.md), this feature allows for quick estimations during iterations on the FHE code.
 
 Here is an example of how to use the PBS counter:
 

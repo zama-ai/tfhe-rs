@@ -1,6 +1,8 @@
 # Decrypt data
 
-Decrypting data is achieved by using the `decrypt` method, which comes from the FheDecrypt trait.
+This document provides instructions on how to decrypt data.
+
+To decrypt data, use the `decrypt` method from the `FheDecrypt` trait:
 
 ```rust
 use tfhe::prelude::*;

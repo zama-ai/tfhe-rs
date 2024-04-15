@@ -1,28 +1,33 @@
-# High-Level API in C 
+# High-level API in C
 
-This library exposes a C binding to the high-level TFHE-rs primitives to implement _Fully Homomorphic Encryption_ (FHE) programs.
+This document describes the C bindings to the **TFHE-rs** high-level primitives for creating Fully Homomorphic Encryption (FHE) programs.
 
-## Setting-up TFHE-rs C API for use in a C program.
+## Setting up TFHE-rs C API for C programming.
 
-TFHE-rs C API can be built on a Unix x86\_64 machine using the following command:
+You can build **TFHE-rs** C API on a Unix x86\_64 machine using the following command:
 
 ```shell
 RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
 ```
 
-or on a Unix aarch64 machine using the following command:
+For a Unix aarch64 machine, use the following command:
 
 ```shell
 RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=aarch64-unix,high-level-c-api -p tfhe && make symlink_c_libs_without_fingerprint
 ```
 
-The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/".
+Locate files in the right path:
 
-The `tfhe-c-api-dynamic-buffer.h` header and the static (.a) and dynamic (.so) libraries will be found in "${REPO\_ROOT}/target/release/deps/".
+* In `${REPO\_ROOT}/target/release/`, you can find:
+  * The `tfhe.h` header
+  * The static (.a) and dynamic (.so) `libtfhe` binaries
+* In `${REPO\_ROOT}/target/release/deps/`, you can find:
+  * The `tfhe-c-api-dynamic-buffer.h` header
+  * The static (.a) and dynamic (.so) libraries
 
-The build system needs to be set up so that the C or C++ program links against TFHE-rs C API binaries and the dynamic buffer library.
+Ensure your build system configures the C or C++ program links against **TFHE-rs** C API binaries and the dynamic buffer library.
 
-Here is a minimal CMakeLists.txt to do just that:
+The following is a minimal `CMakeLists.txt` configuration example:
 
 ```cmake
 project(my-project)
@@ -57,11 +62,13 @@ target_compile_options(${EXECUTABLE_NAME} PRIVATE -Werror)
 
 ## Commented code of a uint128 subtraction using `TFHE-rs C API`.
 
+The following example demonstrates uint128 subtraction using the **TFHE-rs** C API:
+
 {% hint style="warning" %}
-WARNING: The following example does not have proper memory management in the error case to make it easier to fit the code on this page.
+**WARNING**: this example omits proper memory management in the error case to improve code readability.
 {% endhint %}
 
-To run the example below, the above CMakeLists.txt and main.c files need to be in the same directory. The commands to run are:
+Ensure the above `CMakeLists.txt` and `main.c` files are in the same directory. Use the following commands to execute the example:
 
 ```shell
 # /!\ Be sure to update CMakeLists.txt to give the absolute path to the compiled tfhe library

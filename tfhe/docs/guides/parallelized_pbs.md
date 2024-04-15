@@ -1,9 +1,14 @@
-# Parallelized Programmable Bootstrapping
+# Parallelized PBS
 
-The [Programmable Bootstrapping](../getting_started/security_and_cryptography.md)(PBS) is a sequential operation by nature. However, some [recent results](https://marcjoye.github.io/papers/JP22ternary.pdf) showed that parallelism could be added at the cost of having larger keys. Overall, the performance of the PBS are improved. This new PBS is called a multi bit PBS.
-In TFHE-rs, since integer homomorphic operations are already parallelized, activating this feature may improve performance in the case of high core count CPUs if enough cores are available, or for small input message precision.
+This document describes the implementation and benefits of parallelized [Programmable Bootstrapping](../getting\_started/security\_and\_cryptography.md) (PBS) in **TFHE-rs**, including code examples for using multi-bit PBS parameters and ensuring deterministic execution.
 
-In what follows, an example on how to use the parallelized bootstrapping by choosing multi bit PBS parameters:
+## Parallelized Programmable Bootstrapping
+
+Programmable Bootstrapping is inherently a sequential operation. However, some [recent results](https://marcjoye.github.io/papers/JP22ternary.pdf) showed that introducing parallelism is feasible at the expense of larger keys, thereby enhancing the performance of PBS. This new PBS is called a multi-bit PBS.
+
+**TFHE-rs** can already perform parallel execution of integer homomorphic operations. Activating this feature can lead to performance improvements, particularly in the case of high core-count CPUs when enough cores are available, or when dealing with operations that require small input message precision.
+
+The following example shows how to use parallelized bootstrapping by choosing multi-bit PBS parameters:
 
 ```rust
 use tfhe::prelude::*;
@@ -33,8 +38,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-# Deterministic Parallelized Programmable Bootstrapping 
-By construction, the parallelized PBS might not be deterministic: the resulting ciphertext will always decrypt to the same plaintext, but the order of the operations could differ so the output ciphertext might differ. In order to activate the deterministic version, the suffix 'with_deterministic_execution()' should be added to the parameters, as shown in the following example:
+## Deterministic parallelized Programmable Bootstrapping
+
+By nature, the parallelized PBS might not be deterministic: while the resulting ciphertext will always decrypt to the correct plaintext, the order of the operations could vary, resulting in different output ciphertext. To ensure a consistent ciphertext output regardless of execution order, add the `with_deterministic_execution()` suffix to the parameters.
+
+Here's an example:
 
 ```rust
 use tfhe::prelude::*;
