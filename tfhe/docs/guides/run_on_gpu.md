@@ -201,7 +201,7 @@ All operations follow the same syntax than the one described in [here](../gettin
 # Benchmarks
 
 All GPU benchmarks presented here were obtained on a single H100 GPU, and rely on the multithreaded PBS algorithm.
-The cryptographic parameters PARAM\_GPU\_MULTI\_BIT\_MESSAGE\_1\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
+The cryptographic parameters PARAM\_GPU\_MULTI\_BIT\_MESSAGE\_2\_CARRY\_2\_GROUP\_3\_KS\_PBS were used.
 Performance is the following when the inputs of the benchmarked operation are encrypted:
 
 | Operation \ Size                                       | `FheUint7` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
