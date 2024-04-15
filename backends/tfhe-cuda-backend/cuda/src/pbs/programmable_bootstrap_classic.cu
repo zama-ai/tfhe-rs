@@ -321,7 +321,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
 void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
-    void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
+    void *lwe_input_indexes, void *bootstrapping_key, int8_t *mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
@@ -330,9 +330,11 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     PANIC("Cuda error (classical PBS): base log should be > number of bits "
           "in the ciphertext representation (32)");
 
-  if (has_support_to_cuda_programmable_bootstrap_cg<uint32_t>(
-          glwe_dimension, polynomial_size, level_count, num_samples,
-          max_shared_memory))
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+
+  switch (buffer->pbs_variant) {
+  case CG:
     cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint32_t>(
         stream, static_cast<uint32_t *>(lwe_array_out),
         static_cast<uint32_t *>(lwe_output_indexes),
@@ -344,7 +346,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
         (pbs_buffer<uint32_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_luts, lwe_idx, max_shared_memory);
-  else
+    break;
+  case DEFAULT:
     cuda_programmable_bootstrap_lwe_ciphertext_vector<uint32_t>(
         stream, static_cast<uint32_t *>(lwe_array_out),
         static_cast<uint32_t *>(lwe_output_indexes),
@@ -356,6 +359,10 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
         (pbs_buffer<uint32_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_luts, lwe_idx, max_shared_memory);
+    break;
+  default:
+    PANIC("Cuda error (PBS): unknown pbs variant.")
+  }
 }
 
 /* Perform bootstrapping on a batch of input u64 LWE ciphertexts.
@@ -433,7 +440,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
 void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
-    void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
+    void *lwe_input_indexes, void *bootstrapping_key, int8_t *mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory) {
@@ -441,9 +448,11 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     PANIC("Cuda error (classical PBS): base log should be > number of bits "
           "in the ciphertext representation (64)");
 
-  if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-          glwe_dimension, polynomial_size, level_count, num_samples,
-          max_shared_memory))
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+
+  switch (buffer->pbs_variant) {
+  case CG:
     cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -455,7 +464,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_luts, lwe_idx, max_shared_memory);
-  else
+    break;
+  case DEFAULT:
     cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -467,6 +477,10 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_luts, lwe_idx, max_shared_memory);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unknown pbs variant.")
+  }
 }
 
 /*
