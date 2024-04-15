@@ -1,16 +1,14 @@
-# Making Rayon And TFHE-RS Work Together
+# Multi-threading with Rayon crate
 
-[rayon](https://crates.io/crates/rayon) is a popular crate to easily write multi-threaded code in Rust.
+This document describes how to use Rayon for parallel processing in **TFHE-rs**, detailing configurations for single and multi-client applications with code examples.
 
-It is possible to use rayon to write multi-threaded TFHE-rs code. However due to internal details of `rayon` and
-`TFHE-rs`, there is some special setup that needs to be done.
+[Rayon](https://crates.io/crates/rayon) is a popular Rust crate that simplifies writing multi-threaded code. You can use Rayon to write multi-threaded **TFHE-rs** code. However, due to the specifications of Rayon and **TFHE-rs**, certain setups are necessary.
 
-## Single Client Application
+## Single-client application
 
-### The Problem 
+### The problem
 
-The high level api requires to call `set_server_key` on each thread where computations needs to be done.
-So a first attempt at using rayon with `TFHE-rs` might look like this:
+The high-level API requires to call `set_server_key` on each thread where computations need to be done. So a first attempt to use Rayon with **TFHE-rs** might look like this:
 
 ```rust
 use rayon::prelude::*;
@@ -46,12 +44,11 @@ fn main() {
 }
 ```
 
-However, due to rayon's work stealing mechanism and TFHE-rs's internals, this may create `BorrowMutError'.
+However, due to Rayon's work-stealing mechanism and **TFHE-rs'** internals, this may create `BorrowMutError`.
 
+### Working example
 
-### Working Example
-
-The correct way is to call `rayon::broadcast`
+The correct way is to call `rayon::broadcast` as follows:
 
 ```rust
 use rayon::prelude::*;
@@ -93,11 +90,9 @@ fn main() {
 }
 ```
 
+## Multi-client applications
 
-## Multi-Client Applications
-
-If your application needs to operate on data from different clients concurrently, and that you want each client to use 
-multiple threads, you will need to create different rayon thread pools
+For applications that need to operate concurrently on data from different clients and require each client to use multiple threads, you need to create separate Rayon thread pools:
 
 ```rust
 use rayon::prelude::*;
@@ -169,7 +164,7 @@ fn main() {
 }
 ```
 
-This can be useful if you have some rust `#[test]`
+This can be useful if you have some rust `#[test]`, see the example below:
 
 ```Rust
 // Pseudo code

@@ -1,14 +1,14 @@
-# Zero Knowledge proof for Compact Public Key encryption
+# Zero-knowledge proofs
 
-TFHE-rs enables the generation of a zero-knowledge proof to verify that a compact public key encryption process has been correctly performed. In other words, the creation of a proof reveals nothing about the encrypted message, except for its already known range. This technique is derived from [Libert’s work](https://eprint.iacr.org/2023/800).
+This document explains how to implement the zero-knowledge proofs function for compact public key encryption to verify the encryption process without revealing the encrypted information.
+
+**TFHE-rs** can generate zero-knowledge proofs to verify that the compact public key encryption process is correct. In other words, **TFHE-rs** generates the proof without revealing any information other than the already known range of the encrypted message. This technique is derived from [Libert’s work](https://eprint.iacr.org/2023/800).
 
 {% hint style="info" %}
-You can enable this feature using the flag: `--features=zk-pok-experimental` when building TFHE-rs.
+You can enable this feature using the flag: `--features=zk-pok-experimental` when building **TFHE-rs**.
 {% endhint %}
 
-
-Deploying this feature is straightforward: the client generates the proof at the time of encryption, while the server verifies it before proceeding with homomorphic computations. Below is an example demonstrating how a client can encrypt and prove a ciphertext, and how a server can verify the ciphertext and carry out computations on it:
-
+Using this feature is straightforward: during encryption, the client generates the proof, and the server validates it before conducting any homomorphic computations. The following example demonstrates how a client can encrypt and prove a ciphertext, and how a server can verify the ciphertext and compute it:
 
 ```rust
 use rand::prelude::*;
@@ -66,4 +66,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
-Encrypting and proving a CompactFheUint64 takes 6.9 s on a Dell XPS 15 9500, simulating a client machine, the verification on an hpc7a.96xlarge available on AWS takes 123 ms.
+
+In terms of performance:
+
+* Encrypting and proving a `CompactFheUint64` takes **6.9 s** on a `Dell XPS 15 9500` (simulating a client machine).
+* Verification takes **123 ms** on an `hpc7a.96xlarge` AWS instances.

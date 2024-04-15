@@ -1,3 +1,3 @@
 # Migrating Data to TFHE-rs 0.6.1 (This Release)
 
-Forward compatibility code to migrate data from TFHE-rs 0.5 to TFHE-rs 0.6 has been added in a minor release of TFHE-rs 0.5, the documentation about the process can be found [here](https://docs.zama.ai/tfhe-rs/v/0.5-3/how-to/migrate_data).
+**TFHE-rs** v0.5 includes forward compatibility code in a minor release to facilitate data migration to **TFHE-rs** v0.6.0. You can find detailed documentation on this migration process [here](https://docs.zama.ai/tfhe-rs/v/0.5-3/how-to/migrate\_data).
