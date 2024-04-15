@@ -185,15 +185,17 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     cuda_stream_t *stream, void *lwe_array_out, void *lwe_output_indexes,
     void *lut_vector, void *lut_vector_indexes, void *lwe_array_in,
-    void *lwe_input_indexes, void *bootstrapping_key, int8_t *buffer,
+    void *lwe_input_indexes, void *bootstrapping_key, int8_t *mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
 
-  if (supports_cooperative_groups_on_multibit_programmable_bootstrap<uint64_t>(
-          glwe_dimension, polynomial_size, level_count, num_samples,
-          max_shared_memory))
+  pbs_buffer<uint64_t, MULTI_BIT> *buffer =
+      (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
+
+  switch (buffer->pbs_variant) {
+  case CG:
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -201,11 +203,11 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(lut_vector_indexes),
         static_cast<uint64_t *>(lwe_array_in),
         static_cast<uint64_t *>(lwe_input_indexes),
-        static_cast<uint64_t *>(bootstrapping_key),
-        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
-  else
+    break;
+  case DEFAULT:
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -213,10 +215,13 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(lut_vector_indexes),
         static_cast<uint64_t *>(lwe_array_in),
         static_cast<uint64_t *>(lwe_input_indexes),
-        static_cast<uint64_t *>(bootstrapping_key),
-        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unknown pbs variant.")
+  }
 }
 
 template <typename Torus, typename STorus>
