@@ -1,8 +1,11 @@
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::CastFrom;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{CastFrom, LweBskGroupingFactor};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{
+    unchecked_scalar_rotate_left_integer_radix_kb_assign_async,
+    unchecked_scalar_rotate_right_integer_radix_kb_assign_async, CudaServerKey, PBSType,
+};
 
 impl CudaServerKey {
     /// # Safety
@@ -13,7 +16,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -33,7 +36,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,
@@ -42,7 +45,8 @@ impl CudaServerKey {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_rotate_left_integer_radix_classic_kb_assign_async(
+                unchecked_scalar_rotate_left_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(n),
                     &d_bsk.d_vec,
@@ -62,10 +66,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_rotate_left_integer_radix_multibit_kb_assign_async(
+                unchecked_scalar_rotate_left_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(n),
                     &d_multibit_bsk.d_vec,
@@ -84,8 +91,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -95,7 +103,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -115,7 +123,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -135,7 +143,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,
@@ -144,7 +152,8 @@ impl CudaServerKey {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_rotate_right_integer_radix_classic_kb_assign_async(
+                unchecked_scalar_rotate_right_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(n),
                     &d_bsk.d_vec,
@@ -164,10 +173,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_rotate_right_integer_radix_multibit_kb_assign_async(
+                unchecked_scalar_rotate_right_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(n),
                     &d_multibit_bsk.d_vec,
@@ -186,8 +198,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -197,7 +210,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         n: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -209,7 +222,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn scalar_rotate_left_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStream)
+    pub fn scalar_rotate_left_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,
@@ -225,7 +238,7 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_rotate_right_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStream)
+    pub fn scalar_rotate_right_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,
@@ -241,7 +254,7 @@ impl CudaServerKey {
         stream.synchronize();
     }
 
-    pub fn scalar_rotate_left<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_rotate_left<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,
@@ -252,7 +265,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn scalar_rotate_right<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_rotate_right<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
         Scalar: CastFrom<u32>,

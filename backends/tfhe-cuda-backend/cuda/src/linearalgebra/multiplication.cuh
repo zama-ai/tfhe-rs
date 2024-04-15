@@ -29,11 +29,12 @@ cleartext_multiplication(T *output, T *lwe_input, T *cleartext_input,
 
 template <typename T>
 __host__ void
-host_cleartext_multiplication(cuda_stream_t *stream, T *output, T *lwe_input,
-                              T *cleartext_input, uint32_t input_lwe_dimension,
+host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
+                              T *output, T *lwe_input, T *cleartext_input,
+                              uint32_t input_lwe_dimension,
                               uint32_t input_lwe_ciphertext_count) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   int lwe_size = input_lwe_dimension + 1;
@@ -44,7 +45,7 @@ host_cleartext_multiplication(cuda_stream_t *stream, T *output, T *lwe_input,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cleartext_multiplication<<<grid, thds, 0, stream->stream>>>(
+  cleartext_multiplication<<<grid, thds, 0, stream>>>(
       output, lwe_input, cleartext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }

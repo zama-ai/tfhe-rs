@@ -1,7 +1,11 @@
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{
+    unchecked_rotate_left_integer_radix_kb_assign_async,
+    unchecked_rotate_right_integer_radix_kb_assign_async, CudaServerKey, PBSType,
+};
 
 impl CudaServerKey {
     /// # Safety
@@ -12,7 +16,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -21,7 +25,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_rotate_right_integer_radix_classic_kb_assign_async(
+                unchecked_rotate_right_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &rotate.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -42,10 +47,13 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
                     is_signed,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_rotate_right_integer_radix_multibit_kb_assign_async(
+                unchecked_rotate_right_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &rotate.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -64,9 +72,10 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     is_signed,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -80,7 +89,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -94,7 +103,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -108,7 +117,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -126,7 +135,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -135,7 +144,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_rotate_left_integer_radix_classic_kb_assign_async(
+                unchecked_rotate_left_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &rotate.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -156,10 +166,13 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
                     is_signed,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_rotate_left_integer_radix_multibit_kb_assign_async(
+                unchecked_rotate_left_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     &rotate.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -178,9 +191,10 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     is_signed,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -194,7 +208,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -208,7 +222,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -222,7 +236,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -240,7 +254,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -286,7 +300,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -328,14 +342,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -364,7 +377,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -378,7 +391,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -394,7 +407,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -440,7 +453,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {
@@ -482,14 +495,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -518,7 +530,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
@@ -531,7 +543,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
     {

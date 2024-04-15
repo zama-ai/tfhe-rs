@@ -2,7 +2,8 @@
 
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
-    CiphertextModulus, CudaStream, DecompositionBaseLog, DecompositionLevelCount,
+    convert_lwe_keyswitch_key_async, CiphertextModulus, CudaStreams, DecompositionBaseLog,
+    DecompositionLevelCount,
 };
 use crate::core_crypto::prelude::{
     lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
@@ -20,7 +21,7 @@ pub struct CudaLweKeyswitchKey<T: UnsignedInteger> {
 }
 
 impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
-    pub fn from_lwe_keyswitch_key(h_ksk: &LweKeyswitchKeyOwned<T>, stream: &CudaStream) -> Self {
+    pub fn from_lwe_keyswitch_key(h_ksk: &LweKeyswitchKeyOwned<T>, streams: &CudaStreams) -> Self {
         let decomp_base_log = h_ksk.decomposition_base_log();
         let decomp_level_count = h_ksk.decomposition_level_count();
         let input_lwe_size = h_ksk.input_key_lwe_dimension().to_lwe_size();
@@ -34,14 +35,14 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
                     decomp_level_count,
                     output_lwe_size,
                 ),
-            stream,
+            streams,
         );
 
         unsafe {
-            stream.convert_lwe_keyswitch_key_async(&mut d_vec, h_ksk.as_ref());
+            convert_lwe_keyswitch_key_async(streams, &mut d_vec, h_ksk.as_ref());
         }
 
-        stream.synchronize();
+        streams.synchronize();
 
         Self {
             d_vec,

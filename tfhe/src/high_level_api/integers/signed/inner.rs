@@ -1,6 +1,6 @@
 use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
+use crate::high_level_api::global_state::{self, with_thread_local_cuda_streams};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 #[cfg(feature = "gpu")]
@@ -32,8 +32,8 @@ impl Clone for RadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_thread_local_cuda_stream(|stream| {
-                let inner = inner.duplicate(stream);
+            Self::Cuda(inner) => with_thread_local_cuda_streams(|streams| {
+                let inner = inner.duplicate(streams);
                 Self::Cuda(inner)
             }),
         }
@@ -77,8 +77,8 @@ impl RadixCiphertext {
         match self {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
             #[cfg(feature = "gpu")]
-            Self::Cuda(ct) => with_thread_local_cuda_stream(|stream| {
-                let cpu_ct = ct.to_signed_radix_ciphertext(stream);
+            Self::Cuda(ct) => with_thread_local_cuda_streams(|streams| {
+                let cpu_ct = ct.to_signed_radix_ciphertext(streams);
                 MaybeCloned::Cloned(cpu_ct)
             }),
         }
@@ -89,8 +89,8 @@ impl RadixCiphertext {
     #[cfg(feature = "gpu")]
     pub(crate) fn on_gpu(&self) -> MaybeCloned<'_, CudaSignedRadixCiphertext> {
         match self {
-            Self::Cpu(ct) => with_thread_local_cuda_stream(|stream| {
-                let ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, stream);
+            Self::Cpu(ct) => with_thread_local_cuda_streams(|streams| {
+                let ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, streams);
                 MaybeCloned::Cloned(ct)
             }),
             #[cfg(feature = "gpu")]
@@ -124,7 +124,7 @@ impl RadixCiphertext {
             Self::Cpu(cpu_ct) => cpu_ct,
             #[cfg(feature = "gpu")]
             Self::Cuda(ct) => {
-                with_thread_local_cuda_stream(|stream| ct.to_signed_radix_ciphertext(stream))
+                with_thread_local_cuda_streams(|streams| ct.to_signed_radix_ciphertext(streams))
             }
         }
     }
@@ -133,8 +133,8 @@ impl RadixCiphertext {
     #[cfg(feature = "gpu")]
     pub(crate) fn into_gpu(self) -> CudaSignedRadixCiphertext {
         match self {
-            Self::Cpu(cpu_ct) => with_thread_local_cuda_stream(|stream| {
-                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&cpu_ct, stream)
+            Self::Cpu(cpu_ct) => with_thread_local_cuda_streams(|streams| {
+                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&cpu_ct, streams)
             }),
             Self::Cuda(ct) => ct,
         }
@@ -151,15 +151,16 @@ impl RadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             (Self::Cpu(ct), Device::CudaGpu) => {
-                let new_inner = with_thread_local_cuda_stream(|stream| {
-                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, stream)
+                let new_inner = with_thread_local_cuda_streams(|streams| {
+                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, streams)
                 });
                 *self = Self::Cuda(new_inner);
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner =
-                    with_thread_local_cuda_stream(|stream| ct.to_signed_radix_ciphertext(stream));
+                let new_inner = with_thread_local_cuda_streams(|streams| {
+                    ct.to_signed_radix_ciphertext(streams)
+                });
                 *self = Self::Cpu(new_inner);
             }
         }

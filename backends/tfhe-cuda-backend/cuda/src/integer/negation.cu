@@ -1,18 +1,18 @@
 #include "integer/negation.cuh"
 
 void cuda_negate_integer_radix_ciphertext_64_inplace(
-    cuda_stream_t *stream, void *lwe_array, uint32_t lwe_dimension,
-    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
+    uint32_t lwe_dimension, uint32_t lwe_ciphertext_count,
+    uint32_t message_modulus, uint32_t carry_modulus) {
 
-  host_integer_radix_negation(stream, static_cast<uint64_t *>(lwe_array),
-                              static_cast<uint64_t *>(lwe_array), lwe_dimension,
-                              lwe_ciphertext_count, message_modulus,
-                              carry_modulus);
+  host_integer_radix_negation(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(lwe_array),
+      lwe_dimension, lwe_ciphertext_count, message_modulus, carry_modulus);
 }
 
 void scratch_cuda_integer_radix_overflowing_sub_kb_64(
-    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    void *stream, uint32_t gpu_index, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
@@ -25,21 +25,24 @@ void scratch_cuda_integer_radix_overflowing_sub_kb_64(
                           message_modulus, carry_modulus);
 
   scratch_cuda_integer_overflowing_sub_kb<uint64_t>(
-      stream, (int_overflowing_sub_memory<uint64_t> **)mem_ptr, num_blocks,
-      params, allocate_gpu_memory);
+      static_cast<cudaStream_t>(stream), gpu_index,
+      (int_overflowing_sub_memory<uint64_t> **)mem_ptr, num_blocks, params,
+      allocate_gpu_memory);
 }
 
 void cuda_integer_radix_overflowing_sub_kb_64(
-    cuda_stream_t *stream, void *radix_lwe_out, void *radix_lwe_overflowed,
-    void *radix_lwe_left, void *radix_lwe_right, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t num_blocks) {
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *radix_lwe_out, void *radix_lwe_overflowed, void *radix_lwe_left,
+    void *radix_lwe_right, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t num_blocks) {
 
   auto mem = (int_overflowing_sub_memory<uint64_t> *)mem_ptr;
 
   switch (mem->params.polynomial_size) {
   case 512:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<512>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -47,7 +50,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     break;
   case 1024:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<1024>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -55,7 +59,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     break;
   case 2048:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<2048>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -63,7 +68,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     break;
   case 4096:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<4096>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -71,7 +77,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     break;
   case 8192:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<8192>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -79,7 +86,8 @@ void cuda_integer_radix_overflowing_sub_kb_64(
     break;
   case 16384:
     host_integer_overflowing_sub_kb<uint64_t, AmortizedDegree<16384>>(
-        stream, static_cast<uint64_t *>(radix_lwe_out),
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_overflowed),
         static_cast<uint64_t *>(radix_lwe_left),
         static_cast<uint64_t *>(radix_lwe_right), bsk,
@@ -91,10 +99,11 @@ void cuda_integer_radix_overflowing_sub_kb_64(
   }
 }
 
-void cleanup_cuda_integer_radix_overflowing_sub(cuda_stream_t *stream,
+void cleanup_cuda_integer_radix_overflowing_sub(void *stream,
+                                                uint32_t gpu_index,
                                                 int8_t **mem_ptr_void) {
   int_overflowing_sub_memory<uint64_t> *mem_ptr =
       (int_overflowing_sub_memory<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release(stream);
+  mem_ptr->release(static_cast<cudaStream_t>(stream), gpu_index);
 }

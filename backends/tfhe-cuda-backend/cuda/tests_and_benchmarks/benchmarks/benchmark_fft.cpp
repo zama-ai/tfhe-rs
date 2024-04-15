@@ -13,8 +13,8 @@ class FourierTransformTestPrimitives_u64 : public benchmark::Fixture {
 protected:
   size_t polynomial_size;
   int num_samples;
-  cuda_stream_t *stream;
-  int gpu_index = 0;
+  cudaStream_t stream;
+  uint32_t gpu_index = 0;
 
   double *poly1;
   double *poly2; // will be used as extracted result for cuda mult
@@ -31,12 +31,13 @@ public:
     polynomial_size = state.range(0);
     num_samples = state.range(1);
 
-    fft_setup(stream, &poly1, &poly2, &h_cpoly1, &h_cpoly2, &d_cpoly1,
-              &d_cpoly2, polynomial_size, num_samples);
+    fft_setup(stream, gpu_index, &poly1, &poly2, &h_cpoly1, &h_cpoly2,
+              &d_cpoly1, &d_cpoly2, polynomial_size, num_samples);
   }
 
   void TearDown(const ::benchmark::State &state) {
-    fft_teardown(stream, poly1, poly2, h_cpoly1, h_cpoly2, d_cpoly1, d_cpoly2);
+    fft_teardown(stream, gpu_index, poly1, poly2, h_cpoly1, h_cpoly2, d_cpoly1,
+                 d_cpoly2);
   }
 };
 
@@ -44,9 +45,9 @@ BENCHMARK_DEFINE_F(FourierTransformTestPrimitives_u64, cuda_fft_mult)
 (benchmark::State &st) {
 
   for (auto _ : st) {
-    cuda_fourier_polynomial_mul(d_cpoly1, d_cpoly2, d_cpoly2, stream,
+    cuda_fourier_polynomial_mul(stream, gpu_index, d_cpoly1, d_cpoly2, d_cpoly2,
                                 polynomial_size, num_samples);
-    cuda_synchronize_stream(stream);
+    cuda_synchronize_stream(stream, gpu_index);
   }
 }
 

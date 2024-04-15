@@ -15,7 +15,7 @@ pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
 
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuFunctionExecutor;
@@ -30,7 +30,7 @@ use std::sync::Arc;
 impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>
     for GpuFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, &CudaStream) -> CudaSignedRadixCiphertext,
+    F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, &CudaStreams) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -43,11 +43,11 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input, &context.streams);
 
-        let gpu_result = (self.func)(&context.sks, &d_ctxt, &context.stream);
+        let gpu_result = (self.func)(&context.sks, &d_ctxt, &context.streams);
 
-        gpu_result.to_signed_radix_ciphertext(&context.stream)
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -60,7 +60,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         &CudaSignedRadixCiphertext,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -77,13 +77,13 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
         let d_ctxt_2 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
 
-        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
 
-        gpu_result.to_signed_radix_ciphertext(&context.stream)
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -96,7 +96,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         &CudaUnsignedRadixCiphertext,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -113,12 +113,13 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
-        let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
+        let d_ctxt_2 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
 
-        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
 
-        gpu_result.to_signed_radix_ciphertext(&context.stream)
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -126,7 +127,7 @@ where
 impl<'a, F> FunctionExecutor<(&'a mut SignedRadixCiphertext, &'a SignedRadixCiphertext), ()>
     for GpuFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaSignedRadixCiphertext, &CudaStream),
+    F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaSignedRadixCiphertext, &CudaStreams),
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -139,13 +140,13 @@ where
             .expect("setup was not properly called");
 
         let mut d_ctxt_1 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
         let d_ctxt_2 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
 
-        (self.func)(&context.sks, &mut d_ctxt_1, &d_ctxt_2, &context.stream);
+        (self.func)(&context.sks, &mut d_ctxt_1, &d_ctxt_2, &context.streams);
 
-        *input.0 = d_ctxt_1.to_signed_radix_ciphertext(&context.stream);
+        *input.0 = d_ctxt_1.to_signed_radix_ciphertext(&context.streams);
     }
 }
 
@@ -157,7 +158,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         i64,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -171,11 +172,11 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
 
-        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
-        gpu_result.to_signed_radix_ciphertext(&context.stream)
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -187,7 +188,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         i64,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -201,11 +202,11 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1 =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&input.0, &context.streams);
 
-        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
-        gpu_result.to_signed_radix_ciphertext(&context.stream)
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -216,7 +217,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         &CudaSignedRadixCiphertext,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -233,20 +234,20 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
         let d_ctxt_2: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
 
-        let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.stream);
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
 
-        d_res.to_boolean_block(&context.stream)
+        d_res.to_boolean_block(&context.streams)
     }
 }
 
 impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, i128), BooleanBlock>
     for GpuFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, i128, &CudaStream) -> CudaBooleanBlock,
+    F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, i128, &CudaStreams) -> CudaBooleanBlock,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.setup_from_keys(cks, &sks);
@@ -259,11 +260,11 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
 
-        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
-        d_res.to_boolean_block(&context.stream)
+        d_res.to_boolean_block(&context.streams)
     }
 }
 
@@ -274,7 +275,7 @@ where
         &CudaServerKey,
         &CudaSignedRadixCiphertext,
         i128,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -288,11 +289,11 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
 
-        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.stream);
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
-        d_res.to_signed_radix_ciphertext(&context.stream)
+        d_res.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
@@ -311,7 +312,7 @@ where
         &CudaBooleanBlock,
         &CudaSignedRadixCiphertext,
         &CudaSignedRadixCiphertext,
-        &CudaStream,
+        &CudaStreams,
     ) -> CudaSignedRadixCiphertext,
 {
     fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
@@ -332,20 +333,20 @@ where
             .expect("setup was not properly called");
 
         let d_ctxt_1: CudaBooleanBlock =
-            CudaBooleanBlock::from_boolean_block(input.0, &context.stream);
+            CudaBooleanBlock::from_boolean_block(input.0, &context.streams);
         let d_ctxt_2: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
         let d_ctxt_3: CudaSignedRadixCiphertext =
-            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.2, &context.stream);
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.2, &context.streams);
 
         let d_res = (self.func)(
             &context.sks,
             &d_ctxt_1,
             &d_ctxt_2,
             &d_ctxt_3,
-            &context.stream,
+            &context.streams,
         );
 
-        d_res.to_signed_radix_ciphertext(&context.stream)
+        d_res.to_signed_radix_ciphertext(&context.streams)
     }
 }

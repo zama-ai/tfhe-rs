@@ -39,8 +39,8 @@ protected:
   int number_of_inputs;
   int grouping_factor;
   uint64_t delta;
-  cuda_stream_t *stream;
-  int gpu_index = 0;
+  cudaStream_t stream;
+  uint32_t gpu_index = 0;
   uint64_t *lwe_sk_in_array;
   uint64_t *lwe_sk_out_array;
   uint64_t *plaintexts;
@@ -83,8 +83,8 @@ public:
     samples = (int)GetParam().samples;
 
     programmable_bootstrap_multibit_setup(
-        stream, &seed, &lwe_sk_in_array, &lwe_sk_out_array, &d_bsk_array,
-        &plaintexts, &d_lut_pbs_identity, &d_lut_pbs_indexes,
+        stream, gpu_index, &seed, &lwe_sk_in_array, &lwe_sk_out_array,
+        &d_bsk_array, &plaintexts, &d_lut_pbs_identity, &d_lut_pbs_indexes,
         &d_lwe_ct_in_array, &d_lwe_input_indexes, &d_lwe_ct_out_array,
         &d_lwe_output_indexes, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, lwe_noise_distribution, glwe_noise_distribution,
@@ -92,9 +92,9 @@ public:
         &payload_modulus, &delta, number_of_inputs, repetitions, samples);
 
     scratch_cuda_multi_bit_programmable_bootstrap_64(
-        stream, &pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-        pbs_level, grouping_factor, number_of_inputs,
-        cuda_get_max_shared_memory(stream->gpu_index), true);
+        stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
+        polynomial_size, pbs_level, grouping_factor, number_of_inputs,
+        cuda_get_max_shared_memory(gpu_index), true);
 
     lwe_ct_out_array =
         (uint64_t *)malloc((glwe_dimension * polynomial_size + 1) *
@@ -104,10 +104,11 @@ public:
   void TearDown() {
     free(lwe_ct_out_array);
 
-    cleanup_cuda_multi_bit_programmable_bootstrap(stream, &pbs_buffer);
+    cleanup_cuda_multi_bit_programmable_bootstrap(stream, gpu_index,
+                                                  &pbs_buffer);
     programmable_bootstrap_multibit_teardown(
-        stream, lwe_sk_in_array, lwe_sk_out_array, d_bsk_array, plaintexts,
-        d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
+        stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array, d_bsk_array,
+        plaintexts, d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_lwe_ct_out_array, d_lwe_output_indexes);
   }
 };
@@ -130,18 +131,19 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
                       (lwe_dimension + 1));
       // Execute PBS
       cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-          stream, (void *)d_lwe_ct_out_array, (void *)d_lwe_output_indexes,
-          (void *)d_lut_pbs_identity, (void *)d_lut_pbs_indexes,
-          (void *)d_lwe_ct_in, (void *)d_lwe_input_indexes, (void *)d_bsk,
-          pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, pbs_base_log, pbs_level, number_of_inputs, 1, 0,
+          stream, gpu_index, (void *)d_lwe_ct_out_array,
+          (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
+          (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
+          (void *)d_lwe_input_indexes, (void *)d_bsk, pbs_buffer, lwe_dimension,
+          glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
+          pbs_level, number_of_inputs, 1, 0,
           cuda_get_max_shared_memory(gpu_index));
 
       // Copy result to the host memory
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                (glwe_dimension * polynomial_size + 1) *
                                    number_of_inputs * sizeof(uint64_t),
-                               stream);
+                               stream, gpu_index);
 
       for (int j = 0; j < number_of_inputs; j++) {
         uint64_t *result =

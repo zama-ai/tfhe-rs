@@ -2,7 +2,7 @@ use super::inner::RadixCiphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_stream;
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
@@ -575,11 +575,11 @@ where
                 Self::new(casted)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let casted = cuda_key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
-                    stream,
+                    streams,
                 );
                 Self::new(casted)
             }),
@@ -619,11 +619,11 @@ where
                 Self::new(casted)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let casted = cuda_key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
-                    stream,
+                    streams,
                 );
                 Self::new(casted)
             }),
@@ -663,11 +663,11 @@ where
                 Self::new(ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let inner = cuda_key.key.cast_to_unsigned(
                     input.ciphertext.into_gpu().0,
                     Id::num_blocks(cuda_key.message_modulus()),
-                    stream,
+                    streams,
                 );
                 Self::new(inner)
             }),

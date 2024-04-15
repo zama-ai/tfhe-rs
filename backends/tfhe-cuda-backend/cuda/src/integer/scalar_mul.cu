@@ -1,7 +1,7 @@
 #include "integer/scalar_mul.cuh"
 
 void scratch_cuda_integer_scalar_mul_kb_64(
-    cuda_stream_t *stream, int8_t **mem_ptr, uint32_t glwe_dimension,
+    void *stream, uint32_t gpu_index, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
@@ -13,20 +13,22 @@ void scratch_cuda_integer_scalar_mul_kb_64(
                           grouping_factor, message_modulus, carry_modulus);
 
   scratch_cuda_integer_radix_scalar_mul_kb<uint64_t>(
-      stream, (int_scalar_mul_buffer<uint64_t> **)mem_ptr, num_blocks, params,
+      static_cast<cudaStream_t>(stream), gpu_index,
+      (int_scalar_mul_buffer<uint64_t> **)mem_ptr, num_blocks, params,
       allocate_gpu_memory);
 }
 
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
-    cuda_stream_t *stream, void *lwe_array, uint64_t *decomposed_scalar,
-    uint64_t *has_at_least_one_set, int8_t *mem, void *bsk, void *ksk,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
-    uint32_t num_blocks, uint32_t num_scalars) {
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
+    uint64_t *decomposed_scalar, uint64_t *has_at_least_one_set, int8_t *mem,
+    void *bsk, void *ksk, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t num_blocks, uint32_t num_scalars) {
 
   switch (polynomial_size) {
   case 512:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<512>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -34,7 +36,8 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     break;
   case 1024:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<1024>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -42,7 +45,8 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     break;
   case 2048:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<2048>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -50,7 +54,8 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     break;
   case 4096:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<4096>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -58,7 +63,8 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     break;
   case 8192:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<8192>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -66,7 +72,8 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     break;
   case 16384:
     host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<16384>>(
-        stream, static_cast<uint64_t *>(lwe_array), decomposed_scalar,
+        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+        static_cast<uint64_t *>(lwe_array), decomposed_scalar,
         has_at_least_one_set,
         reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsk,
         static_cast<uint64_t *>(ksk), lwe_dimension, message_modulus,
@@ -78,12 +85,12 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
   }
 }
 
-void cleanup_cuda_integer_radix_scalar_mul(cuda_stream_t *stream,
+void cleanup_cuda_integer_radix_scalar_mul(void *stream, uint32_t gpu_index,
                                            int8_t **mem_ptr_void) {
 
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
   int_scalar_mul_buffer<uint64_t> *mem_ptr =
       (int_scalar_mul_buffer<uint64_t> *)(*mem_ptr_void);
 
-  mem_ptr->release(stream);
+  mem_ptr->release(static_cast<cudaStream_t>(stream), gpu_index);
 }

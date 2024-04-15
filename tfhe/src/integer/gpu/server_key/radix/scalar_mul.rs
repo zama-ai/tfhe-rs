@@ -1,7 +1,9 @@
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{unchecked_scalar_mul_integer_radix_kb_async, PBSType};
 use crate::integer::server_key::ScalarMultiplier;
 use crate::prelude::CastInto;
 use itertools::Itertools;
@@ -17,15 +19,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -44,7 +45,7 @@ impl CudaServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn unchecked_scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn unchecked_scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -62,7 +63,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -102,7 +103,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_mul_integer_radix_classic_kb_async(
+                unchecked_scalar_mul_integer_radix_kb_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
@@ -121,10 +123,13 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_level_count(),
                     num_blocks as u32,
                     decomposed_scalar.len() as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_mul_integer_radix_multibit_kb_async(
+                unchecked_scalar_mul_integer_radix_kb_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
@@ -141,9 +146,10 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count,
                     self.key_switching_key.decomposition_base_log(),
                     self.key_switching_key.decomposition_level_count(),
-                    d_multibit_bsk.grouping_factor,
                     num_blocks as u32,
                     decomposed_scalar.len() as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         };
@@ -155,7 +161,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -176,15 +182,14 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
@@ -203,7 +208,7 @@ impl CudaServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -221,7 +226,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
@@ -233,7 +238,7 @@ impl CudaServerKey {
         self.unchecked_scalar_mul_assign_async(ct, scalar, stream);
     }
 
-    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStream)
+    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStreams)
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,

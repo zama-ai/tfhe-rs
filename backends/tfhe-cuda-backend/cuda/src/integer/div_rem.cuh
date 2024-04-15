@@ -49,42 +49,44 @@ template <typename Torus> struct lwe_ciphertext_list {
   // copies ciphertexts from Torus*, starting from `starting_block` including
   // `finish_block`, does not change the value of self len
   void copy_from(Torus *src, size_t start_block, size_t finish_block,
-                 cuda_stream_t *stream) {
+                 cudaStream_t stream, uint32_t gpu_index) {
     size_t tmp_len = finish_block - start_block + 1;
     cuda_memcpy_async_gpu_to_gpu(data, &src[start_block * big_lwe_size],
-                                 tmp_len * big_lwe_size_bytes, stream);
+                                 tmp_len * big_lwe_size_bytes, stream,
+                                 gpu_index);
   }
 
   // copies ciphertexts from lwe_ciphertext_list, starting from `starting_block`
   // including `finish_block`, does not change the value of self len
   void copy_from(const lwe_ciphertext_list &src, size_t start_block,
-                 size_t finish_block, cuda_stream_t *stream) {
-    copy_from(src.data, start_block, finish_block, stream);
+                 size_t finish_block, cudaStream_t stream, uint32_t gpu_index) {
+    copy_from(src.data, start_block, finish_block, stream, gpu_index);
   }
 
   // copies ciphertexts from Torus*, starting from `starting_block`
   // including `finish_block`, updating the value of self len
   void clone_from(Torus *src, size_t start_block, size_t finish_block,
-                  cuda_stream_t *stream) {
+                  cudaStream_t stream, uint32_t gpu_index) {
     len = finish_block - start_block + 1;
 
     cuda_memcpy_async_gpu_to_gpu(data, &src[start_block * big_lwe_size],
-                                 len * big_lwe_size_bytes, stream);
+                                 len * big_lwe_size_bytes, stream, gpu_index);
   }
 
   // copies ciphertexts from ciphertexts_list, starting from `starting_block`
   // including `finish_block`, updating the value of self len
   void clone_from(const lwe_ciphertext_list &src, size_t start_block,
-                  size_t finish_block, cuda_stream_t *stream) {
-    clone_from(src.data, start_block, finish_block, stream);
+                  size_t finish_block, cudaStream_t stream,
+                  uint32_t gpu_index) {
+    clone_from(src.data, start_block, finish_block, stream, gpu_index);
   }
 
   // assign zero to blocks starting from `start_block` including `finish_block`
-  void assign_zero(size_t start_block, size_t finish_block,
-                   cuda_stream_t *stream) {
+  void assign_zero(size_t start_block, size_t finish_block, cudaStream_t stream,
+                   uint32_t gpu_index) {
     auto size = finish_block - start_block + 1;
     cuda_memset_async(&data[start_block * big_lwe_size], 0,
-                      size * big_lwe_size_bytes, stream);
+                      size * big_lwe_size_bytes, stream, gpu_index);
   }
 
   // return pointer to last block
@@ -110,7 +112,8 @@ template <typename Torus> struct lwe_ciphertext_list {
   }
 
   // insert ciphertext at index `ind`
-  void insert(size_t ind, Torus *ciphertext_block, cuda_stream_t *stream) {
+  void insert(size_t ind, Torus *ciphertext_block, cudaStream_t stream,
+              uint32_t gpu_index) {
     assert(ind <= len);
     assert(len < max_blocks);
 
@@ -119,33 +122,34 @@ template <typename Torus> struct lwe_ciphertext_list {
     for (size_t i = len; i > ind; i--) {
       Torus *src = &data[(i - 1) * big_lwe_size];
       Torus *dst = &data[i * big_lwe_size];
-      cuda_memcpy_async_gpu_to_gpu(dst, src, big_lwe_size_bytes, stream);
+      cuda_memcpy_async_gpu_to_gpu(dst, src, big_lwe_size_bytes, stream,
+                                   gpu_index);
     }
 
     cuda_memcpy_async_gpu_to_gpu(&data[insert_offset], ciphertext_block,
-                                 big_lwe_size_bytes, stream);
+                                 big_lwe_size_bytes, stream, gpu_index);
     len++;
   }
 
   // push ciphertext at the end of `data`
-  void push(Torus *ciphertext_block, cuda_stream_t *stream) {
+  void push(Torus *ciphertext_block, cudaStream_t stream, uint32_t gpu_index) {
     assert(len < max_blocks);
 
     size_t offset = len * big_lwe_size;
     cuda_memcpy_async_gpu_to_gpu(&data[offset], ciphertext_block,
-                                 big_lwe_size_bytes, stream);
+                                 big_lwe_size_bytes, stream, gpu_index);
     len++;
   }
 
   // duplicate ciphertext into `number_of_blocks` ciphertexts
   void fill_with_same_ciphertext(Torus *ciphertext, size_t number_of_blocks,
-                                 cuda_stream_t *stream) {
+                                 cudaStream_t stream, uint32_t gpu_index) {
     assert(number_of_blocks <= max_blocks);
 
     for (size_t i = 0; i < number_of_blocks; i++) {
       Torus *dest = &data[i * big_lwe_size];
-      cuda_memcpy_async_gpu_to_gpu(dest, ciphertext, big_lwe_size_bytes,
-                                   stream);
+      cuda_memcpy_async_gpu_to_gpu(dest, ciphertext, big_lwe_size_bytes, stream,
+                                   gpu_index);
     }
 
     len = number_of_blocks;
@@ -160,21 +164,23 @@ template <typename Torus> struct lwe_ciphertext_list {
 };
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_div_rem_kb(
-    cuda_stream_t *stream, int_div_rem_memory<Torus> **mem_ptr,
-    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
+__host__ void
+scratch_cuda_integer_div_rem_kb(cudaStream_t stream, uint32_t gpu_index,
+                                int_div_rem_memory<Torus> **mem_ptr,
+                                uint32_t num_blocks, int_radix_params params,
+                                bool allocate_gpu_memory) {
 
-  cudaSetDevice(stream->gpu_index);
-  *mem_ptr = new int_div_rem_memory<Torus>(stream, params, num_blocks,
-                                           allocate_gpu_memory);
+  *mem_ptr = new int_div_rem_memory<Torus>(stream, gpu_index, params,
+                                           num_blocks, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
-__host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
-                                      Torus *remainder, Torus *numerator,
-                                      Torus *divisor, void *bsk, uint64_t *ksk,
-                                      int_div_rem_memory<uint64_t> *mem_ptr,
-                                      uint32_t num_blocks) {
+__host__ void
+host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
+                        uint32_t gpu_count, Torus *quotient, Torus *remainder,
+                        Torus *numerator, Torus *divisor, void *bsk,
+                        uint64_t *ksk, int_div_rem_memory<uint64_t> *mem_ptr,
+                        uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;
 
@@ -222,11 +228,13 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
   lwe_ciphertext_list<Torus> cleaned_merged_interesting_remainder(
       mem_ptr->cleaned_merged_interesting_remainder, radix_params, num_blocks);
 
-  numerator_block_stack.clone_from(numerator, 0, num_blocks - 1, stream);
-  remainder1.assign_zero(0, num_blocks - 1, stream);
-  remainder2.assign_zero(0, num_blocks - 1, stream);
+  numerator_block_stack.clone_from(numerator, 0, num_blocks - 1, streams[0],
+                                   gpu_indexes[0]);
+  remainder1.assign_zero(0, num_blocks - 1, streams[0], gpu_indexes[0]);
+  remainder2.assign_zero(0, num_blocks - 1, streams[0], gpu_indexes[0]);
 
-  cuda_memset_async(quotient, 0, big_lwe_size_bytes * num_blocks, stream);
+  cuda_memset_async(quotient, 0, big_lwe_size_bytes * num_blocks, streams[0],
+                    gpu_indexes[0]);
 
   for (int i = total_bits - 1; i >= 0; i--) {
     uint32_t block_of_bit = i / num_bits_in_message;
@@ -240,76 +248,79 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     uint32_t first_trivial_block = last_non_trivial_block + 1;
 
     interesting_remainder1.clone_from(remainder1, 0, last_non_trivial_block,
-                                      stream);
+                                      streams[0], gpu_indexes[0]);
     interesting_remainder2.clone_from(remainder2, 0, last_non_trivial_block,
-                                      stream);
-    interesting_divisor.clone_from(divisor, 0, last_non_trivial_block, stream);
+                                      streams[0], gpu_indexes[0]);
+    interesting_divisor.clone_from(divisor, 0, last_non_trivial_block,
+                                   streams[0], gpu_indexes[0]);
     divisor_ms_blocks.clone_from(divisor,
                                  (msb_bit_set + 1) / num_bits_in_message,
-                                 num_blocks - 1, stream);
+                                 num_blocks - 1, streams[0], gpu_indexes[0]);
 
     // We split the divisor at a block position, when in reality the split
     // should be at a bit position meaning that potentially (depending on
     // msb_bit_set) the split versions share some bits they should not. So we do
     // one PBS on the last block of the interesting_divisor, and first block of
     // divisor_ms_blocks to trim out bits which should not be there
-    auto trim_last_interesting_divisor_bits = [&](cuda_stream_t *stream) {
-      if ((msb_bit_set + 1) % num_bits_in_message == 0) {
-        return;
-      }
-      // The last block of the interesting part of the remainder
-      // can contain bits which we should not account for
-      // we have to zero them out.
+    auto trim_last_interesting_divisor_bits =
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+          if ((msb_bit_set + 1) % num_bits_in_message == 0) {
+            return;
+          }
+          // The last block of the interesting part of the remainder
+          // can contain bits which we should not account for
+          // we have to zero them out.
 
-      // Where the msb is set in the block
-      uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
+          // Where the msb is set in the block
+          uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
 
-      // e.g 2 bits in message:
-      // if pos_in_block is 0, then we want to keep only first bit (right
-      // shift
-      // mask by 1) if pos_in_block is 1, then we want to keep the two
-      // bits
-      // (right shift mask by 0)
-      uint32_t shift_amount = num_bits_in_message - (pos_in_block + 1);
+          // e.g 2 bits in message:
+          // if pos_in_block is 0, then we want to keep only first bit (right
+          // shift
+          // mask by 1) if pos_in_block is 1, then we want to keep the two
+          // bits
+          // (right shift mask by 0)
+          uint32_t shift_amount = num_bits_in_message - (pos_in_block + 1);
 
-      // Create mask of 1s on the message part, 0s in the carries
-      uint32_t full_message_mask = message_modulus - 1;
+          // Create mask of 1s on the message part, 0s in the carries
+          uint32_t full_message_mask = message_modulus - 1;
 
-      // Shift the mask so that we will only keep bits we should
-      uint32_t shifted_mask = full_message_mask >> shift_amount;
+          // Shift the mask so that we will only keep bits we should
+          uint32_t shifted_mask = full_message_mask >> shift_amount;
 
-      integer_radix_apply_univariate_lookup_table_kb(
-          stream, interesting_divisor.last_block(),
-          interesting_divisor.last_block(), bsk, ksk, 1,
-          mem_ptr->masking_luts_1[shifted_mask]);
-    }; // trim_last_interesting_divisor_bits
+          integer_radix_apply_univariate_lookup_table_kb(
+              streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
+              interesting_divisor.last_block(), bsk, ksk, 1,
+              mem_ptr->masking_luts_1[shifted_mask]);
+        }; // trim_last_interesting_divisor_bits
 
-    auto trim_first_divisor_ms_bits = [&](cuda_stream_t *stream) {
-      if (divisor_ms_blocks.is_empty() ||
-          ((msb_bit_set + 1) % num_bits_in_message) == 0) {
-        return;
-      }
-      // Where the msb is set in the block
-      uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
+    auto trim_first_divisor_ms_bits =
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+          if (divisor_ms_blocks.is_empty() ||
+              ((msb_bit_set + 1) % num_bits_in_message) == 0) {
+            return;
+          }
+          // Where the msb is set in the block
+          uint32_t pos_in_block = msb_bit_set % num_bits_in_message;
 
-      // e.g 2 bits in message:
-      // if pos_in_block is 0, then we want to discard the first bit (left shift
-      // mask by 1) if pos_in_block is 1, then we want to discard the two bits
-      // (left shift mask by 2) let shift_amount = num_bits_in_message -
-      // pos_in_block
-      uint32_t shift_amount = pos_in_block + 1;
-      uint32_t full_message_mask = message_modulus - 1;
-      uint32_t shifted_mask = full_message_mask << shift_amount;
+          // e.g 2 bits in message:
+          // if pos_in_block is 0, then we want to discard the first bit (left
+          // shift mask by 1) if pos_in_block is 1, then we want to discard the
+          // two bits (left shift mask by 2) let shift_amount =
+          // num_bits_in_message - pos_in_block
+          uint32_t shift_amount = pos_in_block + 1;
+          uint32_t full_message_mask = message_modulus - 1;
+          uint32_t shifted_mask = full_message_mask << shift_amount;
 
-      // Keep the mask within the range of message bits, so that
-      // the estimated degree of the output is < msg_modulus
-      shifted_mask = shifted_mask & full_message_mask;
+          // Keep the mask within the range of message bits, so that
+          // the estimated degree of the output is < msg_modulus
+          shifted_mask = shifted_mask & full_message_mask;
 
-      integer_radix_apply_univariate_lookup_table_kb(
-          stream, divisor_ms_blocks.first_block(),
-          divisor_ms_blocks.first_block(), bsk, ksk, 1,
-          mem_ptr->masking_luts_2[shifted_mask]);
-    }; // trim_first_divisor_ms_bits
+          integer_radix_apply_univariate_lookup_table_kb(
+              streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
+              divisor_ms_blocks.first_block(), bsk, ksk, 1,
+              mem_ptr->masking_luts_2[shifted_mask]);
+        }; // trim_first_divisor_ms_bits
 
     // This does
     //  R := R << 1; R(0) := N(i)
@@ -320,74 +331,82 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     // However, to keep the remainder clean (noise wise), what we do is that we
     // put the remainder block from which we need to extract the bit, as the LSB
     // of the Remainder, so that left shifting will pull the bit we need.
-    auto left_shift_interesting_remainder1 = [&](cuda_stream_t *stream3) {
-      numerator_block_1.clone_from(numerator_block_stack,
-                                   numerator_block_stack.len - 1,
-                                   numerator_block_stack.len - 1, stream3);
-      numerator_block_stack.pop();
-      interesting_remainder1.insert(0, numerator_block_1.first_block(),
-                                    stream3);
+    auto left_shift_interesting_remainder1 =
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+          numerator_block_1.clone_from(
+              numerator_block_stack, numerator_block_stack.len - 1,
+              numerator_block_stack.len - 1, streams[0], gpu_indexes[0]);
+          numerator_block_stack.pop();
+          interesting_remainder1.insert(0, numerator_block_1.first_block(),
+                                        streams[0], gpu_indexes[0]);
 
-      host_integer_radix_logical_scalar_shift_kb_inplace(
-          stream3, interesting_remainder1.data, 1, mem_ptr->shift_mem_1, bsk,
-          ksk, interesting_remainder1.len);
+          host_integer_radix_logical_scalar_shift_kb_inplace(
+              streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
+              mem_ptr->shift_mem_1, bsk, ksk, interesting_remainder1.len);
 
-      tmp_radix.clone_from(interesting_remainder1, 0,
-                           interesting_remainder1.len - 1, stream3);
+          tmp_radix.clone_from(interesting_remainder1, 0,
+                               interesting_remainder1.len - 1, streams[0],
+                               gpu_indexes[0]);
 
-      radix_blocks_rotate_left<<<interesting_remainder1.len, 256, 0,
-                                 stream3->stream>>>(
-          interesting_remainder1.data, tmp_radix.data, 1,
-          interesting_remainder1.len, big_lwe_size);
+          radix_blocks_rotate_left<<<interesting_remainder1.len, 256, 0,
+                                     streams[0]>>>(
+              interesting_remainder1.data, tmp_radix.data, 1,
+              interesting_remainder1.len, big_lwe_size);
 
-      numerator_block_1.clone_from(interesting_remainder1,
-                                   interesting_remainder1.len - 1,
-                                   interesting_remainder1.len - 1, stream3);
+          numerator_block_1.clone_from(
+              interesting_remainder1, interesting_remainder1.len - 1,
+              interesting_remainder1.len - 1, streams[0], gpu_indexes[0]);
 
-      interesting_remainder1.pop();
+          interesting_remainder1.pop();
 
-      if (pos_in_block != 0) {
-        // We have not yet extracted all the bits from this numerator
-        // so, we put it back on the front so that it gets taken next iteration
-        numerator_block_stack.push(numerator_block_1.first_block(), stream3);
-      }
-    }; // left_shift_interesting_remainder1
+          if (pos_in_block != 0) {
+            // We have not yet extracted all the bits from this numerator
+            // so, we put it back on the front so that it gets taken next
+            // iteration
+            numerator_block_stack.push(numerator_block_1.first_block(),
+                                       streams[0], gpu_indexes[0]);
+          }
+        }; // left_shift_interesting_remainder1
 
-    auto left_shift_interesting_remainder2 = [&](cuda_stream_t *stream4) {
-      host_integer_radix_logical_scalar_shift_kb_inplace(
-          stream4, interesting_remainder2.data, 1, mem_ptr->shift_mem_2, bsk,
-          ksk, interesting_remainder2.len);
-    }; // left_shift_interesting_remainder2
+    auto left_shift_interesting_remainder2 =
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+          host_integer_radix_logical_scalar_shift_kb_inplace(
+              streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
+              mem_ptr->shift_mem_2, bsk, ksk, interesting_remainder2.len);
+        }; // left_shift_interesting_remainder2
 
-    stream->synchronize();
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel sections
     {
 #pragma omp section
       {
         // interesting_divisor
-        trim_last_interesting_divisor_bits(mem_ptr->sub_stream_1);
+        trim_last_interesting_divisor_bits(&mem_ptr->sub_stream_1,
+                                           &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // divisor_ms_blocks
-        trim_first_divisor_ms_bits(mem_ptr->sub_stream_2);
+        trim_first_divisor_ms_bits(&mem_ptr->sub_stream_2, &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // interesting_remainder1
         // numerator_block_stack
-        left_shift_interesting_remainder1(mem_ptr->sub_stream_3);
+        left_shift_interesting_remainder1(&mem_ptr->sub_stream_3,
+                                          &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // interesting_remainder2
-        left_shift_interesting_remainder2(mem_ptr->sub_stream_4);
+        left_shift_interesting_remainder2(&mem_ptr->sub_stream_4,
+                                          &gpu_indexes[0], 1);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3);
-    cuda_synchronize_stream(mem_ptr->sub_stream_4);
+    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_4, gpu_indexes[0]);
 
     // if interesting_remainder1 != 0 -> interesting_remainder2 == 0
     // if interesting_remainder1 == 0 -> interesting_remainder2 != 0
@@ -395,7 +414,7 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     // but in that position, interesting_remainder2 always has a 0
     auto &merged_interesting_remainder = interesting_remainder1;
 
-    host_addition(stream, merged_interesting_remainder.data,
+    host_addition(streams[0], gpu_indexes[0], merged_interesting_remainder.data,
                   merged_interesting_remainder.data,
                   interesting_remainder2.data, radix_params.big_lwe_dimension,
                   merged_interesting_remainder.len);
@@ -405,7 +424,7 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     // `cleaned_merged_interesting_remainder`
     cleaned_merged_interesting_remainder.clone_from(
         merged_interesting_remainder, 0, merged_interesting_remainder.len - 1,
-        stream);
+        streams[0], gpu_indexes[0]);
 
     assert(merged_interesting_remainder.len == interesting_divisor.len);
 
@@ -415,35 +434,40 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     // fills:
     //  `new_remainder` - radix ciphertext
     //  `subtraction_overflowed` - single ciphertext
-    auto do_overflowing_sub = [&](cuda_stream_t *stream) {
+    auto do_overflowing_sub = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
+                                  uint32_t gpu_count) {
       host_integer_overflowing_sub_kb<Torus, params>(
-          stream, new_remainder.data, subtraction_overflowed.data,
-          merged_interesting_remainder.data, interesting_divisor.data, bsk, ksk,
-          mem_ptr->overflow_sub_mem, merged_interesting_remainder.len);
+          streams, gpu_indexes, gpu_count, new_remainder.data,
+          subtraction_overflowed.data, merged_interesting_remainder.data,
+          interesting_divisor.data, bsk, ksk, mem_ptr->overflow_sub_mem,
+          merged_interesting_remainder.len);
     };
 
     // fills:
     //  `at_least_one_upper_block_is_non_zero` - single ciphertext
-    auto check_divisor_upper_blocks = [&](cuda_stream_t *stream) {
+    auto check_divisor_upper_blocks = [&](cudaStream_t *streams,
+                                          uint32_t *gpu_indexes,
+                                          uint32_t gpu_count) {
       auto &trivial_blocks = divisor_ms_blocks;
       if (trivial_blocks.is_empty()) {
         cuda_memset_async(at_least_one_upper_block_is_non_zero.first_block(), 0,
-                          big_lwe_size_bytes, stream);
+                          big_lwe_size_bytes, streams[0], gpu_indexes[0]);
       } else {
 
         // We could call unchecked_scalar_ne
         // But we are in the special case where scalar == 0
         // So we can skip some stuff
         host_compare_with_zero_equality(
-            stream, tmp_1.data, trivial_blocks.data, mem_ptr->comparison_buffer,
-            bsk, ksk, trivial_blocks.len,
+            streams, gpu_indexes, gpu_count, tmp_1.data, trivial_blocks.data,
+            mem_ptr->comparison_buffer, bsk, ksk, trivial_blocks.len,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
 
         tmp_1.len =
             ceil_div(trivial_blocks.len, message_modulus * carry_modulus - 1);
 
         is_at_least_one_comparisons_block_true(
-            stream, at_least_one_upper_block_is_non_zero.data, tmp_1.data,
+            streams, gpu_indexes, gpu_count,
+            at_least_one_upper_block_is_non_zero.data, tmp_1.data,
             mem_ptr->comparison_buffer, bsk, ksk, tmp_1.len);
       }
     };
@@ -452,40 +476,44 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     // so that it can be safely used in bivariate PBSes
     // fills:
     //  `cleaned_merged_interesting_remainder` - radix ciphertext
-    auto create_clean_version_of_merged_remainder = [&](cuda_stream_t *stream) {
-      integer_radix_apply_univariate_lookup_table_kb(
-          stream, cleaned_merged_interesting_remainder.data,
-          cleaned_merged_interesting_remainder.data, bsk, ksk,
-          cleaned_merged_interesting_remainder.len,
-          mem_ptr->message_extract_lut_1);
-    };
+    auto create_clean_version_of_merged_remainder =
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+          integer_radix_apply_univariate_lookup_table_kb(
+              streams, gpu_indexes, gpu_count,
+              cleaned_merged_interesting_remainder.data,
+              cleaned_merged_interesting_remainder.data, bsk, ksk,
+              cleaned_merged_interesting_remainder.len,
+              mem_ptr->message_extract_lut_1);
+        };
 
     // phase 2
-    stream->synchronize();
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel sections
     {
 #pragma omp section
       {
         // new_remainder
         // subtraction_overflowed
-        do_overflowing_sub(mem_ptr->sub_stream_1);
+        do_overflowing_sub(&mem_ptr->sub_stream_1, &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // at_least_one_upper_block_is_non_zero
-        check_divisor_upper_blocks(mem_ptr->sub_stream_2);
+        check_divisor_upper_blocks(&mem_ptr->sub_stream_2, &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // cleaned_merged_interesting_remainder
-        create_clean_version_of_merged_remainder(mem_ptr->sub_stream_3);
+        create_clean_version_of_merged_remainder(&mem_ptr->sub_stream_3,
+                                                 &gpu_indexes[0], 1);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3);
+    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
 
-    host_addition(stream, overflow_sum.data, subtraction_overflowed.data,
+    host_addition(streams[0], gpu_indexes[0], overflow_sum.data,
+                  subtraction_overflowed.data,
                   at_least_one_upper_block_is_non_zero.data,
                   radix_params.big_lwe_dimension, 1);
 
@@ -493,12 +521,13 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
     int factor_lut_id = factor - 2;
     overflow_sum_radix.fill_with_same_ciphertext(
         overflow_sum.first_block(), cleaned_merged_interesting_remainder.len,
-        stream);
+        streams[0], gpu_indexes[0]);
 
     auto conditionally_zero_out_merged_interesting_remainder =
-        [&](cuda_stream_t *stream) {
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
           integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
-              stream, cleaned_merged_interesting_remainder.data,
+              streams, gpu_indexes, gpu_count,
+              cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data,
               overflow_sum_radix.data, bsk, ksk,
               cleaned_merged_interesting_remainder.len,
@@ -507,81 +536,88 @@ __host__ void host_integer_div_rem_kb(cuda_stream_t *stream, Torus *quotient,
         };
 
     auto conditionally_zero_out_merged_new_remainder =
-        [&](cuda_stream_t *stream) {
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
           integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
-              stream, new_remainder.data, new_remainder.data,
-              overflow_sum_radix.data, bsk, ksk, new_remainder.len,
+              streams, gpu_indexes, gpu_count, new_remainder.data,
+              new_remainder.data, overflow_sum_radix.data, bsk, ksk,
+              new_remainder.len,
               mem_ptr->zero_out_if_overflow_happened[factor_lut_id], factor);
         };
 
-    auto set_quotient_bit = [&](cuda_stream_t *stream) {
+    auto set_quotient_bit = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
+                                uint32_t gpu_count) {
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-          stream, did_not_overflow.data, subtraction_overflowed.data,
+          streams, gpu_indexes, gpu_count, did_not_overflow.data,
+          subtraction_overflowed.data,
           at_least_one_upper_block_is_non_zero.data, bsk, ksk, 1,
           mem_ptr->merge_overflow_flags_luts[pos_in_block]);
 
-      host_addition(stream, &quotient[block_of_bit * big_lwe_size],
+      host_addition(streams[0], gpu_indexes[0],
+                    &quotient[block_of_bit * big_lwe_size],
                     &quotient[block_of_bit * big_lwe_size],
                     did_not_overflow.data, radix_params.big_lwe_dimension, 1);
     };
 
-    stream->synchronize();
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel sections
     {
 #pragma omp section
       {
         // cleaned_merged_interesting_remainder
         conditionally_zero_out_merged_interesting_remainder(
-            mem_ptr->sub_stream_1);
+            &mem_ptr->sub_stream_1, &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // new_remainder
-        conditionally_zero_out_merged_new_remainder(mem_ptr->sub_stream_2);
+        conditionally_zero_out_merged_new_remainder(&mem_ptr->sub_stream_2,
+                                                    &gpu_indexes[0], 1);
       }
 #pragma omp section
       {
         // quotient
-        set_quotient_bit(mem_ptr->sub_stream_3);
+        set_quotient_bit(&mem_ptr->sub_stream_3, &gpu_indexes[0], 1);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3);
+    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
 
     assert(first_trivial_block - 1 == cleaned_merged_interesting_remainder.len);
     assert(first_trivial_block - 1 == new_remainder.len);
 
     remainder1.copy_from(cleaned_merged_interesting_remainder, 0,
-                         first_trivial_block - 1, stream);
-    remainder2.copy_from(new_remainder, 0, first_trivial_block - 1, stream);
+                         first_trivial_block - 1, streams[0], gpu_indexes[0]);
+    remainder2.copy_from(new_remainder, 0, first_trivial_block - 1, streams[0],
+                         gpu_indexes[0]);
   }
 
   assert(remainder1.len == remainder2.len);
 
   // Clean the quotient and remainder
   // as even though they have no carries, they are not at nominal noise level
-  host_addition(stream, remainder, remainder1.data, remainder2.data,
-                radix_params.big_lwe_dimension, remainder1.len);
+  host_addition(streams[0], gpu_indexes[0], remainder, remainder1.data,
+                remainder2.data, radix_params.big_lwe_dimension,
+                remainder1.len);
 
-  stream->synchronize();
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel sections
   {
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          mem_ptr->sub_stream_1, remainder, remainder, bsk, ksk, num_blocks,
-          mem_ptr->message_extract_lut_1);
+          &mem_ptr->sub_stream_1, &gpu_indexes[0], 1, remainder, remainder, bsk,
+          ksk, num_blocks, mem_ptr->message_extract_lut_1);
     }
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          mem_ptr->sub_stream_2, quotient, quotient, bsk, ksk, num_blocks,
-          mem_ptr->message_extract_lut_2);
+          &mem_ptr->sub_stream_2, &gpu_indexes[0], 1, quotient, quotient, bsk,
+          ksk, num_blocks, mem_ptr->message_extract_lut_2);
     }
   }
-  mem_ptr->sub_stream_1->synchronize();
-  mem_ptr->sub_stream_2->synchronize();
+  cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
+  cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
 }
 
 #endif // TFHE_RS_DIV_REM_CUH

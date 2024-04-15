@@ -1,19 +1,17 @@
 use super::*;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::{cuda_lwe_ciphertext_add_assign, CudaDevice, CudaStream};
+use crate::core_crypto::gpu::{cuda_lwe_ciphertext_add_assign, CudaStreams};
 
 fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
 ) {
+    let streams = CudaStreams::new_multi_gpu();
+
     let lwe_dimension = params.lwe_dimension;
     let lwe_noise_distribution = params.lwe_noise_distribution;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
-
-    let gpu_index = 0;
-    let device = CudaDevice::new(gpu_index);
-    let stream = CudaStream::new_unchecked(device);
 
     let mut rsc = TestResources::new();
 
@@ -54,12 +52,12 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
             let rhs = ct.clone();
 
             // Convert to CUDA objects
-            let mut d_ct = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &stream);
-            let d_rhs = CudaLweCiphertextList::from_lwe_ciphertext(&rhs, &stream);
+            let mut d_ct = CudaLweCiphertextList::from_lwe_ciphertext(&ct, &streams);
+            let d_rhs = CudaLweCiphertextList::from_lwe_ciphertext(&rhs, &streams);
 
-            cuda_lwe_ciphertext_add_assign(&mut d_ct, &d_rhs, &stream);
+            cuda_lwe_ciphertext_add_assign(&mut d_ct, &d_rhs, &streams);
 
-            let output = d_ct.into_lwe_ciphertext(&stream);
+            let output = d_ct.into_lwe_ciphertext(&streams);
 
             assert!(check_encrypted_content_respects_mod(
                 &output,

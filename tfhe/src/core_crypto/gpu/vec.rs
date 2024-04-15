@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::{CudaDevice, CudaPtr, CudaStream};
+use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
@@ -15,7 +15,7 @@ use tfhe_cuda_backend::cuda_bind::{
 /// -----
 ///
 /// Such a structure:
-/// + can be created via the `CudaStream::malloc` function
+/// + can be created via the `CudaStreams::malloc` function
 /// + can not be copied or cloned but can be (mutably) borrowed
 /// + frees the gpu memory on drop.
 ///
@@ -23,55 +23,52 @@ use tfhe_cuda_backend::cuda_bind::{
 /// memory, it is pretty close to a `Vec`. That being said, it only present a very very limited api.
 #[derive(Debug)]
 pub struct CudaVec<T: Numeric> {
-    ptr: CudaPtr,
+    ptr: *mut c_void,
     len: usize,
-    device: CudaDevice,
+    gpu_index: u32,
     _phantom: PhantomData<T>,
 }
 
 impl<T: Numeric> CudaVec<T> {
-    pub fn new(len: usize, stream: &CudaStream) -> Self {
-        let vec = unsafe { Self::new_async(len, stream) };
-        stream.synchronize();
+    pub fn new(len: usize, streams: &CudaStreams) -> Self {
+        let vec = unsafe { Self::new_async(len, streams) };
+        streams.synchronize();
         vec
     }
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished
-    pub unsafe fn new_async(len: usize, stream: &CudaStream) -> Self {
+    /// - `streams` __must__ be synchronized to guarantee computation has finished
+    pub unsafe fn new_async(len: usize, streams: &CudaStreams) -> Self {
         let size = len as u64 * std::mem::size_of::<T>() as u64;
-        let ptr = CudaPtr {
-            ptr: cuda_malloc_async(size, stream.as_c_ptr()),
-            device: stream.device,
-        };
-        cuda_memset_async(ptr.ptr, 0u64, size, stream.as_c_ptr());
+        let ptr = cuda_malloc_async(size, streams.ptr[0], streams.gpu_indexes[0]);
+        cuda_memset_async(ptr, 0u64, size, streams.ptr[0], streams.gpu_indexes[0]);
 
         Self {
             ptr,
             len,
-            device: stream.device,
+            gpu_index: streams.gpu_indexes[0],
             _phantom: PhantomData,
         }
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn from_cpu_async(src: &[T], stream: &CudaStream) -> Self {
-        let mut res = Self::new_async(src.len(), stream);
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub unsafe fn from_cpu_async(src: &[T], streams: &CudaStreams) -> Self {
+        let mut res = Self::new_async(src.len(), streams);
         // We have to check that h_data is not empty, because cuda_memset with size 0 is invalid
         if !src.is_empty() {
-            res.copy_from_cpu_async(src, stream);
+            res.copy_from_cpu_async(src, streams);
         }
         res
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub unsafe fn memset_async(&mut self, value: T, stream: &CudaStream)
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub unsafe fn memset_async(&mut self, value: T, streams: &CudaStreams)
     where
         T: Into<u64>,
     {
@@ -82,7 +79,8 @@ impl<T: Numeric> CudaVec<T> {
                 self.as_mut_c_ptr(),
                 value.into(),
                 size as u64,
-                stream.as_c_ptr(),
+                streams.ptr[0],
+                streams.gpu_indexes[0],
             );
         }
     }
@@ -91,9 +89,9 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// - [CudaStreams::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
-    pub unsafe fn copy_from_cpu_async(&mut self, src: &[T], stream: &CudaStream)
+    pub unsafe fn copy_from_cpu_async(&mut self, src: &[T], streams: &CudaStreams)
     where
         T: Numeric,
     {
@@ -107,7 +105,8 @@ impl<T: Numeric> CudaVec<T> {
                 self.as_mut_c_ptr(),
                 src.as_ptr().cast(),
                 size as u64,
-                stream.as_c_ptr(),
+                streams.ptr[0],
+                streams.gpu_indexes[0],
             );
         }
     }
@@ -116,9 +115,9 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// - [CudaStreams::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
-    pub unsafe fn copy_from_gpu_async(&mut self, src: &Self, stream: &CudaStream)
+    pub unsafe fn copy_from_gpu_async(&mut self, src: &Self, streams: &CudaStreams)
     where
         T: Numeric,
     {
@@ -130,7 +129,8 @@ impl<T: Numeric> CudaVec<T> {
                 self.as_mut_c_ptr(),
                 src.as_c_ptr(),
                 size as u64,
-                stream.as_c_ptr(),
+                streams.ptr[0],
+                streams.gpu_indexes[0],
             );
         }
     }
@@ -139,13 +139,13 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// - [CudaStreams::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
     pub unsafe fn copy_src_range_gpu_to_gpu_async<R>(
         &mut self,
         range: R,
         src: &Self,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -160,20 +160,26 @@ impl<T: Numeric> CudaVec<T> {
 
         let src_ptr = src.as_c_ptr().add(start * std::mem::size_of::<T>());
         let size = (end - start + 1) * std::mem::size_of::<T>();
-        cuda_memcpy_async_gpu_to_gpu(self.as_mut_c_ptr(), src_ptr, size as u64, stream.as_c_ptr());
+        cuda_memcpy_async_gpu_to_gpu(
+            self.as_mut_c_ptr(),
+            src_ptr,
+            size as u64,
+            streams.ptr[0],
+            streams.gpu_indexes[0],
+        );
     }
 
     /// Copies data between two `CudaVec`, selecting a range of `self` as target
     ///
     /// # Safety
     ///
-    /// - [CudaStream::synchronize] __must__ be called after the copy
+    /// - [CudaStreams::synchronize] __must__ be called after the copy
     /// as soon as synchronization is required
     pub unsafe fn copy_self_range_gpu_to_gpu_async<R>(
         &mut self,
         range: R,
         src: &Self,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) where
         R: std::ops::RangeBounds<usize>,
         T: Numeric,
@@ -188,16 +194,22 @@ impl<T: Numeric> CudaVec<T> {
 
         let dest_ptr = self.as_mut_c_ptr().add(start * std::mem::size_of::<T>());
         let size = (end - start + 1) * std::mem::size_of::<T>();
-        cuda_memcpy_async_gpu_to_gpu(dest_ptr, src.as_c_ptr(), size as u64, stream.as_c_ptr());
+        cuda_memcpy_async_gpu_to_gpu(
+            dest_ptr,
+            src.as_c_ptr(),
+            size as u64,
+            streams.ptr[0],
+            streams.gpu_indexes[0],
+        );
     }
 
     /// Copies data from `CudaVec` into slice
     ///
     /// # Safety
     ///
-    /// - [CudaStream::synchronize] __must__ be called as soon as synchronization is
+    /// - [CudaStreams::synchronize] __must__ be called as soon as synchronization is
     /// required
-    pub unsafe fn copy_to_cpu_async(&self, dest: &mut [T], stream: &CudaStream)
+    pub unsafe fn copy_to_cpu_async(&self, dest: &mut [T], streams: &CudaStreams)
     where
         T: Numeric,
     {
@@ -211,17 +223,18 @@ impl<T: Numeric> CudaVec<T> {
                 dest.as_mut_ptr().cast(),
                 self.as_c_ptr(),
                 size as u64,
-                stream.as_c_ptr(),
+                streams.ptr[0],
+                streams.gpu_indexes[0],
             );
         }
     }
 
     pub(crate) fn as_mut_c_ptr(&mut self) -> *mut c_void {
-        self.ptr.as_mut_c_ptr()
+        self.ptr
     }
 
     pub(crate) fn as_c_ptr(&self) -> *const c_void {
-        self.ptr.as_c_ptr()
+        self.ptr.cast_const()
     }
 
     pub(crate) fn as_slice<R>(&self, range: R) -> Option<CudaSlice<T>>
@@ -238,22 +251,16 @@ impl<T: Numeric> CudaVec<T> {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
-                    .clone()
-                    .as_mut_c_ptr()
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
-            };
-            let new_cuda_ptr = CudaPtr {
-                ptr: shifted_ptr,
-                device: self.ptr.device,
             };
 
             // Compute the length
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSlice::new(new_cuda_ptr, new_len) })
+            Some(unsafe { CudaSlice::new(shifted_ptr, new_len, self.gpu_index) })
         }
     }
 
@@ -271,30 +278,21 @@ impl<T: Numeric> CudaVec<T> {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
-                    .as_mut_c_ptr()
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
-            };
-            let new_cuda_ptr = CudaPtr {
-                ptr: shifted_ptr,
-                device: self.ptr.device,
             };
 
             // Compute the length
             let new_len = end - start + 1;
 
             // Create the slice
-            Some(unsafe { CudaSliceMut::new(new_cuda_ptr, new_len) })
+            Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len, self.gpu_index) })
         }
     }
 
     pub fn gpu_index(&self) -> u32 {
-        self.device.gpu_index()
-    }
-
-    pub fn device(&self) -> CudaDevice {
-        self.device
+        self.gpu_index
     }
 
     /// Returns the number of elements in the vector, also referred to as its ‘length’.
@@ -325,9 +323,8 @@ impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
         // Synchronizes the device to be sure no stream is still using this pointer
-        let device = self.device();
-        device.synchronize_device();
-        unsafe { cuda_drop(self.as_mut_c_ptr(), device.gpu_index()) };
+        synchronize_device(self.gpu_index);
+        unsafe { cuda_drop(self.as_mut_c_ptr(), self.gpu_index) };
     }
 }
 

@@ -1,8 +1,9 @@
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{unchecked_cmux_integer_radix_kb_async, CudaServerKey, PBSType};
 
 impl CudaServerKey {
     /// # Safety
@@ -14,7 +15,7 @@ impl CudaServerKey {
         condition: &CudaBooleanBlock,
         true_ct: &T,
         false_ct: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let lwe_ciphertext_count = true_ct.as_ref().d_blocks.lwe_ciphertext_count();
         let mut result: T = self
@@ -22,7 +23,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_cmux_integer_radix_classic_kb_async(
+                unchecked_cmux_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &condition.as_ref().ciphertext.d_blocks.0.d_vec,
                     &true_ct.as_ref().d_blocks.0.d_vec,
@@ -44,10 +46,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_cmux_integer_radix_multibit_kb_async(
+                unchecked_cmux_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &condition.as_ref().ciphertext.d_blocks.0.d_vec,
                     &true_ct.as_ref().d_blocks.0.d_vec,
@@ -68,8 +73,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -81,7 +87,7 @@ impl CudaServerKey {
         condition: &CudaBooleanBlock,
         true_ct: &T,
         false_ct: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let result =
             unsafe { self.unchecked_if_then_else_async(condition, true_ct, false_ct, stream) };
@@ -94,7 +100,7 @@ impl CudaServerKey {
         condition: &CudaBooleanBlock,
         true_ct: &T,
         false_ct: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T {
         let mut tmp_true_ct;
         let mut tmp_false_ct;

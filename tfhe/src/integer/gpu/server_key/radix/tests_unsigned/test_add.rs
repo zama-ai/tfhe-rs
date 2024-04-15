@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::{CudaDevice, CudaStream};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parametrized_test, GpuFunctionExecutor,
@@ -49,8 +49,8 @@ where
     let sum_vec = |sks: &CudaServerKey,
                    ctxt: Vec<CudaUnsignedRadixCiphertext>|
      -> Option<CudaUnsignedRadixCiphertext> {
-        let stream = CudaStream::new_unchecked(CudaDevice::new(0));
-        sks.sum_ciphertexts(ctxt, &stream)
+        let streams = CudaStreams::new_multi_gpu();
+        sks.sum_ciphertexts(ctxt, &streams)
     };
     let executor = GpuFunctionExecutor::new(sum_vec);
     default_sum_ciphertexts_vec_test(param, executor);

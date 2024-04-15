@@ -13,7 +13,7 @@ use crate::{Device, FheBool, ServerKey};
 use std::marker::PhantomData;
 
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_stream;
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 pub trait FheIntId: IntegerId {}
 
 /// A Generic FHE signed integer
@@ -448,12 +448,12 @@ where
                 Self::new(new_ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let target_num_blocks = IntoId::num_blocks(cuda_key.message_modulus());
                 let new_ciphertext = cuda_key.key.cast_to_signed(
                     input.ciphertext.into_gpu(),
                     target_num_blocks,
-                    stream,
+                    streams,
                 );
                 Self::new(new_ciphertext)
             }),
@@ -493,11 +493,11 @@ where
                 Self::new(new_ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let new_ciphertext = cuda_key.key.cast_to_signed(
                     input.ciphertext.into_gpu(),
                     IntoId::num_blocks(cuda_key.message_modulus()),
-                    stream,
+                    streams,
                 );
                 Self::new(new_ciphertext)
             }),
@@ -540,11 +540,11 @@ where
                 Self::new(ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let inner = cuda_key.key.cast_to_signed(
                     input.ciphertext.into_gpu().0,
                     Id::num_blocks(cuda_key.message_modulus()),
-                    stream,
+                    streams,
                 );
                 Self::new(inner)
             }),

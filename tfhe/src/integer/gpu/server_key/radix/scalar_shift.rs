@@ -1,8 +1,12 @@
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::CastFrom;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{CastFrom, LweBskGroupingFactor};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{
+    unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async,
+    unchecked_scalar_left_shift_integer_radix_kb_assign_async,
+    unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async, CudaServerKey, PBSType,
+};
 
 impl CudaServerKey {
     /// # Safety
@@ -13,7 +17,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -33,7 +37,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -43,7 +47,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_scalar_shift_left_integer_radix_classic_kb_assign_async(
+                unchecked_scalar_left_shift_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(shift),
                     &d_bsk.d_vec,
@@ -63,10 +68,13 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     d_bsk.decomp_base_log,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_scalar_shift_left_integer_radix_multibit_kb_assign_async(
+                unchecked_scalar_left_shift_integer_radix_kb_assign_async(
+                    stream,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     u32::cast_from(shift),
                     &d_multibit_bsk.d_vec,
@@ -85,8 +93,9 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -99,14 +108,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -132,7 +140,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -152,7 +160,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -172,7 +180,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -183,7 +191,8 @@ impl CudaServerKey {
         if T::IS_SIGNED {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    stream.unchecked_scalar_arithmetic_shift_right_integer_radix_classic_kb_assign_async(
+                    unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async(
+                        stream,
                         &mut ct.as_mut().d_blocks.0.d_vec,
                         u32::cast_from(shift),
                         &d_bsk.d_vec,
@@ -203,10 +212,13 @@ impl CudaServerKey {
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    stream.unchecked_scalar_arithmetic_shift_right_integer_radix_multibit_kb_assign_async(
+                    unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async(
+                        stream,
                         &mut ct.as_mut().d_blocks.0.d_vec,
                         u32::cast_from(shift),
                         &d_multibit_bsk.d_vec,
@@ -225,39 +237,43 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
                         lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
                     );
                 }
             }
         } else {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
-                    stream
-                        .unchecked_scalar_logical_shift_right_integer_radix_classic_kb_assign_async(
-                            &mut ct.as_mut().d_blocks.0.d_vec,
-                            u32::cast_from(shift),
-                            &d_bsk.d_vec,
-                            &self.key_switching_key.d_vec,
-                            self.message_modulus,
-                            self.carry_modulus,
-                            d_bsk.glwe_dimension,
-                            d_bsk.polynomial_size,
-                            self.key_switching_key
-                                .input_key_lwe_size()
-                                .to_lwe_dimension(),
-                            self.key_switching_key
-                                .output_key_lwe_size()
-                                .to_lwe_dimension(),
-                            self.key_switching_key.decomposition_level_count(),
-                            self.key_switching_key.decomposition_base_log(),
-                            d_bsk.decomp_level_count,
-                            d_bsk.decomp_base_log,
-                            lwe_ciphertext_count.0 as u32,
-                        );
+                    unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
+                        stream,
+                        &mut ct.as_mut().d_blocks.0.d_vec,
+                        u32::cast_from(shift),
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        self.key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        lwe_ciphertext_count.0 as u32,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                    );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    stream.unchecked_scalar_logical_shift_right_integer_radix_multibit_kb_assign_async(
+                    unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
+                        stream,
                         &mut ct.as_mut().d_blocks.0.d_vec,
                         u32::cast_from(shift),
                         &d_multibit_bsk.d_vec,
@@ -276,8 +292,9 @@ impl CudaServerKey {
                         self.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
                         lwe_ciphertext_count.0 as u32,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
                     );
                 }
             }
@@ -291,14 +308,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -324,7 +340,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -344,7 +360,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -365,7 +381,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -384,14 +400,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -413,7 +428,7 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg >> shift);
     /// ```
-    pub fn scalar_right_shift<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_right_shift<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -432,7 +447,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -453,7 +468,7 @@ impl CudaServerKey {
         &self,
         ct: &T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> T
     where
         Scalar: CastFrom<u32>,
@@ -472,14 +487,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -501,7 +515,7 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg << shift);
     /// ```
-    pub fn scalar_left_shift<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStream) -> T
+    pub fn scalar_left_shift<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -516,7 +530,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,
@@ -536,7 +550,7 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         shift: Scalar,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) where
         Scalar: CastFrom<u32>,
         u32: CastFrom<Scalar>,

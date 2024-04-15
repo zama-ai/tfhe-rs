@@ -1,11 +1,13 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::CudaStream;
-use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::{ComparisonType, CudaServerKey};
+use crate::integer::gpu::{
+    unchecked_comparison_integer_radix_kb_async, ComparisonType, CudaServerKey, PBSType,
+};
 use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
@@ -18,7 +20,7 @@ impl CudaServerKey {
         ct_left: &T,
         ct_right: &T,
         op: ComparisonType,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -50,7 +52,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_comparison_integer_radix_classic_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -73,10 +76,13 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     op,
                     T::IS_SIGNED,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().ciphertext.d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -96,10 +102,11 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     op,
                     T::IS_SIGNED,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -115,7 +122,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -135,14 +142,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -171,7 +177,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -189,7 +195,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -209,14 +215,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -245,7 +250,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -263,7 +268,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -308,14 +313,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -340,7 +344,7 @@ impl CudaServerKey {
     /// let dec_result = cks.decrypt_bool(&ct_res);
     /// assert_eq!(dec_result, msg1 == msg2);
     /// ```
-    pub fn eq<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn eq<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -357,7 +361,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -402,14 +406,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -434,7 +437,7 @@ impl CudaServerKey {
     /// let dec_result = cks.decrypt_bool(&ct_res);
     /// assert_eq!(dec_result, msg1 != msg2);
     /// ```
-    pub fn ne<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn ne<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -451,7 +454,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -466,14 +469,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -502,7 +504,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -520,7 +522,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -536,7 +538,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -572,7 +574,7 @@ impl CudaServerKey {
         self.unchecked_gt_async(lhs, rhs, stream)
     }
 
-    pub fn gt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn gt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -590,14 +592,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -626,7 +627,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -644,7 +645,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -680,7 +681,7 @@ impl CudaServerKey {
         self.unchecked_ge_async(lhs, rhs, stream)
     }
 
-    pub fn ge<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn ge<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -697,7 +698,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -714,14 +715,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -750,7 +750,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -768,7 +768,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -804,7 +804,7 @@ impl CudaServerKey {
         self.unchecked_lt_async(lhs, rhs, stream)
     }
 
-    pub fn lt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn lt<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -821,7 +821,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -838,14 +838,13 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let size = 4;
     /// // Generate the client key and the server key:
@@ -874,7 +873,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -892,7 +891,7 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStream,
+        stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
@@ -928,7 +927,7 @@ impl CudaServerKey {
         self.unchecked_le_async(lhs, rhs, stream)
     }
 
-    pub fn le<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> CudaBooleanBlock
+    pub fn le<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -941,7 +940,12 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_max_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub unsafe fn unchecked_max_async<T>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        stream: &CudaStreams,
+    ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -960,7 +964,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_comparison_integer_radix_classic_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -983,10 +988,13 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MAX,
                     T::IS_SIGNED,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -1006,10 +1014,11 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MAX,
                     T::IS_SIGNED,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -1017,7 +1026,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_max<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub fn unchecked_max<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1030,7 +1039,12 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_min_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub unsafe fn unchecked_min_async<T>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        stream: &CudaStreams,
+    ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1049,7 +1063,8 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                stream.unchecked_comparison_integer_radix_classic_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -1072,10 +1087,13 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MIN,
                     T::IS_SIGNED,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                stream.unchecked_comparison_integer_radix_multibit_kb_async(
+                unchecked_comparison_integer_radix_kb_async(
+                    stream,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &ct_left.as_ref().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
@@ -1095,10 +1113,11 @@ impl CudaServerKey {
                     self.key_switching_key.decomposition_base_log(),
                     d_multibit_bsk.decomp_level_count,
                     d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
                     lwe_ciphertext_count.0 as u32,
                     ComparisonType::MIN,
                     T::IS_SIGNED,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
                 );
             }
         }
@@ -1106,7 +1125,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_min<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub fn unchecked_min<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1119,7 +1138,7 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn max_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub unsafe fn max_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1153,7 +1172,7 @@ impl CudaServerKey {
         self.unchecked_max_async(lhs, rhs, stream)
     }
 
-    pub fn max<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub fn max<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1166,7 +1185,7 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn min_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub unsafe fn min_async<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -1200,7 +1219,7 @@ impl CudaServerKey {
         self.unchecked_min_async(lhs, rhs, stream)
     }
 
-    pub fn min<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStream) -> T
+    pub fn min<T>(&self, ct_left: &T, ct_right: &T, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {

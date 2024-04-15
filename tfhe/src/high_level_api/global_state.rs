@@ -1,7 +1,7 @@
 //! In this module, we store the hidden (to the end-user) internal state/keys that are needed to
 //! perform operations.
 #[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::{CudaDevice, CudaStream};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
 use crate::high_level_api::keys::{IntegerServerKey, InternalServerKey, ServerKey};
 use std::cell::RefCell;
@@ -146,22 +146,21 @@ where
 }
 
 #[cfg(feature = "gpu")]
-fn create_cuda_cell_stream() -> CudaStream {
-    let device = CudaDevice::new(0);
-    CudaStream::new_unchecked(device)
+fn create_cuda_cell_streams() -> CudaStreams {
+    CudaStreams::new_multi_gpu()
 }
 
 #[cfg(feature = "gpu")]
 thread_local! {
-    static CUDA_STREAM: std::cell::OnceCell<CudaStream> = std::cell::OnceCell::from(create_cuda_cell_stream());
+    static CUDA_STREAMS: std::cell::OnceCell<CudaStreams> = std::cell::OnceCell::from(create_cuda_cell_streams());
 }
 
 #[cfg(feature = "gpu")]
-pub(in crate::high_level_api) fn with_thread_local_cuda_stream<
+pub(in crate::high_level_api) fn with_thread_local_cuda_streams<
     R,
-    F: for<'a> FnOnce(&'a CudaStream) -> R,
+    F: for<'a> FnOnce(&'a CudaStreams) -> R,
 >(
     func: F,
 ) -> R {
-    CUDA_STREAM.with(|cell| func(cell.get().unwrap()))
+    CUDA_STREAMS.with(|cell| func(cell.get().unwrap()))
 }

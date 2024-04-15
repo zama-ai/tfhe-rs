@@ -1,7 +1,7 @@
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_stream;
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
@@ -134,11 +134,11 @@ where
                 Ok(Self::new(ciphertext))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let inner: CudaUnsignedRadixCiphertext = cuda_key.key.create_trivial_radix(
                     value,
                     Id::num_blocks(cuda_key.key.message_modulus),
-                    stream,
+                    streams,
                 );
                 Ok(Self::new(inner))
             }),

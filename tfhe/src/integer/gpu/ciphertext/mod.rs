@@ -3,7 +3,7 @@ pub mod info;
 
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::CudaStream;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::{RadixCiphertext, SignedRadixCiphertext};
@@ -15,18 +15,18 @@ pub trait CudaIntegerRadixCiphertext: Sized {
     fn as_mut(&mut self) -> &mut CudaRadixCiphertext;
     fn from(ct: CudaRadixCiphertext) -> Self;
 
-    fn duplicate(&self, stream: &CudaStream) -> Self {
-        Self::from(self.as_ref().duplicate(stream))
+    fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self::from(self.as_ref().duplicate(streams))
     }
 
     fn into_inner(self) -> CudaRadixCiphertext;
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
-        Self::from(self.as_ref().duplicate_async(stream))
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
+        Self::from(self.as_ref().duplicate_async(streams))
     }
 
     fn block_carries_are_empty(&self) -> bool {
@@ -37,8 +37,8 @@ pub trait CudaIntegerRadixCiphertext: Sized {
             .all(CudaBlockInfo::carry_is_empty)
     }
 
-    fn is_equal(&self, other: &Self, stream: &CudaStream) -> bool {
-        self.as_ref().is_equal(other.as_ref(), stream)
+    fn is_equal(&self, other: &Self, streams: &CudaStreams) -> bool {
+        self.as_ref().is_equal(other.as_ref(), streams)
     }
 }
 
@@ -106,30 +106,29 @@ impl CudaUnsignedRadixCiphertext {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// let size = 4;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let clear: u64 = 255;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt(clear);
     ///
-    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut stream);
-    /// let mut h_ctxt = d_ctxt.to_radix_ciphertext(&mut stream);
+    /// let mut d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &mut streams);
+    /// let mut h_ctxt = d_ctxt.to_radix_ciphertext(&mut streams);
     ///
     /// assert_eq!(h_ctxt, ctxt);
     /// ```
-    pub fn from_radix_ciphertext(radix: &RadixCiphertext, stream: &CudaStream) -> Self {
+    pub fn from_radix_ciphertext(radix: &RadixCiphertext, streams: &CudaStreams) -> Self {
         let mut h_radix_ciphertext = radix
             .blocks
             .iter()
@@ -144,7 +143,7 @@ impl CudaUnsignedRadixCiphertext {
             lwe_size,
             ciphertext_modulus,
         );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, stream);
+        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
 
         let info = CudaRadixCiphertextInfo {
             blocks: radix
@@ -165,7 +164,7 @@ impl CudaUnsignedRadixCiphertext {
         }
     }
 
-    pub fn copy_from_radix_ciphertext(&mut self, radix: &RadixCiphertext, stream: &CudaStream) {
+    pub fn copy_from_radix_ciphertext(&mut self, radix: &RadixCiphertext, streams: &CudaStreams) {
         let mut h_radix_ciphertext = radix
             .blocks
             .iter()
@@ -177,9 +176,9 @@ impl CudaUnsignedRadixCiphertext {
                 .d_blocks
                 .0
                 .d_vec
-                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), stream);
+                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), streams);
         }
-        stream.synchronize();
+        streams.synchronize();
 
         self.ciphertext.info = CudaRadixCiphertextInfo {
             blocks: radix
@@ -197,31 +196,30 @@ impl CudaUnsignedRadixCiphertext {
     }
 
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
     ///
     /// let msg1 = 10u32;
     /// let ct1 = cks.encrypt(msg1);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let ct2 = d_ct1.to_radix_ciphertext(&mut stream);
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let ct2 = d_ct1.to_radix_ciphertext(&mut streams);
     /// let msg2 = cks.decrypt(&ct2);
     ///
     /// assert_eq!(msg1, msg2);
     /// ```
-    pub fn to_radix_ciphertext(&self, stream: &CudaStream) -> RadixCiphertext {
-        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(stream);
+    pub fn to_radix_ciphertext(&self, streams: &CudaStreams) -> RadixCiphertext {
+        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
         let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
         let lwe_size = h_lwe_ciphertext_list.lwe_size().0;
 
@@ -254,32 +252,31 @@ impl CudaSignedRadixCiphertext {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// let size = 4;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let clear: i64 = 255;
     ///
     /// // Encrypt two messages
     /// let ctxt = cks.encrypt_signed(clear);
     ///
-    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut stream);
-    /// let mut h_ctxt = d_ctxt.to_signed_radix_ciphertext(&mut stream);
+    /// let mut d_ctxt = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ctxt, &mut streams);
+    /// let mut h_ctxt = d_ctxt.to_signed_radix_ciphertext(&mut streams);
     ///
     /// assert_eq!(h_ctxt, ctxt);
     /// ```
     pub fn from_signed_radix_ciphertext(
         radix: &SignedRadixCiphertext,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) -> Self {
         let mut h_radix_ciphertext = radix
             .blocks
@@ -295,7 +292,7 @@ impl CudaSignedRadixCiphertext {
             lwe_size,
             ciphertext_modulus,
         );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, stream);
+        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(&h_ct, streams);
 
         let info = CudaRadixCiphertextInfo {
             blocks: radix
@@ -319,7 +316,7 @@ impl CudaSignedRadixCiphertext {
     pub fn copy_from_signed_radix_ciphertext(
         &mut self,
         radix: &SignedRadixCiphertext,
-        stream: &CudaStream,
+        streams: &CudaStreams,
     ) {
         let mut h_radix_ciphertext = radix
             .blocks
@@ -332,9 +329,9 @@ impl CudaSignedRadixCiphertext {
                 .d_blocks
                 .0
                 .d_vec
-                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), stream);
+                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), streams);
         }
-        stream.synchronize();
+        streams.synchronize();
 
         self.ciphertext.info = CudaRadixCiphertextInfo {
             blocks: radix
@@ -352,31 +349,30 @@ impl CudaSignedRadixCiphertext {
     }
 
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
     ///
     /// let msg1 = 10i32;
     /// let ct1 = cks.encrypt_signed(msg1);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct1, &mut stream);
-    /// let ct2 = d_ct1.to_signed_radix_ciphertext(&mut stream);
+    /// let d_ct1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct1, &mut streams);
+    /// let ct2 = d_ct1.to_signed_radix_ciphertext(&mut streams);
     /// let msg2 = cks.decrypt_signed(&ct2);
     ///
     /// assert_eq!(msg1, msg2);
     /// ```
-    pub fn to_signed_radix_ciphertext(&self, stream: &CudaStream) -> SignedRadixCiphertext {
-        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(stream);
+    pub fn to_signed_radix_ciphertext(&self, streams: &CudaStreams) -> SignedRadixCiphertext {
+        let h_lwe_ciphertext_list = self.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
         let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
         let lwe_size = h_lwe_ciphertext_list.lwe_size().0;
 
@@ -403,46 +399,45 @@ impl CudaRadixCiphertext {
         Self { d_blocks, info }
     }
     /// ```rust
-    /// use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let device = CudaDevice::new(gpu_index);
-    /// let mut stream = CudaStream::new_unchecked(device);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
     ///
     /// let msg = 10i32;
     /// let ct = cks.encrypt_signed(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &mut stream);
-    /// let d_ct_copied = d_ct.duplicate(&mut stream);
+    /// let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &mut streams);
+    /// let d_ct_copied = d_ct.duplicate(&mut streams);
     ///
-    /// let ct_copied = d_ct_copied.to_signed_radix_ciphertext(&mut stream);
+    /// let ct_copied = d_ct_copied.to_signed_radix_ciphertext(&mut streams);
     /// let msg_copied = cks.decrypt_signed(&ct_copied);
     ///
     /// assert_eq!(msg, msg_copied);
     /// ```
-    pub(crate) fn duplicate(&self, stream: &CudaStream) -> Self {
-        let ct = unsafe { self.duplicate_async(stream) };
-        stream.synchronize();
+    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let ct = unsafe { self.duplicate_async(streams) };
+        streams.synchronize();
         ct
     }
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
-    pub(crate) unsafe fn duplicate_async(&self, stream: &CudaStream) -> Self {
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub(crate) unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
 
-        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), stream);
-        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, stream);
+        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), streams);
+        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, streams);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
@@ -453,7 +448,7 @@ impl CudaRadixCiphertext {
         }
     }
 
-    fn is_equal(&self, other: &Self, stream: &CudaStream) -> bool {
+    fn is_equal(&self, other: &Self, streams: &CudaStreams) -> bool {
         let self_size = self.d_blocks.0.d_vec.len();
         let other_size = other.d_blocks.0.d_vec.len();
         let mut self_container: Vec<u64> = vec![0; self_size];
@@ -463,14 +458,14 @@ impl CudaRadixCiphertext {
             self.d_blocks
                 .0
                 .d_vec
-                .copy_to_cpu_async(self_container.as_mut_slice(), stream);
+                .copy_to_cpu_async(self_container.as_mut_slice(), streams);
             other
                 .d_blocks
                 .0
                 .d_vec
-                .copy_to_cpu_async(other_container.as_mut_slice(), stream);
+                .copy_to_cpu_async(other_container.as_mut_slice(), streams);
         }
-        stream.synchronize();
+        streams.synchronize();
 
         self_container == other_container
     }

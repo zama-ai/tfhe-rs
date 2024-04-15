@@ -158,11 +158,12 @@ __global__ void device_programmable_bootstrap_tbc(
 
 template <typename Torus, typename STorus, typename params>
 __host__ void scratch_programmable_bootstrap_tbc(
-    cuda_stream_t *stream, pbs_buffer<Torus, CLASSICAL> **buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    cudaStream_t stream, uint32_t gpu_index,
+    pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
 
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
@@ -207,7 +208,7 @@ __host__ void scratch_programmable_bootstrap_tbc(
   }
 
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
-      stream, glwe_dimension, polynomial_size, level_count,
+      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, PBS_VARIANT::TBC, allocate_gpu_memory);
 }
 
@@ -216,14 +217,14 @@ __host__ void scratch_programmable_bootstrap_tbc(
  */
 template <typename Torus, class params>
 __host__ void host_programmable_bootstrap_tbc(
-    cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, double2 *bootstrapping_key,
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
+    Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_luts, uint32_t max_shared_memory) {
-  cudaSetDevice(stream->gpu_index);
+  cudaSetDevice(gpu_index);
 
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
@@ -266,7 +267,7 @@ __host__ void host_programmable_bootstrap_tbc(
   attribute[0].val.clusterDim.z = 1;
   config.attrs = attribute;
   config.numAttrs = 1;
-  config.stream = stream->stream;
+  config.stream = stream;
 
   if (max_shared_memory < partial_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = minimum_sm_tbc;
