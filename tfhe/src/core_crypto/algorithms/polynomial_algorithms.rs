@@ -34,6 +34,19 @@ pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
 }
 
+pub fn polynomial_wrapping_add_assign_custom_mod<Scalar, OutputCont, InputCont>(
+    lhs: &mut Polynomial<OutputCont>,
+    rhs: &Polynomial<InputCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
+    slice_wrapping_add_assign_custom_mod(lhs.as_mut(), rhs.as_ref(), custom_modulus)
+}
+
 /// Subtract a polynomial to the output polynomial.
 ///
 /// # Note
@@ -61,6 +74,19 @@ pub fn polynomial_wrapping_sub_assign<Scalar, OutputCont, InputCont>(
 {
     assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
     slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
+}
+
+pub fn polynomial_wrapping_sub_assign_custom_mod<Scalar, OutputCont, InputCont>(
+    lhs: &mut Polynomial<OutputCont>,
+    rhs: &Polynomial<InputCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
+    slice_wrapping_sub_assign_custom_mod(lhs.as_mut(), rhs.as_ref(), custom_modulus)
 }
 
 /// Add the sum of the element-wise product between two lists of polynomials to the output
@@ -104,7 +130,28 @@ pub fn polynomial_wrapping_add_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
-fn polynomial_wrapping_add_mul_assign_schoolbook<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_add_multisum_assign_custom_mod<
+    Scalar,
+    OutputCont,
+    InputCont1,
+    InputCont2,
+>(
+    output: &mut Polynomial<OutputCont>,
+    poly_list_1: &PolynomialList<InputCont1>,
+    poly_list_2: &PolynomialList<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
+        polynomial_wrapping_add_mul_assign_custom_mod(output, &poly_1, &poly_2, custom_modulus);
+    }
+}
+
+fn polynomial_wrapping_add_mul_schoolbook_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     lhs: &Polynomial<InputCont1>,
     rhs: &Polynomial<InputCont2>,
@@ -141,6 +188,60 @@ fn polynomial_wrapping_add_mul_assign_schoolbook<Scalar, OutputCont, InputCont1,
         }
     }
     implementation(output.as_mut_view(), lhs.as_view(), rhs.as_view());
+}
+
+fn polynomial_wrapping_add_mul_schoolbook_assign_custom_mod<
+    Scalar,
+    OutputCont,
+    InputCont1,
+    InputCont2,
+>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    fn implementation<Scalar: UnsignedInteger>(
+        mut output: Polynomial<&mut [Scalar]>,
+        lhs: Polynomial<&[Scalar]>,
+        rhs: Polynomial<&[Scalar]>,
+        custom_modulus: Scalar,
+    ) {
+        let polynomial_size = output.polynomial_size();
+        let degree = output.degree();
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient = (*output_coefficient).wrapping_add_custom_mod(
+                        lhs_coeff.wrapping_mul_custom_mod(rhs_coeff, custom_modulus),
+                        custom_modulus,
+                    );
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient = (*output_coefficient).wrapping_sub_custom_mod(
+                        lhs_coeff.wrapping_mul_custom_mod(rhs_coeff, custom_modulus),
+                        custom_modulus,
+                    );
+                }
+            }
+        }
+    }
+    implementation(
+        output.as_mut_view(),
+        lhs.as_view(),
+        rhs.as_view(),
+        custom_modulus,
+    );
 }
 
 /// Add the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
@@ -193,7 +294,43 @@ pub fn polynomial_wrapping_add_mul_assign<Scalar, OutputCont, InputCont1, InputC
         polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
         polynomial_wrapping_add_assign(output, &tmp);
     } else {
-        polynomial_wrapping_add_mul_assign_schoolbook(output, lhs, rhs);
+        polynomial_wrapping_add_mul_schoolbook_assign(output, lhs, rhs);
+    }
+}
+
+pub fn polynomial_wrapping_add_mul_assign_custom_mod<Scalar, OutputCont, InputCont1, InputCont2>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    assert!(
+        output.polynomial_size() == lhs.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input lhs polynomial {:?}.",
+        output.polynomial_size(),
+        lhs.polynomial_size(),
+    );
+    assert!(
+        output.polynomial_size() == rhs.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input rhs polynomial {:?}.",
+        output.polynomial_size(),
+        rhs.polynomial_size(),
+    );
+
+    let polynomial_size = output.polynomial_size();
+
+    if polynomial_size.0.is_power_of_two() && polynomial_size.0 > KARATUSBA_STOP {
+        let mut tmp = Polynomial::new(Scalar::ZERO, polynomial_size);
+
+        polynomial_karatsuba_wrapping_mul_custom_mod(&mut tmp, lhs, rhs, custom_modulus);
+        polynomial_wrapping_add_assign_custom_mod(output, &tmp, custom_modulus);
+    } else {
+        polynomial_wrapping_add_mul_schoolbook_assign_custom_mod(output, lhs, rhs, custom_modulus)
     }
 }
 
@@ -239,6 +376,31 @@ pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
+pub fn polynomial_wrapping_monic_monomial_div_assign_custom_mod<Scalar, OutputCont>(
+    output: &mut Polynomial<OutputCont>,
+    monomial_degree: MonomialDegree,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+    }
+    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    output.as_mut().rotate_left(remaining_degree);
+    output
+        .as_mut()
+        .iter_mut()
+        .rev()
+        .take(remaining_degree)
+        .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+}
+
 /// Multiply (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
@@ -278,6 +440,30 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
         .iter_mut()
         .take(remaining_degree)
         .for_each(|a| *a = a.wrapping_neg());
+}
+
+pub fn polynomial_wrapping_monic_monomial_mul_assign_custom_mod<Scalar, OutputCont>(
+    output: &mut Polynomial<OutputCont>,
+    monomial_degree: MonomialDegree,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+    }
+    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    output.as_mut().rotate_right(remaining_degree);
+    output
+        .as_mut()
+        .iter_mut()
+        .take(remaining_degree)
+        .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
 }
 
 /// performs the operation: dst = -src, with wrapping arithmetic
@@ -530,7 +716,28 @@ pub fn polynomial_wrapping_sub_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
-fn polynomial_wrapping_sub_mul_assign_schoolbook<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_sub_multisum_assign_custom_mod<
+    Scalar,
+    OutputCont,
+    InputCont1,
+    InputCont2,
+>(
+    output: &mut Polynomial<OutputCont>,
+    poly_list_1: &PolynomialList<InputCont1>,
+    poly_list_2: &PolynomialList<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
+        polynomial_wrapping_sub_mul_assign_custom_mod(output, &poly_1, &poly_2, custom_modulus);
+    }
+}
+
+fn polynomial_wrapping_sub_mul_schoolbook_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     lhs: &Polynomial<InputCont1>,
     rhs: &Polynomial<InputCont2>,
@@ -567,6 +774,60 @@ fn polynomial_wrapping_sub_mul_assign_schoolbook<Scalar, OutputCont, InputCont1,
         }
     }
     implementation(output.as_mut_view(), lhs.as_view(), rhs.as_view());
+}
+
+fn polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod<
+    Scalar,
+    OutputCont,
+    InputCont1,
+    InputCont2,
+>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    fn implementation<Scalar: UnsignedInteger>(
+        mut output: Polynomial<&mut [Scalar]>,
+        lhs: Polynomial<&[Scalar]>,
+        rhs: Polynomial<&[Scalar]>,
+        custom_modulus: Scalar,
+    ) {
+        let polynomial_size = output.polynomial_size();
+        let degree = output.degree();
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient = (*output_coefficient).wrapping_sub_custom_mod(
+                        lhs_coeff.wrapping_mul_custom_mod(rhs_coeff, custom_modulus),
+                        custom_modulus,
+                    );
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient = (*output_coefficient).wrapping_add_custom_mod(
+                        lhs_coeff.wrapping_mul_custom_mod(rhs_coeff, custom_modulus),
+                        custom_modulus,
+                    );
+                }
+            }
+        }
+    }
+    implementation(
+        output.as_mut_view(),
+        lhs.as_view(),
+        rhs.as_view(),
+        custom_modulus,
+    );
 }
 
 /// Subtract the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
@@ -619,7 +880,43 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
         polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
         polynomial_wrapping_sub_assign(output, &tmp);
     } else {
-        polynomial_wrapping_sub_mul_assign_schoolbook(output, lhs, rhs);
+        polynomial_wrapping_sub_mul_schoolbook_assign(output, lhs, rhs);
+    }
+}
+
+pub fn polynomial_wrapping_sub_mul_assign_custom_mod<Scalar, OutputCont, InputCont1, InputCont2>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    assert!(
+        output.polynomial_size() == lhs.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input lhs polynomial {:?}.",
+        output.polynomial_size(),
+        lhs.polynomial_size(),
+    );
+    assert!(
+        output.polynomial_size() == rhs.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input rhs polynomial {:?}.",
+        output.polynomial_size(),
+        rhs.polynomial_size(),
+    );
+
+    let polynomial_size = output.polynomial_size();
+
+    if polynomial_size.0.is_power_of_two() && polynomial_size.0 > KARATUSBA_STOP {
+        let mut tmp = Polynomial::new(Scalar::ZERO, polynomial_size);
+
+        polynomial_karatsuba_wrapping_mul_custom_mod(&mut tmp, lhs, rhs, custom_modulus);
+        polynomial_wrapping_sub_assign_custom_mod(output, &tmp, custom_modulus);
+    } else {
+        polynomial_wrapping_sub_mul_schoolbook_assign_custom_mod(output, lhs, rhs, custom_modulus)
     }
 }
 
@@ -781,6 +1078,172 @@ where
     }
 }
 
+pub fn polynomial_karatsuba_wrapping_mul_custom_mod<Scalar, OutputCont, LhsCont, RhsCont>(
+    output: &mut Polynomial<OutputCont>,
+    p: &Polynomial<LhsCont>,
+    q: &Polynomial<RhsCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    LhsCont: Container<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    // check same dimensions
+    assert!(
+        output.polynomial_size() == p.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input lhs polynomial {:?}.",
+        output.polynomial_size(),
+        p.polynomial_size(),
+    );
+    assert!(
+        output.polynomial_size() == q.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input rhs polynomial {:?}.",
+        output.polynomial_size(),
+        q.polynomial_size(),
+    );
+
+    let poly_size = output.polynomial_size().0;
+
+    // check dimensions are a power of 2
+    assert!(poly_size.is_power_of_two());
+
+    // allocate slices for the rec
+    let mut a0 = vec![Scalar::ZERO; poly_size];
+    let mut a1 = vec![Scalar::ZERO; poly_size];
+    let mut a2 = vec![Scalar::ZERO; poly_size];
+    let mut input_a2_p = vec![Scalar::ZERO; poly_size / 2];
+    let mut input_a2_q = vec![Scalar::ZERO; poly_size / 2];
+
+    // prepare for splitting
+    let bottom = 0..(poly_size / 2);
+    let top = (poly_size / 2)..poly_size;
+
+    // induction
+    induction_karatsuba_custom_mod(
+        &mut a0,
+        &p[bottom.clone()],
+        &q[bottom.clone()],
+        custom_modulus,
+    );
+    induction_karatsuba_custom_mod(&mut a1, &p[top.clone()], &q[top.clone()], custom_modulus);
+    slice_wrapping_add_custom_mod(
+        &mut input_a2_p,
+        &p[bottom.clone()],
+        &p[top.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_add_custom_mod(
+        &mut input_a2_q,
+        &q[bottom.clone()],
+        &q[top.clone()],
+        custom_modulus,
+    );
+    induction_karatsuba_custom_mod(&mut a2, &input_a2_p, &input_a2_q, custom_modulus);
+
+    // rebuild the result
+    let output: &mut [Scalar] = output.as_mut();
+    slice_wrapping_sub_custom_mod(output, &a0, &a1, custom_modulus);
+    slice_wrapping_sub_assign_custom_mod(
+        &mut output[bottom.clone()],
+        &a2[top.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_add_assign_custom_mod(
+        &mut output[bottom.clone()],
+        &a0[top.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_add_assign_custom_mod(
+        &mut output[bottom.clone()],
+        &a1[top.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_add_assign_custom_mod(
+        &mut output[top.clone()],
+        &a2[bottom.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_sub_assign_custom_mod(
+        &mut output[top.clone()],
+        &a0[bottom.clone()],
+        custom_modulus,
+    );
+    slice_wrapping_sub_assign_custom_mod(&mut output[top], &a1[bottom], custom_modulus);
+}
+
+fn induction_karatsuba_custom_mod<Scalar>(
+    res: &mut [Scalar],
+    p: &[Scalar],
+    q: &[Scalar],
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    // stop the induction when polynomials have KARATUSBA_STOP elements
+    if p.len() <= KARATUSBA_STOP {
+        // schoolbook algorithm
+        for (lhs_degree, &lhs_elt) in p.iter().enumerate() {
+            let res = &mut res[lhs_degree..];
+            for (&rhs_elt, res) in q.iter().zip(res) {
+                *res = (*res).wrapping_add_custom_mod(
+                    lhs_elt.wrapping_mul_custom_mod(rhs_elt, custom_modulus),
+                    custom_modulus,
+                )
+            }
+        }
+    } else {
+        let poly_size = res.len();
+
+        // allocate slices for the rec
+        let mut a0 = vec![Scalar::ZERO; poly_size / 2];
+        let mut a1 = vec![Scalar::ZERO; poly_size / 2];
+        let mut a2 = vec![Scalar::ZERO; poly_size / 2];
+        let mut input_a2_p = vec![Scalar::ZERO; poly_size / 4];
+        let mut input_a2_q = vec![Scalar::ZERO; poly_size / 4];
+
+        // prepare for splitting
+        let bottom = 0..(poly_size / 4);
+        let top = (poly_size / 4)..(poly_size / 2);
+
+        // rec
+        induction_karatsuba_custom_mod(
+            &mut a0,
+            &p[bottom.clone()],
+            &q[bottom.clone()],
+            custom_modulus,
+        );
+        induction_karatsuba_custom_mod(&mut a1, &p[top.clone()], &q[top.clone()], custom_modulus);
+        slice_wrapping_add_custom_mod(
+            &mut input_a2_p,
+            &p[bottom.clone()],
+            &p[top.clone()],
+            custom_modulus,
+        );
+        slice_wrapping_add_custom_mod(&mut input_a2_q, &q[bottom], &q[top], custom_modulus);
+        induction_karatsuba_custom_mod(&mut a2, &input_a2_p, &input_a2_q, custom_modulus);
+
+        // rebuild the result
+        slice_wrapping_sub_custom_mod(
+            &mut res[(poly_size / 4)..(3 * poly_size / 4)],
+            &a2,
+            &a0,
+            custom_modulus,
+        );
+        slice_wrapping_sub_assign_custom_mod(
+            &mut res[(poly_size / 4)..(3 * poly_size / 4)],
+            &a1,
+            custom_modulus,
+        );
+        slice_wrapping_add_assign_custom_mod(&mut res[0..(poly_size / 2)], &a0, custom_modulus);
+        slice_wrapping_add_assign_custom_mod(
+            &mut res[(poly_size / 2)..poly_size],
+            &a1,
+            custom_modulus,
+        );
+    }
+}
+
 #[cfg(test)]
 mod test {
     use rand::Rng;
@@ -863,7 +1326,7 @@ mod test {
             let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
 
             // compute the schoolbook
-            polynomial_wrapping_add_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
+            polynomial_wrapping_add_mul_schoolbook_assign(&mut sb_mul, &poly_1, &poly_2);
 
             // compute the karatsuba
             polynomial_karatsuba_wrapping_mul(&mut ka_mul, &poly_1, &poly_2);
@@ -895,7 +1358,7 @@ mod test {
                 let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
 
                 // compute the schoolbook
-                polynomial_wrapping_add_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
+                polynomial_wrapping_add_mul_schoolbook_assign(&mut sb_mul, &poly_1, &poly_2);
 
                 // compute the ntt/karatsuba
                 polynomial_wrapping_add_mul_assign(&mut ka_mul, &poly_1, &poly_2);
@@ -928,7 +1391,7 @@ mod test {
                 let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
 
                 // compute the schoolbook
-                polynomial_wrapping_sub_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
+                polynomial_wrapping_sub_mul_schoolbook_assign(&mut sb_mul, &poly_1, &poly_2);
 
                 // compute the ntt/karatsuba
                 polynomial_wrapping_sub_mul_assign(&mut ka_mul, &poly_1, &poly_2);
