@@ -61,6 +61,7 @@ serde = { version = "1.0", features = ["derive"] }
 rayon = { version = "1.5.0" }
 bincode = "1.3.3"
 concrete-fft = { version = "0.4.1", features = ["serde", "fft128"] }
+concrete-ntt = { version = "0.1.2" }
 pulp = "0.18.8"
 tfhe-cuda-backend = { version = "0.2.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { version = "0.5", features = ["serde"] }
@@ -119,7 +120,7 @@ integer-client-js-wasm-api = ["integer", "__wasm_api"]
 high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
-nightly-avx512 = ["concrete-fft/nightly", "pulp/nightly"]
+nightly-avx512 = ["concrete-fft/nightly", "concrete-ntt/nightly", "pulp/nightly"]
 
 # Enable the x86_64 specific accelerated implementation of the random generator for the default
 # backend
