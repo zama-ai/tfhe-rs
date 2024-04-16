@@ -47,6 +47,7 @@ macro_rules! create_gpu_parametrized_test{
         });
     };
 }
+
 pub(crate) use create_gpu_parametrized_test;
 
 pub(crate) struct GpuContext {

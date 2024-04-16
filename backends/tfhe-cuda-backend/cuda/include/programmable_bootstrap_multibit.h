@@ -202,9 +202,9 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
           num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2),
           stream);
       global_accumulator = (Torus *)cuda_malloc_async(
-          num_blocks_acc_step_two * polynomial_size * sizeof(Torus), stream);
+          num_blocks_acc_step_one * polynomial_size * sizeof(Torus), stream);
       global_accumulator_fft = (double2 *)cuda_malloc_async(
-          num_blocks_acc_step_two * (polynomial_size / 2) * sizeof(double2),
+          num_blocks_acc_step_one * (polynomial_size / 2) * sizeof(double2),
           stream);
     }
   }
