@@ -1,10 +1,14 @@
 //! Module containing primitives pertaining to [`GGSW ciphertext
 //! encryption`](`GgswCiphertext#ggsw-encryption`).
 
+use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
+use crate::core_crypto::commons::math::decomposition::{
+    DecompositionLevel, DecompositionTermNonNative, SignedDecomposer,
+};
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::PlaintextCount;
 use crate::core_crypto::commons::traits::*;
@@ -106,19 +110,33 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     for (level_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
         let decomp_level = DecompositionLevel(level_index + 1);
         // We scale the factor down from the native torus to whatever our torus is, the
         // encryption process will scale it back up
-        let factor = encoded
-            .0
-            .wrapping_neg()
-            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+        let factor = match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => DecompositionTermNonNative::new(
+                decomp_level,
+                decomp_base_log,
+                encoded.0.wrapping_neg(),
+                ciphertext_modulus,
+            )
+            .to_approximate_recomposition_summand(),
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo =>
+            // We scale the factor down from the native torus to whatever our torus is, the
+            // encryption process will scale it back up
+            {
+                encoded
+                    .0
+                    .wrapping_neg()
+                    .wrapping_mul(
+                        Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)),
+                    )
+                    .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus())
+            }
+        };
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = generator
@@ -242,18 +260,32 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
             let decomp_level = DecompositionLevel(level_index + 1);
             // We scale the factor down from the native torus to whatever our torus is, the
             // encryption process will scale it back up
-            let factor = encoded
-                .0
-                .wrapping_neg()
-                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+            let factor = match ciphertext_modulus.kind() {
+                CiphertextModulusKind::Other => DecompositionTermNonNative::new(
+                    decomp_level,
+                    decomp_base_log,
+                    encoded.0.wrapping_neg(),
+                    ciphertext_modulus,
+                )
+                .to_approximate_recomposition_summand(),
+                CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo =>
+                // We scale the factor down from the native torus to whatever our torus is, the
+                // encryption process will scale it back up
+                {
+                    encoded
+                        .0
+                        .wrapping_neg()
+                        .wrapping_mul(
+                            Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)),
+                        )
+                        .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus())
+                }
+            };
 
             // We iterate over the rows of the level matrix, the last row needs special
             // treatment
@@ -313,13 +345,33 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
         let mut body = row_as_glwe.get_mut_body();
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
-        slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
+        let ciphertext_modulus = body.ciphertext_modulus();
+
+        match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => slice_wrapping_scalar_mul_assign_custom_mod(
+                body.as_mut(),
+                factor,
+                ciphertext_modulus.get_custom_modulus().cast_into(),
+            ),
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+                slice_wrapping_scalar_mul_assign(body.as_mut(), factor)
+            }
+        }
     } else {
         // The last row needs a slightly different treatment
         let mut body = row_as_glwe.get_mut_body();
+        let ciphertext_modulus = body.ciphertext_modulus();
 
         body.as_mut().fill(Scalar::ZERO);
-        body.as_mut()[0] = factor.wrapping_neg();
+        let encoded = match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => {
+                factor.wrapping_neg_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+            }
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+                factor.wrapping_neg()
+            }
+        };
+        body.as_mut()[0] = encoded;
     }
     encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_distribution, generator);
 }
@@ -358,19 +410,33 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     for (level_index, (mut level_matrix, mut loop_generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
         let decomp_level = DecompositionLevel(level_index + 1);
         // We scale the factor down from the native torus to whatever our torus is, the
         // encryption process will scale it back up
-        let factor = encoded
-            .0
-            .wrapping_neg()
-            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+        let factor = match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => DecompositionTermNonNative::new(
+                decomp_level,
+                decomp_base_log,
+                encoded.0.wrapping_neg(),
+                ciphertext_modulus,
+            )
+            .to_approximate_recomposition_summand(),
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo =>
+            // We scale the factor down from the native torus to whatever our torus is, the
+            // encryption process will scale it back up
+            {
+                encoded
+                    .0
+                    .wrapping_neg()
+                    .wrapping_mul(
+                        Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)),
+                    )
+                    .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus())
+            }
+        };
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = loop_generator
@@ -539,18 +605,32 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
             let decomp_level = DecompositionLevel(level_index + 1);
             // We scale the factor down from the native torus to whatever our torus is, the
             // encryption process will scale it back up
-            let factor = encoded
-                .0
-                .wrapping_neg()
-                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+            let factor = match ciphertext_modulus.kind() {
+                CiphertextModulusKind::Other => DecompositionTermNonNative::new(
+                    decomp_level,
+                    decomp_base_log,
+                    encoded.0.wrapping_neg(),
+                    ciphertext_modulus,
+                )
+                .to_approximate_recomposition_summand(),
+                CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo =>
+                // We scale the factor down from the native torus to whatever our torus is, the
+                // encryption process will scale it back up
+                {
+                    encoded
+                        .0
+                        .wrapping_neg()
+                        .wrapping_mul(
+                            Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)),
+                        )
+                        .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus())
+                }
+            };
 
             // We iterate over the rows of the level matrix, the last row needs special treatment
             let gen_iter = generator
@@ -724,13 +804,33 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
         let mut body = row_as_glwe.get_mut_body();
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
-        slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
+        let ciphertext_modulus = body.ciphertext_modulus();
+
+        match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => slice_wrapping_scalar_mul_assign_custom_mod(
+                body.as_mut(),
+                factor,
+                ciphertext_modulus.get_custom_modulus().cast_into(),
+            ),
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+                slice_wrapping_scalar_mul_assign(body.as_mut(), factor)
+            }
+        }
     } else {
         // The last row needs a slightly different treatment
         let mut body = row_as_glwe.get_mut_body();
+        let ciphertext_modulus = body.ciphertext_modulus();
 
         body.as_mut().fill(Scalar::ZERO);
-        body.as_mut()[0] = factor.wrapping_neg();
+        let encoded = match ciphertext_modulus.kind() {
+            CiphertextModulusKind::Other => {
+                factor.wrapping_neg_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+            }
+            CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+                factor.wrapping_neg()
+            }
+        };
+        body.as_mut()[0] = encoded;
     }
     encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
         glwe_secret_key,
@@ -837,20 +937,37 @@ where
 
     let decomp_base_log = ggsw_ciphertext.decomposition_base_log();
 
-    let decomposer = SignedDecomposer::new(decomp_base_log, decomp_level);
-
     let plaintext_ref = decrypted_plaintext_list.get(0);
 
     let ciphertext_modulus = ggsw_ciphertext.ciphertext_modulus();
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-    // Glwe decryption maps to a smaller torus potentially, map back to the native torus
-    let rounded = decomposer.closest_representable(
-        (*plaintext_ref.0)
-            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
-    );
-    let decoded =
-        rounded.wrapping_div(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+    match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Other => {
+            let delta = DecompositionTermNonNative::new(
+                DecompositionLevel(decomp_level.0),
+                decomp_base_log,
+                Scalar::ONE,
+                ciphertext_modulus,
+            )
+            .to_approximate_recomposition_summand();
 
-    Plaintext(decoded)
+            let decoded = divide_round(*plaintext_ref.0, delta)
+                .wrapping_rem(Scalar::ONE << (decomp_level.0 * decomp_base_log.0));
+
+            Plaintext(decoded)
+        }
+        CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+            let decomposer = SignedDecomposer::new(decomp_base_log, decomp_level);
+
+            // Glwe decryption maps to a smaller torus potentially, map back to the native torus
+            let rounded = decomposer.closest_representable(
+                (*plaintext_ref.0)
+                    .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
+            );
+            let decoded = rounded
+                .wrapping_div(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+
+            Plaintext(decoded)
+        }
+    }
 }

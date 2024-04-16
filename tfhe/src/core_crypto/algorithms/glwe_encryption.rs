@@ -5,6 +5,7 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_scalar_div_assign, slice_wrapping_scalar_mul_assign,
 };
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Distribution, Uniform};
 use crate::core_crypto::commons::parameters::*;
@@ -14,6 +15,48 @@ use crate::core_crypto::entities::*;
 /// Convenience function to share the core logic of the GLWE assign encryption between all functions
 /// needing it.
 pub fn fill_glwe_mask_and_body_for_encryption_assign<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        fill_glwe_mask_and_body_for_encryption_assign_native_mod_compatible(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            noise_distribution,
+            generator,
+        )
+    } else {
+        fill_glwe_mask_and_body_for_encryption_assign_non_native_mod(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            noise_distribution,
+            generator,
+        )
+    }
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_assign_native_mod_compatible<
     Scalar,
     NoiseDistribution,
     KeyCont,
@@ -64,6 +107,55 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<
         &mut output_body.as_mut_polynomial(),
         &output_mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
+    );
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_assign_non_native_mod<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between output_mask ({:?}) and output_body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.unsigned_integer_slice_wrapping_add_random_noise_from_distribution_custom_mod_assign(
+        output_body.as_mut(),
+        noise_distribution,
+        ciphertext_modulus,
+    );
+
+    polynomial_wrapping_add_multisum_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+        ciphertext_modulus.get_custom_modulus().cast_into(),
     );
 }
 
@@ -266,6 +358,53 @@ pub fn fill_glwe_mask_and_body_for_encryption<
     MaskCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        fill_glwe_mask_and_body_for_encryption_native_mod_compatible(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_distribution,
+            generator,
+        )
+    } else {
+        fill_glwe_mask_and_body_for_encryption_other_mod(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_distribution,
+            generator,
+        )
+    }
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_native_mod_compatible<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    InputCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
     assert_eq!(
         output_mask.ciphertext_modulus(),
         output_body.ciphertext_modulus()
@@ -298,6 +437,63 @@ pub fn fill_glwe_mask_and_body_for_encryption<
         &mut output_body.as_mut_polynomial(),
         &output_mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
+    );
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_other_mod<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    InputCont,
+    BodyCont,
+    MaskCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    generator
+        .fill_slice_with_random_uniform_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.fill_slice_with_random_noise_from_distribution_custom_mod(
+        output_body.as_mut(),
+        noise_distribution,
+        ciphertext_modulus,
+    );
+
+    let ciphertext_modulus = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    polynomial_wrapping_add_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &encoded.as_polynomial(),
+        ciphertext_modulus,
+    );
+
+    polynomial_wrapping_add_multisum_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+        ciphertext_modulus,
     );
 }
 
@@ -588,6 +784,33 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
+    let ciphertext_modulus = input_glwe_ciphertext.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        decrypt_glwe_ciphertext_native_mod_compatible(
+            glwe_secret_key,
+            input_glwe_ciphertext,
+            output_plaintext_list,
+        );
+    } else {
+        decrypt_glwe_ciphertext_other_mod(
+            glwe_secret_key,
+            input_glwe_ciphertext,
+            output_plaintext_list,
+        );
+    }
+}
+
+pub fn decrypt_glwe_ciphertext_native_mod_compatible<Scalar, KeyCont, InputCont, OutputCont>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_glwe_ciphertext: &GlweCiphertext<InputCont>,
+    output_plaintext_list: &mut PlaintextList<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
     assert!(
         output_plaintext_list.plaintext_count().0 == input_glwe_ciphertext.polynomial_size().0,
         "Mismatched output PlaintextCount {:?} and input PolynomialSize {:?}",
@@ -627,6 +850,53 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
             ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
         );
     }
+}
+
+pub fn decrypt_glwe_ciphertext_other_mod<Scalar, KeyCont, InputCont, OutputCont>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_glwe_ciphertext: &GlweCiphertext<InputCont>,
+    output_plaintext_list: &mut PlaintextList<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    assert!(
+        output_plaintext_list.plaintext_count().0 == input_glwe_ciphertext.polynomial_size().0,
+        "Mismatched output PlaintextCount {:?} and input PolynomialSize {:?}",
+        output_plaintext_list.plaintext_count(),
+        input_glwe_ciphertext.polynomial_size()
+    );
+    assert!(
+        glwe_secret_key.glwe_dimension() == input_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        "Mismatched GlweDimension between glwe_secret_key {:?} and input_glwe_ciphertext {:?}",
+        glwe_secret_key.glwe_dimension(),
+        input_glwe_ciphertext.glwe_size().to_glwe_dimension()
+    );
+    assert!(
+        glwe_secret_key.polynomial_size() == input_glwe_ciphertext.polynomial_size(),
+        "Mismatched PolynomialSize between glwe_secret_key {:?} and input_glwe_ciphertext {:?}",
+        glwe_secret_key.polynomial_size(),
+        input_glwe_ciphertext.polynomial_size()
+    );
+
+    let ciphertext_modulus = input_glwe_ciphertext.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    let ciphertext_modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    let (mask, body) = input_glwe_ciphertext.get_mask_and_body();
+    output_plaintext_list
+        .as_mut()
+        .copy_from_slice(body.as_ref());
+    polynomial_wrapping_sub_multisum_assign_custom_mod(
+        &mut output_plaintext_list.as_mut_polynomial(),
+        &mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+        ciphertext_modulus_as_scalar,
+    );
 }
 
 /// Decrypt a [`GLWE ciphertext list`](`GlweCiphertextList`) in a (scalar) plaintext list.
@@ -759,13 +1029,14 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 
     let ciphertext_modulus = body.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
-    if !ciphertext_modulus.is_native_modulus() {
-        slice_wrapping_scalar_mul_assign(
-            body.as_mut(),
-            ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
-        );
+    match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native | CiphertextModulusKind::Other => (),
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            slice_wrapping_scalar_mul_assign(
+                body.as_mut(),
+                ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
+            );
+        }
     }
 }
 
@@ -842,8 +1113,6 @@ where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
 {
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
     let mut new_ct =
@@ -852,7 +1121,8 @@ where
     let mut body = new_ct.get_mut_body();
     body.as_mut().copy_from_slice(encoded.as_ref());
 
-    if !ciphertext_modulus.is_native_modulus() {
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
             ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),

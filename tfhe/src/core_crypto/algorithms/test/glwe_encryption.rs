@@ -71,7 +71,7 @@ fn glwe_encrypt_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(glwe_encrypt_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(glwe_encrypt_assign_decrypt_custom_mod);
 
 fn glwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
@@ -141,7 +141,7 @@ fn glwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
     }
 }
 
-create_parametrized_test!(glwe_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(glwe_encrypt_decrypt_custom_mod);
 
 fn glwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
@@ -217,7 +217,7 @@ fn glwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTe
     }
 }
 
-create_parametrized_test!(glwe_list_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(glwe_list_encrypt_decrypt_custom_mod);
 
 fn glwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -282,7 +282,7 @@ fn glwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(glwe_trivial_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(glwe_trivial_encrypt_decrypt_custom_mod);
 
 fn glwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -340,7 +340,9 @@ fn glwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(glwe_allocate_trivial_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    glwe_allocate_trivial_encrypt_decrypt_custom_mod
+);
 
 fn glwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,

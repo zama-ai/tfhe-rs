@@ -230,7 +230,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            assert_eq!(decoded.0, msg);
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
@@ -240,7 +240,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
     }
 }
 
-create_parametrized_test!(ggsw_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(ggsw_encrypt_decrypt_custom_mod);
 
 fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,
@@ -298,7 +298,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            assert_eq!(decoded.0, msg);
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
@@ -308,7 +308,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     }
 }
 
-create_parametrized_test!(ggsw_par_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
 
 fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -369,7 +369,7 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            assert_eq!(decoded.0, msg);
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
@@ -440,7 +440,7 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            assert_eq!(decoded.0, msg);
         }
 
         // In coverage, we break after one while loop iteration, changing message values does not
