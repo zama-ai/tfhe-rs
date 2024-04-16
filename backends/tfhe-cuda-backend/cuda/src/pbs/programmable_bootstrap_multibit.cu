@@ -195,7 +195,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
 
   switch (buffer->pbs_variant) {
-  case CG:
+  case PBS_VARIANT::CG:
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -207,7 +207,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
-  case DEFAULT:
+  case PBS_VARIANT::DEFAULT:
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
         stream, static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_output_indexes),
@@ -220,7 +220,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   default:
-    PANIC("Cuda error (multi-bit PBS): unknown pbs variant.")
+    PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
   }
 }
 

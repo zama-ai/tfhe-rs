@@ -227,8 +227,7 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
   // decomposition, for the mask and the body (so block 0 will have the
   // accumulator decomposed at level 0, 1 at 1, etc.)
   GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
-  gadget_acc.decompose_and_compress_next_polynomial(accumulator_fft,
-                                                    blockIdx.x);
+  gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
 
   // We are using the same memory space for accumulator_fft and
   // accumulator_rotated, so we need to synchronize here to make sure they

@@ -133,18 +133,20 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     this->pbs_variant = pbs_variant;
     auto max_shared_memory = cuda_get_max_shared_memory(stream->gpu_index);
 
+    // default
     uint64_t full_sm_keybundle =
         get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
             Torus>(polynomial_size);
     uint64_t full_sm_accumulate_step_one =
         get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
             polynomial_size);
-    uint64_t partial_sm_accumulate_step_one =
-        get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
-            Torus>(polynomial_size);
     uint64_t full_sm_accumulate_step_two =
         get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
             polynomial_size);
+    uint64_t partial_sm_accumulate_step_one =
+        get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
+            Torus>(polynomial_size);
+    // cg
     uint64_t full_sm_cg_accumulate =
         get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
             polynomial_size);
@@ -169,7 +171,16 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
             num_blocks_keybundle * full_sm_keybundle, stream);
 
       switch (pbs_variant) {
-      case DEFAULT:
+      case PBS_VARIANT::CG:
+        // Accumulator CG
+        if (max_shared_memory < partial_sm_cg_accumulate)
+          d_mem_acc_cg = (int8_t *)cuda_malloc_async(
+              num_blocks_acc_cg * full_sm_cg_accumulate, stream);
+        else if (max_shared_memory < full_sm_cg_accumulate)
+          d_mem_acc_cg = (int8_t *)cuda_malloc_async(
+              num_blocks_acc_cg * partial_sm_cg_accumulate, stream);
+        break;
+      case PBS_VARIANT::DEFAULT:
         // Accumulator step one
         if (max_shared_memory < partial_sm_accumulate_step_one)
           d_mem_acc_step_one = (int8_t *)cuda_malloc_async(
@@ -183,15 +194,6 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
           d_mem_acc_step_two = (int8_t *)cuda_malloc_async(
               num_blocks_acc_step_two * full_sm_accumulate_step_two, stream);
         break;
-      case CG:
-        // Accumulator CG
-        if (max_shared_memory < partial_sm_cg_accumulate)
-          d_mem_acc_cg = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_cg * full_sm_cg_accumulate, stream);
-        else if (max_shared_memory < full_sm_cg_accumulate)
-          d_mem_acc_cg = (int8_t *)cuda_malloc_async(
-              num_blocks_acc_cg * partial_sm_cg_accumulate, stream);
-        break;
       default:
         PANIC("Cuda error (PBS): unsupported implementation variant.")
       }
@@ -202,7 +204,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       global_accumulator = (Torus *)cuda_malloc_async(
           num_blocks_acc_step_two * polynomial_size * sizeof(Torus), stream);
       global_accumulator_fft = (double2 *)cuda_malloc_async(
-          num_blocks_acc_step_one * (polynomial_size / 2) * sizeof(double2),
+          num_blocks_acc_step_two * (polynomial_size / 2) * sizeof(double2),
           stream);
     }
   }
