@@ -43,8 +43,16 @@ macro_rules! define_gpu_signed_comparison_test_functions {
 
 
             // Then call our create_gpu_parametrized_test macro onto or specialized fns
-            create_gpu_parametrized_test!([<integer_signed_unchecked_ $comparison_name _ $clear_type>]);
-            create_gpu_parametrized_test!([<integer_signed_default_ $comparison_name _ $clear_type>]);
+            create_gpu_parametrized_test!([<integer_signed_unchecked_ $comparison_name _ $clear_type>]{
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            });
+            create_gpu_parametrized_test!([<integer_signed_default_ $comparison_name _ $clear_type>]{
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            });
         }
     };
 }
@@ -81,10 +89,26 @@ where
     test_signed_default_minmax(params, 2, executor, std::cmp::max::<i128>);
 }
 
-create_gpu_parametrized_test!(integer_signed_unchecked_max_128_bits);
-create_gpu_parametrized_test!(integer_signed_unchecked_min_128_bits);
-create_gpu_parametrized_test!(integer_signed_max_128_bits);
-create_gpu_parametrized_test!(integer_signed_min_128_bits);
+create_gpu_parametrized_test!(integer_signed_unchecked_max_128_bits {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+});
+create_gpu_parametrized_test!(integer_signed_unchecked_min_128_bits {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+});
+create_gpu_parametrized_test!(integer_signed_max_128_bits {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+});
+create_gpu_parametrized_test!(integer_signed_min_128_bits {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+});
 
 define_gpu_signed_comparison_test_functions!(eq, i128);
 define_gpu_signed_comparison_test_functions!(ne, i128);
