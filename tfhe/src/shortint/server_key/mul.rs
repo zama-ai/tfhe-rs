@@ -289,7 +289,7 @@ impl ServerKey {
         ct1: CiphertextNoiseDegree,
         ct2: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct1, ct2)
+        self.is_functional_bivariate_pbs_possible(ct1, ct2, None)
     }
 
     /// Multiply two ciphertexts together with checks.

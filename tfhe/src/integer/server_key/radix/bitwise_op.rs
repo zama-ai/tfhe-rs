@@ -90,6 +90,7 @@ impl ServerKey {
             self.key.is_functional_bivariate_pbs_possible(
                 ct_left_i.noise_degree(),
                 ct_right_i.noise_degree(),
+                None,
             )?;
         }
         Ok(())
