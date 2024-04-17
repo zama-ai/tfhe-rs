@@ -169,7 +169,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_greater(ct_left, ct_right))
     }
 
@@ -430,7 +434,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_greater_or_equal(ct_left, ct_right))
     }
 
@@ -596,7 +604,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_less(ct_left, ct_right))
     }
 
@@ -809,7 +821,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_less(ct_left, ct_right))
     }
 
@@ -1022,7 +1038,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_equal(ct_left, ct_right))
     }
 
@@ -1231,7 +1251,11 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            None,
+        )?;
         Ok(self.unchecked_not_equal(ct_left, ct_right))
     }
 

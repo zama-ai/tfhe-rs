@@ -19,23 +19,6 @@ pub type BivariateLookupTableOwned = BivariateLookupTable<Vec<u64>>;
 pub type BivariateLookupTableMutView<'a> = BivariateLookupTable<&'a mut [u64]>;
 pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
 
-impl<C: Container<Element = u64>> BivariateLookupTable<C> {
-    pub fn is_bivariate_pbs_possible(
-        &self,
-        server_key: &ServerKey,
-        lhs: CiphertextNoiseDegree,
-        rhs: CiphertextNoiseDegree,
-    ) -> Result<(), CheckError> {
-        ciphertexts_can_be_packed_without_exceeding_space_or_noise(
-            server_key,
-            lhs,
-            rhs,
-            self.ct_right_modulus.0,
-        )?;
-        Ok(())
-    }
-}
-
 /// Returns whether it is possible to pack lhs and rhs into a unique
 /// ciphertext without exceeding the max storable value using the formula:
 /// `unique_ciphertext = (lhs * factor) + rhs`
@@ -47,14 +30,15 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
 ) -> Result<(), CheckError> {
     let final_degree = (lhs.degree * factor) + rhs.degree;
 
+    // Do not use server key max degree as it may be smaller (to keep carry propagation margin)
     let max_degree =
         MaxDegree::from_msg_carry_modulus(server_key.message_modulus, server_key.carry_modulus);
 
     max_degree.validate(final_degree)?;
 
-    server_key
-        .max_noise_level
-        .validate(lhs.noise_level * factor + rhs.noise_level)?;
+    let final_noise_level = (lhs.noise_level * factor) + rhs.noise_level;
+
+    server_key.max_noise_level.validate(final_noise_level)?;
 
     if rhs.degree.get() >= factor {
         return Err(CheckError::UnscaledScaledOverlap {
@@ -115,8 +99,7 @@ impl ServerKey {
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_lookup_table_bivariate(f);
-    /// acc.is_bivariate_pbs_possible(&sks, ct1.noise_degree(), ct2.noise_degree())
-    ///     .unwrap();
+    ///
     /// let ct_res = sks.apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -215,7 +198,11 @@ impl ServerKey {
         let ct_right_clean;
 
         let (ct_left, ct_right) = if self
-            .is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_functional_bivariate_pbs_possible(
+                ct_left.noise_degree(),
+                ct_right.noise_degree(),
+                Some(acc),
+            )
             .is_err()
         {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
@@ -229,8 +216,12 @@ impl ServerKey {
             (ct_left, ct_right)
         };
 
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .unwrap();
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            Some(acc),
+        )
+        .unwrap();
 
         self.unchecked_apply_lookup_table_bivariate(ct_left, ct_right, acc)
     }
@@ -242,7 +233,11 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) {
         if self
-            .is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .is_functional_bivariate_pbs_possible(
+                ct_left.noise_degree(),
+                ct_right.noise_degree(),
+                Some(acc),
+            )
             .is_err()
         {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
@@ -252,8 +247,12 @@ impl ServerKey {
             self.message_extract_assign(ct_right);
         }
 
-        self.is_functional_bivariate_pbs_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .unwrap();
+        self.is_functional_bivariate_pbs_possible(
+            ct_left.noise_degree(),
+            ct_right.noise_degree(),
+            Some(acc),
+        )
+        .unwrap();
 
         self.unchecked_apply_lookup_table_bivariate_assign(ct_left, ct_right, acc);
     }
@@ -290,17 +289,19 @@ impl ServerKey {
     }
 
     /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
+    /// If the bivariate lookup table is already built, it must be passed to do the check with the
+    /// correct scale.
+    /// If the bivariate lookup table is going to be built (if this function returns true) assuming
+    /// ct1 is going to be scaled by ct2.degree+1, None must be passed.
     pub fn is_functional_bivariate_pbs_possible(
         &self,
         ct1: CiphertextNoiseDegree,
         ct2: CiphertextNoiseDegree,
+        lut: Option<&BivariateLookupTableOwned>,
     ) -> Result<(), CheckError> {
-        ciphertexts_can_be_packed_without_exceeding_space_or_noise(
-            self,
-            ct1,
-            ct2,
-            ct2.degree.get() + 1,
-        )?;
+        let scale = lut.map_or_else(|| ct2.degree.get() + 1, |lut| lut.ct_right_modulus.0);
+
+        ciphertexts_can_be_packed_without_exceeding_space_or_noise(self, ct1, ct2, scale)?;
 
         Ok(())
     }
