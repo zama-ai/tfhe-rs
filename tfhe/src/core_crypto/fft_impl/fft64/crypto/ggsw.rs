@@ -10,7 +10,10 @@ use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
 use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
+use crate::core_crypto::entities::ggsw_ciphertext::{
+    fourier_ggsw_level_matrix_size, GgswCiphertextView,
+};
+use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
@@ -31,7 +34,6 @@ pub struct FourierGgswLevelMatrix<C: Container<Element = c64>> {
     data: C,
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
-    row_count: usize,
     decomposition_level: DecompositionLevel,
 }
 
@@ -134,18 +136,16 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
         data: C,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-        row_count: usize,
         decomposition_level: DecompositionLevel,
     ) -> Self {
         assert_eq!(
             data.container_len(),
-            polynomial_size.to_fourier_polynomial_size().0 * glwe_size.0 * row_count
+            fourier_ggsw_level_matrix_size(glwe_size, polynomial_size.to_fourier_polynomial_size()),
         );
         Self {
             data,
             glwe_size,
             polynomial_size,
-            row_count,
             decomposition_level,
         }
     }
@@ -155,8 +155,9 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
     where
         C: Split,
     {
+        let row_count = self.row_count();
         self.data
-            .split_into(self.row_count)
+            .split_into(row_count)
             .map(move |slice| FourierGgswLevelRow {
                 data: slice,
                 polynomial_size: self.polynomial_size,
@@ -174,7 +175,7 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
     }
 
     pub fn row_count(&self) -> usize {
-        self.row_count
+        self.glwe_size.0
     }
 
     pub fn decomposition_level(&self) -> DecompositionLevel {
@@ -234,7 +235,6 @@ impl<'a> FourierGgswCiphertextView<'a> {
                     slice,
                     self.glwe_size,
                     self.fourier.polynomial_size,
-                    self.glwe_size.0,
                     DecompositionLevel(i + 1),
                 )
             })

@@ -8,7 +8,10 @@ use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
 use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
+use crate::core_crypto::entities::ggsw_ciphertext::{
+    fourier_ggsw_level_matrix_size, GgswCiphertext,
+};
+use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextView};
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
@@ -39,7 +42,6 @@ pub struct Fourier128GgswLevelMatrix<C: Container<Element = f64>> {
 
     polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
-    row_count: usize,
     decomposition_level: DecompositionLevel,
 }
 
@@ -158,7 +160,6 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
                 data_im1,
                 self.polynomial_size,
                 self.glwe_size,
-                self.glwe_size.0,
                 DecompositionLevel(i + 1),
             )
         })
@@ -173,12 +174,11 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
         data_im1: C,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
-        row_count: usize,
         decomposition_level: DecompositionLevel,
     ) -> Self {
         assert_eq!(polynomial_size.0 % 2, 0);
         let container_len =
-            polynomial_size.to_fourier_polynomial_size().0 * glwe_size.0 * row_count;
+            fourier_ggsw_level_matrix_size(glwe_size, polynomial_size.to_fourier_polynomial_size());
         assert_eq!(data_re0.container_len(), container_len);
         assert_eq!(data_re1.container_len(), container_len);
         assert_eq!(data_im0.container_len(), container_len);
@@ -191,7 +191,6 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
             data_im1,
             polynomial_size,
             glwe_size,
-            row_count,
             decomposition_level,
         }
     }
@@ -201,11 +200,12 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
     where
         C: Split,
     {
+        let row_count = self.row_count();
         izip!(
-            self.data_re0.split_into(self.row_count),
-            self.data_re1.split_into(self.row_count),
-            self.data_im0.split_into(self.row_count),
-            self.data_im1.split_into(self.row_count)
+            self.data_re0.split_into(row_count),
+            self.data_re1.split_into(row_count),
+            self.data_im0.split_into(row_count),
+            self.data_im1.split_into(row_count)
         )
         .map(
             move |(data_re0, data_re1, data_im0, data_im1)| Fourier128GgswLevelRow {
@@ -229,7 +229,7 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
     }
 
     pub fn row_count(&self) -> usize {
-        self.row_count
+        self.glwe_size.0
     }
 
     pub fn decomposition_level(&self) -> DecompositionLevel {

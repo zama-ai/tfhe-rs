@@ -32,7 +32,6 @@ pub struct PseudoFourierGgswLevelMatrix<C: Container<Element = c64>> {
     glwe_size_in: GlweSize,
     glwe_size_out: GlweSize,
     polynomial_size: PolynomialSize,
-    row_count: usize,
     decomposition_level: DecompositionLevel,
 }
 
@@ -143,9 +142,9 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
         glwe_size_in: GlweSize,
         glwe_size_out: GlweSize,
         polynomial_size: PolynomialSize,
-        row_count: usize,
         decomposition_level: DecompositionLevel,
     ) -> Self {
+        let row_count = glwe_size_in.to_glwe_dimension().0;
         assert_eq!(
             data.container_len(),
             polynomial_size.to_fourier_polynomial_size().0 * glwe_size_out.0 * row_count
@@ -155,7 +154,6 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
             glwe_size_in,
             glwe_size_out,
             polynomial_size,
-            row_count,
             decomposition_level,
         }
     }
@@ -165,8 +163,9 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
     where
         C: Split,
     {
+        let row_count = self.row_count();
         self.data
-            .split_into(self.row_count)
+            .split_into(row_count)
             .map(move |slice| PseudoFourierGgswLevelRow {
                 data: slice,
                 polynomial_size: self.polynomial_size,
@@ -188,7 +187,7 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
     }
 
     pub fn row_count(&self) -> usize {
-        self.row_count
+        self.glwe_size_in.to_glwe_dimension().0
     }
 
     pub fn decomposition_level(&self) -> DecompositionLevel {
@@ -251,7 +250,6 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
                     self.glwe_size_in,
                     self.glwe_size_out,
                     self.fourier.polynomial_size,
-                    self.glwe_size_in.to_glwe_dimension().0,
                     DecompositionLevel(i + 1),
                 )
             })
