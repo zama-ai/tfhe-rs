@@ -53,8 +53,14 @@ where
                 Self::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support max yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_max(&*self.ciphertext.on_gpu(), rhs, stream);
+                    Self::new(inner_result)
+                })
             }
         })
     }
@@ -94,8 +100,14 @@ where
                 Self::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support min yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_min(&*self.ciphertext.on_gpu(), rhs, stream);
+                    Self::new(inner_result)
+                })
             }
         })
     }
@@ -134,8 +146,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_eq(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -168,8 +186,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_ne(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -207,8 +231,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_lt(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -240,8 +270,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_le(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -273,8 +309,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_gt(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -306,8 +348,14 @@ where
                 FheBool::new(inner_result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting yet")
+            InternalServerKey::Cuda(cuda_key) => {
+                crate::high_level_api::global_state::with_thread_local_cuda_stream(|stream| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .scalar_ge(&*self.ciphertext.on_gpu(), rhs, stream);
+                    FheBool::new(inner_result)
+                })
             }
         })
     }
@@ -352,7 +400,7 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                             }
                             #[cfg(feature = "gpu")]
                             InternalServerKey::Cuda(_) => {
-                                panic!("Cuda devices does not support casting yet")
+                                panic!("Cuda devices does not support div rem yet")
                             }
                         })
                     }

@@ -1,6 +1,8 @@
 use super::inner::RadixCiphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_stream;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
@@ -564,17 +566,23 @@ where
     /// assert_eq!(decrypted, i32::MIN as u16);
     /// ```
     fn cast_from(input: FheInt<FromId>) -> Self {
-        global_state::with_internal_keys(|keys| {
-            #[allow(irrefutable_let_patterns)]
-            let InternalServerKey::Cpu(integer_key) = keys
-            else {
-                panic!("Cuda devices do not support signed integers");
-            };
-            let casted = integer_key.pbs_key().cast_to_unsigned(
-                input.ciphertext.into_cpu(),
-                IntoId::num_blocks(integer_key.message_modulus()),
-            );
-            Self::new(casted)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let casted = cpu_key.pbs_key().cast_to_unsigned(
+                    input.ciphertext.into_cpu(),
+                    IntoId::num_blocks(cpu_key.message_modulus()),
+                );
+                Self::new(casted)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let casted = cuda_key.key.cast_to_unsigned(
+                    input.ciphertext.into_gpu(),
+                    IntoId::num_blocks(cuda_key.message_modulus()),
+                    stream,
+                );
+                Self::new(casted)
+            }),
         })
     }
 }
@@ -602,17 +610,23 @@ where
     /// assert_eq!(decrypted, u32::MAX as u16);
     /// ```
     fn cast_from(input: FheUint<FromId>) -> Self {
-        global_state::with_internal_keys(|keys| {
-            #[allow(irrefutable_let_patterns)]
-            let InternalServerKey::Cpu(integer_key) = keys
-            else {
-                panic!("Cuda devices do not support casting unsigned integers");
-            };
-            let casted = integer_key.pbs_key().cast_to_unsigned(
-                input.ciphertext.on_cpu().into_owned(),
-                IntoId::num_blocks(integer_key.message_modulus()),
-            );
-            Self::new(casted)
+        global_state::with_internal_keys(|keys| match keys {
+            InternalServerKey::Cpu(cpu_key) => {
+                let casted = cpu_key.pbs_key().cast_to_unsigned(
+                    input.ciphertext.on_cpu().to_owned(),
+                    IntoId::num_blocks(cpu_key.message_modulus()),
+                );
+                Self::new(casted)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let casted = cuda_key.key.cast_to_unsigned(
+                    input.ciphertext.into_gpu(),
+                    IntoId::num_blocks(cuda_key.message_modulus()),
+                    stream,
+                );
+                Self::new(casted)
+            }),
         })
     }
 }
@@ -649,9 +663,14 @@ where
                 Self::new(ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support casting yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let inner = cuda_key.key.cast_to_unsigned(
+                    input.ciphertext.into_gpu().0,
+                    Id::num_blocks(cuda_key.message_modulus()),
+                    stream,
+                );
+                Self::new(inner)
+            }),
         })
     }
 }
