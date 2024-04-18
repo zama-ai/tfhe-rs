@@ -3,6 +3,14 @@ name: Placeholder Workflow
 
 on:
   workflow_dispatch:
+  pull_request:
+
+env:
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
 
 jobs:
   placeholder:
@@ -12,3 +20,11 @@ jobs:
     steps:
       - run: |
           echo "Hello this is a Placeholder Workflow"
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Poke https://github.com/${{ github.event.pull_request.user.login }}"
