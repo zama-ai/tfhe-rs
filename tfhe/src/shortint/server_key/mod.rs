@@ -348,9 +348,17 @@ impl ServerKey {
     pub fn conformance_params(&self) -> CiphertextConformanceParams {
         let lwe_dim = self.ciphertext_lwe_dimension();
 
+        let ms_decompression_method = match &self.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
+            }
+        };
+
         let ct_params = LweCiphertextParameters {
             lwe_dim,
             ct_modulus: self.ciphertext_modulus,
+            ms_decompression_method,
         };
 
         CiphertextConformanceParams {

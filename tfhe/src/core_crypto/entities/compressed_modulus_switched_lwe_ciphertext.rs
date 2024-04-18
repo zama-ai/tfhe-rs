@@ -152,6 +152,10 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
             && self.lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && self.uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+            && matches!(
+                lwe_ct_parameters.ms_decompression_method,
+                MsDecompressionType::ClassicPbs
+            )
     }
 }
 

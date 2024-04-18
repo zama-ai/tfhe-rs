@@ -707,6 +707,13 @@ pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]
 pub struct LweCiphertextParameters<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub ct_modulus: CiphertextModulus<T>,
+    pub ms_decompression_method: MsDecompressionType,
+}
+
+#[derive(Copy, Clone)]
+pub enum MsDecompressionType {
+    ClassicPbs,
+    MultiBitPbs(LweBskGroupingFactor),
 }
 
 impl<C: Container> ParameterSetConformant for LweCiphertext<C>

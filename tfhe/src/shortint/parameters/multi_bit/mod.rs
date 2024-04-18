@@ -11,7 +11,7 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize,
 };
-use crate::core_crypto::prelude::LweCiphertextParameters;
+use crate::core_crypto::prelude::{LweCiphertextParameters, MsDecompressionType};
 use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::p_fail_2_minus_40::ks_pbs::*;
 use crate::shortint::parameters::p_fail_2_minus_40::ks_pbs_gpu::*;
@@ -82,6 +82,7 @@ impl MultiBitPBSParameters {
             ct_params: LweCiphertextParameters {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
+                ms_decompression_method: MsDecompressionType::MultiBitPbs(self.grouping_factor),
             },
             message_modulus,
             carry_modulus,
