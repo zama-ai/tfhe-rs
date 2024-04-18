@@ -142,8 +142,6 @@ __global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
                           Torus n) {
-  if (n == 0)
-    return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
   if (attr.type != cudaMemoryTypeDevice) {
