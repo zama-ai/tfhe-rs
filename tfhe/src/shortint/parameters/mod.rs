@@ -11,7 +11,9 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::prelude::{LweCiphertextListParameters, LweCiphertextParameters};
+use crate::core_crypto::prelude::{
+    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+};
 use serde::{Deserialize, Serialize};
 
 pub mod classic;
@@ -157,6 +159,7 @@ impl ClassicPBSParameters {
             ct_params: LweCiphertextParameters {
                 lwe_dim: expected_dim,
                 ct_modulus: ciphertext_modulus,
+                ms_decompression_method: MsDecompressionType::ClassicPbs,
             },
             message_modulus,
             carry_modulus,
