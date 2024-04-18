@@ -448,9 +448,15 @@ where
                 Self::new(new_ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting signed to signed yet")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let target_num_blocks = IntoId::num_blocks(cuda_key.message_modulus());
+                let new_ciphertext = cuda_key.key.cast_to_signed(
+                    input.ciphertext.into_gpu(),
+                    target_num_blocks,
+                    stream,
+                );
+                Self::new(new_ciphertext)
+            }),
         })
     }
 }
@@ -487,9 +493,14 @@ where
                 Self::new(new_ciphertext)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support casting unsigned to signed yet")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
+                let new_ciphertext = cuda_key.key.cast_to_signed(
+                    input.ciphertext.into_gpu(),
+                    IntoId::num_blocks(cuda_key.message_modulus()),
+                    stream,
+                );
+                Self::new(new_ciphertext)
+            }),
         })
     }
 }
@@ -530,14 +541,10 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_stream(|stream| {
-                let inner = cuda_key.key.cast_to_unsigned(
+                let inner = cuda_key.key.cast_to_signed(
                     input.ciphertext.into_gpu().0,
                     Id::num_blocks(cuda_key.message_modulus()),
                     stream,
-                );
-                let inner = crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext::new(
-                    inner.ciphertext.d_blocks,
-                    inner.ciphertext.info,
                 );
                 Self::new(inner)
             }),
