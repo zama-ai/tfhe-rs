@@ -91,12 +91,15 @@ all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
   }
 }
 
-template <typename Torus>
+template <typename Torus, sharedMemDegree SMD>
 __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
                                 uint32_t chunk_size, uint32_t block_size,
                                 uint32_t num_blocks) {
 
-  extern __shared__ Torus result[];
+  extern __shared__ int8_t sharedmem[];
+
+  Torus *result = (Torus *)sharedmem;
+
   size_t stride = blockDim.x;
   size_t chunk_id = blockIdx.x;
   size_t chunk_elem_size = chunk_size * num_blocks * block_size;
@@ -105,6 +108,9 @@ __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
   auto dst_radix = &result_blocks[chunk_id * radix_elem_size];
   size_t block_stride = blockIdx.y * block_size;
   auto dst_block = &dst_radix[block_stride];
+
+  if constexpr (SMD == NOSM)
+    result = dst_block;
 
   // init shared mem with first radix of chunk
   size_t tid = threadIdx.x;
@@ -121,9 +127,9 @@ __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
   }
 
   // put result from shared mem to global mem
-  for (int i = tid; i < block_size; i += stride) {
-    dst_block[i] = result[i];
-  }
+  if constexpr (SMD == FULLSM)
+    for (int i = tid; i < block_size; i += stride)
+      dst_block[i] = result[i];
 }
 
 template <typename Torus, class params>
@@ -181,11 +187,20 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
 
   cudaSetDevice(stream->gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  check_cuda_error(cudaFuncSetAttribute(
-      tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
-      sm_size));
-  cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
-  check_cuda_error(cudaGetLastError());
+  if (sm_size < cuda_get_max_shared_memory(stream->gpu_index)) {
+    check_cuda_error(cudaFuncSetAttribute(
+        tree_add_chunks<Torus, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
+    cudaFuncSetCacheConfig(tree_add_chunks<Torus, FULLSM>,
+                           cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    check_cuda_error(
+        cudaFuncSetAttribute(tree_add_chunks<Torus, NOSM>,
+                             cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+    cudaFuncSetCacheConfig(tree_add_chunks<Torus, NOSM>, cudaFuncCachePreferL1);
+    check_cuda_error(cudaGetLastError());
+  }
   *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
       stream, params, num_blocks_in_radix, max_num_radix_in_vec,
       allocate_gpu_memory);
@@ -242,8 +257,16 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     dim3 add_grid(ch_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
 
-    tree_add_chunks<Torus><<<add_grid, 512, sm_size, stream->stream>>>(
-        new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
+    if (sm_size < max_shared_memory)
+      tree_add_chunks<Torus, FULLSM>
+          <<<add_grid, 512, sm_size, stream->stream>>>(
+              new_blocks, old_blocks, min(r, chunk_size), big_lwe_size,
+              num_blocks);
+    else
+      tree_add_chunks<Torus, NOSM><<<add_grid, 512, 0, stream->stream>>>(
+          new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
+
+    check_cuda_error(cudaGetLastError());
 
     size_t total_count = 0;
     size_t message_count = 0;
@@ -295,6 +318,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     smart_copy<<<sm_copy_count, 256, 0, stream->stream>>>(
         new_blocks, new_blocks, d_smart_copy_out, d_smart_copy_in,
         big_lwe_size);
+    check_cuda_error(cudaGetLastError());
 
     if (carry_count > 0)
       cuda_set_value_async<Torus>(
@@ -411,6 +435,7 @@ __host__ void host_integer_mult_radix_kb(
   all_shifted_lhs_rhs<Torus, params><<<grid, thds, 0, stream->stream>>>(
       radix_lwe_left, vector_result_lsb, vector_result_msb, radix_lwe_right,
       vector_lsb_rhs, vector_msb_rhs, num_blocks);
+  check_cuda_error(cudaGetLastError());
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       stream, block_mul_res, block_mul_res, vector_result_sb, bsk, ksk,
@@ -426,6 +451,7 @@ __host__ void host_integer_mult_radix_kb(
                            vector_result_msb, glwe_dimension,
                            lsb_vector_block_count, msb_vector_block_count,
                            num_blocks);
+  check_cuda_error(cudaGetLastError());
 
   int terms_degree[2 * num_blocks * num_blocks];
   for (int i = 0; i < num_blocks * num_blocks; i++) {
@@ -452,11 +478,20 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     bool allocate_gpu_memory) {
   cudaSetDevice(stream->gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  check_cuda_error(cudaFuncSetAttribute(
-      tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
-      sm_size));
-  cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
-  check_cuda_error(cudaGetLastError());
+  if (sm_size < cuda_get_max_shared_memory(stream->gpu_index)) {
+    check_cuda_error(cudaFuncSetAttribute(
+        tree_add_chunks<Torus, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
+    cudaFuncSetCacheConfig(tree_add_chunks<Torus, FULLSM>,
+                           cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else {
+    check_cuda_error(
+        cudaFuncSetAttribute(tree_add_chunks<Torus, NOSM>,
+                             cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+    cudaFuncSetCacheConfig(tree_add_chunks<Torus, NOSM>, cudaFuncCachePreferL1);
+    check_cuda_error(cudaGetLastError());
+  }
 
   *mem_ptr = new int_mul_memory<Torus>(stream, params, num_radix_blocks,
                                        allocate_gpu_memory);
