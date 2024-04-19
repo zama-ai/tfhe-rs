@@ -3,6 +3,7 @@
 //! like the Fourier domain.
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
+use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
@@ -10,6 +11,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fo
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use rayon::prelude::*;
 
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.
@@ -208,4 +210,133 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, Outp
     let fft = fft.as_view();
 
     output_bsk.fill_with_forward_fourier(input_bsk, fft);
+}
+
+/// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the NTT
+/// domain using a 64 bits NTT.
+///
+/// See [`programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`](`crate::core_crypto::algorithms::programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`) for usage.
+pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
+    input_bsk: &LweBootstrapKey<InputCont>,
+    output_bsk: &mut NttLweBootstrapKey<OutputCont>,
+) where
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
+{
+    assert_eq!(
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+        "Mismatched PolynomialSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+        "Mismatched GlweSize"
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+        "Mismatched DecompositionBaseLog between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+        "Mismatched DecompositionLevelCount between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+    );
+
+    assert_eq!(
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+    );
+
+    let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
+    let ntt = ntt.as_view();
+
+    for (input_poly, output_poly) in input_bsk
+        .as_polynomial_list()
+        .iter()
+        .zip(output_bsk.as_mut_polynomial_list().iter_mut())
+    {
+        ntt.forward_normalized(output_poly, input_poly)
+    }
+}
+
+pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
+    input_bsk: &LweBootstrapKey<InputCont>,
+    output_bsk: &mut NttLweBootstrapKey<OutputCont>,
+) where
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
+{
+    assert_eq!(
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+        "Mismatched PolynomialSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+        "Mismatched GlweSize"
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+        "Mismatched DecompositionBaseLog between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+        "Mismatched DecompositionLevelCount between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+    );
+
+    assert_eq!(
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+    );
+
+    let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
+    let ntt = ntt.as_view();
+
+    let num_threads = rayon::current_num_threads();
+    let input_as_polynomial_list = input_bsk.as_polynomial_list();
+    let mut output_as_polynomial_list = output_bsk.as_mut_polynomial_list();
+    let chunk_size = input_as_polynomial_list
+        .polynomial_count()
+        .0
+        .div_ceil(num_threads);
+
+    input_as_polynomial_list
+        .par_chunks(chunk_size)
+        .zip(output_as_polynomial_list.par_chunks_mut(chunk_size))
+        .for_each(|(input_poly_chunk, mut output_poly_chunk)| {
+            for (input_poly, output_poly) in
+                input_poly_chunk.iter().zip(output_poly_chunk.iter_mut())
+            {
+                ntt.forward_normalized(output_poly, input_poly)
+            }
+        });
 }

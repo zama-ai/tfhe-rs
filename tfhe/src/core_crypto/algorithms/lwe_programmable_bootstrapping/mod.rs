@@ -1,8 +1,10 @@
 pub mod fft128;
 pub mod fft64;
+pub mod ntt64;
 
 pub use fft128::*;
 pub use fft64::*;
+pub use ntt64::*;
 
 use crate::core_crypto::algorithms::glwe_encryption::allocate_and_trivially_encrypt_new_glwe_ciphertext;
 use crate::core_crypto::commons::parameters::*;

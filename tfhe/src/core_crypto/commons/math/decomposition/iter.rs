@@ -1,9 +1,10 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
-    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative,
+    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposerNonNative,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use dyn_stack::{DynArray, PodStack, ReborrowMut};
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -273,5 +274,133 @@ where
             output,
             self.ciphertext_modulus,
         ))
+    }
+}
+
+/// Specialized high performance implementation of a non native decomposer over a collection of
+/// elements, used notably in the PBS.
+pub struct TensorSignedDecompositionLendingIterNonNative<'buffers> {
+    // The base log of the decomposition
+    base_log: usize,
+    // The current level
+    current_level: usize,
+    // A mask which allows to compute the mod B of a value. For B=2^4, this guy is of the form:
+    // ...0001111
+    mod_b_mask: u64,
+    // The internal states of each decomposition
+    states: DynArray<'buffers, u64>,
+    // Corresponding input signs
+    input_signs: DynArray<'buffers, u8>,
+    // A flag which stores whether the iterator is a fresh one (for the recompose method).
+    fresh: bool,
+    ciphertext_modulus: u64,
+}
+
+impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
+    #[inline]
+    pub fn new(
+        decomposer: &SignedDecomposerNonNative<u64>,
+        input: &[u64],
+        modulus: u64,
+        stack: PodStack<'buffers>,
+    ) -> (Self, PodStack<'buffers>) {
+        let shift = modulus.ceil_ilog2() as usize - decomposer.base_log * decomposer.level_count;
+        let input_size = input.len();
+        let (mut states, stack) =
+            stack.make_aligned_raw::<u64>(input_size, aligned_vec::CACHELINE_ALIGN);
+        let (mut input_signs, stack) =
+            stack.make_aligned_raw::<u8>(input_size, aligned_vec::CACHELINE_ALIGN);
+
+        for ((i, state), sign) in input
+            .iter()
+            .copied()
+            .zip(states.iter_mut())
+            .zip(input_signs.iter_mut())
+        {
+            if i < modulus.div_ceil(2) {
+                *state = decomposer.closest_representable(i) >> shift;
+                *sign = 0;
+            } else {
+                *state = decomposer.closest_representable(modulus - i) >> shift;
+                *sign = 1;
+            }
+        }
+
+        let base_log = decomposer.base_log();
+        let level_count = decomposer.level_count();
+        (
+            TensorSignedDecompositionLendingIterNonNative {
+                base_log: base_log.0,
+                current_level: level_count.0,
+                mod_b_mask: (1u64 << base_log.0) - 1u64,
+                states,
+                input_signs,
+                fresh: true,
+                ciphertext_modulus: modulus,
+            },
+            stack,
+        )
+    }
+
+    // inlining this improves perf of external product by about 25%, even in LTO builds
+    #[inline]
+    pub fn next_term(
+        &mut self,
+    ) -> Option<(
+        DecompositionLevel,
+        DecompositionBaseLog,
+        impl Iterator<Item = u64> + '_,
+    )> {
+        // The iterator is not fresh anymore.
+        self.fresh = false;
+        // We check if the decomposition is over
+        if self.current_level == 0 {
+            return None;
+        }
+        let current_level = self.current_level;
+        let base_log = self.base_log;
+        let mod_b_mask = self.mod_b_mask;
+        let modulus = self.ciphertext_modulus;
+        self.current_level -= 1;
+
+        Some((
+            DecompositionLevel(current_level),
+            DecompositionBaseLog(self.base_log),
+            self.states
+                .iter_mut()
+                .zip(self.input_signs.iter().copied())
+                .map(move |(state, input_sign)| {
+                    let decomp_term = decompose_one_level(base_log, state, mod_b_mask);
+                    let decomp_term = if input_sign == 0 {
+                        decomp_term
+                    } else {
+                        decomp_term.wrapping_neg()
+                    };
+
+                    if decomp_term as i64 >= 0 {
+                        decomp_term
+                    } else {
+                        // decomp_term being negative, we get a value smaller than modulus which is
+                        // what we want
+                        modulus.wrapping_add(decomp_term)
+                    }
+                }),
+        ))
+    }
+
+    #[cfg_attr(__profiling, inline(never))]
+    pub fn collect_next_term<'a>(
+        &mut self,
+        substack1: &'a mut PodStack,
+        align: usize,
+    ) -> (
+        DecompositionLevel,
+        dyn_stack::DynArray<'a, u64>,
+        PodStack<'a>,
+    ) {
+        let (glwe_level, _, glwe_decomp_term) = self.next_term().unwrap();
+        let (glwe_decomp_term, substack2) =
+            substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
+        (glwe_level, glwe_decomp_term, substack2)
     }
 }
