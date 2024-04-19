@@ -786,7 +786,7 @@ pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
         fft: Fft128View<'_>,
         stack: PodStack<'_>,
     ) {
-        for (c1, c0) in izip!(ct1.as_mut(), ct0.as_ref(),) {
+        for (c1, c0) in izip!(ct1.as_mut(), ct0.as_ref()) {
             *c1 = c1.wrapping_sub(*c0);
         }
         add_external_product_assign(&mut ct0, &ggsw, &ct1, fft, stack);

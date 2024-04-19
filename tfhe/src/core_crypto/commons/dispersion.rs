@@ -49,7 +49,7 @@ pub trait DispersionParameter: Copy {
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);
 /// assert_eq!(params.get_variance(), 2_f64.powf(-25.).powi(2));
-/// assert_eq!(params.get_modular_standard_dev(32), 2_f64.powf(32. - 25.),);
+/// assert_eq!(params.get_modular_standard_dev(32), 2_f64.powf(32. - 25.));
 /// assert_eq!(params.get_modular_log_standard_dev(32), 32. - 25.);
 /// assert_eq!(
 ///     params.get_modular_variance(32),
