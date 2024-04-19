@@ -130,18 +130,38 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     // We compute the number of elements which must be
     // turned into their opposite
     let opposite_count = input_glwe.polynomial_size().0 - nth.0 - 1;
+    let ciphertext_modulus = input_glwe.ciphertext_modulus();
 
-    // We loop through the polynomials
-    for lwe_mask_poly in lwe_mask
-        .as_mut()
-        .chunks_exact_mut(input_glwe.polynomial_size().0)
-    {
-        // We reverse the polynomial
-        lwe_mask_poly.reverse();
-        // We compute the opposite of the proper coefficients
-        slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
-        // We rotate the polynomial properly
-        lwe_mask_poly.rotate_left(opposite_count);
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        // We loop through the polynomials
+        for lwe_mask_poly in lwe_mask
+            .as_mut()
+            .chunks_exact_mut(input_glwe.polynomial_size().0)
+        {
+            // We reverse the polynomial
+            lwe_mask_poly.reverse();
+            // We compute the opposite of the proper coefficients
+            slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
+            // We rotate the polynomial properly
+            lwe_mask_poly.rotate_left(opposite_count);
+        }
+    } else {
+        let modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+        // We loop through the polynomials
+        for lwe_mask_poly in lwe_mask
+            .as_mut()
+            .chunks_exact_mut(input_glwe.polynomial_size().0)
+        {
+            // We reverse the polynomial
+            lwe_mask_poly.reverse();
+            // We compute the opposite of the proper coefficients
+            slice_wrapping_opposite_assign_custom_mod(
+                &mut lwe_mask_poly[0..opposite_count],
+                modulus,
+            );
+            // We rotate the polynomial properly
+            lwe_mask_poly.rotate_left(opposite_count);
+        }
     }
 }
 
@@ -419,18 +439,38 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext_with_thread_count<
                     // We compute the number of elements which must be
                     // turned into their opposite
                     let opposite_count = input_glwe.polynomial_size().0 - nth - 1;
+                    let ciphertext_modulus = input_glwe.ciphertext_modulus();
 
-                    // We loop through the polynomials
-                    for lwe_mask_poly in lwe_mask
-                        .as_mut()
-                        .chunks_exact_mut(input_glwe.polynomial_size().0)
-                    {
-                        // We reverse the polynomial
-                        lwe_mask_poly.reverse();
-                        // We compute the opposite of the proper coefficients
-                        slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
-                        // We rotate the polynomial properly
-                        lwe_mask_poly.rotate_left(opposite_count);
+                    if ciphertext_modulus.is_compatible_with_native_modulus() {
+                        // We loop through the polynomials
+                        for lwe_mask_poly in lwe_mask
+                            .as_mut()
+                            .chunks_exact_mut(input_glwe.polynomial_size().0)
+                        {
+                            // We reverse the polynomial
+                            lwe_mask_poly.reverse();
+                            // We compute the opposite of the proper coefficients
+                            slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
+                            // We rotate the polynomial properly
+                            lwe_mask_poly.rotate_left(opposite_count);
+                        }
+                    } else {
+                        let modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+                        // We loop through the polynomials
+                        for lwe_mask_poly in lwe_mask
+                            .as_mut()
+                            .chunks_exact_mut(input_glwe.polynomial_size().0)
+                        {
+                            // We reverse the polynomial
+                            lwe_mask_poly.reverse();
+                            // We compute the opposite of the proper coefficients
+                            slice_wrapping_opposite_assign_custom_mod(
+                                &mut lwe_mask_poly[0..opposite_count],
+                                modulus,
+                            );
+                            // We rotate the polynomial properly
+                            lwe_mask_poly.rotate_left(opposite_count);
+                        }
                     }
                 }
             },
