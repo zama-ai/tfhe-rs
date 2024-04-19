@@ -179,7 +179,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
                 0 => Self::new_native(),
                 modulus => {
                     let Some(non_zero_modulus) = NonZeroU128::new(modulus) else {
-                        panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
+                        panic!("Got zero modulus for CiphertextModulusInner::Custom variant")
                     };
                     Self {
                         inner: CiphertextModulusInner::Custom(non_zero_modulus),

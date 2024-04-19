@@ -731,12 +731,7 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
 
     let nb_threads = rayon::current_num_threads();
 
-    let chunk_size = nb_polynomial / nb_threads
-        + if nb_polynomial % nb_threads == 0 {
-            0
-        } else {
-            1
-        };
+    let chunk_size = nb_polynomial.div_ceil(nb_threads);
 
     dest.par_chunks_mut(chunk_size * f_polynomial_size)
         .zip_eq(origin.par_chunks(chunk_size * polynomial_size.0))

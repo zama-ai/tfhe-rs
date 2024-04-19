@@ -349,7 +349,7 @@ impl<Scalar: UnsignedInteger> SeededLweKeyswitchKeyOwned<Scalar> {
             vec![
                 fill_with;
                 input_key_lwe_dimension.0
-                    * seeded_lwe_keyswitch_key_input_key_element_encrypted_size(decomp_level_count,)
+                    * seeded_lwe_keyswitch_key_input_key_element_encrypted_size(decomp_level_count)
             ],
             decomp_base_log,
             decomp_level_count,

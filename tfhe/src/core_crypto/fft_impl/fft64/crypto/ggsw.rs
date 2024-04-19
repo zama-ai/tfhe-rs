@@ -770,7 +770,7 @@ pub fn cmux<Scalar: UnsignedTorus>(
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) {
-    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+    izip!(ct1.as_mut(), ct0.as_ref()).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);
     });
     add_external_product_assign(ct0, ggsw, ct1.as_view(), fft, stack);

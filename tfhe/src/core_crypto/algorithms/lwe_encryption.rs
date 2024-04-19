@@ -2062,7 +2062,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///
 /// // verify the ciphertext list with the proof
 /// assert!(
-///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, crs.public_params(),)
+///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, crs.public_params())
 ///         .is_valid()
 /// );
 ///

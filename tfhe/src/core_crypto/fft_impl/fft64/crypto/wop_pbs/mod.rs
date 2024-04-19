@@ -521,7 +521,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                 break;
             };
 
-            let mut t_iter = izip!(t_0.iter_mut(), t_1.iter_mut(),).enumerate();
+            let mut t_iter = izip!(t_0.iter_mut(), t_1.iter_mut()).enumerate();
 
             let (mut j_counter, (mut t0_j, mut t1_j)) = t_iter.next().unwrap();
 
@@ -711,7 +711,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         pfpksk_list.ciphertext_modulus(),
     );
 
-    for (lwe_in, ggsw) in izip!(lwe_list_in.iter(), ggsw_list.as_mut_view().into_ggsw_iter(),) {
+    for (lwe_in, ggsw) in izip!(lwe_list_in.iter(), ggsw_list.as_mut_view().into_ggsw_iter()) {
         circuit_bootstrap_boolean(
             fourier_bsk,
             lwe_in,
