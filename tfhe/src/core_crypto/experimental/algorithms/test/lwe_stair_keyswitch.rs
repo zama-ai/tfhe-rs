@@ -95,7 +95,7 @@ fn lwe_encrypt_stair_keyswitch_pbs_decrypt_custom_mod<
     // Our algorithm is set up so that this equality holds, but in practice it could be more generic
     // if we had an intermediate LweDimension being defined
     assert_eq!(
-        large_lwe_dimension.0,
+        partial_glwe_secret_key_fill.0,
         lwe_dimension.0 + ks1_unshared_coeff_count.0 + ks2_unshared_coeff_count.0
     );
 
@@ -110,9 +110,10 @@ fn lwe_encrypt_stair_keyswitch_pbs_decrypt_custom_mod<
         );
 
         let large_lwe_secret_key = glwe_secret_key.as_lwe_secret_key();
+        let large_lwe_dimension_without_zeros = LweDimension(partial_glwe_secret_key_fill.0);
 
         let inter_lwe_dimension = LweDimension(
-            large_lwe_dimension
+            large_lwe_dimension_without_zeros
                 .shared_coef_count_from(ks1_unshared_coeff_count)
                 .0,
         );
