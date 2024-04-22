@@ -27,11 +27,13 @@ pub(crate) mod tests_cases_unsigned;
 pub(crate) mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
+mod vector_find;
 
 use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use rayon::prelude::*;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
+pub use vector_find::MatchValues;
 
 // parallelized versions
 impl ServerKey {

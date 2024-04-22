@@ -268,6 +268,28 @@ impl ServerKey {
             return vec![];
         }
 
+        let possible_copy;
+        let num_trivial_0 = lhs.iter().filter(|block| block.degree.get() == 0).count();
+        let lhs = if num_trivial_0 == lhs.len() {
+            return match comparison_type {
+                ZeroComparisonType::Equality => {
+                    vec![self.key.create_trivial(1)]
+                }
+                ZeroComparisonType::Difference => {
+                    vec![self.key.create_trivial(0)]
+                }
+            };
+        } else if num_trivial_0 != 0 {
+            possible_copy = lhs
+                .iter()
+                .filter(|block| block.degree.get() != 0)
+                .cloned()
+                .collect::<Vec<_>>();
+            possible_copy.as_slice()
+        } else {
+            lhs
+        };
+
         debug_assert!(lhs.iter().all(Ciphertext::carry_is_empty));
 
         let message_modulus = self.key.message_modulus.0;

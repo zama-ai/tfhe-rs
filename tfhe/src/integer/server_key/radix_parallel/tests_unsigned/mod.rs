@@ -15,6 +15,7 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_vector_find;
 
 use super::tests_cases_unsigned::*;
 use crate::integer::keycache::KEY_CACHE;
@@ -52,6 +53,11 @@ pub(crate) const NB_TESTS_UNCHECKED: usize = NB_TESTS;
 /// Unchecked test cases needs a minimum number of tests of 4 in order to provide guarantees.
 #[cfg(tarpaulin)]
 pub(crate) const NB_TESTS_UNCHECKED: usize = 4;
+
+#[cfg(not(tarpaulin))]
+pub(crate) const MAX_VEC_LEN: usize = 25;
+#[cfg(tarpaulin)]
+pub(crate) const MAX_VEC_LEN: usize = 5;
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
@@ -288,6 +294,23 @@ impl ExpectedNoiseLevels {
             );
         }
     }
+
+    #[track_caller]
+    fn panic_if_any_is_greater(&self, ct: &RadixCiphertext) {
+        assert_eq!(self.values.len(), ct.blocks.len());
+        for (i, (block, expected_noise)) in ct
+            .blocks
+            .iter()
+            .zip(self.values.iter().copied())
+            .enumerate()
+        {
+            assert!(
+                block.noise_level <= expected_noise,
+                "Block at index {i} has noise level {:?}, but something less or equal (<=) than {expected_noise:?} was expected",
+                block.noise_level
+            );
+        }
+    }
 }
 
 impl ExpectedDegrees {
@@ -303,6 +326,23 @@ impl ExpectedDegrees {
             assert_eq!(
                 block.degree, expected_degree,
                 "Block at index {i} has degree {:?}, but {expected_degree:?} was expected",
+                block.degree
+            );
+        }
+    }
+
+    #[track_caller]
+    fn panic_if_any_is_greater(&self, ct: &RadixCiphertext) {
+        assert_eq!(self.values.len(), ct.blocks.len());
+        for (i, (block, expected_degree)) in ct
+            .blocks
+            .iter()
+            .zip(self.values.iter().copied())
+            .enumerate()
+        {
+            assert!(
+                block.degree <= expected_degree,
+                "Block at index {i} has degree {:?}, but something less or equal (<=) than  {expected_degree:?} was expected",
                 block.degree
             );
         }
