@@ -29,8 +29,8 @@ where
     ///
     /// The ptr must be valid for reads for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize) -> CudaSlice<'a, T> {
-        CudaSlice {
+    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize) -> Self {
+        Self {
             ptr,
             _len: len,
             _phantom_1: PhantomData,
@@ -55,8 +55,8 @@ where
     ///
     /// The ptr must be valid for reads and writes for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize) -> CudaSliceMut<'a, T> {
-        CudaSliceMut {
+    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize) -> Self {
+        Self {
             ptr,
             len,
             _phantom_1: PhantomData,
