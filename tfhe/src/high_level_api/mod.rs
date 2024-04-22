@@ -23,6 +23,29 @@ macro_rules! expand_pub_use_fhe_type(
     }
 );
 
+macro_rules! export_concrete_array_types {
+    (
+        pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
+
+    ) => {
+          ::paste::paste! {
+            pub use $module_path::{
+                $(
+                    // DynBackend
+                    [<$fhe_type_name Array>],
+                    [<$fhe_type_name Slice>],
+                    [<$fhe_type_name SliceMut>],
+
+                    // CpuBackend
+                    [<Cpu $fhe_type_name Array>],
+                    [<Cpu $fhe_type_name Slice>],
+                    [<Cpu $fhe_type_name SliceMut>],
+                )*
+            };
+        }
+    };
+}
+
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::oprf::SignedRandomizationSpec;
 pub use config::{Config, ConfigBuilder};
@@ -49,6 +72,19 @@ expand_pub_use_fhe_type!(
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
     };
 );
+pub use array::{
+    CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut, CpuFheUintArray, CpuFheUintSlice,
+    CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice, FheIntSliceMut, FheUintArray,
+    FheUintSlice, FheUintSliceMut,
+};
+export_concrete_array_types!(
+    pub use array{
+        FheBool,
+        FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+        FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256,
+    };
+);
+pub use array::traits::{IOwnedArray, Slicing, SlicingMut};
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
 #[cfg(feature = "zk-pok-experimental")]
@@ -57,6 +93,8 @@ pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
 pub use safe_serialize::safe_serialize;
+
+pub use traits::FheId;
 
 mod config;
 mod global_state;
