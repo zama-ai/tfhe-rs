@@ -63,7 +63,7 @@ jobs:
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install rust
-        uses: dtolnay/rust-toolchain@7164405e8653277d57afd42ba081b5aa02a70396
+        uses: dtolnay/rust-toolchain@bb45937a053e097f8591208d8e74c90db1873d07
         with:
           toolchain: nightly
 
