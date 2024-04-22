@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@7164405e8653277d57afd42ba081b5aa02a70396
+        uses: dtolnay/rust-toolchain@bb45937a053e097f8591208d8e74c90db1873d07
         with:
           toolchain: stable
 
