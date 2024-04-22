@@ -8,7 +8,6 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Range;
-use std::usize;
 
 /// MatchValues for the `match_value_parallelized` family of function
 ///

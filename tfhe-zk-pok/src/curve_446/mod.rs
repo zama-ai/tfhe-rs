@@ -1,3 +1,5 @@
+#![allow(non_local_definitions)]
+
 use ark_ec::bls12::{Bls12, Bls12Config, TwistType};
 use ark_ff::fields::*;
 use ark_ff::MontFp;
