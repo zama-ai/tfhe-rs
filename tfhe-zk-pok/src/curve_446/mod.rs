@@ -576,8 +576,8 @@ pub mod g1 {
                 writer.write_all(&bytes)?;
             } else {
                 let mut bytes = [0u8; 2 * G1_SERIALIZED_SIZE];
-                bytes[1..1 + G1_SERIALIZED_SIZE].copy_from_slice(&x_bytes[..]);
-                bytes[2 + G1_SERIALIZED_SIZE..].copy_from_slice(&serialize_fq(p.y)[..]);
+                bytes[1..G1_SERIALIZED_SIZE].copy_from_slice(&x_bytes[..]);
+                bytes[1 + G1_SERIALIZED_SIZE..].copy_from_slice(&serialize_fq(p.y)[..]);
 
                 encoding.encode_flags(&mut bytes);
                 writer.write_all(&bytes)?;
