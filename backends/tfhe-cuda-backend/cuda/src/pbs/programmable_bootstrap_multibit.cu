@@ -392,7 +392,7 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t ct_count) {
   return (ct_count > 10000) ? 30 : 45;
 #elif CUDA_ARCH >= 700
   // Tesla V100
-  return (ct_count > 10000) ? 12 : 18;
+  return (ct_count > 10000) ? 4 : 18;
 #else
   // Generic case
   return (ct_count > 10000) ? 2 : 1;
