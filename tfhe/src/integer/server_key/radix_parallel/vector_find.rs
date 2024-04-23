@@ -96,7 +96,7 @@ impl ServerKey {
             max_output_value.ceil_ilog2()
         };
         let num_blocks_to_represent_values =
-            num_bits_to_represent_output_value.div_ceil(num_bits_in_message);
+            num_bits_to_represent_output_value.div_ceil(num_bits_in_message) + 1;
 
         let possible_results_to_be_aggregated = self.create_possible_results(
             num_blocks_to_represent_values as usize,
