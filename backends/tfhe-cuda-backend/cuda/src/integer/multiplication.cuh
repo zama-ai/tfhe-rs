@@ -203,11 +203,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   auto old_blocks = mem_ptr->old_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
 
-  auto luts_message_carry = mem_ptr->luts_message_carry;
-
-  auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
-  auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
-
   auto d_smart_copy_in = mem_ptr->d_smart_copy_in;
   auto d_smart_copy_out = mem_ptr->d_smart_copy_out;
 
@@ -260,6 +255,34 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
         h_smart_copy_out, ch_amount, r, num_blocks, chunk_size, message_max,
         total_count, message_count, carry_count, sm_copy_count);
 
+    // create lut object for message and carry
+    // we allocate luts_message_carry in the host function (instead of scratch)
+    // to reduce average memory consumption
+    auto luts_message_carry =
+        new int_radix_lut<Torus>(stream, mem_ptr->params, 2, total_count, true);
+
+    auto message_acc = luts_message_carry->get_lut(0);
+    auto carry_acc = luts_message_carry->get_lut(1);
+
+    // define functions for each accumulator
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
+    };
+
+    // generate accumulators
+    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_message);
+    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, lut_f_carry);
+
+    auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
+    auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
+
     size_t copy_size = total_count * sizeof(Torus);
     cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_idx_in, copy_size, stream);
     cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_idx_out, copy_size, stream);
@@ -290,6 +313,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
         polynomial_size, mem_ptr->params.pbs_base_log,
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor, total_count,
         2, 0, max_shared_memory, mem_ptr->params.pbs_type);
+
+    luts_message_carry->release(stream);
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
     int new_blocks_created = 2 * ch_amount * num_blocks;

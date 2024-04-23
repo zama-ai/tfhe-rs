@@ -982,7 +982,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   Torus *old_blocks;
   Torus *small_lwe_vector;
   int_radix_params params;
-  int_radix_lut<Torus> *luts_message_carry;
   int_sc_prop_memory<Torus> *scp_mem;
 
   int32_t *d_smart_copy_in;
@@ -995,10 +994,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                  uint32_t max_num_radix_in_vec,
                                  bool allocate_gpu_memory) {
     this->params = params;
-    auto glwe_dimension = params.glwe_dimension;
-    auto polynomial_size = params.polynomial_size;
-    auto message_modulus = params.message_modulus;
-    auto carry_modulus = params.carry_modulus;
 
     // create single carry propagation memory object
     scp_mem = new int_sc_prop_memory<Torus>(stream, params, num_blocks_in_radix,
@@ -1018,43 +1013,15 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
     d_smart_copy_out =
         (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
-
-    // create lut object for message and carry
-    luts_message_carry = new int_radix_lut<Torus>(
-        stream, params, 2, max_pbs_count, allocate_gpu_memory);
-
-    auto message_acc = luts_message_carry->get_lut(0);
-    auto carry_acc = luts_message_carry->get_lut(1);
-
-    // define functions for each accumulator
-    auto lut_f_message = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
-    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
-      return x / message_modulus;
-    };
-
-    // generate accumulators
-    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_message);
-    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_carry);
   }
 
   int_sum_ciphertexts_vec_memory(cuda_stream_t *stream, int_radix_params params,
                                  uint32_t num_blocks_in_radix,
                                  uint32_t max_num_radix_in_vec,
                                  Torus *new_blocks, Torus *old_blocks,
-                                 Torus *small_lwe_vector,
-                                 int_radix_lut<Torus> *base_lut_object) {
+                                 Torus *small_lwe_vector) {
     mem_reuse = true;
     this->params = params;
-    auto glwe_dimension = params.glwe_dimension;
-    auto polynomial_size = params.polynomial_size;
-    auto message_modulus = params.message_modulus;
-    auto carry_modulus = params.carry_modulus;
 
     // create single carry propagation memory object
     scp_mem = new int_sc_prop_memory<Torus>(stream, params, num_blocks_in_radix,
@@ -1070,29 +1037,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
     d_smart_copy_out =
         (int32_t *)cuda_malloc_async(max_pbs_count * sizeof(int32_t), stream);
-
-    // create lut object for message and carry
-    luts_message_carry = new int_radix_lut<Torus>(
-        stream, params, 2, max_pbs_count, base_lut_object);
-
-    auto message_acc = luts_message_carry->get_lut(0);
-    auto carry_acc = luts_message_carry->get_lut(1);
-
-    // define functions for each accumulator
-    auto lut_f_message = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
-    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
-      return x / message_modulus;
-    };
-
-    // generate accumulators
-    generate_device_accumulator<Torus>(stream, message_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_message);
-    generate_device_accumulator<Torus>(stream, carry_acc, glwe_dimension,
-                                       polynomial_size, message_modulus,
-                                       carry_modulus, lut_f_carry);
   }
 
   void release(cuda_stream_t *stream) {
@@ -1106,10 +1050,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     }
 
     scp_mem->release(stream);
-    luts_message_carry->release(stream);
 
     delete scp_mem;
-    delete luts_message_carry;
   }
 };
 
@@ -1236,7 +1178,7 @@ template <typename Torus> struct int_mul_memory {
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         stream, params, num_radix_blocks, 2 * num_radix_blocks, block_mul_res,
-        vector_result_sb, small_lwe_vector, luts_array);
+        vector_result_sb, small_lwe_vector);
   }
 
   void release(cuda_stream_t *stream) {
