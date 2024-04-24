@@ -1,8 +1,8 @@
 use super::{
-    overflowing_add_under_modulus, panic_if_any_block_info_exceeds_max_degree_or_noise,
-    panic_if_any_block_is_not_clean, panic_if_any_block_values_exceeds_its_degree,
-    random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
-    ExpectedNoiseLevels, NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
+    nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
+    panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
+    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
+    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, NB_CTXT,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
@@ -122,6 +122,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -138,7 +140,7 @@ where
     let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -176,6 +178,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -192,7 +196,7 @@ where
     let mut expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -233,6 +237,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -248,7 +254,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -262,7 +268,7 @@ where
         assert_eq!(clear, dec_res);
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
 
             panic_if_any_block_info_exceeds_max_degree_or_noise(
@@ -288,6 +294,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -302,7 +310,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -319,7 +327,7 @@ where
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear, dec_res);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
             panic_if_any_block_is_not_clean(&ct_res, &cks);
 
@@ -339,6 +347,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -351,7 +361,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -383,7 +393,7 @@ where
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             // Add non-zero scalar to have non-clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);

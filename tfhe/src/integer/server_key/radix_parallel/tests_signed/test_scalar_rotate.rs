@@ -2,9 +2,11 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
     random_non_zero_value, rotate_left_helper, rotate_right_helper, signed_add_under_modulus,
-    NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
+    NB_CTXT,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+};
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
@@ -55,6 +57,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -68,7 +72,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -99,6 +103,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -112,7 +118,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -143,6 +149,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     sks.set_deterministic_pbs_execution(true);
@@ -158,7 +166,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -208,6 +216,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     sks.set_deterministic_pbs_execution(true);
@@ -223,7 +233,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);

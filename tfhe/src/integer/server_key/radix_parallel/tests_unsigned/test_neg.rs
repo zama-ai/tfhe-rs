@@ -1,9 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    FunctionExecutor, NB_CTXT, NB_TESTS, NB_TESTS_SMALLER,
-};
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    nb_tests_for_params, nb_tests_smaller_for_params,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
     panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
     ExpectedDegrees, ExpectedNoiseLevels,
@@ -55,6 +54,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -73,7 +74,7 @@ where
     let expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -113,6 +114,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -129,7 +132,7 @@ where
     // negation involves either scalar operation or pbs, noise is always nominal
     let expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear = rng.gen::<u64>() % modulus;
 
         let mut ctxt = cks.encrypt(clear);
@@ -139,7 +142,7 @@ where
         let dec: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear_res, dec);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute(&mut ct_res);
 
             expected_noise_levels.panic_if_any_is_not_equal(&ct_res);
@@ -166,6 +169,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -178,7 +183,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);

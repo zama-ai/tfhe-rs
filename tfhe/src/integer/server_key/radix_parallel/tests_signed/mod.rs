@@ -19,7 +19,7 @@ pub(crate) mod test_sub;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    CpuFunctionExecutor, NB_CTXT, NB_TESTS, NB_TESTS_SMALLER, NB_TESTS_UNCHECKED,
+    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor, NB_CTXT,
 };
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
@@ -102,13 +102,15 @@ create_parametrized_test!(integer_signed_encrypt_decrypt);
 create_parametrized_test!(integer_signed_encrypt_decrypt_128_bits);
 
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
     let num_block =
         (128f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<i128>();
 
         let ct = cks.encrypt_signed_radix(clear, num_block);
@@ -119,13 +121,15 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen_range(i64::MIN..=0) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -137,7 +141,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
         assert_eq!(clear, dec);
     }
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen_range(0..=i64::MAX) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -193,6 +197,8 @@ create_parametrized_test!(
 create_parametrized_test!(integer_signed_unchecked_absolute_value);
 
 fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
@@ -219,7 +225,7 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
@@ -232,6 +238,8 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
@@ -254,7 +262,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
     }
 
     // Div is the slowest operation
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = loop {
             let value = rng.gen::<i64>() % modulus;
@@ -373,6 +381,8 @@ fn integer_signed_unchecked_div_rem_floor(param: impl Into<PBSParameters>) {
 create_parametrized_test!(integer_signed_smart_absolute_value);
 
 fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
@@ -387,7 +397,7 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -425,6 +435,8 @@ create_parametrized_test!(integer_signed_default_checked_ilog2 {
 });
 
 fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -440,7 +452,7 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -1103,13 +1115,17 @@ pub(crate) fn random_non_zero_signed_value_under_modulus<const N: usize>(
 /// Returns an iterator that yields pairs of i64 values in range `-modulus..modulus`
 /// such that there is at least one pair of (P, P), (P, N), (N, N) (N, P)
 /// where P means value >=0 and N means <= 0
-pub(crate) fn create_iterator_of_signed_random_pairs<const N: usize>(
+pub(crate) fn create_iterator_of_signed_random_pairs(
     rng: &mut rand::prelude::ThreadRng,
     modulus: i64,
+    num_random_pairs: usize,
 ) -> impl Iterator<Item = (i64, i64)> {
-    assert!(N >= 4, "N must be at least 4 to uphold the guarantee");
-    let mut lhs_values = [0i64; N];
-    let mut rhs_values = [0i64; N];
+    assert!(
+        num_random_pairs >= 4,
+        "N must be at least 4 to uphold the guarantee"
+    );
+    let mut lhs_values = vec![0i64; num_random_pairs];
+    let mut rhs_values = vec![0i64; num_random_pairs];
 
     lhs_values[0] = rng.gen_range(0..modulus);
     rhs_values[0] = rng.gen_range(0..modulus);
@@ -1123,7 +1139,7 @@ pub(crate) fn create_iterator_of_signed_random_pairs<const N: usize>(
     lhs_values[3] = rng.gen_range(-modulus..=0);
     rhs_values[3] = rng.gen_range(0..modulus);
 
-    for i in 4..N {
+    for i in 4..num_random_pairs {
         lhs_values[i] = rng.gen_range(-modulus..modulus);
         rhs_values[i] = rng.gen_range(-modulus..modulus);
     }

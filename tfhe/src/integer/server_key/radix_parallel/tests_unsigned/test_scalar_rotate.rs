@@ -1,9 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    FunctionExecutor, NB_CTXT, NB_TESTS,
-};
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    rotate_left_helper, rotate_right_helper, CpuFunctionExecutor,
+    nb_tests_for_params, rotate_left_helper, rotate_right_helper, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -55,6 +53,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -68,7 +68,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TESTS / 3).max(1) {
+    for _ in 0..(nb_tests / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -119,6 +119,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -132,7 +134,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TESTS / 3).max(1) {
+    for _ in 0..(nb_tests / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -183,6 +185,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -198,7 +202,7 @@ where
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
-    for _ in 0..(NB_TESTS / 2).max(1) {
+    for _ in 0..(nb_tests / 2).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -255,6 +259,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -270,7 +276,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TESTS / 3).max(1) {
+    for _ in 0..(nb_tests / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 

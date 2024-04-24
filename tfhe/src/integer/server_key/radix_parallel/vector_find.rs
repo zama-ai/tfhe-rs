@@ -17,6 +17,7 @@ use std::usize;
 /// Outputs are not required to be unique
 /// Input values are not required to span all possible values that
 /// ` ct` could hold.
+#[derive(Debug)]
 pub struct MatchValues<Clear>(Vec<(Clear, Clear)>);
 
 impl<Clear> MatchValues<Clear> {
@@ -90,16 +91,16 @@ impl ServerKey {
             .expect("luts is not empty at this point")
             .1;
 
-        let num_bits_to_represent_output_value = if max_output_value == Clear::ZERO {
-            1
+        let num_bits_to_represent_output_value = if max_output_value == Clear::MAX {
+            Clear::BITS
         } else {
-            max_output_value.ceil_ilog2()
+            (max_output_value + Clear::ONE).ceil_ilog2() as usize
         };
         let num_blocks_to_represent_values =
-            num_bits_to_represent_output_value.div_ceil(num_bits_in_message) + 1;
+            num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize);
 
         let possible_results_to_be_aggregated = self.create_possible_results(
-            num_blocks_to_represent_values as usize,
+            num_blocks_to_represent_values,
             selectors
                 .into_par_iter()
                 .zip(matches.0.par_iter().map(|(_input, output)| *output)),
