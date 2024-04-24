@@ -91,6 +91,32 @@ pub struct PrivateCommit<G: Curve> {
     __marker: PhantomData<G>,
 }
 
+pub fn compute_crs_len(
+    d: usize,
+    k: usize,
+    b: u64,
+    _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
+    t: u64,
+) -> usize {
+    let (n, _, _) = compute_crs_params(d, k, b, _q, t);
+    n
+}
+
+fn compute_crs_params(
+    d: usize,
+    k: usize,
+    b: u64,
+    _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
+    t: u64,
+) -> (usize, usize, u64) {
+    let b_r = d as u64 / 2 + 1;
+
+    let big_d =
+        d + k * t.ilog2() as usize + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
+    let n = big_d + 1;
+    (n, big_d, b_r)
+}
+
 pub fn crs_gen<G: Curve>(
     d: usize,
     k: usize,
@@ -100,11 +126,7 @@ pub fn crs_gen<G: Curve>(
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
-    let b_r = d as u64 / 2 + 1;
-
-    let big_d =
-        d + k * t.ilog2() as usize + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
-    let n = big_d + 1;
+    let (n, big_d, b_r) = compute_crs_params(d, k, b, q, t);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         big_d,
