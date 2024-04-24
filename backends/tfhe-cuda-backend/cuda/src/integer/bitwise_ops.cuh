@@ -41,13 +41,13 @@ __host__ void host_integer_radix_bitnot_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_bitop_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_bitop_buffer<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params, BITOP_TYPE op,
-    bool allocate_gpu_memory) {
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_bitop_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, BITOP_TYPE op, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
-  *mem_ptr = new int_bitop_buffer<Torus>(stream, gpu_index, op, params,
-                                         num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr =
+      new int_bitop_buffer<Torus>(streams, gpu_indexes, gpu_count, op, params,
+                                  num_radix_blocks, allocate_gpu_memory);
 }
 
 #endif

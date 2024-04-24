@@ -29,13 +29,12 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
 
 template <typename T>
 __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_scalar_mul_buffer<T> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_scalar_mul_buffer<T> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(T);
-  if (sm_size < cuda_get_max_shared_memory(gpu_index)) {
+  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
     check_cuda_error(cudaFuncSetAttribute(
         tree_add_chunks<T, FULLSM>, cudaFuncAttributeMaxDynamicSharedMemorySize,
         sm_size));
@@ -50,8 +49,9 @@ __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
     check_cuda_error(cudaGetLastError());
   }
 
-  *mem_ptr = new int_scalar_mul_buffer<T>(
-      stream, gpu_index, params, num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr =
+      new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
+                                   num_radix_blocks, allocate_gpu_memory);
 }
 
 template <typename T, class params>

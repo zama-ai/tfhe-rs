@@ -63,6 +63,18 @@ impl CudaStreams {
     }
 }
 
+impl Drop for CudaStreams {
+    fn drop(&mut self) {
+        for (i, &s) in self.ptr.iter().enumerate() {
+            unsafe {
+                cuda_destroy_stream(s, self.gpu_indexes[i]);
+            }
+        }
+        unsafe {
+            cuda_cleanup_multi_gpu();
+        }
+    }
+}
 /// This structure allows to distinguish between a constant raw pointer that points the
 /// CPU memory vs GPU Memory.
 #[derive(Debug, Copy, Clone)]

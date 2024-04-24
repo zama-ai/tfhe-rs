@@ -153,12 +153,33 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
-  // Compute Keyswitch-PBS
-  cuda_keyswitch_lwe_ciphertext_vector(
-      streams[0], gpu_indexes[0], lut->tmp_lwe_after_ks,
-      lut->lwe_trivial_indexes, lwe_array_in, lut->lwe_indexes_in, ksk,
-      big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-      num_radix_blocks);
+  /// If the number of radix blocks is lower than the number of GPUs, not all
+  /// GPUs will be active and there will be 1 input per GPU
+  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
+  int num_radix_blocks_on_gpu_0 =
+      get_num_inputs_on_gpu(num_radix_blocks, 0, gpu_count);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+#pragma omp parallel for num_threads(active_gpu_count)
+  for (uint i = 0; i < active_gpu_count; i++) {
+    int num_radix_blocks_on_gpu =
+        get_num_inputs_on_gpu(num_radix_blocks, i, gpu_count);
+    int big_lwe_start_index =
+        i * num_radix_blocks_on_gpu_0 * (big_lwe_dimension + 1);
+    int small_lwe_start_index =
+        i * num_radix_blocks_on_gpu_0 * (small_lwe_dimension + 1);
+    auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(big_lwe_start_index);
+    auto d_lwe_ct_out =
+        lut->tmp_lwe_after_ks + (ptrdiff_t)(small_lwe_start_index);
+
+    // Compute Keyswitch-PBS
+    cuda_keyswitch_lwe_ciphertext_vector(
+        streams[i], gpu_indexes[i], d_lwe_ct_out, lut->lwe_trivial_indexes,
+        d_lwe_ct_in, lut->lwe_indexes_in, ksk, big_lwe_dimension,
+        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks_on_gpu);
+  }
+  for (uint i = 0; i < active_gpu_count; i++) {
+    cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+  }
 
   execute_pbs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                      lut->lwe_indexes_out, lut->lut, lut->lut_indexes,
@@ -175,8 +196,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     Torus *lwe_array_out, Torus *lwe_array_1, Torus *lwe_array_2, void *bsk,
     Torus *ksk, uint32_t num_radix_blocks, int_radix_lut<Torus> *lut,
     uint32_t shift) {
-  cudaSetDevice(gpu_indexes[0]);
-  // apply_lookup_table_bivariate
+
   auto params = lut->params;
   auto pbs_type = params.pbs_type;
   auto big_lwe_dimension = params.big_lwe_dimension;
@@ -199,6 +219,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   check_cuda_error(cudaGetLastError());
 
   // Apply LUT
+  cudaSetDevice(0);
   cuda_keyswitch_lwe_ciphertext_vector(
       streams[0], gpu_indexes[0], lut->tmp_lwe_after_ks,
       lut->lwe_trivial_indexes, lwe_array_pbs_in, lut->lwe_trivial_indexes, ksk,
@@ -398,13 +419,13 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename Torus>
 void scratch_cuda_propagate_single_carry_kb_inplace(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_sc_prop_memory<Torus> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
-  *mem_ptr = new int_sc_prop_memory<Torus>(
-      stream, gpu_index, params, num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr =
+      new int_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                    num_radix_blocks, allocate_gpu_memory);
 }
 
 template <typename Torus>
@@ -434,7 +455,6 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   int num_steps = ceil(log2((double)num_blocks));
   int space = 1;
-  cudaSetDevice(gpu_indexes[0]);
   cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
                                big_lwe_size_bytes * num_blocks, streams[0],
                                gpu_indexes[0]);
@@ -449,7 +469,7 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
         bsk, ksk, cur_total_blocks, luts_carry_propagation_sum,
         luts_carry_propagation_sum->params.message_modulus);
 
-    cudaSetDevice(gpu_indexes[0]);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     cuda_memcpy_async_gpu_to_gpu(
         &generates_or_propagates[space * big_lwe_size], cur_blocks,
         big_lwe_size_bytes * cur_total_blocks, streams[0], gpu_indexes[0]);
@@ -513,7 +533,7 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
     int cur_total_blocks = num_blocks - space;
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, cur_blocks, cur_blocks, prev_blocks,
+        &streams[0], &gpu_indexes[0], 1, cur_blocks, cur_blocks, prev_blocks,
         bsk, ksk, cur_total_blocks, luts_carry_propagation_sum,
         luts_carry_propagation_sum->params.message_modulus);
 
@@ -560,7 +580,6 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  uint32_t pbs_level, uint32_t grouping_factor,
                                  uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   int big_lwe_size = (glwe_dimension * polynomial_size + 1);
   int small_lwe_size = (lwe_dimension + 1);
 
@@ -578,13 +597,16 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  small_lwe_size * sizeof(Torus), streams[0],
                                  gpu_indexes[0]);
 
+    std::vector<int8_t *> pbs_buffer_vec;
+    pbs_buffer_vec.push_back(mem_ptr->pbs_buffer);
     execute_pbs<Torus>(
         streams, gpu_indexes, 1, mem_ptr->tmp_big_lwe_vector,
         mem_ptr->lwe_indexes, mem_ptr->lut_buffer, mem_ptr->lut_indexes,
         mem_ptr->tmp_small_lwe_vector, mem_ptr->lwe_indexes, bsk,
-        mem_ptr->pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size,
+        pbs_buffer_vec, glwe_dimension, lwe_dimension, polynomial_size,
         pbs_base_log, pbs_level, grouping_factor, 2, 2, 0,
         cuda_get_max_shared_memory(gpu_indexes[0]), mem_ptr->pbs_type);
+    pbs_buffer_vec.clear();
 
     cuda_memcpy_async_gpu_to_gpu(cur_input_block, mem_ptr->tmp_big_lwe_vector,
                                  big_lwe_size * sizeof(Torus), streams[0],
@@ -911,16 +933,18 @@ __host__ void reduce_signs(cudaStream_t *streams, uint32_t *gpu_indexes,
 
 template <typename Torus>
 void scratch_cuda_apply_univariate_lut_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_radix_lut<Torus> **mem_ptr,
-    Torus *input_lut, uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_radix_lut<Torus> **mem_ptr, Torus *input_lut, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
 
-  *mem_ptr = new int_radix_lut<Torus>(stream, gpu_index, params, 1,
-                                      num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
+                                      1, num_radix_blocks, allocate_gpu_memory);
+  // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
+  // 0
   cuda_memcpy_async_to_gpu((*mem_ptr)->lut, input_lut,
                            (params.glwe_dimension + 1) *
                                params.polynomial_size * sizeof(Torus),
-                           stream, gpu_index);
+                           streams[0], gpu_indexes[0]);
 }
 
 template <typename Torus>
@@ -930,7 +954,6 @@ void host_apply_univariate_lut_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                   int_radix_lut<Torus> *mem, Torus *ksk,
                                   void *bsk, uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in, bsk, ksk,
       num_blocks, mem);

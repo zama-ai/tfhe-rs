@@ -14,14 +14,13 @@
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_logical_scalar_shift_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_logical_scalar_shift_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, SHIFT_OR_ROTATE_TYPE shift_type,
     bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
-      stream, gpu_index, shift_type, params, num_radix_blocks,
+      streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
       allocate_gpu_memory);
 }
 
@@ -125,14 +124,13 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_arithmetic_scalar_shift_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus>(
-      stream, gpu_index, shift_type, params, num_radix_blocks,
+      streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
       allocate_gpu_memory);
 }
 

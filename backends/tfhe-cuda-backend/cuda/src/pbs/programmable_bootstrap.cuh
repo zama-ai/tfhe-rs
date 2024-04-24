@@ -7,6 +7,7 @@
 #include "programmable_bootstrap_multibit.h"
 
 #include "cooperative_groups.h"
+#include "helper.h"
 
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
@@ -122,13 +123,16 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
                  Torus *lwe_output_indexes, Torus *lut_vector,
                  Torus *lut_vector_indexes, Torus *lwe_array_in,
                  Torus *lwe_input_indexes, void *bootstrapping_key,
-                 int8_t *pbs_buffer, uint32_t glwe_dimension,
+                 std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
                  uint32_t lwe_dimension, uint32_t polynomial_size,
                  uint32_t base_log, uint32_t level_count,
                  uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
                  uint32_t num_luts, uint32_t lwe_idx,
                  uint32_t max_shared_memory, PBS_TYPE pbs_type) {
-  auto num_inputs_on_gpu = input_lwe_ciphertext_count / gpu_count;
+  auto active_gpu_count = std::min(input_lwe_ciphertext_count, gpu_count);
+  int num_lwe_inputs_on_gpu_0 =
+      get_num_inputs_on_gpu(input_lwe_ciphertext_count, 0, gpu_count);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits
@@ -136,12 +140,28 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case CLASSICAL:
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-          lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(active_gpu_count)
+      for (uint i = 0; i < active_gpu_count; i++) {
+        int num_inputs_on_gpu =
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
+                                  (glwe_dimension * polynomial_size + 1);
+        int lwe_in_start_index =
+            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
+        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
+        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
+        auto d_lut_vector_indexes =
+            lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
+            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
+            lwe_idx, max_shared_memory);
+      }
+      for (uint i = 0; i < active_gpu_count; i++) {
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      }
       break;
     default:
       break;
@@ -153,20 +173,52 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, grouping_factor, base_log, level_count,
-          num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(active_gpu_count)
+      for (uint i = 0; i < active_gpu_count; i++) {
+        int num_inputs_on_gpu =
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
+                                  (glwe_dimension * polynomial_size + 1);
+        int lwe_in_start_index =
+            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
+        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
+        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
+        auto d_lut_vector_indexes =
+            lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, grouping_factor, base_log, level_count,
+            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
+      }
+      for (uint i = 0; i < active_gpu_count; i++) {
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      }
       break;
     case CLASSICAL:
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-          lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(active_gpu_count)
+      for (uint i = 0; i < active_gpu_count; i++) {
+        int num_inputs_on_gpu =
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
+                                  (glwe_dimension * polynomial_size + 1);
+        int lwe_in_start_index =
+            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
+        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
+        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
+        auto d_lut_vector_indexes =
+            lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
+            lwe_idx, max_shared_memory);
+      }
+      for (uint i = 0; i < active_gpu_count; i++) {
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      }
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
@@ -186,8 +238,6 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          uint32_t input_lwe_ciphertext_count,
                          uint32_t max_shared_memory, PBS_TYPE pbs_type,
                          bool allocate_gpu_memory) {
-  if (gpu_index != 0)
-    PANIC("GPU error (pbs): all memory has to reside in GPU 0.")
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits

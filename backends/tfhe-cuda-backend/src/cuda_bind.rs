@@ -72,6 +72,8 @@ extern "C" {
 
     pub fn cuda_setup_multi_gpu() -> i32;
 
+    pub fn cuda_cleanup_multi_gpu();
+
     /// Copy a bootstrap key `src` represented with 64 bits in the standard domain from the CPU to
     /// the GPU `gpu_index` using the stream `v_stream`, and convert it to the Fourier domain on the
     /// GPU. The resulting bootstrap key `dest` on the GPU is an array of f64 values.
@@ -494,8 +496,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         message_modulus: u32,
         carry_modulus: u32,
@@ -527,7 +530,12 @@ extern "C" {
         num_blocks: u32,
     );
 
-    pub fn cleanup_cuda_integer_mult(stream: *mut c_void, gpu_index: u32, mem_ptr: *mut *mut i8);
+    pub fn cleanup_cuda_integer_mult(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
 
     pub fn cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams: *const *mut c_void,
@@ -542,8 +550,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_integer_scalar_mul_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -578,14 +587,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_scalar_mul(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_bitop_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -644,11 +655,17 @@ extern "C" {
         op_type: u32,
     );
 
-    pub fn cleanup_cuda_integer_bitop(stream: *mut c_void, gpu_index: u32, mem_ptr: *mut *mut i8);
+    pub fn cleanup_cuda_integer_bitop(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
 
     pub fn scratch_cuda_integer_radix_comparison_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -682,8 +699,9 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_comparison(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
@@ -743,8 +761,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         input_lut: *const c_void,
         lwe_dimension: u32,
@@ -775,14 +794,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_apply_univariate_lut_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -814,8 +835,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -847,20 +869,23 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_logical_scalar_shift(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -893,14 +918,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_shift_and_rotate(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_cmux_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -933,14 +960,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_cmux(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_scalar_rotate_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -972,14 +1001,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_scalar_rotate(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_propagate_single_carry_kb_64_inplace(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1010,14 +1041,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_propagate_single_carry(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1049,14 +1082,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_sum_ciphertexts_vec(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_overflowing_sub_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1089,14 +1124,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_overflowing_sub(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
-        stream: *const c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1129,8 +1166,9 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_div_rem(
-        stream: *const c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 

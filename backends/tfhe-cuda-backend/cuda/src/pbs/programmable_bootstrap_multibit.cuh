@@ -377,7 +377,6 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     uint32_t lwe_chunk_size = 0) {
 
   cudaSetDevice(gpu_index);
-
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
@@ -589,12 +588,11 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
                  uint32_t level_count, uint32_t max_shared_memory, int j,
                  int lwe_offset, uint32_t lwe_chunk_size) {
 
+  cudaSetDevice(gpu_index);
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
 
-  cudaSetDevice(gpu_index);
-  //
   auto d_mem = buffer->d_mem_acc_step_two;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;

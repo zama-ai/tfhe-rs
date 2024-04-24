@@ -271,7 +271,6 @@ __host__ void scratch_programmable_bootstrap(
     bool allocate_gpu_memory) {
 
   cudaSetDevice(gpu_index);
-
   uint64_t full_sm_step_one =
       get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
           polynomial_size);

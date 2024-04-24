@@ -177,7 +177,6 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
     bool allocate_gpu_memory, uint32_t lwe_chunk_size = 0) {
 
   cudaSetDevice(gpu_index);
-
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
