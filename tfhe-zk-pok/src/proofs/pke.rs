@@ -91,18 +91,7 @@ pub struct PrivateCommit<G: Curve> {
     __marker: PhantomData<G>,
 }
 
-pub fn compute_crs_len(
-    d: usize,
-    k: usize,
-    b: u64,
-    _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
-    t: u64,
-) -> usize {
-    let (n, _, _) = compute_crs_params(d, k, b, _q, t);
-    n
-}
-
-fn compute_crs_params(
+pub fn compute_crs_params(
     d: usize,
     k: usize,
     b: u64,
