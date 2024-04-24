@@ -153,7 +153,7 @@ impl CudaServerKey {
         // as we will handle them separately.
         scalar_blocks.truncate(ct.as_ref().d_blocks.lwe_ciphertext_count().0);
 
-        let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, stream);
+        let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, stream, 0);
 
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 
@@ -327,7 +327,7 @@ impl CudaServerKey {
                 .iter_as::<u64>()
                 .collect::<Vec<_>>();
 
-        let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, stream);
+        let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, stream, 0);
 
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
 

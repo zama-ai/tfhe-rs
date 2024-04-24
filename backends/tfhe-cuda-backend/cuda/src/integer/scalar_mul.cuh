@@ -29,13 +29,12 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
 
 template <typename T>
 __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_scalar_mul_buffer<T> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_scalar_mul_buffer<T> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(T);
-  if (sm_size < cuda_get_max_shared_memory(gpu_index)) {
+  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
     check_cuda_error(cudaFuncSetAttribute(
         tree_add_chunks<T, FULLSM>, cudaFuncAttributeMaxDynamicSharedMemorySize,
         sm_size));
@@ -50,22 +49,22 @@ __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
     check_cuda_error(cudaGetLastError());
   }
 
-  *mem_ptr = new int_scalar_mul_buffer<T>(
-      stream, gpu_index, params, num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr =
+      new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
+                                   num_radix_blocks, allocate_gpu_memory);
 }
 
 template <typename T, class params>
 __host__ void host_integer_scalar_mul_radix(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     T *lwe_array, T *decomposed_scalar, T *has_at_least_one_set,
-    int_scalar_mul_buffer<T> *mem, void *bsk, T *ksk,
+    int_scalar_mul_buffer<T> *mem, void **bsks, T **ksks,
     uint32_t input_lwe_dimension, uint32_t message_modulus,
     uint32_t num_radix_blocks, uint32_t num_scalars) {
 
   if (num_radix_blocks == 0 | num_scalars == 0)
     return;
 
-  cudaSetDevice(gpu_indexes[0]);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   uint32_t lwe_size = input_lwe_dimension + 1;
@@ -84,7 +83,7 @@ __host__ void host_integer_scalar_mul_radix(
                                    streams[0], gpu_indexes[0]);
       host_integer_radix_logical_scalar_shift_kb_inplace(
           streams, gpu_indexes, gpu_count, ptr, shift_amount,
-          mem->logical_scalar_shift_buffer, bsk, ksk, num_radix_blocks);
+          mem->logical_scalar_shift_buffer, bsks, ksks, num_radix_blocks);
     } else {
       // create trivial assign for value = 0
       cuda_memset_async(ptr, 0, num_radix_blocks * lwe_size_bytes, streams[0],
@@ -120,8 +119,8 @@ __host__ void host_integer_scalar_mul_radix(
     }
     host_integer_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer,
-        terms_degree, bsk, ksk, mem->sum_ciphertexts_vec_mem, num_radix_blocks,
-        j);
+        terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
+        num_radix_blocks, j);
   }
 }
 

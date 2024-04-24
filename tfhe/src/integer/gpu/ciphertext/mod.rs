@@ -172,11 +172,11 @@ impl CudaUnsignedRadixCiphertext {
             .collect::<Vec<_>>();
 
         unsafe {
-            self.ciphertext
-                .d_blocks
-                .0
-                .d_vec
-                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), streams);
+            self.ciphertext.d_blocks.0.d_vec.copy_from_cpu_async(
+                h_radix_ciphertext.as_mut_slice(),
+                streams,
+                0,
+            );
         }
         streams.synchronize();
 
@@ -325,11 +325,11 @@ impl CudaSignedRadixCiphertext {
             .collect::<Vec<_>>();
 
         unsafe {
-            self.ciphertext
-                .d_blocks
-                .0
-                .d_vec
-                .copy_from_cpu_async(h_radix_ciphertext.as_mut_slice(), streams);
+            self.ciphertext.d_blocks.0.d_vec.copy_from_cpu_async(
+                h_radix_ciphertext.as_mut_slice(),
+                streams,
+                0,
+            );
         }
         streams.synchronize();
 
@@ -436,8 +436,8 @@ impl CudaRadixCiphertext {
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
 
-        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), streams);
-        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, streams);
+        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), streams, 0);
+        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, streams, 0);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
@@ -458,12 +458,12 @@ impl CudaRadixCiphertext {
             self.d_blocks
                 .0
                 .d_vec
-                .copy_to_cpu_async(self_container.as_mut_slice(), streams);
+                .copy_to_cpu_async(self_container.as_mut_slice(), streams, 0);
             other
                 .d_blocks
                 .0
                 .d_vec
-                .copy_to_cpu_async(other_container.as_mut_slice(), streams);
+                .copy_to_cpu_async(other_container.as_mut_slice(), streams, 0);
         }
         streams.synchronize();
 

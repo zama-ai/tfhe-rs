@@ -181,14 +181,13 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
 }
 template <typename Torus>
 __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  if (sm_size < cuda_get_max_shared_memory(gpu_index)) {
+  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
     check_cuda_error(cudaFuncSetAttribute(
         tree_add_chunks<Torus, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
@@ -203,18 +202,17 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
     check_cuda_error(cudaGetLastError());
   }
   *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
-      stream, gpu_index, params, num_blocks_in_radix, max_num_radix_in_vec,
-      allocate_gpu_memory);
+      streams, gpu_indexes, gpu_count, params, num_blocks_in_radix,
+      max_num_radix_in_vec, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
 __host__ void host_integer_sum_ciphertexts_vec_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *radix_lwe_out, Torus *terms, int *terms_degree, void *bsk,
-    uint64_t *ksk, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    Torus *radix_lwe_out, Torus *terms, int *terms_degree, void **bsks,
+    uint64_t **ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto new_blocks = mem_ptr->new_blocks;
   auto old_blocks = mem_ptr->old_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
@@ -258,6 +256,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     dim3 add_grid(ch_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
 
+    cudaSetDevice(gpu_indexes[0]);
     if (sm_size < max_shared_memory)
       tree_add_chunks<Torus, FULLSM><<<add_grid, 512, sm_size, streams[0]>>>(
           new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
@@ -281,7 +280,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     // we allocate luts_message_carry in the host function (instead of scratch)
     // to reduce average memory consumption
     auto luts_message_carry = new int_radix_lut<Torus>(
-        streams[0], gpu_indexes[0], mem_ptr->params, 2, total_count, true);
+        streams, gpu_indexes, gpu_count, mem_ptr->params, 2, total_count, true);
 
     auto message_acc = luts_message_carry->get_lut(0);
     auto carry_acc = luts_message_carry->get_lut(1);
@@ -326,22 +325,35 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           streams[0], gpu_indexes[0],
           luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
 
-    cuda_keyswitch_lwe_ciphertext_vector(
-        streams[0], gpu_indexes[0], small_lwe_vector, lwe_indexes_in,
-        new_blocks, lwe_indexes_in, ksk, polynomial_size * glwe_dimension,
-        lwe_dimension, mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
-        message_count);
+    auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
+    /// Apply KS to go from a big LWE dimension to a small LWE dimension
+    /// After this keyswitch execution, we need to synchronize the streams
+    /// because the keyswitch and PBS do not operate on the same number of
+    /// inputs
+    execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count, small_lwe_vector,
+                             lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
+                             polynomial_size * glwe_dimension, lwe_dimension,
+                             mem_ptr->params.ks_base_log,
+                             mem_ptr->params.ks_level, message_count, true);
 
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
     execute_pbs<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
                        lwe_indexes_out, luts_message_carry->lut,
                        luts_message_carry->lut_indexes, small_lwe_vector,
-                       lwe_indexes_in, bsk, luts_message_carry->buffer,
+                       lwe_indexes_in, bsks, luts_message_carry->buffer,
                        glwe_dimension, lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, total_count, 2, 0,
-                       max_shared_memory, mem_ptr->params.pbs_type);
-
-    luts_message_carry->release(streams[0], gpu_indexes[0]);
+                       max_shared_memory, mem_ptr->params.pbs_type, false);
+    /// Synchronize all GPUs
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
+    luts_message_carry->release(streams, gpu_indexes, gpu_count);
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
     int new_blocks_created = 2 * ch_amount * num_blocks;
@@ -361,17 +373,16 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
   host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
                                      radix_lwe_out, nullptr, mem_ptr->scp_mem,
-                                     bsk, ksk, num_blocks);
+                                     bsks, ksks, num_blocks);
 }
 
 template <typename Torus, typename STorus, class params>
 __host__ void host_integer_mult_radix_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     uint64_t *radix_lwe_out, uint64_t *radix_lwe_left,
-    uint64_t *radix_lwe_right, void *bsk, uint64_t *ksk,
+    uint64_t *radix_lwe_right, void **bsks, uint64_t **ksks,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto lwe_dimension = mem_ptr->params.small_lwe_dimension;
@@ -438,6 +449,7 @@ __host__ void host_integer_mult_radix_kb(
   dim3 grid(lsb_vector_block_count, 1, 1);
   dim3 thds(params::degree / params::opt, 1, 1);
 
+  cudaSetDevice(gpu_indexes[0]);
   all_shifted_lhs_rhs<Torus, params><<<grid, thds, 0, streams[0]>>>(
       radix_lwe_left, vector_result_lsb, vector_result_msb, radix_lwe_right,
       vector_lsb_rhs, vector_msb_rhs, num_blocks);
@@ -445,13 +457,14 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, block_mul_res, block_mul_res,
-      vector_result_sb, bsk, ksk, total_block_count, luts_array,
+      vector_result_sb, bsks, ksks, total_block_count, luts_array,
       luts_array->params.message_modulus);
 
   vector_result_lsb = &block_mul_res[0];
   vector_result_msb = &block_mul_res[lsb_vector_block_count *
                                      (polynomial_size * glwe_dimension + 1)];
 
+  cudaSetDevice(gpu_indexes[0]);
   fill_radix_from_lsb_msb<Torus, params>
       <<<num_blocks * num_blocks, params::degree / params::opt, 0,
          streams[0]>>>(vector_result_sb, vector_result_lsb, vector_result_msb,
@@ -474,18 +487,17 @@ __host__ void host_integer_mult_radix_kb(
 
   host_integer_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb,
-      terms_degree, bsk, ksk, mem_ptr->sum_ciphertexts_mem, num_blocks,
+      terms_degree, bsks, ksks, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks);
 }
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_mul_memory<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
-  cudaSetDevice(gpu_index);
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_mul_memory<Torus> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  if (sm_size < cuda_get_max_shared_memory(gpu_index)) {
+  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
     check_cuda_error(cudaFuncSetAttribute(
         tree_add_chunks<Torus, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
@@ -500,7 +512,7 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     check_cuda_error(cudaGetLastError());
   }
 
-  *mem_ptr = new int_mul_memory<Torus>(stream, gpu_index, params,
+  *mem_ptr = new int_mul_memory<Torus>(streams, gpu_indexes, gpu_count, params,
                                        num_radix_blocks, allocate_gpu_memory);
 }
 

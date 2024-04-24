@@ -89,10 +89,12 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
                 .iter()
                 .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
                 .collect_vec();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
-            unsafe { d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream) };
-            unsafe { d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream) };
+            let mut d_input_indexes =
+                unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+            let mut d_output_indexes =
+                unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+            unsafe { d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0) };
+            unsafe { d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0) };
 
             cuda_keyswitch_lwe_ciphertext(
                 &d_ksk_big_to_small,

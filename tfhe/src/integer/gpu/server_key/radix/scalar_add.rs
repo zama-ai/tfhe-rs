@@ -73,14 +73,17 @@ impl CudaServerKey {
     {
         if scalar != Scalar::ZERO {
             let bits_in_message = self.message_modulus.0.ilog2();
-            let mut d_decomposed_scalar =
-                CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+            let mut d_decomposed_scalar = CudaVec::<u64>::new_async(
+                ct.as_ref().d_blocks.lwe_ciphertext_count().0,
+                streams,
+                0,
+            );
             let decomposed_scalar =
                 BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
                     .iter_as::<u64>()
                     .take(d_decomposed_scalar.len())
                     .collect::<Vec<_>>();
-            d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams);
+            d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams, 0);
 
             let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
             // If the scalar is decomposed using less than the number of blocks our ciphertext

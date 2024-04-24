@@ -69,7 +69,7 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if scalar == Scalar::ZERO {
-            ct.as_mut().d_blocks.0.d_vec.memset_async(0, stream);
+            ct.as_mut().d_blocks.0.d_vec.memset_async(0, stream, 0);
             return;
         }
 

@@ -7,7 +7,7 @@
 #endif
 
 #include "device.h"
-#include "helper.h"
+#include "helper_multi_gpu.h"
 #include "linear_algebra.h"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>

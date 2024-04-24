@@ -31,6 +31,24 @@ environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
 flavor_name = "n3-H100x1"
 
+[backend.hyperstack.multi-h100-nvlink]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+flavor_name = "n3-H100x8-NVLink-K8s"
+
+[backend.hyperstack.multi-a100-nvlink]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+flavor_name = "n3-A100x8-NVLink"
+
+[backend.aws.multi-gpu-test]
+region = "us-east-1"
+image_id = "ami-0c0bf195ca4c175b6"
+instance_type = "p3.8xlarge"
+# One spawn attempt every 30 seconds for 1 hour
+spawn_retry_attempts = 120
+spawn_retry_duration = 60
+
 [command.signed_integer_full_bench]
 workflow = "signed_integer_full_benchmark.yml"
 profile = "bench"

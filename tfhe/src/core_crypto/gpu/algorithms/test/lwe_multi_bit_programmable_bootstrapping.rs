@@ -130,8 +130,8 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
             }
 
             let mut d_test_vector_indexes =
-                unsafe { CudaVec::<Scalar>::new_async(number_of_messages, &stream) };
-            unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream) };
+                unsafe { CudaVec::<Scalar>::new_async(number_of_messages, &stream, 0) };
+            unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0) };
 
             let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
             let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
@@ -139,11 +139,13 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                 .iter()
                 .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
                 .collect_vec();
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream) };
+            let mut d_output_indexes =
+                unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+            let mut d_input_indexes =
+                unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
-                d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
+                d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
+                d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
             }
 
             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(

@@ -3,7 +3,7 @@
 void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_in, void *scalar_blocks,
-    int8_t *mem_ptr, void *bsk, void *ksk, uint32_t lwe_ciphertext_count,
+    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_ciphertext_count,
     uint32_t num_scalar_blocks) {
 
   int_comparison_buffer<uint64_t> *buffer =
@@ -15,8 +15,8 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_array_in),
-        static_cast<uint64_t *>(scalar_blocks), buffer, bsk,
-        static_cast<uint64_t *>(ksk), lwe_ciphertext_count, num_scalar_blocks);
+        static_cast<uint64_t *>(scalar_blocks), buffer, bsks,
+        (uint64_t **)(ksks), lwe_ciphertext_count, num_scalar_blocks);
     break;
   case GT:
   case GE:
@@ -27,7 +27,7 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_array_in),
         static_cast<uint64_t *>(scalar_blocks), buffer,
-        buffer->diff_buffer->operator_f, bsk, static_cast<uint64_t *>(ksk),
+        buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
         lwe_ciphertext_count, num_scalar_blocks);
     break;
   case MAX:
@@ -36,8 +36,8 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<uint64_t *>(lwe_array_in),
-        static_cast<uint64_t *>(scalar_blocks), buffer, bsk,
-        static_cast<uint64_t *>(ksk), lwe_ciphertext_count, num_scalar_blocks);
+        static_cast<uint64_t *>(scalar_blocks), buffer, bsks,
+        (uint64_t **)(ksks), lwe_ciphertext_count, num_scalar_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")
