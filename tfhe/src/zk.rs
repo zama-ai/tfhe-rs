@@ -35,14 +35,16 @@ pub struct CompactPkeCrs {
 }
 
 impl CompactPkeCrs {
-    pub fn new<Scalar, NoiseDistribution>(
+    /// Prepare and check the CRS parameters.
+    ///
+    /// The output of this function can be used in [tfhe_zk_pok::proofs::pke::compute_crs_len].
+    pub fn prepare_crs_parameters<Scalar, NoiseDistribution>(
         lwe_dim: LweDimension,
         max_num_cleartext: usize,
         noise_distribution: NoiseDistribution,
         ciphertext_modulus: CiphertextModulus<Scalar>,
         plaintext_modulus: Scalar,
-        rng: &mut impl RngCore,
-    ) -> crate::Result<Self>
+    ) -> crate::Result<(LweDimension, usize, Scalar, u64, Scalar)>
     where
         Scalar: UnsignedInteger + CastInto<u64> + Debug,
         NoiseDistribution: BoundedDistribution<Scalar::Signed>,
@@ -122,14 +124,35 @@ impl CompactPkeCrs {
             }
         }?;
 
-        let public_params = crs_gen(
-            lwe_dim.0,
+        Ok((
+            lwe_dim,
             max_num_cleartext,
-            noise_bound.cast_into(),
+            noise_bound,
             q,
-            plaintext_modulus.cast_into(),
-            rng,
-        );
+            plaintext_modulus,
+        ))
+    }
+
+    pub fn new<Scalar, NoiseDistribution>(
+        lwe_dim: LweDimension,
+        max_num_cleartext: usize,
+        noise_distribution: NoiseDistribution,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+        plaintext_modulus: Scalar,
+        rng: &mut impl RngCore,
+    ) -> crate::Result<Self>
+    where
+        Scalar: UnsignedInteger + CastInto<u64> + Debug,
+        NoiseDistribution: BoundedDistribution<Scalar::Signed>,
+    {
+        let (d, k, b, q, t) = Self::prepare_crs_parameters(
+            lwe_dim,
+            max_num_cleartext,
+            noise_distribution,
+            ciphertext_modulus,
+            plaintext_modulus,
+        )?;
+        let public_params = crs_gen(d.0, k, b.cast_into(), q, t.cast_into(), rng);
 
         Ok(Self { public_params })
     }
