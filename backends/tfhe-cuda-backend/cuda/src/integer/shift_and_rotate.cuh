@@ -14,14 +14,13 @@
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_shift_and_rotate_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_shift_and_rotate_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
     bool allocate_gpu_memory) {
-  cudaSetDevice(gpu_index);
   *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
-      stream, gpu_index, shift_type, is_signed, params, num_radix_blocks,
-      allocate_gpu_memory);
+      streams, gpu_indexes, gpu_count, shift_type, is_signed, params,
+      num_radix_blocks, allocate_gpu_memory);
 }
 
 template <typename Torus>

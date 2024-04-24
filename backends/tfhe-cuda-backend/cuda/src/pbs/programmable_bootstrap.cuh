@@ -4,13 +4,16 @@
 #include "programmable_bootstrap_classic.cuh"
 #include "programmable_bootstrap_multibit.cuh"
 
+/// This function is used for integer operations, to easily call the correct
+/// type of PBS and split the computation on several GPUs when gpu_count is
+/// greater than 1.
 template <typename Torus>
 void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
                  uint32_t gpu_count, Torus *lwe_array_out,
                  Torus *lwe_output_indexes, Torus *lut_vector,
                  Torus *lut_vector_indexes, Torus *lwe_array_in,
                  Torus *lwe_input_indexes, void *bootstrapping_key,
-                 int8_t *pbs_buffer, uint32_t glwe_dimension,
+                 std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
                  uint32_t lwe_dimension, uint32_t polynomial_size,
                  uint32_t base_log, uint32_t level_count,
                  uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
@@ -24,12 +27,25 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case CLASSICAL:
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-          lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(gpu_count)
+      for (uint i = 0; i < gpu_count; i++) {
+        int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);
+        int output_lwe_start_index =
+            i * num_inputs_on_gpu * (glwe_dimension * polynomial_size + 1);
+        int base_num_inputs = num_inputs_on_gpu;
+        if (i == gpu_count - 1)
+          num_inputs_on_gpu = input_lwe_ciphertext_count / gpu_count +
+                              input_lwe_ciphertext_count % gpu_count;
+
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
+            streams[i], gpu_indexes[i], lwe_array_out + output_lwe_start_index,
+            lwe_output_indexes + i * base_num_inputs, lut_vector,
+            lut_vector_indexes, lwe_array_in + input_lwe_start_index,
+            lwe_input_indexes + i * base_num_inputs, bootstrapping_key,
+            pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count, num_inputs_on_gpu, num_luts, lwe_idx,
+            max_shared_memory);
+      }
       break;
     default:
       break;
@@ -41,20 +57,46 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, grouping_factor, base_log, level_count,
-          num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(gpu_count)
+      for (uint i = 0; i < gpu_count; i++) {
+        int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);
+        int output_lwe_start_index =
+            i * num_inputs_on_gpu * (glwe_dimension * polynomial_size + 1);
+        int base_num_inputs = num_inputs_on_gpu;
+        if (i == gpu_count - 1)
+          num_inputs_on_gpu = input_lwe_ciphertext_count / gpu_count +
+                              input_lwe_ciphertext_count % gpu_count;
+
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+            streams[i], gpu_indexes[i], lwe_array_out + output_lwe_start_index,
+            lwe_output_indexes + i * base_num_inputs, lut_vector,
+            lut_vector_indexes, lwe_array_in + input_lwe_start_index,
+            lwe_input_indexes + i * base_num_inputs, bootstrapping_key,
+            pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
+            grouping_factor, base_log, level_count, num_inputs_on_gpu, num_luts,
+            lwe_idx, max_shared_memory);
+      }
       break;
     case CLASSICAL:
-      cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-          streams[0], gpu_indexes[0], lwe_array_out, lwe_output_indexes,
-          lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-          lwe_idx, max_shared_memory);
+#pragma omp parallel for num_threads(gpu_count)
+      for (uint i = 0; i < gpu_count; i++) {
+        int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);
+        int output_lwe_start_index =
+            i * num_inputs_on_gpu * (glwe_dimension * polynomial_size + 1);
+        int base_num_inputs = num_inputs_on_gpu;
+        if (i == gpu_count - 1)
+          num_inputs_on_gpu = input_lwe_ciphertext_count / gpu_count +
+                              input_lwe_ciphertext_count % gpu_count;
+
+        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+            streams[i], gpu_indexes[i], lwe_array_out + output_lwe_start_index,
+            lwe_output_indexes + i * base_num_inputs, lut_vector,
+            lut_vector_indexes, lwe_array_in + input_lwe_start_index,
+            lwe_input_indexes + i * base_num_inputs, bootstrapping_key,
+            pbs_buffer[i], lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count, num_inputs_on_gpu, num_luts, lwe_idx,
+            max_shared_memory);
+      }
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
@@ -66,6 +108,9 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
 }
 
+/// This function is called in the intitialization of integer memory structures.
+/// The multi-GPU logic is implemented in the it_radix_lut initialization,
+/// hence why this function takes a specific stream and gpu_index as inputs
 template <typename Torus>
 void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          int8_t **pbs_buffer, uint32_t glwe_dimension,
@@ -74,8 +119,6 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          uint32_t input_lwe_ciphertext_count,
                          uint32_t max_shared_memory, PBS_TYPE pbs_type,
                          bool allocate_gpu_memory) {
-  if (gpu_index != 0)
-    PANIC("GPU error (pbs): all memory has to reside in GPU 0.")
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits

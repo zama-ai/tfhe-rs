@@ -251,7 +251,6 @@ __host__ void scratch_programmable_bootstrap_cg(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-
   cudaSetDevice(gpu_index);
 
   uint64_t full_sm =

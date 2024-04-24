@@ -376,7 +376,6 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, uint32_t grouping_factor,
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t lwe_chunk_size = 0) {
-
   cudaSetDevice(gpu_index);
 
   uint64_t full_sm_keybundle =

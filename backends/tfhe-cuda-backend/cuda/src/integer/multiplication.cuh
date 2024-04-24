@@ -175,12 +175,11 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
 }
 template <typename Torus>
 __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
   check_cuda_error(cudaFuncSetAttribute(
       tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
@@ -188,8 +187,8 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
   cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
   *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
-      stream, gpu_index, params, num_blocks_in_radix, max_num_radix_in_vec,
-      allocate_gpu_memory);
+      streams, gpu_indexes, gpu_count, params, num_blocks_in_radix,
+      max_num_radix_in_vec, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>
@@ -430,10 +429,9 @@ __host__ void host_integer_mult_radix_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_mul_memory<Torus> **mem_ptr,
-    uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
-  cudaSetDevice(gpu_index);
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_mul_memory<Torus> **mem_ptr, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
   size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
   check_cuda_error(cudaFuncSetAttribute(
       tree_add_chunks<Torus>, cudaFuncAttributeMaxDynamicSharedMemorySize,
@@ -441,7 +439,7 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
   cudaFuncSetCacheConfig(tree_add_chunks<Torus>, cudaFuncCachePreferShared);
   check_cuda_error(cudaGetLastError());
 
-  *mem_ptr = new int_mul_memory<Torus>(stream, gpu_index, params,
+  *mem_ptr = new int_mul_memory<Torus>(streams, gpu_indexes, gpu_count, params,
                                        num_radix_blocks, allocate_gpu_memory);
 }
 
