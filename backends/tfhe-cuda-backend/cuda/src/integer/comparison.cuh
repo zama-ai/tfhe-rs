@@ -94,6 +94,8 @@ are_all_comparisons_block_true(cudaStream_t *streams, uint32_t *gpu_indexes,
     // as in the worst case we will be adding `max_value` ones
     auto input_blocks = tmp_out;
     auto accumulator = are_all_block_true_buffer->tmp_block_accumulated;
+    auto is_equal_to_num_blocks_map =
+        &are_all_block_true_buffer->is_equal_to_lut_map;
     for (int i = 0; i < num_chunks; i++) {
       accumulate_all_blocks(streams[0], gpu_indexes[0], accumulator,
                             input_blocks, big_lwe_dimension, chunk_length);
@@ -103,8 +105,6 @@ are_all_comparisons_block_true(cudaStream_t *streams, uint32_t *gpu_indexes,
       input_blocks += (big_lwe_dimension + 1) * chunk_length;
     }
     accumulator = are_all_block_true_buffer->tmp_block_accumulated;
-    auto is_equal_to_num_blocks_map =
-        &are_all_block_true_buffer->is_equal_to_lut_map;
 
     // Selects a LUT
     int_radix_lut<Torus> *lut;
@@ -118,9 +118,8 @@ are_all_comparisons_block_true(cudaStream_t *streams, uint32_t *gpu_indexes,
         lut = (*is_equal_to_num_blocks_map)[chunk_length];
       } else {
         // LUT needs to be computed
-        auto new_lut =
-            new int_radix_lut<Torus>(streams[0], gpu_indexes[0], params,
-                                     max_value, num_radix_blocks, true);
+        auto new_lut = new int_radix_lut<Torus>(
+            streams, gpu_indexes, 1, params, max_value, num_radix_blocks, true);
 
         auto is_equal_to_num_blocks_lut_f = [max_value,
                                              chunk_length](Torus x) -> Torus {
@@ -140,13 +139,13 @@ are_all_comparisons_block_true(cudaStream_t *streams, uint32_t *gpu_indexes,
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsk, ksk,
-          1, lut);
+          streams, gpu_indexes, 1, lwe_array_out, accumulator, bsk, ksk, 1,
+          lut);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_out, accumulator, bsk, ksk,
-          num_chunks, lut);
+          streams, gpu_indexes, 1, tmp_out, accumulator, bsk, ksk, num_chunks,
+          lut);
     }
   }
 }
@@ -583,15 +582,14 @@ __host__ void host_integer_radix_difference_check_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_comparison_check_kb(
-    cudaStream_t stream, uint32_t gpu_index,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_comparison_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, COMPARISON_TYPE op, bool is_signed,
     bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
-  *mem_ptr = new int_comparison_buffer<Torus>(stream, gpu_index, op, params,
-                                              num_radix_blocks, is_signed,
-                                              allocate_gpu_memory);
+  *mem_ptr = new int_comparison_buffer<Torus>(streams, gpu_indexes, gpu_count,
+                                              op, params, num_radix_blocks,
+                                              is_signed, allocate_gpu_memory);
 }
 
 template <typename Torus>

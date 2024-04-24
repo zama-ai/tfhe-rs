@@ -269,6 +269,7 @@ __host__ void execute_tbc_external_product_loop(
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
     uint32_t lwe_chunk_size, uint32_t max_shared_memory, int lwe_offset) {
 
+  cudaSetDevice(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
           Torus>(polynomial_size, max_shared_memory);

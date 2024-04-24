@@ -92,13 +92,13 @@ __host__ void host_integer_radix_cmux_kb(
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_cmux_kb(
-    cudaStream_t stream, uint32_t gpu_index, int_cmux_buffer<Torus> **mem_ptr,
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_cmux_buffer<Torus> **mem_ptr,
     std::function<Torus(Torus)> predicate_lut_f, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
-  *mem_ptr =
-      new int_cmux_buffer<Torus>(stream, gpu_index, predicate_lut_f, params,
-                                 num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr = new int_cmux_buffer<Torus>(streams, gpu_indexes, gpu_count,
+                                        predicate_lut_f, params,
+                                        num_radix_blocks, allocate_gpu_memory);
 }
 #endif

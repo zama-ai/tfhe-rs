@@ -257,8 +257,8 @@ __host__ void scratch_programmable_bootstrap_amortized(
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
     bool allocate_gpu_memory) {
-  cudaSetDevice(gpu_index);
 
+  cudaSetDevice(gpu_index);
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_amortized<Torus>(
           polynomial_size, glwe_dimension);

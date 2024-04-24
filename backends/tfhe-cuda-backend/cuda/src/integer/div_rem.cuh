@@ -164,14 +164,13 @@ template <typename Torus> struct lwe_ciphertext_list {
 };
 
 template <typename Torus>
-__host__ void
-scratch_cuda_integer_div_rem_kb(cudaStream_t stream, uint32_t gpu_index,
-                                int_div_rem_memory<Torus> **mem_ptr,
-                                uint32_t num_blocks, int_radix_params params,
-                                bool allocate_gpu_memory) {
+__host__ void scratch_cuda_integer_div_rem_kb(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_div_rem_memory<Torus> **mem_ptr, uint32_t num_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
 
-  *mem_ptr = new int_div_rem_memory<Torus>(stream, gpu_index, params,
-                                           num_blocks, allocate_gpu_memory);
+  *mem_ptr = new int_div_rem_memory<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
 }
 
 template <typename Torus, class params>

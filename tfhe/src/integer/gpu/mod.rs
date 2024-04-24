@@ -230,8 +230,9 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_scalar_mul_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -266,8 +267,9 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     );
 
     cleanup_cuda_integer_radix_scalar_mul(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -351,8 +353,9 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
@@ -383,8 +386,9 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         num_blocks,
     );
     cleanup_cuda_integer_mult(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -437,8 +441,9 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_bitop_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -469,8 +474,9 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -516,8 +522,9 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_bitop_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -547,8 +554,9 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -604,8 +612,9 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_bitop_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -638,8 +647,9 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         op as u32,
     );
     cleanup_cuda_integer_bitop(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -699,8 +709,9 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_comparison_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -734,8 +745,9 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     );
 
     cleanup_cuda_integer_comparison(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -796,8 +808,9 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_comparison_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -832,8 +845,9 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     );
 
     cleanup_cuda_integer_comparison(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -958,8 +972,9 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     scratch_cuda_propagate_single_carry_kb_64_inplace(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -987,8 +1002,9 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
         num_blocks,
     );
     cleanup_cuda_propagate_single_carry(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1038,8 +1054,9 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1069,8 +1086,9 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1120,8 +1138,9 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1151,8 +1170,9 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1202,8 +1222,9 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1233,8 +1254,9 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         num_blocks,
     );
     cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1290,8 +1312,9 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1322,8 +1345,9 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1376,8 +1400,9 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1408,8 +1433,9 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1465,8 +1491,9 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1497,8 +1524,9 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1554,8 +1582,9 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1586,8 +1615,9 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1651,8 +1681,9 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_cmux_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1683,8 +1714,9 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         num_blocks,
     );
     cleanup_cuda_integer_radix_cmux(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1734,8 +1766,9 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_scalar_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1765,8 +1798,9 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1816,8 +1850,9 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_scalar_rotate_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1847,8 +1882,9 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -1903,8 +1939,9 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -1934,8 +1971,9 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_sum_ciphertexts_vec(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -2002,8 +2040,9 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_radix_overflowing_sub_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -2034,8 +2073,9 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_radix_overflowing_sub(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -2087,8 +2127,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_apply_univariate_lut_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         input_lut.as_ptr().cast(),
         lwe_dimension.0 as u32,
@@ -2117,8 +2158,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         num_blocks,
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
@@ -2155,8 +2197,9 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
 ) {
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -2187,8 +2230,9 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
         num_blocks,
     );
     cleanup_cuda_integer_div_rem(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }
