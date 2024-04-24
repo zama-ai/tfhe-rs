@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::{
-    random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
-    ExpectedNoiseLevels, MAX_VEC_LEN, NB_CTXT, NB_TESTS,
+    nb_tests_for_params, random_non_zero_value, unsigned_modulus, CpuFunctionExecutor,
+    ExpectedDegrees, ExpectedNoiseLevels, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::server_key::MatchValues;
 use crate::integer::tests::create_parametrized_test;
@@ -360,6 +360,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -405,15 +407,15 @@ where
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
-    const HALVED_NB_TEST: usize = if NB_TESTS > 1 { NB_TESTS / 2 } else { 0 };
+    let halved_nb_test: usize = if nb_tests > 1 { nb_tests / 2 } else { 0 };
 
     let mut lut = Vec::with_capacity(modulus as usize);
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         lut.clear();
 
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
-        let occurrence_count = if i < HALVED_NB_TEST { 0 } else { 1 };
+        let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
@@ -441,7 +443,10 @@ where
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
 
-        assert_eq!(result, expected_result);
+        assert_eq!(
+            result, expected_result,
+            "Invalid match output: for input {clear} and match values: {lut:?}"
+        );
         assert_eq!(is_ok, expected_is_ok);
     }
 }
@@ -454,6 +459,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -475,10 +482,10 @@ where
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
-    const HALVED_NB_TEST: usize = if NB_TESTS > 1 { NB_TESTS / 2 } else { 0 };
+    let halved_nb_test: usize = if nb_tests > 1 { nb_tests / 2 } else { 0 };
 
     let mut lut = Vec::with_capacity(modulus as usize);
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         lut.clear();
 
         let clear = rng.gen_range(0..modulus);
@@ -489,8 +496,8 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
-        let occurrence_count = if i < HALVED_NB_TEST { 0 } else { 1 };
+        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
@@ -520,7 +527,10 @@ where
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
 
-        assert_eq!(result, expected_result);
+        assert_eq!(
+            result, expected_result,
+            "Invalid match output: for input {clear} and match values: {lut:?}"
+        );
         assert_eq!(is_ok, expected_is_ok);
     }
 }
@@ -530,6 +540,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -575,16 +587,16 @@ where
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
     let mut lut = Vec::with_capacity(modulus as usize);
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         lut.clear();
 
         let clear = rng.gen_range(0..modulus);
         let clear_default = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
-        let occurrence_count = if i < HALVED_NB_TEST { 0 } else { 1 };
+        let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
@@ -618,6 +630,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     sks.set_deterministic_pbs_execution(true);
@@ -640,10 +654,10 @@ where
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
     let mut lut = Vec::with_capacity(modulus as usize);
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         lut.clear();
 
         let clear = rng.gen_range(0..modulus);
@@ -655,7 +669,7 @@ where
         let clear = clear.wrapping_add(clear_0) % modulus;
 
         let clear_default = rng.gen_range(0..modulus);
-        let occurrence_count = if i < HALVED_NB_TEST { 0 } else { 1 };
+        let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
@@ -691,6 +705,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -720,16 +736,16 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -740,7 +756,7 @@ where
             .map(|value| cks.encrypt(value))
             .collect::<Vec<_>>();
 
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, &ct));
 
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
@@ -759,6 +775,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -774,9 +792,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -790,7 +808,7 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -803,7 +821,7 @@ where
         // change one ct of the cts
         make_one_ciphertext_have_carries(&mut clears, &mut cts, &mut rng, &sks, clear, modulus);
 
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, &ct));
 
         let result_2 = executor.execute((&cts, &ct));
@@ -825,6 +843,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -849,16 +869,16 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -868,7 +888,7 @@ where
             .map(|value| cks.encrypt(value))
             .collect::<Vec<_>>();
 
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, clear));
 
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
@@ -886,6 +906,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -901,9 +923,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -917,7 +939,7 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -927,7 +949,7 @@ where
             .map(|value| cks.encrypt(value))
             .collect::<Vec<_>>();
 
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, clear));
 
         let result_2 = executor.execute((&cts, clear));
@@ -948,6 +970,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -972,20 +996,20 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
         let ct = cks.encrypt(clear);
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&ct, &clears));
 
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
@@ -1003,6 +1027,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), BooleanBlock>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1018,9 +1044,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -1034,11 +1060,11 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
         let ct = cks.encrypt(clear);
-        let expected_result = i >= HALVED_NB_TEST;
+        let expected_result = i >= halved_nb_test;
         let result = executor.execute((&ct, &clears));
 
         let result_2 = executor.execute((&ct, &clears));
@@ -1059,6 +1085,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1086,16 +1114,16 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
         let ct = cks.encrypt(clear);
@@ -1103,7 +1131,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
 
         let index: u16 = cks.decrypt(&index);
@@ -1122,6 +1150,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1137,9 +1167,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -1154,7 +1184,7 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -1162,7 +1192,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
 
         let (index_2, is_in_2) = executor.execute((&ct, &clears));
@@ -1185,6 +1215,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1212,12 +1244,12 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
 
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0
         } else {
             rng.gen_range(1..4)
@@ -1229,7 +1261,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
 
         let index: u16 = cks.decrypt(&index);
@@ -1248,6 +1280,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1263,9 +1297,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -1274,7 +1308,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0usize
         } else {
             rng.gen_range(1..4)
@@ -1287,7 +1321,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
 
         let (index_2, is_in_2) = executor.execute((&ct, &clears));
@@ -1313,6 +1347,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1340,16 +1376,16 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -1363,7 +1399,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, &ct_to_find));
 
         let index: u16 = cks.decrypt(&index);
@@ -1385,6 +1421,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1400,9 +1438,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -1416,7 +1454,7 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -1432,7 +1470,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, &ct_to_find));
 
         let (index_2, is_in_2) = executor.execute((&cts, &ct_to_find));
@@ -1455,6 +1493,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1481,16 +1521,16 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -1503,7 +1543,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, clear));
 
         let index: u16 = cks.decrypt(&index);
@@ -1522,6 +1562,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1537,9 +1579,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
 
         let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
@@ -1547,7 +1589,7 @@ where
             &mut rng,
             num_values,
             clear,
-            if i < HALVED_NB_TEST { 0 } else { 1 },
+            if i < halved_nb_test { 0 } else { 1 },
             modulus,
         );
 
@@ -1563,7 +1605,7 @@ where
             .iter()
             .position(|element| *element == clear)
             .unwrap_or(0);
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, clear));
 
         let (index_2, is_in_2) = executor.execute((&cts, clear));
@@ -1589,6 +1631,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1616,11 +1660,11 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0
         } else {
             rng.gen_range(1..4)
@@ -1644,7 +1688,7 @@ where
             .copied()
             .map(|x| cks.encrypt(x))
             .collect::<Vec<_>>();
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, &ct_to_find));
 
         let index: u16 = cks.decrypt(&index);
@@ -1666,6 +1710,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1681,9 +1727,9 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
@@ -1692,7 +1738,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0usize
         } else {
             rng.gen_range(1..4)
@@ -1722,7 +1768,7 @@ where
             .position(|element| *element == clear)
             .unwrap_or(0);
 
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, &ct_to_find));
 
         let (index_2, is_in_2) = executor.execute((&encrypted_values, &ct_to_find));
@@ -1745,6 +1791,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1771,11 +1819,11 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0
         } else {
             rng.gen_range(1..2)
@@ -1798,7 +1846,7 @@ where
             .copied()
             .map(|x| cks.encrypt(x))
             .collect::<Vec<_>>();
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, clear));
 
         let index: u16 = cks.decrypt(&index);
@@ -1817,6 +1865,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
@@ -1832,11 +1882,11 @@ where
 
     // We want to split test in half,
     // one half where the collection contains the element, the other half where it does not
-    const HALVED_NB_TEST: usize = NB_TESTS / 2;
+    let halved_nb_test: usize = nb_tests / 2;
 
-    for i in 0..NB_TESTS {
+    for i in 0..nb_tests {
         let clear = rng.gen_range(0..modulus);
-        let occurrence_count = if i < HALVED_NB_TEST {
+        let occurrence_count = if i < halved_nb_test {
             0
         } else {
             rng.gen_range(1..4)
@@ -1859,7 +1909,7 @@ where
             .copied()
             .map(|x| cks.encrypt(x))
             .collect::<Vec<_>>();
-        let expected_is_in = i >= HALVED_NB_TEST;
+        let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, clear));
 
         let index: u16 = cks.decrypt(&index);

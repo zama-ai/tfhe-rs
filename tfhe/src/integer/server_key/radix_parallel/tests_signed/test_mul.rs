@@ -2,10 +2,11 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
     create_iterator_of_signed_random_pairs, overflowing_mul_under_modulus, random_non_zero_value,
-    signed_add_under_modulus, signed_mul_under_modulus, NB_CTXT, NB_TESTS_SMALLER,
-    NB_TESTS_UNCHECKED,
+    signed_add_under_modulus, signed_mul_under_modulus, NB_CTXT,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    nb_tests_smaller_for_params, nb_unchecked_tests_for_params, CpuFunctionExecutor,
+};
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
@@ -52,6 +53,8 @@ where
 }
 
 fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -63,7 +66,7 @@ fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
     const NB_HARDCODED_VALUES: usize = 3;
-    let mut test_inputs = [(0i64, 0i64); NB_TESTS_SMALLER + NB_HARDCODED_VALUES];
+    let mut test_inputs = vec![(0i64, 0i64); nb_tests_smaller + NB_HARDCODED_VALUES];
     test_inputs[0] = (0i64, -modulus);
     test_inputs[1] = (-modulus, 3);
     test_inputs[2] = (-1, 26);
@@ -102,7 +105,7 @@ fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
@@ -189,6 +192,8 @@ where
         SignedRadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_unchecked_tests = nb_unchecked_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -200,7 +205,7 @@ where
     executor.setup(&cks, sks);
 
     for (clear_0, clear_1) in
-        create_iterator_of_signed_random_pairs::<{ NB_TESTS_UNCHECKED }>(&mut rng, modulus)
+        create_iterator_of_signed_random_pairs(&mut rng, modulus, nb_unchecked_tests)
     {
         let ctxt_0 = cks.encrypt_signed(clear_0);
         let ctxt_1 = cks.encrypt_signed(clear_1);
@@ -220,6 +225,8 @@ where
         SignedRadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -235,7 +242,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -250,7 +257,7 @@ where
         clear = signed_mul_under_modulus(clear_0, clear_1, modulus);
 
         // mul multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
             assert!(ct_res.block_carries_are_empty());
             clear = signed_mul_under_modulus(clear, clear_0, modulus);

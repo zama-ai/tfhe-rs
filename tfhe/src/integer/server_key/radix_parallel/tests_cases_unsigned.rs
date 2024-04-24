@@ -1,5 +1,6 @@
 use super::tests_unsigned::{
-    overflowing_add_under_modulus, overflowing_mul_under_modulus, overflowing_sub_under_modulus,
+    nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
+    overflowing_mul_under_modulus, overflowing_sub_under_modulus,
     overflowing_sum_slice_under_modulus, random_non_zero_value, rotate_left_helper,
     rotate_right_helper,
 };
@@ -12,20 +13,6 @@ use crate::integer::{
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
-
-/// Number of loop iteration within randomized tests
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS: usize = 30;
-/// Smaller number of loop iteration within randomized test,
-/// meant for test where the function tested is more expensive
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS_SMALLER: usize = 10;
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS: usize = 1;
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS_SMALLER: usize = 1;
 
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
@@ -71,6 +58,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -82,7 +71,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -105,6 +94,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -118,7 +109,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % block_modulus;
 
@@ -182,6 +173,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -195,7 +188,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -239,6 +232,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -252,7 +247,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -295,6 +290,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -308,7 +305,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -348,6 +345,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -361,7 +360,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -401,6 +400,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -414,7 +415,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -458,6 +459,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -471,7 +474,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -514,6 +517,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -527,7 +532,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -567,6 +572,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -580,7 +587,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -624,6 +631,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -635,7 +644,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -658,6 +667,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -669,7 +680,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -746,6 +757,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -758,7 +771,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -812,6 +825,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -824,7 +839,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -888,7 +903,8 @@ where
         RadixCiphertext,
     >,
 {
-    let param: PBSParameters = param.into();
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -900,7 +916,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -911,7 +927,7 @@ where
         let mut clear = clear1;
 
         res = executor.execute((&mut res, &mut ctxt_2));
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             res = executor.execute((&mut res, &mut ctxt_2));
             clear = (clear * clear2) % modulus;
         }
@@ -936,6 +952,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -948,7 +966,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % block_modulus;
@@ -967,7 +985,7 @@ where
         res = executor.execute((&mut res, &mut ctxt_2, index));
         clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             res = executor.execute((&mut res, &mut ctxt_2, index));
             clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
         }
@@ -985,6 +1003,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -998,7 +1018,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1009,7 +1029,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1031,6 +1051,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1044,7 +1066,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1055,7 +1077,7 @@ where
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1078,6 +1100,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1091,7 +1115,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1102,7 +1126,7 @@ where
 
         clear = (clear_0 ^ clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1125,6 +1149,8 @@ where
         (RadixCiphertext, RadixCiphertext),
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1136,7 +1162,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TESTS_SMALLER {
+    for i in 0..nb_tests_smaller {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1167,6 +1193,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1178,7 +1206,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TESTS_SMALLER {
+    for i in 0..nb_tests_smaller {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1206,6 +1234,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1217,7 +1247,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TESTS_SMALLER {
+    for i in 0..nb_tests_smaller {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1246,6 +1276,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1259,7 +1291,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1269,7 +1301,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&mut ct_res, clear_1));
             clear = (clear + clear_1) % modulus;
 
@@ -1285,6 +1317,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -1299,7 +1333,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1309,7 +1343,7 @@ where
         clear = (clear_0 - clear_1) % modulus;
 
         // Sub multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&mut ct_res, clear_1));
             clear = (clear - clear_1) % modulus;
 
@@ -1325,6 +1359,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -1336,7 +1372,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % modulus;
 
@@ -1383,6 +1419,8 @@ pub(crate) fn integer_default_unsigned_overflowing_sum_ciphertexts_test<P>(param
 where
     P: Into<PBSParameters>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1392,7 +1430,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -1437,7 +1475,7 @@ where
 
     // Tests on trivial ciphertexts
     for len in [3, 4, 64] {
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -1482,6 +1520,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1495,7 +1535,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -1507,7 +1547,7 @@ where
 
         res = executor.execute((&res, &ctxt_2));
         assert!(res.block_carries_are_empty());
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&res, &ctxt_2));
             res = executor.execute((&res, &ctxt_2));
             assert!(res.block_carries_are_empty());
@@ -1549,6 +1589,8 @@ where
         (RadixCiphertext, BooleanBlock),
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1562,7 +1604,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1594,7 +1636,7 @@ where
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             // Add non-zero scalar to have non-clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
@@ -1674,6 +1716,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -1685,7 +1729,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -1704,6 +1748,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -1716,7 +1762,7 @@ where
     executor.setup(&cks, sks);
 
     let mut clear;
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1727,7 +1773,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -1746,6 +1792,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -1759,7 +1807,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1770,7 +1818,7 @@ where
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
             let ctxt_2 = cks.encrypt(clear_2);
             ct_res = executor.execute((&ct_res, &ctxt_2));
@@ -1787,6 +1835,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
@@ -1799,7 +1849,7 @@ where
     executor.setup(&cks, sks);
 
     let mut clear;
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1809,7 +1859,7 @@ where
 
         clear = clear_0 ^ clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -1828,6 +1878,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1843,7 +1895,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1855,7 +1907,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -1877,6 +1929,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1892,7 +1946,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1904,7 +1958,7 @@ where
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -1926,6 +1980,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1941,7 +1997,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1953,7 +2009,7 @@ where
 
         clear = clear_0 ^ clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -1975,6 +2031,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1988,7 +2046,7 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -2013,6 +2071,8 @@ where
         (RadixCiphertext, RadixCiphertext),
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2041,7 +2101,7 @@ where
         assert_eq!(q, modulus - 1);
     }
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2074,6 +2134,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2087,7 +2149,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2117,6 +2179,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2130,7 +2194,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2170,6 +2234,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2185,7 +2251,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2197,7 +2263,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&ct_res, clear_1));
             ct_res = executor.execute((&ct_res, clear_1));
             assert!(ct_res.block_carries_are_empty());
@@ -2215,6 +2281,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2228,7 +2296,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2259,7 +2327,7 @@ where
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_rhs = random_non_zero_value(&mut rng, modulus);
@@ -2357,6 +2425,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2372,7 +2442,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2384,7 +2454,7 @@ where
         clear = (clear_0.wrapping_sub(clear_1)) % modulus;
 
         // Sub multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&ct_res, clear_1));
             ct_res = executor.execute((&ct_res, clear_1));
             assert!(ct_res.block_carries_are_empty());
@@ -2402,6 +2472,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2415,7 +2487,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2446,7 +2518,7 @@ where
         assert_eq!(result_overflowed.0.degree.get(), 1);
         assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_rhs = random_non_zero_value(&mut rng, modulus);
@@ -2544,6 +2616,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2556,7 +2630,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % modulus;
 
@@ -2581,6 +2655,8 @@ where
         RadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2596,7 +2672,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % block_modulus;
@@ -2612,7 +2688,7 @@ where
         let mut res = ctxt_1.clone();
         let mut clear = clear1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&res, &ctxt_2, index));
             res = executor.execute((&res, &ctxt_2, index));
             assert!(res.block_carries_are_empty());
@@ -2658,6 +2734,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2673,7 +2751,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2690,7 +2768,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -2710,6 +2788,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2725,7 +2805,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2741,7 +2821,7 @@ where
         assert!(ct_res.block_carries_are_empty());
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -2761,6 +2841,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2776,7 +2858,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2792,7 +2874,7 @@ where
         assert!(ct_res.block_carries_are_empty());
         clear = (clear_0 ^ clear_1) % modulus;
 
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -2812,6 +2894,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2825,7 +2909,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -2870,6 +2954,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2884,7 +2970,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
-    for _ in 0..NB_TESTS_SMALLER {
+    for _ in 0..nb_tests_smaller {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -2933,6 +3019,8 @@ where
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
         + std::panic::UnwindSafe,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let num_block =
@@ -2969,7 +3057,7 @@ where
         assert_eq!(r_res, clear % divisor);
     }
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen_range(1u32..=u32::MAX) as u64;
 
@@ -3263,6 +3351,8 @@ where
     P: Into<PBSParameters>,
     T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((
         cks,
@@ -3283,7 +3373,7 @@ where
     executor.setup(&cks, sks);
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..crate::integer::server_key::radix_parallel::tests_unsigned::NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();

@@ -1,8 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    FunctionExecutor, NB_CTXT, NB_TESTS,
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    nb_tests_for_params, CpuFunctionExecutor,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
@@ -51,6 +51,8 @@ where
         SignedRadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -68,7 +70,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
         let clear_condition = rng.gen_range(0i64..1);
@@ -179,6 +181,8 @@ where
         SignedRadixCiphertext,
     >,
 {
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -194,7 +198,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TESTS {
+    for _ in 0..nb_tests {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
         let clear_condition = rng.gen_range(0u64..1);

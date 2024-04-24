@@ -699,9 +699,11 @@ pub(crate) mod tests_unsigned {
     use super::*;
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-        FunctionExecutor, NB_CTXT, NB_TESTS_SMALLER,
+        FunctionExecutor, NB_CTXT,
     };
-    use crate::integer::server_key::radix_parallel::tests_unsigned::random_non_zero_value;
+    use crate::integer::server_key::radix_parallel::tests_unsigned::{
+        nb_tests_smaller_for_params, random_non_zero_value,
+    };
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     use crate::shortint::PBSParameters;
     use rand::Rng;
@@ -716,6 +718,8 @@ pub(crate) mod tests_unsigned {
         P: Into<PBSParameters>,
         T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -759,7 +763,7 @@ pub(crate) mod tests_unsigned {
 
         let input_values = [0u64, modulus - 1]
             .into_iter()
-            .chain((0..NB_TESTS_SMALLER).map(|_| rng.gen::<u64>() % modulus))
+            .chain((0..nb_tests_smaller).map(|_| rng.gen::<u64>() % modulus))
             .collect::<Vec<_>>();
 
         for clear in input_values {
@@ -778,7 +782,7 @@ pub(crate) mod tests_unsigned {
              expected {expected_result}, got {decrypted_result}"
             );
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 let clear_2 = random_non_zero_value(&mut rng, modulus);
 
@@ -805,7 +809,7 @@ pub(crate) mod tests_unsigned {
 
         let input_values = [0u64, modulus - 1]
             .into_iter()
-            .chain((0..NB_TESTS_SMALLER).map(|_| rng.gen::<u64>() % modulus));
+            .chain((0..nb_tests_smaller).map(|_| rng.gen::<u64>() % modulus));
 
         for clear in input_values {
             let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
@@ -862,6 +866,8 @@ pub(crate) mod tests_unsigned {
         P: Into<PBSParameters>,
         T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -901,7 +907,7 @@ pub(crate) mod tests_unsigned {
         let input_values = (0..num_bits)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -922,7 +928,7 @@ pub(crate) mod tests_unsigned {
              expected {expected_result}, got {decrypted_result}"
             );
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 // But here, we have to make sure clear is still > 0
                 // as we are only testing valid ilog2 inputs
@@ -956,7 +962,7 @@ pub(crate) mod tests_unsigned {
         let input_values = (0..num_bits)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -985,6 +991,8 @@ pub(crate) mod tests_unsigned {
         P: Into<PBSParameters>,
         T: for<'a> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1027,7 +1035,7 @@ pub(crate) mod tests_unsigned {
         let input_values = (0..num_bits)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -1051,7 +1059,7 @@ pub(crate) mod tests_unsigned {
             let is_ok = cks.decrypt_bool(&is_ok);
             assert!(is_ok);
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 // But here, we have to make sure clear is still > 0
                 // as we are only testing valid ilog2 inputs
@@ -1088,7 +1096,7 @@ pub(crate) mod tests_unsigned {
         let input_values = (0..num_bits)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -1120,7 +1128,9 @@ pub(crate) mod tests_signed {
     use crate::integer::server_key::radix_parallel::tests_signed::{
         random_non_zero_value, signed_add_under_modulus,
     };
-    use crate::integer::server_key::radix_parallel::tests_unsigned::{NB_CTXT, NB_TESTS_SMALLER};
+    use crate::integer::server_key::radix_parallel::tests_unsigned::{
+        nb_tests_smaller_for_params, NB_CTXT,
+    };
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     use crate::shortint::PBSParameters;
     use rand::Rng;
@@ -1134,6 +1144,8 @@ pub(crate) mod tests_signed {
         P: Into<PBSParameters>,
         F: for<'a> Fn(&'a ServerKey, &'a SignedRadixCiphertext) -> RadixCiphertext,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1174,7 +1186,7 @@ pub(crate) mod tests_signed {
 
         let input_values = [-modulus, 0i64, modulus - 1]
             .into_iter()
-            .chain((0..NB_TESTS_SMALLER).map(|_| rng.gen::<i64>() % modulus))
+            .chain((0..nb_tests_smaller).map(|_| rng.gen::<i64>() % modulus))
             .collect::<Vec<_>>();
 
         for clear in input_values {
@@ -1193,7 +1205,7 @@ pub(crate) mod tests_signed {
                 expected {expected_result}, got {decrypted_result}"
             );
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 let clear_2 = random_non_zero_value(&mut rng, modulus);
 
@@ -1220,7 +1232,7 @@ pub(crate) mod tests_signed {
 
         let input_values = [-modulus, 0i64, modulus - 1]
             .into_iter()
-            .chain((0..NB_TESTS_SMALLER).map(|_| rng.gen::<i64>() % modulus));
+            .chain((0..nb_tests_smaller).map(|_| rng.gen::<i64>() % modulus));
 
         for clear in input_values {
             let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
@@ -1290,6 +1302,8 @@ pub(crate) mod tests_signed {
     where
         P: Into<PBSParameters>,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1333,7 +1347,7 @@ pub(crate) mod tests_signed {
         let input_values = (0..num_bits - 1)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -1354,7 +1368,7 @@ pub(crate) mod tests_signed {
                 expected {expected_result}, got {decrypted_result}"
             );
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 // But here, we have to make sure clear is still > 0
                 // as we are only testing valid ilog2 inputs
@@ -1388,7 +1402,7 @@ pub(crate) mod tests_signed {
         let input_values = (0..num_bits - 1)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -1416,6 +1430,8 @@ pub(crate) mod tests_signed {
     where
         P: Into<PBSParameters>,
     {
+        let param = param.into();
+        let nb_tests_smaller = nb_tests_smaller_for_params(param);
         let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
         let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1461,7 +1477,7 @@ pub(crate) mod tests_signed {
         let input_values = (0..num_bits - 1)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();
@@ -1485,7 +1501,7 @@ pub(crate) mod tests_signed {
             let is_ok = cks.decrypt_bool(&is_ok);
             assert!(is_ok);
 
-            for _ in 0..NB_TESTS_SMALLER {
+            for _ in 0..nb_tests_smaller {
                 // Add non-zero scalar to have non-clean ciphertexts
                 // But here, we have to make sure clear is still > 0
                 // as we are only testing valid ilog2 inputs
@@ -1522,7 +1538,7 @@ pub(crate) mod tests_signed {
         let input_values = (0..num_bits - 1)
             .map(|i| 1 << i)
             .chain(
-                (0..NB_TESTS_SMALLER.saturating_sub(num_bits as usize))
+                (0..nb_tests_smaller.saturating_sub(num_bits as usize))
                     .map(|_| rng.gen_range(1..modulus)),
             )
             .collect::<Vec<_>>();

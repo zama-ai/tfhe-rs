@@ -29,35 +29,67 @@ use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
 
-/// Number of loop iteration within randomized tests
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS: usize = 30;
-/// Smaller number of loop iteration within randomized test,
-/// meant for test where the function tested is more expensive
-#[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS_SMALLER: usize = 10;
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS: usize = 1;
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS_SMALLER: usize = 1;
-
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
 #[cfg(tarpaulin)]
 pub(crate) const NB_CTXT: usize = 2;
 
 #[cfg(not(tarpaulin))]
-pub(crate) const NB_TESTS_UNCHECKED: usize = NB_TESTS;
-/// Unchecked test cases needs a minimum number of tests of 4 in order to provide guarantees.
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS_UNCHECKED: usize = 4;
-
-#[cfg(not(tarpaulin))]
 pub(crate) const MAX_VEC_LEN: usize = 25;
 #[cfg(tarpaulin)]
 pub(crate) const MAX_VEC_LEN: usize = 5;
+
+pub(crate) const fn nb_unchecked_tests_for_params(params: PBSParameters) -> usize {
+    nb_tests_for_params(params)
+}
+
+/// Returns th number of loop iteration within randomized tests
+///
+/// The bigger the number of bits bootstrapped by the input parameters, the smaller the
+/// number of iteration is
+pub(crate) const fn nb_tests_for_params(params: PBSParameters) -> usize {
+    let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
+
+    if cfg!(tarpaulin) {
+        // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to
+        // code instrumentation
+        1
+    } else {
+        // >= 8 bits (4_4)
+        if full_modulus >= 1 << 8 {
+            return 5;
+        }
+
+        // >= 6 bits (3_3)
+        if full_modulus >= 1 << 6 {
+            return 15;
+        }
+
+        30
+    }
+}
+
+/// Smaller number of loop iteration within randomized test,
+/// meant for test where the function tested is more expensive
+pub(crate) const fn nb_tests_smaller_for_params(params: PBSParameters) -> usize {
+    let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
+
+    if cfg!(tarpaulin) {
+        1
+    } else {
+        // >= 8 bits (4_4)
+        if full_modulus >= 1 << 8 {
+            return 2;
+        }
+
+        // >= 6 bits (3_3)
+        if full_modulus >= 1 << 6 {
+            return 5;
+        }
+
+        10
+    }
+}
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
@@ -779,6 +811,8 @@ fn integer_smart_sum_ciphertexts_slice<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -788,7 +822,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TESTS_SMALLER {
+        for _ in 0..nb_tests_smaller {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
