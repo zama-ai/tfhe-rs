@@ -256,11 +256,11 @@ mod cuda {
                 CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &streams);
 
             let h_indexes = &[Scalar::ZERO];
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &streams, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams, 0);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams, 0);
             }
             streams.synchronize();
 

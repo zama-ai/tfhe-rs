@@ -29,7 +29,7 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
         let ciphertext_modulus = h_ksk.ciphertext_modulus();
 
         // Allocate memory
-        let mut d_vec = CudaVec::<T>::new(
+        let mut d_vec = CudaVec::<T>::new_multi_gpu(
             input_lwe_size.to_lwe_dimension().0
                 * lwe_keyswitch_key_input_key_element_encrypted_size(
                     decomp_level_count,

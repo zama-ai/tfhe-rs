@@ -228,6 +228,7 @@ extern "C" {
         num_lut_vectors: u32,
         lwe_idx: u32,
         max_shared_memory: u32,
+        gpu_offset: u32,
     );
 
     /// This cleanup function frees the data for the low latency PBS on GPU
@@ -315,6 +316,7 @@ extern "C" {
         num_lut_vectors: u32,
         lwe_idx: u32,
         max_shared_memory: u32,
+        gpu_offset: u32,
         lwe_chunk_size: u32,
     );
 
@@ -356,6 +358,7 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        gpu_offset: u32,
     );
 
     /// Perform the negation of a u64 input LWE ciphertext vector.
@@ -494,8 +497,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_integer_mult_radix_ciphertext_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         message_modulus: u32,
         carry_modulus: u32,
@@ -520,14 +524,19 @@ extern "C" {
         radix_lwe_out: *mut c_void,
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         mem_ptr: *mut i8,
         polynomial_size: u32,
         num_blocks: u32,
     );
 
-    pub fn cleanup_cuda_integer_mult(stream: *mut c_void, gpu_index: u32, mem_ptr: *mut *mut i8);
+    pub fn cleanup_cuda_integer_mult(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
 
     pub fn cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams: *const *mut c_void,
@@ -542,8 +551,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_integer_scalar_mul_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -568,8 +578,8 @@ extern "C" {
         decomposed_scalar: *const u64,
         has_at_least_one_set: *const u64,
         mem: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         lwe_dimension: u32,
         polynomial_size: u32,
         message_modulus: u32,
@@ -578,14 +588,16 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_radix_scalar_mul(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_bitop_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -612,8 +624,8 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -624,8 +636,8 @@ extern "C" {
         radix_lwe_out: *mut c_void,
         radix_lwe_in: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -638,17 +650,23 @@ extern "C" {
         clear_blocks: *const c_void,
         num_clear_blocks: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
         op_type: u32,
     );
 
-    pub fn cleanup_cuda_integer_bitop(stream: *mut c_void, gpu_index: u32, mem_ptr: *mut *mut i8);
+    pub fn cleanup_cuda_integer_bitop(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
 
     pub fn scratch_cuda_integer_radix_comparison_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -676,14 +694,15 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_comparison(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
@@ -695,8 +714,8 @@ extern "C" {
         radix_lwe_in: *const c_void,
         scalar_blocks: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
         num_scalar_blocks: u32,
     );
@@ -723,8 +742,8 @@ extern "C" {
         gpu_count: u32,
         radix_lwe_right: *mut c_void,
         mem_ptr: *mut i8,
-        ksk: *const c_void,
-        bsk: *const c_void,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
         lwe_dimension: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -743,8 +762,9 @@ extern "C" {
     );
 
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         input_lut: *const c_void,
         lwe_dimension: u32,
@@ -769,20 +789,22 @@ extern "C" {
         output_radix_lwe: *mut c_void,
         input_radix_lwe: *const c_void,
         mem_ptr: *mut i8,
-        ksk: *const c_void,
-        bsk: *const c_void,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_apply_univariate_lut_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -808,14 +830,15 @@ extern "C" {
         radix_lwe: *mut c_void,
         shift: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -841,26 +864,29 @@ extern "C" {
         radix_lwe: *mut c_void,
         shift: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_logical_scalar_shift(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn cleanup_cuda_integer_radix_arithmetic_scalar_shift(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_shift_and_rotate_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -887,20 +913,22 @@ extern "C" {
         radix_lwe: *mut c_void,
         radix_shift: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_shift_and_rotate(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_cmux_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -927,20 +955,22 @@ extern "C" {
         lwe_array_true: *const c_void,
         lwe_array_false: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_cmux(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_scalar_rotate_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -966,20 +996,22 @@ extern "C" {
         radix_lwe: *mut c_void,
         n: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_scalar_rotate(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_propagate_single_carry_kb_64_inplace(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1004,20 +1036,22 @@ extern "C" {
         radix_lwe: *mut c_void,
         carry_out: *mut c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_propagate_single_carry(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1043,20 +1077,22 @@ extern "C" {
         radix_lwe_vec: *mut c_void,
         num_radix_in_vec: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks_in_radix: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_sum_ciphertexts_vec(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_radix_overflowing_sub_kb_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1083,20 +1119,22 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_radix_overflowing_sub(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
     pub fn scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
-        stream: *const c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -1123,14 +1161,15 @@ extern "C" {
         numerator: *const c_void,
         divisor: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_integer_div_rem(
-        stream: *const c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 

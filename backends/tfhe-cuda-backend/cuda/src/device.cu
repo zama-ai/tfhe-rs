@@ -6,7 +6,7 @@
 cudaStream_t cuda_create_stream(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
   cudaStream_t stream;
-  check_cuda_error(cudaStreamCreate(&stream));
+  check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   return stream;
 }
 
@@ -47,9 +47,7 @@ void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
       &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
   if (support_async_alloc) {
-    cuda_synchronize_stream(stream, gpu_index);
     check_cuda_error(cudaMallocAsync((void **)&ptr, size, stream));
-    cuda_synchronize_stream(stream, gpu_index);
   } else {
     check_cuda_error(cudaMalloc((void **)&ptr, size));
   }
@@ -121,21 +119,22 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
     return;
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
-  if (attr_dest.device != gpu_index && attr_dest.type != cudaMemoryTypeDevice) {
+  if (attr_dest.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid dest device pointer in copy from GPU to GPU.")
   }
   cudaPointerAttributes attr_src;
   check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
-  if (attr_src.device != gpu_index && attr_src.type != cudaMemoryTypeDevice) {
+  if (attr_src.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
   }
-  if (attr_src.device != attr_dest.device) {
-    PANIC("Cuda error: different devices specified in copy from GPU to GPU.")
-  }
-
   check_cuda_error(cudaSetDevice(gpu_index));
-  check_cuda_error(
-      cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
+  if (attr_src.device == attr_dest.device) {
+    check_cuda_error(
+        cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
+  } else {
+    check_cuda_error(cudaMemcpyPeerAsync(dest, attr_dest.device, src,
+                                         attr_src.device, size, stream));
+  }
 }
 
 /// Synchronizes device

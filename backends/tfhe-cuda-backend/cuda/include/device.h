@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
+#include <vector>
 
 #define synchronize_threads_in_block() __syncthreads()
 extern "C" {
