@@ -192,7 +192,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         lut->lwe_trivial_indexes + i * index_shift,
         lwe_array_pbs_in + big_lwe_start_index, lut->lwe_trivial_indexes, ksk,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-        num_radix_blocks);
+        num_blocks_on_gpu);
   }
 
   execute_pbs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
@@ -200,7 +200,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
                      lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, bsk,
                      lut->buffer, glwe_dimension, small_lwe_dimension,
                      polynomial_size, pbs_base_log, pbs_level, grouping_factor,
-                     num_radix_blocks, 1, 0,
+                     num_blocks_on_gpu, 1, 0,
                      cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
 }
 

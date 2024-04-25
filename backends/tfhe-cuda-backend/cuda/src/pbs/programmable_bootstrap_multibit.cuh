@@ -485,7 +485,6 @@ __host__ void execute_compute_keybundle(
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
     uint32_t max_shared_memory, uint32_t lwe_chunk_size, int lwe_offset) {
 
-  cudaSetDevice(gpu_index);
   uint32_t chunk_size =
       std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
 
@@ -532,7 +531,6 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index, Torus *lut_vector,
                  uint32_t base_log, uint32_t level_count,
                  uint32_t max_shared_memory, int j, int lwe_offset) {
 
-  cudaSetDevice(gpu_index);
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<Torus>(
           polynomial_size);
@@ -591,8 +589,6 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<Torus>(
           polynomial_size);
 
-  cudaSetDevice(gpu_index);
-  //
   auto d_mem = buffer->d_mem_acc_step_two;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
