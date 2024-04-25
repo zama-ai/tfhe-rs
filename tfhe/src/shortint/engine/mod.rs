@@ -3,6 +3,8 @@
 //! Engines are required to abstract cryptographic notions and efficiently manage memory from the
 //! underlying `core_crypto` module.
 
+use super::parameters::LweDimension;
+use super::CiphertextModulus;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
@@ -41,13 +43,14 @@ struct Memory {
 }
 
 impl Memory {
-    fn as_buffers(&mut self, server_key: &ServerKey) -> BuffersRef<'_> {
-        let num_elem_in_lwe_after_ks = server_key.key_switching_key.output_lwe_size().0;
-        let num_elem_in_lwe_after_pbs = server_key
-            .bootstrapping_key
-            .output_lwe_dimension()
-            .to_lwe_size()
-            .0;
+    fn as_buffers(
+        &mut self,
+        in_dim: LweDimension,
+        out_dim: LweDimension,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> BuffersRef<'_> {
+        let num_elem_in_lwe_after_ks = in_dim.to_lwe_size().0;
+        let num_elem_in_lwe_after_pbs = out_dim.to_lwe_size().0;
 
         let total_elem_needed = num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
 
@@ -62,9 +65,9 @@ impl Memory {
             all_elements.split_at_mut(num_elem_in_lwe_after_ks);
 
         let buffer_lwe_after_ks =
-            LweCiphertextMutView::from_container(after_ks_elements, server_key.ciphertext_modulus);
+            LweCiphertextMutView::from_container(after_ks_elements, ciphertext_modulus);
         let buffer_lwe_after_pbs =
-            LweCiphertextMutView::from_container(after_pbs_elements, server_key.ciphertext_modulus);
+            LweCiphertextMutView::from_container(after_pbs_elements, ciphertext_modulus);
 
         BuffersRef {
             buffer_lwe_after_ks,
@@ -343,7 +346,27 @@ impl ShortintEngine {
         server_key: &ServerKey,
     ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
         (
-            self.ciphertext_buffers.as_buffers(server_key),
+            self.ciphertext_buffers.as_buffers(
+                server_key
+                    .key_switching_key
+                    .output_lwe_size()
+                    .to_lwe_dimension(),
+                server_key.bootstrapping_key.output_lwe_dimension(),
+                server_key.ciphertext_modulus,
+            ),
+            &mut self.computation_buffers,
+        )
+    }
+
+    pub fn get_buffers_no_sk(
+        &mut self,
+        in_dim: LweDimension,
+        out_dim: LweDimension,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
+        (
+            self.ciphertext_buffers
+                .as_buffers(in_dim, out_dim, ciphertext_modulus),
             &mut self.computation_buffers,
         )
     }
