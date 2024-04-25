@@ -67,6 +67,7 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
           num_inputs_on_gpu = input_lwe_ciphertext_count / gpu_count +
                               input_lwe_ciphertext_count % gpu_count;
 
+        printf("Here before pbs, gpu_index: %d, stream: %p", gpu_indexes[i], streams[i]);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], lwe_array_out + output_lwe_start_index,
             lwe_output_indexes + i * base_num_inputs, lut_vector,
