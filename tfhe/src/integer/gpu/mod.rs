@@ -1,6 +1,7 @@
 pub mod ciphertext;
 pub mod server_key;
 
+use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{get_max_shared_memory, CudaStreams};
 use crate::core_crypto::prelude::{
@@ -11,7 +12,6 @@ use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
-use std::ffi::c_void;
 use tfhe_cuda_backend::cuda_bind::*;
 
 #[repr(u32)]
@@ -177,7 +177,7 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         lwe_array.as_mut_c_ptr(),
         scalar_input.as_c_ptr(),
         lwe_dimension.0 as u32,
@@ -251,7 +251,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         lwe_array.as_mut_c_ptr(),
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
@@ -372,7 +372,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     cuda_integer_mult_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_lwe_left.as_c_ptr(),
         radix_lwe_right.as_c_ptr(),
@@ -459,7 +459,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     cuda_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_lwe_left.as_c_ptr(),
         radix_lwe_right.as_c_ptr(),
@@ -538,7 +538,7 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
     cuda_bitnot_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_lwe_left.as_c_ptr(),
         mem_ptr,
@@ -626,7 +626,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe.as_mut_c_ptr(),
         radix_lwe.as_mut_c_ptr(),
         clear_blocks.as_c_ptr(),
@@ -723,7 +723,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     cuda_comparison_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(),
         radix_lwe_left.as_c_ptr(),
         radix_lwe_right.as_c_ptr(),
@@ -820,7 +820,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(),
         radix_lwe_in.as_c_ptr(),
         scalar_blocks.as_c_ptr(),
@@ -895,7 +895,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     cuda_full_propagation_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(),
         mem_ptr,
         keyswitch_key.as_c_ptr(),
@@ -979,7 +979,7 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
     cuda_propagate_single_carry_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(),
         mem_ptr,
         bootstrapping_key.as_c_ptr(),
@@ -1060,7 +1060,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         shift,
         mem_ptr,
@@ -1142,7 +1142,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         shift,
         mem_ptr,
@@ -1224,7 +1224,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         shift,
         mem_ptr,
@@ -1313,7 +1313,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_shift.as_c_ptr(),
         mem_ptr,
@@ -1399,7 +1399,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_shift.as_c_ptr(),
         mem_ptr,
@@ -1488,7 +1488,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_shift.as_c_ptr(),
         mem_ptr,
@@ -1577,7 +1577,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     cuda_integer_radix_shift_and_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         radix_shift.as_c_ptr(),
         mem_ptr,
@@ -1672,7 +1672,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     cuda_cmux_integer_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_out.as_mut_c_ptr(),
         radix_lwe_condition.as_c_ptr(),
         radix_lwe_true.as_c_ptr(),
@@ -1756,7 +1756,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         n,
         mem_ptr,
@@ -1838,7 +1838,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         radix_lwe_left.as_mut_c_ptr(),
         n,
         mem_ptr,
@@ -1924,7 +1924,7 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
     cuda_integer_radix_sum_ciphertexts_vec_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         result.as_mut_c_ptr(),
         radix_list.as_mut_c_ptr(),
         num_radixes,
@@ -2023,7 +2023,7 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
     cuda_integer_radix_overflowing_sub_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         ct_res.as_mut_c_ptr(),
         ct_overflowed.as_mut_c_ptr(),
         lhs.as_c_ptr(),
@@ -2047,8 +2047,8 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
 /// as soon as synchronization is required
 pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_output: *mut c_void,
-    radix_lwe_input: *const c_void,
+    radix_lwe_output: &mut CudaSliceMut<T>,
+    radix_lwe_input: &CudaSlice<T>,
     input_lut: &[T],
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -2065,6 +2065,16 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_output.gpu_index(),
+        "GPU error: all data should reside on the same GPU."
+    );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(),
@@ -2098,9 +2108,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     cuda_apply_univariate_lut_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
-        radix_lwe_output,
-        radix_lwe_input,
+        streams.len() as u32,
+        radix_lwe_output.as_mut_c_ptr(),
+        radix_lwe_input.as_c_ptr(),
         mem_ptr,
         keyswitch_key.as_c_ptr(),
         bootstrapping_key.as_c_ptr(),

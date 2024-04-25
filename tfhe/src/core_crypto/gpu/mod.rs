@@ -17,10 +17,12 @@ pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<u32>,
-    pub len: usize,
 }
 
 impl CudaStreams {
+    /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine,
+    /// if they are connected via Nvlink. If the multiple GPUs on the machine are not connected
+    /// via Nvlink, this function will panic on the Cuda side.
     pub fn new_multi_gpu() -> Self {
         let gpu_count = setup_multi_gpu();
         let mut gpu_indexes = Vec::with_capacity(gpu_count as usize);
@@ -33,24 +35,42 @@ impl CudaStreams {
         Self {
             ptr: ptr_array,
             gpu_indexes,
-            len: gpu_count as usize,
         }
     }
+    /// Create a new `CudaStreams` structure with one GPU, whose index corresponds to the one given
+    /// as input
     pub fn new_single_gpu(gpu_index: u32) -> Self {
         Self {
             ptr: vec![unsafe { cuda_create_stream(gpu_index) }],
             gpu_indexes: vec![gpu_index],
-            len: 1,
         }
     }
+    /// Synchronize all cuda streams in the `CudaStreams` structure
     pub fn synchronize(&self) {
-        for i in 0..self.len {
+        for i in 0..self.len() {
             unsafe {
                 cuda_synchronize_stream(self.ptr[i], self.gpu_indexes[i]);
             }
         }
     }
+    /// Return the number of GPU indexes, which is the same as the number of Cuda streams
+    pub fn len(&self) -> usize {
+        self.gpu_indexes.len()
+    }
+    /// Returns `true` if the CudaVec contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
+
+/// This structure allows to distinguish between a constant raw pointer that points the
+/// CPU memory vs GPU Memory.
+#[derive(Debug, Copy, Clone)]
+pub struct CudaPtr(pub(crate) *const c_void);
+/// This structure allows to distinguish between a mutable raw pointer that points the
+/// CPU memory vs GPU Memory.
+#[derive(Debug, Copy, Clone)]
+pub struct CudaPtrMut(pub(crate) *mut c_void);
 
 /// Discarding bootstrap on a vector of LWE ciphertexts
 ///
@@ -461,7 +481,7 @@ pub unsafe fn negate_integer_radix_assign_async<T: UnsignedInteger>(
     cuda_negate_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
-        streams.len as u32,
+        streams.len() as u32,
         lwe_array.as_mut_c_ptr(),
         lwe_dimension.0 as u32,
         num_samples,

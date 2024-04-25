@@ -622,8 +622,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     apply_univariate_lut_kb_async(
                         stream,
-                        padding_block.as_mut_c_ptr(),
-                        last_block.as_c_ptr(),
+                        &mut padding_block,
+                        &last_block,
                         padding_block_creator_lut.acc.as_ref(),
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
@@ -646,8 +646,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     apply_univariate_lut_kb_async(
                         stream,
-                        padding_block.as_mut_c_ptr(),
-                        last_block.as_c_ptr(),
+                        &mut padding_block,
+                        &last_block,
                         padding_block_creator_lut.acc.as_ref(),
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,

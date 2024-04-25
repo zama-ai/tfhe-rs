@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::vec::range_bounds_to_start_end;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{CudaPtr, CudaPtrMut, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -7,16 +7,16 @@ use tfhe_cuda_backend::cuda_bind::{cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_asy
 
 #[derive(Debug, Copy, Clone)]
 pub struct CudaSlice<'a, T: Numeric> {
-    ptr: *const c_void,
+    ptr: CudaPtr,
     _len: usize,
-    _gpu_index: u32,
+    gpu_index: u32,
     _phantom_1: PhantomData<T>,
     _phantom_2: PhantomData<&'a ()>,
 }
 
 #[derive(Debug)]
 pub struct CudaSliceMut<'a, T: Numeric> {
-    ptr: *mut c_void,
+    ptr: CudaPtrMut,
     len: usize,
     gpu_index: u32,
     _phantom_1: PhantomData<T>,
@@ -31,11 +31,11 @@ where
     ///
     /// The ptr must be valid for reads for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize, gpu_index: u32) -> Self {
+    pub(crate) unsafe fn new(ptr: *const c_void, len: usize, gpu_index: u32) -> Self {
         Self {
-            ptr,
+            ptr: CudaPtr(ptr),
             _len: len,
-            _gpu_index: gpu_index,
+            gpu_index,
             _phantom_1: PhantomData,
             _phantom_2: PhantomData,
         }
@@ -46,7 +46,10 @@ where
     /// The caller must ensure that the slice outlives the pointer this function returns,
     /// or else it will end up pointing to garbage.
     pub(crate) unsafe fn as_c_ptr(&self) -> *const c_void {
-        self.ptr
+        self.ptr.0
+    }
+    pub(crate) fn gpu_index(&self) -> u32 {
+        self.gpu_index
     }
 }
 
@@ -58,9 +61,9 @@ where
     ///
     /// The ptr must be valid for reads and writes for len * std::mem::size_of::<T> bytes on
     /// the cuda side.
-    pub(crate) unsafe fn new(ptr: CudaPtr, len: usize, gpu_index: u32) -> Self {
+    pub(crate) unsafe fn new(ptr: *mut c_void, len: usize, gpu_index: u32) -> Self {
         Self {
-            ptr,
+            ptr: CudaPtrMut(ptr),
             len,
             gpu_index,
             _phantom_1: PhantomData,
@@ -73,7 +76,7 @@ where
     /// The caller must ensure that the slice outlives the pointer this function returns,
     /// or else it will end up pointing to garbage.
     pub(crate) unsafe fn as_mut_c_ptr(&mut self) -> *mut c_void {
-        self.ptr
+        self.ptr.0
     }
 
     /// # Safety
@@ -81,7 +84,7 @@ where
     /// The caller must ensure that the slice outlives the pointer this function returns,
     /// or else it will end up pointing to garbage.
     pub(crate) unsafe fn as_c_ptr(&self) -> *const c_void {
-        self.ptr.cast_const()
+        self.ptr.0.cast_const()
     }
 
     /// Copies data between two `CudaSlice`
@@ -160,6 +163,7 @@ where
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
+                    .0
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
@@ -186,11 +190,11 @@ where
         } else if mid == 0 {
             (
                 None,
-                Some(unsafe { CudaSliceMut::new(self.ptr, self.len, self.gpu_index) }),
+                Some(unsafe { CudaSliceMut::new(self.ptr.0, self.len, self.gpu_index) }),
             )
         } else if mid == self.len - 1 {
             (
-                Some(unsafe { CudaSliceMut::new(self.ptr, self.len, self.gpu_index) }),
+                Some(unsafe { CudaSliceMut::new(self.ptr.0, self.len, self.gpu_index) }),
                 None,
             )
         } else {
@@ -199,6 +203,7 @@ where
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
+                    .0
                     .cast::<u8>()
                     .add(mid * std::mem::size_of::<T>())
                     .cast()
@@ -206,9 +211,12 @@ where
 
             // Create the slice
             (
-                Some(unsafe { CudaSliceMut::new(self.ptr, new_len_1, self.gpu_index) }),
+                Some(unsafe { CudaSliceMut::new(self.ptr.0, new_len_1, self.gpu_index) }),
                 Some(unsafe { CudaSliceMut::new(shifted_ptr, new_len_2, self.gpu_index) }),
             )
         }
+    }
+    pub(crate) fn gpu_index(&self) -> u32 {
+        self.gpu_index
     }
 }

@@ -146,13 +146,8 @@ where
 }
 
 #[cfg(feature = "gpu")]
-fn create_cuda_cell_streams() -> CudaStreams {
-    CudaStreams::new_multi_gpu()
-}
-
-#[cfg(feature = "gpu")]
 thread_local! {
-    static CUDA_STREAMS: std::cell::OnceCell<CudaStreams> = std::cell::OnceCell::from(create_cuda_cell_streams());
+    static CUDA_STREAMS: std::cell::OnceCell<CudaStreams> = std::cell::OnceCell::from(CudaStreams::new_multi_gpu());
 }
 
 #[cfg(feature = "gpu")]
