@@ -27,18 +27,31 @@ where
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
 {
     // Start at 1, the first ggsw is not rotated
-    (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |ggsw_idx| {
-        // Select the proper mask elements to build the monomial degree depending on
-        // the order the GGSW were generated in, using the bits from mask_idx and
-        // ggsw_idx as selector bits
+    (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
         let mut monomial_degree = Scalar::ZERO;
-        for (mask_idx, &mask_element) in lwe_mask_elements.iter().enumerate() {
-            let mask_position = lwe_mask_elements.len() - (mask_idx + 1);
-            let selection_bit: Scalar = Scalar::cast_from((ggsw_idx >> mask_position) & 1);
+        for (&mask_element, selection_bit) in lwe_mask_elements
+            .iter()
+            .zip_eq(selection_bit(grouping_factor, power_set_index))
+        {
+            let selection_bit: Scalar = Scalar::cast_from(selection_bit);
             monomial_degree =
                 monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
         }
         modulus_switch(monomial_degree, ciphertext_modulus_log).cast_into()
+    })
+}
+
+// Returns an iterator of booleans (as usize), corresponding to successive mask group elements
+// to indicate if they must be used at the given power_set_index
+pub(crate) fn selection_bit(
+    grouping_factor: LweBskGroupingFactor,
+    power_set_index: usize,
+) -> impl Iterator<Item = usize> {
+    debug_assert!(power_set_index < grouping_factor.ggsw_per_multi_bit_element().0);
+
+    (0..grouping_factor.0).map(move |mask_idx| {
+        let mask_position = grouping_factor.0 - (mask_idx + 1);
+        (power_set_index >> mask_position) & 1
     })
 }
 
