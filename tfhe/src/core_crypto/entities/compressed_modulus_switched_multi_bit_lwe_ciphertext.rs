@@ -2,6 +2,7 @@ use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
+use itertools::Itertools;
 
 /// An object to store a ciphertext in little memory
 /// The ciphertext is applied a modulus switch as done in the multi bit PBS.
@@ -216,6 +217,7 @@ pub struct CompressedModulusSwitchedMultiBitLweCiphertext<
 > {
     body: usize,
     packed_mask: PackedIntegers<usize>,
+    packed_diffs: Option<PackedIntegers<usize>>,
     lwe_dimension: LweDimension,
     uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
     grouping_factor: LweBskGroupingFactor,
@@ -256,19 +258,96 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         let body = modulus_switch(*input_lwe_body.data, log_modulus).cast_into();
 
-        let switched_modulus_input_mask_per_group: Vec<_> = input_lwe_mask
+        let modulus_switched: Vec<usize> = ct
             .as_ref()
-            .chunks_exact(grouping_factor.0)
-            .flat_map(|lwe_mask_elements| {
-                modulus_switch_multi_bit(log_modulus, grouping_factor, lwe_mask_elements)
-            })
+            .iter()
+            .map(|a| modulus_switch(*a, log_modulus).cast_into())
             .collect();
 
-        let packed_mask = PackedIntegers::pack(&switched_modulus_input_mask_per_group, log_modulus);
+        let mut diffs = vec![];
+
+        for lwe_mask_elements in input_lwe_mask.as_ref().chunks_exact(grouping_factor.0) {
+            for ggsw_idx in 1..grouping_factor.ggsw_per_multi_bit_element().0 {
+                // We need to store the diff sums of more than one element as we store the
+                // individual modulus_switched elements
+                if ggsw_idx.count_ones() == 1 {
+                    continue;
+                }
+
+                let mut sum_then_mod_switched = 0;
+
+                let mut monomial_degree = Scalar::ZERO;
+
+                for (&mask_element, selection_bit) in lwe_mask_elements
+                    .iter()
+                    .zip_eq(selection_bit(grouping_factor, ggsw_idx))
+                {
+                    let selection_bit: Scalar = Scalar::cast_from(selection_bit);
+
+                    monomial_degree =
+                        monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
+
+                    let modulus_switched =
+                        modulus_switch(selection_bit.wrapping_mul(mask_element), log_modulus)
+                            .cast_into();
+
+                    sum_then_mod_switched = sum_then_mod_switched.wrapping_add(modulus_switched);
+                }
+
+                let mod_switched_then_sum: usize =
+                    modulus_switch(monomial_degree, log_modulus).cast_into();
+
+                sum_then_mod_switched %= 1 << log_modulus.0;
+
+                let diff = mod_switched_then_sum.wrapping_sub(sum_then_mod_switched);
+
+                diffs.push(diff);
+            }
+        }
+
+        let packed_mask = PackedIntegers::pack(&modulus_switched, log_modulus);
+
+        let packed_diffs = if diffs.iter().all(|a| *a == 0) {
+            None
+        } else {
+            // We need some space to store integer in 2 complement representation
+            // We must have -half_space <= value < half_space
+            // <=> half_space >= -value and half_space >= value + 1
+            // <=> half_space >= max(-value, value + 1)
+            let half_needed_space = diffs
+                .iter()
+                .map(|a| *a as isize)
+                .map(|a| (a + 1).max(-a))
+                .max()
+                .unwrap() as usize;
+
+            let half_needed_space_ceil_log = half_needed_space.ceil_ilog2();
+
+            let used_space_log = half_needed_space_ceil_log + 1;
+
+            let diffs_two_complement: Vec<usize> = diffs
+                .iter()
+                .map(|a| *a as isize)
+                .map(|a| {
+                    // put into two complement representation on used_space_log bits
+                    if a >= 0 {
+                        a as usize
+                    } else {
+                        ((1_isize << used_space_log) + a) as usize
+                    }
+                })
+                .collect();
+
+            Some(PackedIntegers::pack(
+                &diffs_two_complement,
+                CiphertextModulusLog(used_space_log as usize),
+            ))
+        };
 
         Self {
             body,
             packed_mask,
+            packed_diffs,
             lwe_dimension: ct.lwe_size().to_lwe_dimension(),
             uncompressed_ciphertext_modulus,
             grouping_factor,
@@ -279,11 +358,59 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> FromCompressionMultiBitModulusSwitchedCt {
-        let masks = self.packed_mask.unpack().collect();
+        let masks: Vec<usize> = self.packed_mask.unpack().collect();
+
+        let mut diffs_two_complement: Vec<usize> = vec![];
+
+        if let Some(packed_diffs) = &self.packed_diffs {
+            diffs_two_complement = packed_diffs.unpack().collect()
+        };
+
+        let diffs = |a: usize| {
+            self.packed_diffs.as_ref().map_or(0, |packed_diffs| {
+                let diffs_two_complement: usize = diffs_two_complement[a];
+                let used_space_log = packed_diffs.log_modulus.0;
+                // rebuild from two complement representation on used_space_log bits
+                let used_space = 1 << used_space_log;
+                if diffs_two_complement >= used_space / 2 {
+                    diffs_two_complement.wrapping_sub(used_space)
+                } else {
+                    diffs_two_complement
+                }
+            })
+        };
+
+        let mut diff_index = 0;
+
+        let mut switched_modulus_input_mask_per_group: Vec<usize> = vec![];
+
+        for lwe_mask_elements in masks.chunks_exact(self.grouping_factor.0) {
+            for ggsw_idx in 1..self.grouping_factor.ggsw_per_multi_bit_element().0 {
+                let mut monomial_degree = 0;
+                for (&mask_element, selection_bit) in lwe_mask_elements
+                    .iter()
+                    .zip_eq(selection_bit(self.grouping_factor, ggsw_idx))
+                {
+                    monomial_degree =
+                        monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
+                }
+
+                if ggsw_idx.count_ones() != 1 {
+                    let diff = diffs(diff_index);
+
+                    diff_index += 1;
+
+                    monomial_degree = monomial_degree.wrapping_add(diff);
+                }
+
+                switched_modulus_input_mask_per_group
+                    .push(monomial_degree % (1 << self.packed_mask.log_modulus.0));
+            }
+        }
 
         FromCompressionMultiBitModulusSwitchedCt {
             switched_modulus_input_lwe_body: self.body,
-            switched_modulus_input_mask_per_group: masks,
+            switched_modulus_input_mask_per_group,
             grouping_factor: self.grouping_factor,
             lwe_dimension: self.lwe_dimension,
         }
