@@ -10,13 +10,11 @@ int cuda_setup_multi_gpu() {
   if (num_gpus > 1) {
     int can_access_peer;
     for (int i = 0; i < num_gpus; i++) {
-      cudaSetDevice(i);
       for (int j = 0; i < num_gpus; i++) {
         if (i == j)
           break;
         check_cuda_error(cudaDeviceCanAccessPeer(&can_access_peer, i, j));
-        cudaDeviceEnablePeerAccess(j, 0);
-
+        printf("i: %d, j: %d, can access peer: %d", i, j, can_access_peer);
         if (!can_access_peer)
           PANIC("Multi GPU error: all GPUs should have peer access to GPU each "
                 "other.")
