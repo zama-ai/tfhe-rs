@@ -468,12 +468,12 @@ template <typename Torus> struct int_radix_lut {
 
       // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
       // by default
-      lwe_indexes_in = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
-                                            gpu_indexes[0]);
-      lwe_indexes_out = (Torus *)cuda_malloc(num_radix_blocks * sizeof(Torus),
-                                             gpu_indexes[0]);
-      lwe_trivial_indexes = (Torus *)cuda_malloc(
-          num_radix_blocks * sizeof(Torus), gpu_indexes[0]);
+      lwe_indexes_in = (Torus *)cuda_malloc_async(num_radix_blocks * sizeof(Torus),
+                                            streams[0] ,gpu_indexes[0]);
+      lwe_indexes_out = (Torus *)cuda_malloc_async(num_radix_blocks * sizeof(Torus),
+                                             streams[0] ,gpu_indexes[0]);
+      lwe_trivial_indexes = (Torus *)cuda_malloc_async(
+          num_radix_blocks * sizeof(Torus), streams[0] ,gpu_indexes[0]);
       auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
       for (int i = 0; i < num_radix_blocks; i++)

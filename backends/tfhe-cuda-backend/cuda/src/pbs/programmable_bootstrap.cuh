@@ -27,6 +27,7 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case CLASSICAL:
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(gpu_count)
       for (uint i = 0; i < gpu_count; i++) {
         int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);
@@ -57,6 +58,7 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(gpu_count)
       for (uint i = 0; i < gpu_count; i++) {
         int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);
@@ -79,6 +81,7 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
       }
       break;
     case CLASSICAL:
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(gpu_count)
       for (uint i = 0; i < gpu_count; i++) {
         int input_lwe_start_index = i * num_inputs_on_gpu * (lwe_dimension + 1);

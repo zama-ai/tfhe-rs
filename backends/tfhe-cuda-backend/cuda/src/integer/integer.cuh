@@ -120,6 +120,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto grouping_factor = params.grouping_factor;
 
   auto num_blocks_on_gpu = num_radix_blocks / gpu_count;
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(gpu_count)
   for (uint i = 0; i < gpu_count; i++) {
     int big_lwe_start_index = i * num_blocks_on_gpu * (big_lwe_dimension + 1);
@@ -176,6 +177,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   check_cuda_error(cudaGetLastError());
 
   auto num_blocks_on_gpu = num_radix_blocks / gpu_count;
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(gpu_count)
   for (uint i = 0; i < gpu_count; i++) {
     int big_lwe_start_index = i * num_blocks_on_gpu * (big_lwe_dimension + 1);
