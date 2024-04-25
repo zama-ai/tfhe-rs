@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
+use crate::core_crypto::gpu::{synchronize_device, CudaPtrMut, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
@@ -23,7 +23,7 @@ use tfhe_cuda_backend::cuda_bind::{
 /// memory, it is pretty close to a `Vec`. That being said, it only present a very very limited api.
 #[derive(Debug)]
 pub struct CudaVec<T: Numeric> {
-    ptr: *mut c_void,
+    ptr: CudaPtrMut,
     len: usize,
     gpu_index: u32,
     _phantom: PhantomData<T>,
@@ -44,7 +44,7 @@ impl<T: Numeric> CudaVec<T> {
         cuda_memset_async(ptr, 0u64, size, streams.ptr[0], streams.gpu_indexes[0]);
 
         Self {
-            ptr,
+            ptr: CudaPtrMut(ptr),
             len,
             gpu_index: streams.gpu_indexes[0],
             _phantom: PhantomData,
@@ -230,11 +230,11 @@ impl<T: Numeric> CudaVec<T> {
     }
 
     pub(crate) fn as_mut_c_ptr(&mut self) -> *mut c_void {
-        self.ptr
+        self.ptr.0
     }
 
     pub(crate) fn as_c_ptr(&self) -> *const c_void {
-        self.ptr.cast_const()
+        self.ptr.0.cast_const()
     }
 
     pub(crate) fn as_slice<R>(&self, range: R) -> Option<CudaSlice<T>>
@@ -251,6 +251,7 @@ impl<T: Numeric> CudaVec<T> {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
+                    .0
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
@@ -278,6 +279,7 @@ impl<T: Numeric> CudaVec<T> {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
                 self.ptr
+                    .0
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
