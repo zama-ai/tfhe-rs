@@ -1,15 +1,18 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, PolynomialSize, ThreadCount,
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
 };
+use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
-use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
+use crate::shortint::{
+    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
+};
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
@@ -58,78 +61,14 @@ impl ShortintEngine {
         max_degree: MaxDegree,
     ) -> ServerKey {
         let params = &cks.parameters;
+
         let pbs_params_base = params.pbs_parameters().unwrap();
-        let bootstrapping_key_base = match pbs_params_base {
-            crate::shortint::PBSParameters::PBS(pbs_params) => {
-                let bootstrap_key: LweBootstrapKeyOwned<u64> =
-                    par_allocate_and_generate_new_lwe_bootstrap_key(
-                        &cks.small_lwe_secret_key(),
-                        &cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.ciphertext_modulus,
-                        &mut self.encryption_generator,
-                    );
 
-                // Creation of the bootstrapping key in the Fourier domain
-                let mut fourier_bsk = FourierLweBootstrapKey::new(
-                    bootstrap_key.input_lwe_dimension(),
-                    bootstrap_key.glwe_size(),
-                    bootstrap_key.polynomial_size(),
-                    bootstrap_key.decomposition_base_log(),
-                    bootstrap_key.decomposition_level_count(),
-                );
+        let in_key = &cks.small_lwe_secret_key();
 
-                // Conversion to fourier domain
-                par_convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut fourier_bsk);
+        let out_key = &cks.glwe_secret_key;
 
-                ShortintBootstrappingKey::Classic(fourier_bsk)
-            }
-            crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
-                let bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
-                    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key(),
-                        &cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.grouping_factor,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.ciphertext_modulus,
-                        &mut self.encryption_generator,
-                    );
-
-                // Creation of the bootstrapping key in the Fourier domain
-                let mut fourier_bsk = FourierLweMultiBitBootstrapKey::new(
-                    bootstrap_key.input_lwe_dimension(),
-                    bootstrap_key.glwe_size(),
-                    bootstrap_key.polynomial_size(),
-                    bootstrap_key.decomposition_base_log(),
-                    bootstrap_key.decomposition_level_count(),
-                    bootstrap_key.grouping_factor(),
-                );
-
-                // Conversion to fourier domain
-                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
-                    &bootstrap_key,
-                    &mut fourier_bsk,
-                );
-
-                let thread_count = self.get_thread_count_for_multi_bit_pbs(
-                    pbs_params.lwe_dimension,
-                    pbs_params.glwe_dimension,
-                    pbs_params.polynomial_size,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.grouping_factor,
-                );
-                ShortintBootstrappingKey::MultiBit {
-                    fourier_bsk,
-                    thread_count,
-                    deterministic_execution: pbs_params.deterministic_execution,
-                }
-            }
-        };
+        let bootstrapping_key_base = self.new_bootstrapping_key(pbs_params_base, in_key, out_key);
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
@@ -153,6 +92,136 @@ impl ShortintEngine {
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         }
+    }
+
+    pub fn new_bootstrapping_key<
+        InKeycont: Container<Element = u64>,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        pbs_params_base: PBSParameters,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+    ) -> ShortintBootstrappingKey {
+        match pbs_params_base {
+            PBSParameters::PBS(pbs_params) => {
+                ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
+                    in_key,
+                    out_key,
+                    pbs_params.glwe_noise_distribution,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.ciphertext_modulus,
+                ))
+            }
+            PBSParameters::MultiBitPBS(pbs_params) => {
+                let fourier_bsk = self.new_multibit_bootstrapping_key(
+                    in_key,
+                    out_key,
+                    pbs_params.glwe_noise_distribution,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.grouping_factor,
+                    pbs_params.ciphertext_modulus,
+                );
+
+                let thread_count = self.get_thread_count_for_multi_bit_pbs(
+                    pbs_params.lwe_dimension,
+                    pbs_params.glwe_dimension,
+                    pbs_params.polynomial_size,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.grouping_factor,
+                );
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution: pbs_params.deterministic_execution,
+                }
+            }
+        }
+    }
+
+    pub fn new_classic_bootstrapping_key<
+        InKeycont: Container<Element = u64>,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+        glwe_noise_distribution: DynamicDistribution<u64>,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> FourierLweBootstrapKeyOwned {
+        let bootstrap_key: LweBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_bootstrap_key(
+                in_key,
+                out_key,
+                pbs_base_log,
+                pbs_level,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut self.encryption_generator,
+            );
+
+        // Creation of the bootstrapping key in the Fourier domain
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut fourier_bsk);
+
+        fourier_bsk
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_multibit_bootstrapping_key<
+        InKeycont: Container<Element = u64>,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+        glwe_noise_distribution: DynamicDistribution<u64>,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        grouping_factor: LweBskGroupingFactor,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> FourierLweMultiBitBootstrapKeyOwned {
+        let bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
+                in_key,
+                out_key,
+                pbs_base_log,
+                pbs_level,
+                grouping_factor,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut self.encryption_generator,
+            );
+
+        // Creation of the bootstrapping key in the Fourier domain
+        let mut fourier_bsk = FourierLweMultiBitBootstrapKey::new(
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+            bootstrap_key.grouping_factor(),
+        );
+
+        // Conversion to fourier domain
+        par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+            &bootstrap_key,
+            &mut fourier_bsk,
+        );
+        fourier_bsk
     }
 
     pub(crate) fn new_key_switching_key(

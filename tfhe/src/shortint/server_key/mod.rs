@@ -561,25 +561,14 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        let mut acc = GlweCiphertext::new(
-            0,
+        generate_lookup_table(
             self.bootstrapping_key.glwe_size(),
             self.bootstrapping_key.polynomial_size(),
             self.ciphertext_modulus,
-        );
-        let max_value = fill_accumulator(
-            &mut acc,
-            self.bootstrapping_key.polynomial_size(),
-            self.bootstrapping_key.glwe_size(),
             self.message_modulus,
             self.carry_modulus,
             f,
-        );
-
-        LookupTableOwned {
-            acc,
-            degree: Degree::new(max_value as usize),
-        }
+        )
     }
 
     pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
@@ -1485,4 +1474,31 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
     apply_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
+}
+
+pub fn generate_lookup_table<F>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    f: F,
+) -> LookupTableOwned
+where
+    F: Fn(u64) -> u64,
+{
+    let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+    let max_value = fill_accumulator(
+        &mut acc,
+        polynomial_size,
+        glwe_size,
+        message_modulus,
+        carry_modulus,
+        f,
+    );
+
+    LookupTableOwned {
+        acc,
+        degree: Degree::new(max_value as usize),
+    }
 }
