@@ -39,9 +39,9 @@ impl Default for ParamsAndNumBlocksIter {
 
         if env_config.is_multi_bit {
             #[cfg(feature = "gpu")]
-            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
             #[cfg(not(feature = "gpu"))]
-            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
 
             let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
