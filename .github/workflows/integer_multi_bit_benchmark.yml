@@ -46,7 +46,7 @@ jobs:
           echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
 
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
         with:
           fetch-depth: 0
 
@@ -97,7 +97,7 @@ jobs:
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
-        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
         with:
           repository: zama-ai/slab
           path: slab
