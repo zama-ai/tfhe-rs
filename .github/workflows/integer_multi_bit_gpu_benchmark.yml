@@ -101,7 +101,7 @@ jobs:
             parse_integer_benches
 
       - name: Upload csv results artifact
-        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:
           name: ${{ github.sha }}_csv_integer
           path: ${{ env.PARSE_INTEGER_BENCH_CSV_FILE }}
@@ -123,7 +123,7 @@ jobs:
           --throughput
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:
           name: ${{ github.sha }}_integer
           path: ${{ env.RESULTS_FILENAME }}
