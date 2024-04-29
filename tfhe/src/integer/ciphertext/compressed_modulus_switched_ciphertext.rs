@@ -1,5 +1,5 @@
+use crate::conformance::ParameterSetConformant;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::prelude::ParameterSetConformant;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, MaxDegree};
 use crate::shortint::parameters::Degree;
 
