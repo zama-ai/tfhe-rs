@@ -826,7 +826,7 @@ macro_rules! define_server_key_bench_binary_scalar_clean_inputs_fn (
         fn $server_key_method(c: &mut Criterion) {
             bench_server_key_binary_scalar_function_clean_inputs(
                 c,
-                concat!("integer::", stringify!($server_key_method)),
+                concat!("integer::signed::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs, rhs| {
                     server_key.$server_key_method(lhs, rhs);
