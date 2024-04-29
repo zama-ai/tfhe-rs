@@ -3,7 +3,7 @@
 The basic steps for using the high-level API of TFHE-rs are:
 
 1. [Importing the TFHE-rs prelude](quick\_start.md#imports);
-2. Client-side: [Configuring and creating keys](../fundamentals/configure-and-create-keys.md);
+2. Client-side: [Configuring and creating keys](../fundamentals/configure-and-generate-keys.md);
 3. Client-side: [Encrypting data](../fundamentals/encrypt-data.md);
 4. Server-side: [Setting the server key](../fundamentals/set-the-server-key.md);
 5. Server-side: [Computing over encrypted data](../fundamentals/compute.md);
