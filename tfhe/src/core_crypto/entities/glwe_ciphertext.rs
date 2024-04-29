@@ -1,8 +1,10 @@
 //! Module containing the definition of the GlweCiphertext.
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A convenience structure to easily manipulate the body of a [`GlweCiphertext`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -608,5 +610,32 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata(polynomial_size, ciphertext_modulus) = meta;
         Self::from_container(from, polynomial_size, ciphertext_modulus)
+    }
+}
+
+/// Structure to store the expected properties of a ciphertext
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+#[derive(Copy, Clone)]
+pub struct GlweCiphertextConformanceParameters<T: UnsignedInteger> {
+    pub glwe_dim: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub ct_modulus: CiphertextModulus<T>,
+}
+
+impl<C: Container> ParameterSetConformant for GlweCiphertext<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = GlweCiphertextConformanceParameters<C::Element>;
+
+    fn is_conformant(
+        &self,
+        glwe_ct_parameters: &GlweCiphertextConformanceParameters<C::Element>,
+    ) -> bool {
+        check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
+            && self.glwe_size() == glwe_ct_parameters.glwe_dim.to_glwe_size()
+            && self.polynomial_size() == glwe_ct_parameters.polynomial_size
+            && self.ciphertext_modulus() == glwe_ct_parameters.ct_modulus
     }
 }
