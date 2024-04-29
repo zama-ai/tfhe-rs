@@ -21,7 +21,15 @@ fn main() {
         let dest = cmake::build("cuda");
         println!("cargo:rustc-link-search=native={}", dest.display());
         println!("cargo:rustc-link-lib=static=tfhe_cuda_backend");
-        println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
+
+        // Try to find the cuda libs with pkg-config, default to the path used by the nvidia runfile
+        if pkg_config::Config::new()
+            .atleast_version("10")
+            .probe("cuda")
+            .is_err()
+        {
+            println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
+        }
         println!("cargo:rustc-link-lib=gomp");
         println!("cargo:rustc-link-lib=cudart");
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
