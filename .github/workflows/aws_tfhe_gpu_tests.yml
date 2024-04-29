@@ -36,8 +36,8 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           profile: gpu-test
 
-  cuda-tests-linux:
-    name: CUDA tests
+  cuda-pcc:
+    name: CUDA post-commit checks
     needs: setup-ec2
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
@@ -94,6 +94,64 @@ jobs:
         run: |
           make pcc_gpu
 
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "CUDA AWS post-commit checks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  cuda-tests-linux:
+    name: CUDA tests
+    needs: [ setup-ec2, cuda-pcc ]
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 9
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@bb45937a053e097f8591208d8e74c90db1873d07
+        with:
+          toolchain: stable
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "HOME=/home/ubuntu";
+          } >> "${GITHUB_ENV}"
+
       - name: Run core crypto, integer and internal CUDA backend tests
         run: |
           make test_gpu
@@ -121,7 +179,7 @@ jobs:
   teardown-ec2:
     name: Teardown EC2 instance (cuda-tests)
     if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
-    needs: [ setup-ec2, cuda-tests-linux ]
+    needs: [ setup-ec2, cuda-pcc, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
