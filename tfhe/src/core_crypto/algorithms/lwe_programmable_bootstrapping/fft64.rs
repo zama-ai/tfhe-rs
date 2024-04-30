@@ -590,7 +590,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// );
 ///
 /// // Create the plaintext
-/// let msg_ggsw_0 = Plaintext(0u64);
+/// let msg_ggsw_0 = Cleartext(0u64);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw_0 = GgswCiphertext::new(
@@ -611,7 +611,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// );
 ///
 /// // Create the plaintext
-/// let msg_ggsw_1 = Plaintext(1u64);
+/// let msg_ggsw_1 = Cleartext(1u64);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw_1 = GgswCiphertext::new(

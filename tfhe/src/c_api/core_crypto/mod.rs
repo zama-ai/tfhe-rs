@@ -196,7 +196,7 @@ pub unsafe extern "C" fn core_crypto_lwe_encrypt(
 #[no_mangle]
 pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
     output_ct_ptr: *mut u64,
-    pt: u64,
+    cleartext: u64,
     glwe_sk_ptr: *const u64,
     glwe_sk_dim: usize,
     poly_size: usize,
@@ -225,7 +225,7 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
             &mut deterministic_seeder,
         );
 
-        let plaintext = Plaintext(pt);
+        let cleartext = Cleartext(cleartext);
         let output_ct = std::slice::from_raw_parts_mut(
             output_ct_ptr,
             ggsw_ciphertext_size(
@@ -248,7 +248,7 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
         encrypt_constant_ggsw_ciphertext(
             &glwe_sk,
             &mut ct,
-            plaintext,
+            cleartext,
             glwe_noise_distribution,
             &mut encryption_generator,
         );

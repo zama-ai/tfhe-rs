@@ -495,9 +495,9 @@ pub fn test_cmux_tree() {
         let witness = value % (1 << (64 - delta_log));
 
         // Bit decomposition of the value from MSB to LSB
-        let mut vec_message = vec![Plaintext(0); nb_ggsw];
+        let mut vec_message = vec![Cleartext(0); nb_ggsw];
         for i in (0..nb_ggsw).rev() {
-            vec_message[i] = Plaintext(value & 1);
+            vec_message[i] = Cleartext(value & 1);
             value >>= 1;
         }
 

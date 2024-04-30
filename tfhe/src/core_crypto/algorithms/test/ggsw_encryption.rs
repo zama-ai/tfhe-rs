@@ -39,9 +39,9 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             &mut secret_generator,
         );
 
-        // Create the plaintext
+        // Create the cleartext
         let encoded_msg: Scalar = test_tools::random_uint_between(Scalar::ZERO..Scalar::TWO.shl(2));
-        let plaintext = Plaintext(encoded_msg);
+        let cleartext = Cleartext(encoded_msg);
 
         let compression_seed: CompressionSeed = seeder.seed().into();
 
@@ -65,7 +65,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         encrypt_constant_ggsw_ciphertext(
             &glwe_secret_key,
             &mut ser_ggsw,
-            plaintext,
+            cleartext,
             glwe_noise_distribution,
             &mut encryption_generator,
         );
@@ -90,7 +90,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         par_encrypt_constant_ggsw_ciphertext(
             &glwe_secret_key,
             &mut par_ggsw,
-            plaintext,
+            cleartext,
             glwe_noise_distribution,
             &mut encryption_generator,
         );
@@ -114,7 +114,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         encrypt_constant_seeded_ggsw_ciphertext(
             &glwe_secret_key,
             &mut ser_seeded_ggsw,
-            plaintext,
+            cleartext,
             glwe_noise_distribution,
             &mut deterministic_seeder,
         );
@@ -135,7 +135,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         par_encrypt_constant_seeded_ggsw_ciphertext(
             &glwe_secret_key,
             &mut par_seeded_ggsw,
-            plaintext,
+            cleartext,
             glwe_noise_distribution,
             &mut deterministic_seeder,
         );
@@ -212,13 +212,13 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
                 ciphertext_modulus,
             );
 
-            // GGSW constants are seen as plaintext, the encoding is done by the encryption itself
-            let plaintext = Plaintext(msg);
+            // GGSW constants are seen as cleartext, the encoding is done by the encryption itself
+            let cleartext = Cleartext(msg);
 
             encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
                 &mut ggsw,
-                plaintext,
+                cleartext,
                 glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
@@ -280,13 +280,13 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 ciphertext_modulus,
             );
 
-            // GGSW constants are seen as plaintext, the encoding is done by the encryption itself
-            let plaintext = Plaintext(msg);
+            // GGSW constants are seen as cleartext, the encoding is done by the encryption itself
+            let cleartext = Cleartext(msg);
 
             par_encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
                 &mut ggsw,
-                plaintext,
+                cleartext,
                 glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
@@ -349,13 +349,13 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 ciphertext_modulus,
             );
 
-            // GGSW constants are seen as plaintext, the encoding is done by the encryption itself
-            let plaintext = Plaintext(msg);
+            // GGSW constants are seen as cleartext, the encoding is done by the encryption itself
+            let cleartext = Cleartext(msg);
 
             encrypt_constant_seeded_ggsw_ciphertext(
                 &glwe_sk,
                 &mut seeded_ggsw,
-                plaintext,
+                cleartext,
                 glwe_noise_distribution,
                 rsc.seeder.as_mut(),
             );
@@ -420,13 +420,13 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
                 ciphertext_modulus,
             );
 
-            // GGSW constants are seen as plaintext, the encoding is done by the encryption itself
-            let plaintext = Plaintext(msg);
+            // GGSW constants are seen as cleartext, the encoding is done by the encryption itself
+            let cleartext = Cleartext(msg);
 
             par_encrypt_constant_seeded_ggsw_ciphertext(
                 &glwe_sk,
                 &mut seeded_ggsw,
-                plaintext,
+                cleartext,
                 glwe_noise_distribution,
                 rsc.seeder.as_mut(),
             );
