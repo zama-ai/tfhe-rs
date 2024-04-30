@@ -35,7 +35,7 @@ __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *keybundle_array,
-    Torus *bootstrapping_key, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    double2 *bootstrapping_key, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint32_t keybundle_size_per_input, int8_t *device_mem,
@@ -61,7 +61,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
   if (lwe_iteration < (lwe_dimension / grouping_factor)) {
     //
-    Torus *accumulator = (Torus *)selected_memory;
+    double2 *accumulator = (double2 *)selected_memory;
+    double2 *monomial_fft = accumulator + polynomial_size / 2;
 
     Torus *block_lwe_array_in =
         &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
@@ -78,21 +79,21 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // ////////////////////////////////
     // Keygen guarantees the first term is a constant term of the polynomial, no
     // polynomial multiplication required
-    Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+    auto bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
         bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
-        grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
-    Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+        grouping_factor, polynomial_size, glwe_dimension, level_count);
+    auto bsk_poly = bsk_slice + poly_id * params::degree / 2;
 
-    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
         bsk_poly, accumulator);
 
     // Accumulate the other terms
     for (int g = 1; g < (1 << grouping_factor); g++) {
 
-      Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+      auto bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
           bootstrapping_key, g, rev_lwe_iteration, glwe_id, level_id,
-          grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
-      Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+          grouping_factor, polynomial_size, glwe_dimension, level_count);
+      auto bsk_poly = bsk_slice + poly_id * params::degree / 2;
 
       // Calculates the monomial degree
       Torus *lwe_array_group =
@@ -100,39 +101,16 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
           lwe_array_group, g, grouping_factor);
 
+      // Instantiates a monomial with that degree
+      set_monomial<params>(monomial_fft, monomial_degree);
+
+      synchronize_threads_in_block();
+      NSMFFT_direct<HalfDegree<params>>(monomial_fft);
       synchronize_threads_in_block();
       // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial<Torus, params>(
-          accumulator, bsk_poly, monomial_degree, false);
+      polynomial_product_accumulate_in_fourier_domain<params, double2>(
+          accumulator, bsk_poly, monomial_fft, false);
     }
-
-    synchronize_threads_in_block();
-
-    double2 *fft = (double2 *)selected_memory;
-
-    // Move accumulator to local memory
-    double2 temp[params::opt / 2];
-    int tid = threadIdx.x;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      temp[i].x = __ll2double_rn((int64_t)accumulator[tid]);
-      temp[i].y =
-          __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]);
-      temp[i].x /= (double)std::numeric_limits<Torus>::max();
-      temp[i].y /= (double)std::numeric_limits<Torus>::max();
-      tid += params::degree / params::opt;
-    }
-
-    synchronize_threads_in_block();
-    // Move from local memory back to shared memory but as complex
-    tid = threadIdx.x;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] = temp[i];
-      tid += params::degree / params::opt;
-    }
-    synchronize_threads_in_block();
-    NSMFFT_direct<HalfDegree<params>>(fft);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
@@ -141,7 +119,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
 
     copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft, keybundle_poly);
+        accumulator, keybundle_poly);
   }
 }
 
@@ -328,7 +306,8 @@ template <typename Torus>
 __host__ __device__ uint64_t
 get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size; // accumulator
+  return sizeof(double2) * polynomial_size / 2 + // accumulator
+         sizeof(double2) * polynomial_size / 2;  // monomial_fft
 }
 template <typename Torus>
 __host__ __device__ uint64_t
@@ -480,7 +459,7 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ void execute_compute_keybundle(
     cuda_stream_t *stream, Torus *lwe_array_in, Torus *lwe_input_indexes,
-    Torus *bootstrapping_key, pbs_buffer<Torus, MULTI_BIT> *buffer,
+    double2 *bootstrapping_key, pbs_buffer<Torus, MULTI_BIT> *buffer,
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t max_shared_memory, uint32_t lwe_chunk_size,
@@ -621,7 +600,7 @@ template <typename Torus, typename STorus, class params>
 __host__ void host_multi_bit_programmable_bootstrap(
     cuda_stream_t *stream, Torus *lwe_array_out, Torus *lwe_output_indexes,
     Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,

@@ -3,6 +3,7 @@
 
 #include "crypto/torus.cuh"
 #include "parameters.cuh"
+#include "types/complex/operations.cuh"
 
 template <typename T>
 __device__ T *get_chunk(T *data, int chunk_num, int chunk_size) {
@@ -80,6 +81,26 @@ polynomial_product_accumulate_by_monomial(T *result, T *poly,
     else
       result[new_pos] += x;
     pos += params::degree / params::opt;
+  }
+}
+
+// Perform RESULT_ACC += ACC * (X^ä + 1)
+template <class params>
+__device__ void set_monomial(double2 *poly, uint32_t monomial_degree) {
+  int full_cycles_count = monomial_degree / params::degree;
+  int remainder_degrees = monomial_degree % params::degree;
+
+  double x = (full_cycles_count % 2 ? -1 : 1);
+
+  int tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    poly[tid].x = __ll2double_rn(tid == remainder_degrees);
+    poly[tid].y =
+        __ll2double_rn((tid + params::degree / 2) == remainder_degrees);
+
+    poly[tid] *= x;
+
+    tid += params::degree / params::opt;
   }
 }
 

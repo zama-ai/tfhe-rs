@@ -32,12 +32,9 @@ template <typename T>
 __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
                                      int glwe_dimension, uint32_t level_count) {
-  return &ptr[get_start_ith_ggsw(i, polynomial_size, glwe_dimension,
-                                 level_count) +
-              level * polynomial_size / 2 * (glwe_dimension + 1) *
-                  (glwe_dimension + 1) +
-              k * polynomial_size / 2 * (glwe_dimension + 1) +
-              glwe_dimension * polynomial_size / 2];
+  return get_ith_mask_kth_block(ptr, i, k, level, polynomial_size,
+                                glwe_dimension, level_count) +
+         glwe_dimension * polynomial_size / 2;
 }
 
 ////////////////////////////////////////////////
@@ -58,6 +55,7 @@ __device__ T *get_multi_bit_ith_lwe_gth_group_kth_block(
   return get_ith_mask_kth_block(ptr_group, g, k, level, polynomial_size,
                                 glwe_dimension, level_count);
 }
+
 ////////////////////////////////////////////////
 template <typename T, typename ST>
 void cuda_convert_lwe_programmable_bootstrap_key(

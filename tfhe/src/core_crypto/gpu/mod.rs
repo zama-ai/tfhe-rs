@@ -132,7 +132,7 @@ impl CudaStream {
         test_vector_indexes: &CudaVec<T>,
         lwe_array_in: &CudaVec<T>,
         input_indexes: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
+        bootstrapping_key: &CudaVec<f64>,
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
@@ -273,7 +273,7 @@ impl CudaStream {
     #[allow(clippy::too_many_arguments)]
     pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: UnsignedInteger>(
         &self,
-        dest: &mut CudaVec<u64>,
+        dest: &mut CudaVec<f64>,
         src: &[T],
         input_lwe_dim: LweDimension,
         glwe_dim: GlweDimension,

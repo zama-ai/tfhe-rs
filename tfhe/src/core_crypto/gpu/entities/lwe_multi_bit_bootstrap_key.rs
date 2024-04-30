@@ -10,7 +10,7 @@ use crate::core_crypto::prelude::{
 #[derive(Debug)]
 pub struct CudaLweMultiBitBootstrapKey {
     // Pointers to GPU data
-    pub(crate) d_vec: CudaVec<u64>,
+    pub(crate) d_vec: CudaVec<f64>,
     // Lwe dimension
     pub(crate) input_lwe_dimension: LweDimension,
     // Glwe dimension
@@ -42,7 +42,7 @@ impl CudaLweMultiBitBootstrapKey {
 
         // Allocate memory
         let mut d_vec = unsafe {
-            CudaVec::<u64>::new_async(
+            CudaVec::<f64>::new_async(
                 lwe_multi_bit_bootstrap_key_size(
                     input_lwe_dimension,
                     glwe_dimension.to_glwe_size(),
