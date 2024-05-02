@@ -15,6 +15,7 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_vector_comparisons;
 
 use super::tests_cases_unsigned::*;
 use crate::integer::keycache::KEY_CACHE;
@@ -52,6 +53,37 @@ pub(crate) const NB_TESTS_UNCHECKED: usize = NB_TESTS;
 /// Unchecked test cases needs a minimum number of tests of 4 in order to provide guarantees.
 #[cfg(tarpaulin)]
 pub(crate) const NB_TESTS_UNCHECKED: usize = 4;
+
+#[cfg(not(tarpaulin))]
+pub(crate) const MAX_VEC_LEN: usize = 25;
+#[cfg(tarpaulin)]
+pub(crate) const MAX_VEC_LEN: usize = 5;
+
+/// Returns th number of loop iteration within randomized tests
+///
+/// The bigger the number of bits bootstrapped by the input parameters, the smaller the
+/// number of iteration is
+pub(crate) const fn nb_tests_for_params(params: PBSParameters) -> usize {
+    let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
+
+    if cfg!(tarpaulin) {
+        // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to
+        // code instrumentation
+        1
+    } else {
+        // >= 8 bits (4_4)
+        if full_modulus >= 1 << 8 {
+            return 5;
+        }
+
+        // >= 6 bits (3_3)
+        if full_modulus >= 1 << 6 {
+            return 15;
+        }
+
+        30
+    }
+}
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
