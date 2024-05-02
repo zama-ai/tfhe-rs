@@ -6,57 +6,45 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-    # All the inputs are provided by Slab
-    inputs:
-      instance_id:
-        description: "AWS instance ID"
-        type: string
-      instance_image_id:
-        description: "AWS instance AMI ID"
-        type: string
-      instance_type:
-        description: "AWS instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: 'Slab request ID'
-        type: string
-      fork_repo:
-        description: 'Name of forked repo as user/repo'
-        type: string
-      fork_git_sha:
-        description: 'Git SHA to checkout from fork'
-        type: string
 
 jobs:
+  setup-ec2:
+    name: Setup EC2 instance (code-coverage)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+      instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
+      aws-region: ${{ steps.start-instance.outputs.aws-region }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          profile: cpu-small
+
   code-coverage:
+    name: Code coverage
+    needs: setup-ec2
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
+      group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: true
-    runs-on: ${{ inputs.runner_name }}
+    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     timeout-minutes: 11520 # 8 days
     steps:
-      # Step used for log purpose.
-      - name: Instance configuration used
-        run: |
-          echo "ID: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
-          echo "Fork repo: ${{ inputs.fork_repo }}"
-          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
-
       - name: Checkout tfhe-rs
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
-        with:
-          repository: ${{ inputs.fork_repo }}
-          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
@@ -78,29 +66,29 @@ jobs:
               - concrete-csprng/src/**
 
       - name: Generate Keys
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
           make gen_key_cache_core_crypto
 
       - name: Run coverage for core_crypto
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_core_crypto_cov AVX512_SUPPORT=ON
 
       - name: Run coverage for boolean
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_boolean_cov
 
       - name: Run coverage for shortint
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_shortint_cov
 
       - name: Upload tfhe coverage to Codecov
         uses: codecov/codecov-action@84508663e988701840491b86de86b666e8a86bed
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
@@ -108,13 +96,13 @@ jobs:
           files: shortint/cobertura.xml,boolean/cobertura.xml,core_crypto/cobertura.xml,core_crypto_avx512/cobertura.xml
 
       - name: Run integer coverage
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_integer_cov
 
       - name: Upload tfhe coverage to Codecov
         uses: codecov/codecov-action@84508663e988701840491b86de86b666e8a86bed
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
@@ -127,8 +115,29 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "Code coverage finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-ec2:
+    name: Teardown EC2 instance (code-coverage)
+    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
+    needs: [ setup-ec2, code-coverage ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          region: ${{ needs.setup-ec2.outputs.aws-region }}
+          label: ${{ needs.setup-ec2.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "EC2 teardown (code-coverage) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
