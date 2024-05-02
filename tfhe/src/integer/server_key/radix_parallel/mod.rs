@@ -27,6 +27,7 @@ pub(crate) mod tests_cases_unsigned;
 pub(crate) mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
+mod vector_comparisons;
 
 use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;

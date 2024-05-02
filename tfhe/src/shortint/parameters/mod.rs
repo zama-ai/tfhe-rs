@@ -28,6 +28,8 @@ pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 pub use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::p_fail_2_minus_40::{ks_pbs, pbs_ks};
+#[cfg(tarpaulin)]
+pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
 pub use parameters_wopbs::*;
