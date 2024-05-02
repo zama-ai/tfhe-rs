@@ -3246,7 +3246,12 @@ mod test {
 
         let mut thread_rng = rand::thread_rng();
 
-        for _ in 0..10_000 {
+        #[cfg(not(tarpaulin))]
+        let nb_tests = 10_000;
+        #[cfg(tarpaulin)]
+        let nb_tests = 1;
+
+        for _ in 0..nb_tests {
             let lwe_sk =
                 LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_random_generator);
 
@@ -3305,7 +3310,12 @@ mod test {
 
         let mut thread_rng = rand::thread_rng();
 
-        for _ in 0..100 {
+        #[cfg(not(tarpaulin))]
+        let nb_tests = 100;
+        #[cfg(tarpaulin)]
+        let nb_tests = 1;
+
+        for _ in 0..nb_tests {
             // We'll encrypt between 1 and 4 * lwe_dimension ciphertexts
             let ct_count: usize = thread_rng.gen();
             let ct_count = ct_count % (lwe_dimension.0 * 4) + 1;

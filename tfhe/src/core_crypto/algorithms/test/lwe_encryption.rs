@@ -993,7 +993,10 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 }
 
 create_parametrized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
-    TEST_PARAMS_4_BITS_NATIVE_U64
+    #[cfg(not(tarpaulin))]
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    #[cfg(tarpaulin)]
+    COVERAGE_TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
 #[cfg(feature = "zk-pok-experimental")]
@@ -1095,7 +1098,10 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
 
 #[cfg(feature = "zk-pok-experimental")]
 create_parametrized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
-    TEST_PARAMS_4_BITS_NATIVE_U64
+    #[cfg(not(tarpaulin))]
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    #[cfg(tarpaulin)]
+    COVERAGE_TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
 #[cfg(feature = "zk-pok-experimental")]
@@ -1309,6 +1315,222 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 crs.public_params()
             )
             .is_invalid());
+
+            lwe_ciphertext_list
+        };
+
+        assert_eq!(ser_lwe_ct_list, par_lwe_ct_list);
+    }
+}
+
+#[test]
+fn test_compact_public_key_encryption() {
+    use rand::Rng;
+
+    #[cfg(not(tarpaulin))]
+    let nb_tests = 10_000;
+    #[cfg(tarpaulin)]
+    let nb_tests = 100;
+
+    #[cfg(not(tarpaulin))]
+    let lwe_dimension = LweDimension(2048);
+    #[cfg(tarpaulin)]
+    let lwe_dimension = LweDimension(1);
+
+    let glwe_noise_distribution =
+        Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
+    let mut secret_random_generator = test_tools::new_secret_random_generator();
+    let mut encryption_random_generator = test_tools::new_encryption_random_generator();
+
+    let mut thread_rng = rand::thread_rng();
+
+    for _ in 0..nb_tests {
+        let lwe_sk = LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_random_generator);
+
+        let mut compact_lwe_pk = LweCompactPublicKey::new(0u64, lwe_dimension, ciphertext_modulus);
+
+        generate_lwe_compact_public_key(
+            &lwe_sk,
+            &mut compact_lwe_pk,
+            glwe_noise_distribution,
+            &mut encryption_random_generator,
+        );
+
+        let msg: u64 = thread_rng.gen();
+        let msg = msg % 16;
+
+        let plaintext = Plaintext(msg << 60);
+
+        let mut output_ct = LweCiphertext::new(
+            0u64,
+            lwe_dimension.to_lwe_size(),
+            CiphertextModulus::new_native(),
+        );
+
+        encrypt_lwe_ciphertext_with_compact_public_key(
+            &compact_lwe_pk,
+            &mut output_ct,
+            plaintext,
+            glwe_noise_distribution,
+            glwe_noise_distribution,
+            &mut secret_random_generator,
+            &mut encryption_random_generator,
+        );
+
+        let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
+
+        let signed_decomposer =
+            SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+
+        let cleartext = signed_decomposer.closest_representable(decrypted_plaintext.0) >> 60;
+
+        assert_eq!(cleartext, msg);
+    }
+}
+
+#[test]
+fn test_par_compact_lwe_list_public_key_encryption_equivalence() {
+    use rand::Rng;
+
+    let lwe_dimension = LweDimension(2048);
+    let glwe_noise_distribution =
+        Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
+    let mut thread_rng = rand::thread_rng();
+
+    for _ in 0..NB_TESTS {
+        // We'll encrypt between 1 and 4 * lwe_dimension ciphertexts
+        let ct_count: usize = thread_rng.gen();
+        let ct_count = ct_count % (lwe_dimension.0 * 4) + 1;
+        let lwe_ciphertext_count = LweCiphertextCount(ct_count);
+
+        let seed = test_tools::random_seed();
+        let mut input_plaintext_list =
+            PlaintextList::new(0u64, PlaintextCount(lwe_ciphertext_count.0));
+        input_plaintext_list.iter_mut().for_each(|x| {
+            let msg: u64 = thread_rng.gen();
+            *x.0 = (msg % 16) << 60;
+        });
+
+        let par_lwe_ct_list = {
+            let mut deterministic_seeder =
+                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut secret_random_generator =
+                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+            let mut encryption_random_generator =
+                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                    deterministic_seeder.seed(),
+                    &mut deterministic_seeder,
+                );
+
+            let lwe_sk =
+                LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_random_generator);
+
+            let mut compact_lwe_pk =
+                LweCompactPublicKey::new(0u64, lwe_dimension, ciphertext_modulus);
+
+            generate_lwe_compact_public_key(
+                &lwe_sk,
+                &mut compact_lwe_pk,
+                glwe_noise_distribution,
+                &mut encryption_random_generator,
+            );
+
+            let mut output_compact_ct_list = LweCompactCiphertextList::new(
+                0u64,
+                lwe_dimension.to_lwe_size(),
+                lwe_ciphertext_count,
+                ciphertext_modulus,
+            );
+
+            par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &compact_lwe_pk,
+                &mut output_compact_ct_list,
+                &input_plaintext_list,
+                glwe_noise_distribution,
+                glwe_noise_distribution,
+                &mut secret_random_generator,
+                &mut encryption_random_generator,
+            );
+
+            let mut output_plaintext_list = input_plaintext_list.clone();
+            output_plaintext_list.as_mut().fill(0u64);
+
+            let lwe_ciphertext_list = output_compact_ct_list.par_expand_into_lwe_ciphertext_list();
+
+            decrypt_lwe_ciphertext_list(&lwe_sk, &lwe_ciphertext_list, &mut output_plaintext_list);
+
+            let signed_decomposer =
+                SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+
+            output_plaintext_list
+                .iter_mut()
+                .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+
+            assert_eq!(input_plaintext_list, output_plaintext_list);
+
+            lwe_ciphertext_list
+        };
+
+        let ser_lwe_ct_list = {
+            let mut deterministic_seeder =
+                DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+            let mut secret_random_generator =
+                SecretRandomGenerator::<ActivatedRandomGenerator>::new(deterministic_seeder.seed());
+            let mut encryption_random_generator =
+                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+                    deterministic_seeder.seed(),
+                    &mut deterministic_seeder,
+                );
+
+            let lwe_sk =
+                LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_random_generator);
+
+            let mut compact_lwe_pk =
+                LweCompactPublicKey::new(0u64, lwe_dimension, ciphertext_modulus);
+
+            generate_lwe_compact_public_key(
+                &lwe_sk,
+                &mut compact_lwe_pk,
+                glwe_noise_distribution,
+                &mut encryption_random_generator,
+            );
+
+            let mut output_compact_ct_list = LweCompactCiphertextList::new(
+                0u64,
+                lwe_dimension.to_lwe_size(),
+                lwe_ciphertext_count,
+                ciphertext_modulus,
+            );
+
+            encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+                &compact_lwe_pk,
+                &mut output_compact_ct_list,
+                &input_plaintext_list,
+                glwe_noise_distribution,
+                glwe_noise_distribution,
+                &mut secret_random_generator,
+                &mut encryption_random_generator,
+            );
+
+            let mut output_plaintext_list = input_plaintext_list.clone();
+            output_plaintext_list.as_mut().fill(0u64);
+
+            let lwe_ciphertext_list = output_compact_ct_list.expand_into_lwe_ciphertext_list();
+
+            decrypt_lwe_ciphertext_list(&lwe_sk, &lwe_ciphertext_list, &mut output_plaintext_list);
+
+            let signed_decomposer =
+                SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+
+            output_plaintext_list
+                .iter_mut()
+                .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+
+            assert_eq!(input_plaintext_list, output_plaintext_list);
 
             lwe_ciphertext_list
         };

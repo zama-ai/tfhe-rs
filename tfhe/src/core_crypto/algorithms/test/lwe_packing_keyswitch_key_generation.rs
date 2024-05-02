@@ -12,9 +12,17 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
     // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     // computations
     // Define parameters for LweKeyswitchKey creation
+    #[cfg(not(tarpaulin))]
     let input_lwe_dimension = LweDimension(742);
-    let output_glwe_dimension = GlweDimension(1);
+    #[cfg(tarpaulin)]
+    let input_lwe_dimension = LweDimension(1);
+
+    #[cfg(not(tarpaulin))]
     let output_polynomial_size = PolynomialSize(2048);
+    #[cfg(tarpaulin)]
+    let output_polynomial_size = PolynomialSize(32);
+
+    let output_glwe_dimension = GlweDimension(1);
     let glwe_noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000000000029403601535432533,
     ));
