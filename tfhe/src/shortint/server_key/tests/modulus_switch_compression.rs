@@ -6,36 +6,7 @@ use rand::Rng;
 
 // Remove multi bit PBS parameters as
 // modulus switch compression and multi bit PBS are currently not compatible
-create_parametrized_test!(shortint_modulus_switch_compression {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_7_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_6_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_5_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_1_KS_PBS
-});
+create_parametrized_test!(shortint_modulus_switch_compression);
 
 fn shortint_modulus_switch_compression<P>(param: P)
 where

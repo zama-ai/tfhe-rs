@@ -1,6 +1,8 @@
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
+use crate::core_crypto::prelude::LweCiphertextParameters;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
@@ -32,7 +34,7 @@ use crate::shortint::{CarryModulus, MessageModulus};
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) compressed_modulus_switched_lwe_ciphertext:
-        CompressedModulusSwitchedLweCiphertext<u64>,
+        InternalCompressedModulusSwitchedCiphertext,
     pub(crate) degree: Degree,
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
@@ -49,5 +51,22 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
             && self.carry_modulus == param.carry_modulus
             && self.pbs_order == param.pbs_order
             && self.degree == param.degree
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) enum InternalCompressedModulusSwitchedCiphertext {
+    Classic(CompressedModulusSwitchedLweCiphertext<u64>),
+    MultiBit(CompressedModulusSwitchedMultiBitLweCiphertext<u64>),
+}
+
+impl ParameterSetConformant for InternalCompressedModulusSwitchedCiphertext {
+    type ParameterSet = LweCiphertextParameters<u64>;
+
+    fn is_conformant(&self, param: &LweCiphertextParameters<u64>) -> bool {
+        match self {
+            Self::Classic(a) => a.is_conformant(param),
+            Self::MultiBit(a) => a.is_conformant(param),
+        }
     }
 }
