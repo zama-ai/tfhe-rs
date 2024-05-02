@@ -27,6 +27,7 @@ pub(crate) mod tests_cases_unsigned;
 pub(crate) mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
+mod vector_comparisons;
 mod vector_find;
 
 use super::ServerKey;
