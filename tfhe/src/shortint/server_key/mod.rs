@@ -1456,16 +1456,13 @@ pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
             thread_count,
             deterministic_execution,
         } => {
-            if *deterministic_execution {
-                multi_bit_deterministic_blind_rotate_assign(
-                    in_buffer,
-                    acc,
-                    fourier_bsk,
-                    *thread_count,
-                );
-            } else {
-                multi_bit_blind_rotate_assign(in_buffer, acc, fourier_bsk, *thread_count);
-            }
+            multi_bit_blind_rotate_assign(
+                in_buffer,
+                acc,
+                fourier_bsk,
+                *thread_count,
+                *deterministic_execution,
+            );
         }
     };
 }

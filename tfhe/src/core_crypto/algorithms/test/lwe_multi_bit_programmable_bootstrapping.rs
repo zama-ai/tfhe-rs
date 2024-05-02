@@ -152,6 +152,7 @@ where
                 &accumulator,
                 &fbsk,
                 thread_count,
+                false,
             );
 
             assert!(check_encrypted_content_respects_mod(
@@ -251,12 +252,13 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
                     ciphertext_modulus,
                 );
 
-                multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut out_pbs_ct,
                     &accumulator,
                     &fbsk,
                     thread_count,
+                    true,
                 );
 
                 assert!(check_encrypted_content_respects_mod(
@@ -280,12 +282,13 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
                     ciphertext_modulus,
                 );
 
-                multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut out_pbs_ct,
                     &accumulator,
                     &fbsk,
                     thread_count,
+                    true,
                 );
 
                 out_pbs_ct
@@ -383,6 +386,7 @@ where
                 &accumulator,
                 &bsk,
                 thread_count,
+                false,
             );
 
             assert!(check_encrypted_content_respects_mod(
@@ -482,12 +486,13 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
                     ciphertext_modulus,
                 );
 
-                std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                std_multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut out_pbs_ct,
                     &accumulator,
                     &bsk,
                     thread_count,
+                    true,
                 );
 
                 assert!(check_encrypted_content_respects_mod(
@@ -511,12 +516,13 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
                     ciphertext_modulus,
                 );
 
-                std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                std_multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut out_pbs_ct,
                     &accumulator,
                     &bsk,
                     thread_count,
+                    true,
                 );
 
                 out_pbs_ct
