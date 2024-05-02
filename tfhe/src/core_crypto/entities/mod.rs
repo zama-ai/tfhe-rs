@@ -5,6 +5,7 @@
 
 pub mod cleartext;
 pub mod compressed_modulus_switched_lwe_ciphertext;
+pub mod compressed_modulus_switched_multi_bit_lwe_ciphertext;
 pub mod ggsw_ciphertext;
 pub mod ggsw_ciphertext_list;
 pub mod glwe_ciphertext;
@@ -57,6 +58,8 @@ pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial
 #[cfg(feature = "zk-pok-experimental")]
 pub use crate::zk::*;
 pub use cleartext::*;
+pub use compressed_modulus_switched_lwe_ciphertext::*;
+pub use compressed_modulus_switched_multi_bit_lwe_ciphertext::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_ciphertext_list::*;
 pub use glwe_ciphertext::*;
