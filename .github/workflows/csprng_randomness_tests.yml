@@ -25,17 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
-      instance-id: ${{ steps.start-instance.outputs.ec2-instance-id }}
-      aws-region: ${{ steps.start-instance.outputs.aws-region }}
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
           profile: cpu-small
 
   csprng-randomness-tests:
@@ -78,13 +77,12 @@ jobs:
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@8562abbdc96b3619bd5debe1fb934db298f9a044
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          region: ${{ needs.setup-ec2.outputs.aws-region }}
           label: ${{ needs.setup-ec2.outputs.runner-name }}
 
       - name: Slack Notification
