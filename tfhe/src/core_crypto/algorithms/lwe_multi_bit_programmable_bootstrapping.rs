@@ -6,29 +6,95 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use aligned_vec::ABox;
 use concrete_fft::c64;
+use itertools::Itertools;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;
 
-pub fn prepare_multi_bit_ggsw_mem_optimized<
-    Scalar,
-    GgswBufferCont,
-    GgswGroupCont,
-    FourierPolyCont,
->(
+pub(crate) fn modulus_switch_multi_bit<Scalar>(
+    ciphertext_modulus_log: CiphertextModulusLog,
+    grouping_factor: LweBskGroupingFactor,
+    lwe_mask_elements: &[Scalar],
+) -> impl Iterator<Item = usize> + '_
+where
+    Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+{
+    // Start at 1, the first ggsw is not rotated
+    (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |ggsw_idx| {
+        // Select the proper mask elements to build the monomial degree depending on
+        // the order the GGSW were generated in, using the bits from mask_idx and
+        // ggsw_idx as selector bits
+        let mut monomial_degree = Scalar::ZERO;
+        for (mask_idx, &mask_element) in lwe_mask_elements.iter().enumerate() {
+            let mask_position = lwe_mask_elements.len() - (mask_idx + 1);
+            let selection_bit: Scalar = Scalar::cast_from((ggsw_idx >> mask_position) & 1);
+            monomial_degree =
+                monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
+        }
+        modulus_switch(monomial_degree, ciphertext_modulus_log).cast_into()
+    })
+}
+
+pub trait MultiBitModulusSwitchedCt: Sync {
+    fn lwe_dimension(&self) -> LweDimension;
+    fn switched_modulus_input_lwe_body(&self) -> usize;
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_;
+}
+
+pub struct StandardMultiBitModulusSwitchedCt<
+    'a,
+    Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+    C: Container<Element = Scalar> + Sync,
+> {
+    pub input: &'a LweCiphertext<C>,
+    pub grouping_factor: LweBskGroupingFactor,
+    pub log_modulus: CiphertextModulusLog,
+}
+
+impl<
+        'a,
+        Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+        C: Container<Element = Scalar> + Sync,
+    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'a, Scalar, C>
+{
+    fn lwe_dimension(&self) -> LweDimension {
+        self.input.lwe_size().to_lwe_dimension()
+    }
+    fn switched_modulus_input_lwe_body(&self) -> usize {
+        let input_lwe_body = self.input.get_body();
+
+        modulus_switch(*input_lwe_body.data, self.log_modulus).cast_into()
+    }
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let (_body, mask) = self.input.as_ref().split_last().unwrap();
+
+        let lwe_mask_elements =
+            &mask[index * self.grouping_factor.0..(index + 1) * self.grouping_factor.0];
+
+        modulus_switch_multi_bit(self.log_modulus, self.grouping_factor, lwe_mask_elements)
+    }
+}
+
+pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, FourierPolyCont>(
     fourier_ggsw_buffer: &mut FourierGgswCiphertext<GgswBufferCont>,
     ggsw_group: &[FourierGgswCiphertext<GgswGroupCont>],
-    lwe_mask_elements: &[Scalar],
+    switched_degrees: impl Iterator<Item = usize>,
     fourier_a_monomial: &mut FourierPolynomial<FourierPolyCont>,
     fft: FftView<'_>,
 ) where
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
     GgswBufferCont: ContainerMut<Element = c64>,
     GgswGroupCont: Container<Element = c64>,
     FourierPolyCont: ContainerMut<Element = c64>,
@@ -47,23 +113,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 
     let multi_bit_fourier_ggsw = fourier_ggsw_buffer.as_mut_view().data();
 
-    for (ggsw_idx, fourier_ggsw) in ggsw_group_iter.enumerate() {
-        // We already processed the first ggsw, advance the index by 1
-        let ggsw_idx = ggsw_idx + 1;
-
-        // Select the proper mask elements to build the monomial degree depending on
-        // the order the GGSW were generated in, using the bits from mask_idx and
-        // ggsw_idx as selector bits
-        let mut monomial_degree = Scalar::ZERO;
-        for (mask_idx, &mask_element) in lwe_mask_elements.iter().enumerate() {
-            let mask_position = lwe_mask_elements.len() - (mask_idx + 1);
-            let selection_bit: Scalar = Scalar::cast_from((ggsw_idx >> mask_position) & 1);
-            monomial_degree =
-                monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
-        }
-
-        let switched_degree = pbs_modulus_switch(monomial_degree, polynomial_size);
-
+    for (fourier_ggsw, switched_degree) in ggsw_group_iter.zip_eq(switched_degrees) {
         let factor = fft.incomplete_monomial_forward_as_integer(
             fourier_a_monomial.as_mut_view(),
             switched_degree,
@@ -262,6 +312,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 ///     &mut accumulator,
 ///     &multi_bit_bsk,
 ///     ThreadCount(4),
+///     false,
 /// );
 /// println!("Performing sample extraction...");
 /// extract_lwe_sample_from_glwe_ciphertext(
@@ -295,6 +346,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
+    deterministic_execution: bool,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
@@ -308,6 +360,60 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+    );
+
+    let grouping_factor = multi_bit_bsk.grouping_factor();
+
+    let lut_poly_size = accumulator.polynomial_size();
+
+    let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
+        input: &input.as_view(),
+        grouping_factor,
+        log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
+    };
+
+    if deterministic_execution {
+        multi_bit_deterministic_blind_rotate_assign(
+            &multi_bitmodulus_switched_ct,
+            accumulator,
+            multi_bit_bsk,
+            thread_count,
+        )
+    } else {
+        multi_bit_non_deterministic_blind_rotate_assign(
+            &multi_bitmodulus_switched_ct,
+            accumulator,
+            multi_bit_bsk,
+            thread_count,
+        )
+    }
+}
+
+pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
+    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    accumulator: &mut GlweCiphertext<OutputCont>,
+    multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
+    thread_count: ThreadCount,
+) where
+    Scalar: UnsignedTorus + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    KeyCont: Container<Element = c64> + Sync,
+{
+    assert_eq!(
+        switched_modulus_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
     );
 
@@ -329,57 +435,40 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         multi_bit_bsk.polynomial_size(),
     );
 
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
     assert!(
         thread_count.0 != 0,
         "Got thread_count == 0, this is not supported"
     );
 
-    assert!(accumulator
-        .ciphertext_modulus()
-        .is_compatible_with_native_modulus());
-
-    let (lwe_mask, lwe_body) = input.get_mask_and_body();
+    assert!(
+        accumulator
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "Multi bit PBS does not support non power of two ciphertext modulus"
+    );
 
     // No way to chunk the result of ggsw_iter at the moment
     let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
-    let mut work_queue = Vec::with_capacity(multi_bit_bsk.multi_bit_input_lwe_dimension().0);
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
-    for (lwe_mask_elements, ggsw_group) in lwe_mask
-        .as_ref()
-        .chunks_exact(grouping_factor.0)
-        .zip(ggsw_vec.chunks_exact(ggsw_per_multi_bit_element.0))
-    {
-        work_queue.push((lwe_mask_elements, ggsw_group));
-    }
+    let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
-    assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
+    assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
+    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
 
-    let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
-
-    // Modulus switching
     accumulator
         .as_mut_polynomial_list()
         .iter_mut()
         .for_each(|mut poly| {
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
-                MonomialDegree(monomial_degree),
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
             );
         });
 
-    let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
+    let fourier_multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
         .map(|_| {
             (
                 Mutex::new(false),
@@ -392,7 +481,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                 )),
             )
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     let (tx, rx) = mpsc::channel::<usize>();
 
@@ -405,19 +494,21 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         let produce_multi_bit_fourier_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
             let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
 
-            let work_queue = &work_queue;
-
             let dest_idx = thread_id;
             let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer) =
                 &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             loop {
                 let work_index = work_index_counter.fetch_add(1, Ordering::Relaxed);
-                if work_queue.len() <= work_index {
+                if work_index >= max_work_index {
                     break;
                 }
 
-                let (lwe_mask_elements, ggsw_group) = work_queue[work_index];
+                let switched_degrees =
+                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+
+                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
+                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -432,7 +523,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                 prepare_multi_bit_ggsw_mem_optimized(
                     &mut fourier_ggsw_buffer,
                     ggsw_group,
-                    lwe_mask_elements,
+                    switched_degrees,
                     &mut fourier_a_monomial,
                     fft,
                 );
@@ -538,24 +629,22 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 }
 
 /// Deterministic version of [`multi_bit_blind_rotate_assign`].
-pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
+    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
 ) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar>,
+    Scalar: UnsignedTorus + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = c64> + Sync,
 {
     assert_eq!(
-        input.lwe_size().to_lwe_dimension(),
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
         "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
-        input.lwe_size().to_lwe_dimension(),
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
     );
 
@@ -577,55 +666,40 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
         multi_bit_bsk.polynomial_size(),
     );
 
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
     assert!(
         thread_count.0 != 0,
         "Got thread_count == 0, this is not supported"
     );
 
-    let (lwe_mask, lwe_body) = input.get_mask_and_body();
+    assert!(
+        accumulator
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "Multi bit PBS does not support non power of two ciphertext modulus"
+    );
 
     // No way to chunk the result of ggsw_iter at the moment
     let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
-    let mut work_queue = Vec::with_capacity(multi_bit_bsk.multi_bit_input_lwe_dimension().0);
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
-    for (lwe_mask_elements, ggsw_group) in lwe_mask
-        .as_ref()
-        .chunks_exact(grouping_factor.0)
-        .zip(ggsw_vec.chunks_exact(ggsw_per_multi_bit_element.0))
-    {
-        work_queue.push((lwe_mask_elements, ggsw_group));
-    }
+    let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
-    assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
+    assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
+    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
 
-    let work_queue = &work_queue;
-
-    let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
-
-    // Modulus switching
     accumulator
         .as_mut_polynomial_list()
         .iter_mut()
         .for_each(|mut poly| {
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
-                MonomialDegree(monomial_degree),
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
             );
         });
 
-    let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
+    let fourier_multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
         .map(|_| {
             (
                 Mutex::new(false),
@@ -638,73 +712,47 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
                 )),
             )
         })
-        .collect::<Vec<_>>();
+        .collect();
+    let fft = Fft::new(multi_bit_bsk.polynomial_size());
+    let fft = fft.as_view();
 
     thread::scope(|s| {
         let produce_multi_bit_fourier_ggsw = |thread_id| {
-            let fft = Fft::new(multi_bit_bsk.polynomial_size());
-            let fft = fft.as_view();
-
             let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
 
             let dest_idx = thread_id;
-            for (lwe_mask_elements, ggsw_group) in
-                work_queue.iter().skip(thread_id).step_by(thread_count.0)
-            {
-                let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer) =
-                    &fourier_multi_bit_ggsw_buffers[dest_idx];
+
+            #[allow(clippy::type_complexity)]
+            let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer): &(
+                Mutex<bool>,
+                Condvar,
+                Mutex<FourierGgswCiphertext<ABox<[c64]>>>,
+            ) = &fourier_multi_bit_ggsw_buffers[dest_idx];
+
+            for work_index in (0..max_work_index).skip(thread_id).step_by(thread_count.0) {
+                let switched_degrees =
+                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+
+                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
+                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
-                // Wait while the buffer is not ready for processing and wait on the condvar to
-                // get notified when we can start processing again
+                // Wait while the buffer is not ready for processing and wait on the condvar
+                // to get notified when we can start processing again
                 while *ready_for_consumer {
                     ready_for_consumer = condvar.wait(ready_for_consumer).unwrap();
                 }
 
                 let mut fourier_ggsw_buffer = fourier_ggsw_buffer.lock().unwrap();
 
-                let mut bunch_iter = ggsw_group.iter();
-
-                // Keygen guarantees the first term is a constant term of the polynomial, no
-                // polynomial multiplication required
-                let ggsw_a_none = bunch_iter.next().unwrap();
-
-                fourier_ggsw_buffer
-                    .as_mut_view()
-                    .data()
-                    .copy_from_slice(ggsw_a_none.as_view().data());
-
-                let multi_bit_fourier_ggsw = fourier_ggsw_buffer.as_mut_view().data();
-
-                for (ggsw_idx, fourier_ggsw) in bunch_iter.enumerate() {
-                    // We already processed the first ggsw, advance the index by 1
-                    let ggsw_idx = ggsw_idx + 1;
-
-                    let mut monomial_degree = Scalar::ZERO;
-                    for (mask_idx, &mask_element) in lwe_mask_elements.iter().enumerate() {
-                        let mask_position = lwe_mask_elements.len() - (mask_idx + 1);
-                        let selection_bit: Scalar =
-                            Scalar::cast_from((ggsw_idx >> mask_position) & 1);
-                        monomial_degree =
-                            monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
-                    }
-
-                    let switched_degree = pbs_modulus_switch(monomial_degree, lut_poly_size);
-
-                    let factor = fft.incomplete_monomial_forward_as_integer(
-                        fourier_a_monomial.as_mut_view(),
-                        switched_degree,
-                    );
-                    update_with_fmadd_factor(
-                        multi_bit_fourier_ggsw,
-                        fourier_ggsw.as_view().data(),
-                        fourier_a_monomial.as_view().data,
-                        factor,
-                        false,
-                        lut_poly_size.to_fourier_polynomial_size().0,
-                    );
-                }
+                prepare_multi_bit_ggsw_mem_optimized(
+                    &mut fourier_ggsw_buffer,
+                    ggsw_group,
+                    switched_degrees,
+                    &mut fourier_a_monomial,
+                    fft,
+                );
 
                 // Drop the lock before we wake other threads
                 drop(fourier_ggsw_buffer);
@@ -733,9 +781,6 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
         let ct1 = &mut ct1;
 
         let mut buffers = ComputationBuffers::new();
-
-        let fft = Fft::new(multi_bit_bsk.polynomial_size());
-        let fft = fft.as_view();
 
         buffers.resize(
             add_external_product_assign_scratch::<Scalar>(
@@ -995,6 +1040,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 ///     &accumulator,
 ///     &multi_bit_bsk,
 ///     ThreadCount(4),
+///     true,
 /// );
 ///
 /// // Decrypt the PBS multiplication result
@@ -1029,6 +1075,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     accumulator: &GlweCiphertext<AccCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
+    deterministic_execution: bool,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
@@ -1104,105 +1151,12 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
         .as_mut()
         .copy_from_slice(accumulator.as_ref());
 
-    multi_bit_blind_rotate_assign(input, &mut local_accumulator, multi_bit_bsk, thread_count);
-
-    extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
-}
-
-/// Deterministic version of [`multi_bit_programmable_bootstrap_lwe_ciphertext`]. Performance may be
-/// slightly worse than the non deterministic version.
-pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
-    Scalar,
-    InputCont,
-    OutputCont,
-    AccCont,
-    KeyCont,
->(
-    input: &LweCiphertext<InputCont>,
-    output: &mut LweCiphertext<OutputCont>,
-    accumulator: &GlweCiphertext<AccCont>,
-    multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
-    thread_count: ThreadCount,
-) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
-    KeyCont: Container<Element = c64> + Sync,
-{
-    assert_eq!(
-        input.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.input_lwe_dimension(),
-        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
-        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
-        input.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.input_lwe_dimension(),
-    );
-
-    assert_eq!(
-        output.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.output_lwe_dimension(),
-        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
-        FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
-        output.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.output_lwe_dimension(),
-    );
-
-    assert_eq!(
-        accumulator.glwe_size(),
-        multi_bit_bsk.glwe_size(),
-        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
-        FourierLweMultiBitBootstrapKey GlweSize {:?}.",
-        accumulator.glwe_size(),
-        multi_bit_bsk.glwe_size(),
-    );
-
-    assert_eq!(
-        accumulator.polynomial_size(),
-        multi_bit_bsk.polynomial_size(),
-        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
-        FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
-        accumulator.polynomial_size(),
-        multi_bit_bsk.polynomial_size(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
-    assert!(
-        thread_count.0 != 0,
-        "Got thread_count == 0, this is not supported"
-    );
-
-    let mut local_accumulator = GlweCiphertext::new(
-        Scalar::ZERO,
-        accumulator.glwe_size(),
-        accumulator.polynomial_size(),
-        accumulator.ciphertext_modulus(),
-    );
-    local_accumulator
-        .as_mut()
-        .copy_from_slice(accumulator.as_ref());
-
-    multi_bit_deterministic_blind_rotate_assign(
+    multi_bit_blind_rotate_assign(
         input,
         &mut local_accumulator,
         multi_bit_bsk,
         thread_count,
+        deterministic_execution,
     );
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
@@ -1211,8 +1165,8 @@ pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
 pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, GgswGroupCont>(
     multi_bit_ggsw: &mut GgswCiphertext<GgswBufferCont>,
     tmp_ggsw_buffer: &mut GgswCiphertext<TmpGgswBufferCont>,
-    ggsw_group: &GgswCiphertextList<GgswGroupCont>,
-    lwe_mask_elements: &[Scalar],
+    ggsw_group: &[GgswCiphertext<GgswGroupCont>],
+    switched_degrees: impl Iterator<Item = usize>,
 ) where
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
     GgswBufferCont: ContainerMut<Element = Scalar>,
@@ -1229,25 +1183,7 @@ pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, Ggs
         .as_mut()
         .copy_from_slice(ggsw_a_none.as_ref());
 
-    let polynomial_size = multi_bit_ggsw.polynomial_size();
-
-    for (ggsw_idx, std_ggsw) in ggsw_group_iter.enumerate() {
-        // We already processed the first ggsw, advance the index by 1
-        let ggsw_idx = ggsw_idx + 1;
-
-        // Select the proper mask elements to build the monomial degree depending on
-        // the order the GGSW were generated in, using the bits from mask_idx and
-        // ggsw_idx as selector bits
-        let mut monomial_degree = Scalar::ZERO;
-        for (mask_idx, &mask_element) in lwe_mask_elements.iter().enumerate() {
-            let mask_position = lwe_mask_elements.len() - (mask_idx + 1);
-            let selection_bit: Scalar = Scalar::cast_from((ggsw_idx >> mask_position) & 1);
-            monomial_degree =
-                monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
-        }
-
-        let switched_degree = pbs_modulus_switch(monomial_degree, polynomial_size);
-
+    for (std_ggsw, switched_degree) in ggsw_group_iter.zip_eq(switched_degrees) {
         tmp_ggsw_buffer
             .as_mut_polynomial_list()
             .iter_mut()
@@ -1269,6 +1205,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
+    deterministic_execution: bool,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
@@ -1282,6 +1219,61 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
         "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+    );
+
+    let grouping_factor = multi_bit_bsk.grouping_factor();
+
+    let lut_poly_size = accumulator.polynomial_size();
+
+    let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
+        input: &input.as_view(),
+        grouping_factor,
+        log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
+    };
+
+    if deterministic_execution {
+        std_multi_bit_deterministic_blind_rotate_assign(
+            &multi_bitmodulus_switched_ct,
+            accumulator,
+            multi_bit_bsk,
+            thread_count,
+        )
+    } else {
+        std_multi_bit_non_deterministic_blind_rotate_assign(
+            &multi_bitmodulus_switched_ct,
+            accumulator,
+            multi_bit_bsk,
+            thread_count,
+        )
+    }
+}
+
+pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
+    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    accumulator: &mut GlweCiphertext<OutputCont>,
+    multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
+    thread_count: ThreadCount,
+) where
+    // CastInto required for PBS modulus switch which returns a usize
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
+    OutputCont: ContainerMut<Element = Scalar>,
+    KeyCont: Container<Element = Scalar> + Sync,
+{
+    assert_eq!(
+        switched_modulus_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+            FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
     );
 
@@ -1304,19 +1296,11 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
         "Mismatched CiphertextModulus. LweCiphertext CiphertextModulus {:?}. \
         LweMultiBitBootstrapKey CiphertextModulus {:?}.",
-        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
     );
 
@@ -1325,40 +1309,34 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
         "Got thread_count == 0, this is not supported"
     );
 
-    let (lwe_mask, lwe_body) = input.get_mask_and_body();
+    assert!(
+        accumulator
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "Multi bit PBS does not support non power of two ciphertext modulus"
+    );
 
-    // No way to chunk the result of ggsw_iter at the moment
-    // let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
-    let mut work_queue = Vec::with_capacity(multi_bit_bsk.multi_bit_input_lwe_dimension().0);
+    let ggsw_vec: Vec<_> = multi_bit_bsk.iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
-    for (lwe_mask_elements, ggsw_group) in lwe_mask
-        .as_ref()
-        .chunks_exact(grouping_factor.0)
-        .zip(multi_bit_bsk.chunks_exact(ggsw_per_multi_bit_element.0))
-    {
-        work_queue.push((lwe_mask_elements, ggsw_group));
-    }
+    let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
-    assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
+    assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
+    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
 
-    let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
-
-    // Modulus switching
     accumulator
         .as_mut_polynomial_list()
         .iter_mut()
         .for_each(|mut poly| {
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
-                MonomialDegree(monomial_degree),
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
             );
         });
 
-    let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
+    let fourier_multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
         .map(|_| {
             (
                 Mutex::new(false),
@@ -1371,7 +1349,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                 )),
             )
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     let (tx, rx) = mpsc::channel::<usize>();
 
@@ -1404,19 +1382,21 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                 multi_bit_bsk.ciphertext_modulus(),
             );
 
-            let work_queue = &work_queue;
-
             let dest_idx = thread_id;
             let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer) =
                 &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             loop {
                 let work_index = work_index_counter.fetch_add(1, Ordering::Relaxed);
-                if work_queue.len() <= work_index {
+                if work_index >= max_work_index {
                     break;
                 }
 
-                let (lwe_mask_elements, ggsw_group) = work_queue[work_index];
+                let switched_degrees =
+                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+
+                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
+                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -1431,8 +1411,8 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                 std_prepare_multi_bit_ggsw(
                     &mut std_ggsw_buffer,
                     &mut tmp_ggsw_buffer,
-                    &ggsw_group,
-                    lwe_mask_elements,
+                    ggsw_group,
+                    switched_degrees,
                 );
 
                 fourier_ggsw_buffer.as_mut_view().fill_with_forward_fourier(
@@ -1543,24 +1523,23 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
 
 /// Deterministic variant of [`std_multi_bit_blind_rotate_assign`]. Performance
 /// may be slightly worse than the non deterministic version.
-pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
+    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = Scalar> + Sync,
 {
     assert_eq!(
-        input.lwe_size().to_lwe_dimension(),
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
         "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
-        input.lwe_size().to_lwe_dimension(),
+        switched_modulus_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
     );
 
@@ -1583,14 +1562,6 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
-    assert_eq!(
         accumulator.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
         "Mismatched CiphertextModulus. Accumulator CiphertextModulus {:?}. \
@@ -1604,42 +1575,34 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
         "Got thread_count == 0, this is not supported"
     );
 
-    let (lwe_mask, lwe_body) = input.get_mask_and_body();
+    assert!(
+        accumulator
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "Multi bit PBS does not support non power of two ciphertext modulus"
+    );
 
-    // No way to chunk the result of ggsw_iter at the moment
-    // let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
-    let mut work_queue = Vec::with_capacity(multi_bit_bsk.multi_bit_input_lwe_dimension().0);
+    let ggsw_vec: Vec<_> = multi_bit_bsk.iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
-    for (lwe_mask_elements, ggsw_group) in lwe_mask
-        .as_ref()
-        .chunks_exact(grouping_factor.0)
-        .zip(multi_bit_bsk.chunks_exact(ggsw_per_multi_bit_element.0))
-    {
-        work_queue.push((lwe_mask_elements, ggsw_group));
-    }
+    let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
-    assert!(work_queue.len() == lwe_mask.lwe_dimension().0 / grouping_factor.0);
+    assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
+    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
 
-    let work_queue = &work_queue;
-
-    let lut_poly_size = accumulator.polynomial_size();
-    let monomial_degree = pbs_modulus_switch(*lwe_body.data, lut_poly_size);
-
-    // Modulus switching
     accumulator
         .as_mut_polynomial_list()
         .iter_mut()
         .for_each(|mut poly| {
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
-                MonomialDegree(monomial_degree),
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
             );
         });
 
-    let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
+    let fourier_multi_bit_ggsw_buffers: Vec<_> = (0..thread_count.0)
         .map(|_| {
             (
                 Mutex::new(false),
@@ -1652,7 +1615,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
                 )),
             )
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     let fft = Fft::new(multi_bit_bsk.polynomial_size());
     let fft = fft.as_view();
@@ -1681,11 +1644,20 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
             );
 
             let dest_idx = thread_id;
-            for (lwe_mask_elements, ggsw_group) in
-                work_queue.iter().skip(thread_id).step_by(thread_count.0)
-            {
-                let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer) =
-                    &fourier_multi_bit_ggsw_buffers[dest_idx];
+
+            #[allow(clippy::type_complexity)]
+            let (ready_for_consumer_lock, condvar, fourier_ggsw_buffer): &(
+                Mutex<bool>,
+                Condvar,
+                Mutex<FourierGgswCiphertext<ABox<[c64]>>>,
+            ) = &fourier_multi_bit_ggsw_buffers[dest_idx];
+
+            for work_index in (0..max_work_index).skip(thread_id).step_by(thread_count.0) {
+                let switched_degrees =
+                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+
+                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
+                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -1701,7 +1673,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
                     &mut std_ggsw_buffer,
                     &mut tmp_ggsw_buffer,
                     ggsw_group,
-                    lwe_mask_elements,
+                    switched_degrees,
                 );
 
                 fourier_ggsw_buffer.as_mut_view().fill_with_forward_fourier(
@@ -1823,6 +1795,7 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     accumulator: &GlweCiphertext<AccCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
+    deterministic_execution: bool,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
@@ -1898,105 +1871,12 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
         .as_mut()
         .copy_from_slice(accumulator.as_ref());
 
-    std_multi_bit_blind_rotate_assign(input, &mut local_accumulator, multi_bit_bsk, thread_count);
-
-    extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
-}
-
-/// Deterministic variant of [`std_multi_bit_programmable_bootstrap_lwe_ciphertext`]. Performance
-/// may be slightly worse than the non deterministic version.
-pub fn std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
-    Scalar,
-    InputCont,
-    OutputCont,
-    AccCont,
-    KeyCont,
->(
-    input: &LweCiphertext<InputCont>,
-    output: &mut LweCiphertext<OutputCont>,
-    accumulator: &GlweCiphertext<AccCont>,
-    multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
-    thread_count: ThreadCount,
-) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar> + Sync,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
-    KeyCont: Container<Element = Scalar> + Sync,
-{
-    assert_eq!(
-        input.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.input_lwe_dimension(),
-        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
-        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
-        input.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.input_lwe_dimension(),
-    );
-
-    assert_eq!(
-        output.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.output_lwe_dimension(),
-        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
-        FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
-        output.lwe_size().to_lwe_dimension(),
-        multi_bit_bsk.output_lwe_dimension(),
-    );
-
-    assert_eq!(
-        accumulator.glwe_size(),
-        multi_bit_bsk.glwe_size(),
-        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
-        FourierLweMultiBitBootstrapKey GlweSize {:?}.",
-        accumulator.glwe_size(),
-        multi_bit_bsk.glwe_size(),
-    );
-
-    assert_eq!(
-        accumulator.polynomial_size(),
-        multi_bit_bsk.polynomial_size(),
-        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
-        FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
-        accumulator.polynomial_size(),
-        multi_bit_bsk.polynomial_size(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
-    assert!(
-        thread_count.0 != 0,
-        "Got thread_count == 0, this is not supported"
-    );
-
-    let mut local_accumulator = GlweCiphertext::new(
-        Scalar::ZERO,
-        accumulator.glwe_size(),
-        accumulator.polynomial_size(),
-        accumulator.ciphertext_modulus(),
-    );
-    local_accumulator
-        .as_mut()
-        .copy_from_slice(accumulator.as_ref());
-
-    std_multi_bit_deterministic_blind_rotate_assign(
+    std_multi_bit_blind_rotate_assign(
         input,
         &mut local_accumulator,
         multi_bit_bsk,
         thread_count,
+        deterministic_execution,
     );
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));

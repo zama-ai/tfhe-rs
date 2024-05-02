@@ -145,6 +145,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
                     &accumulator.as_view(),
                     &multi_bit_bsk,
                     thread_count,
+                    false,
                 );
                 black_box(&mut out_pbs_ct);
             })

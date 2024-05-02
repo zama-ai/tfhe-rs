@@ -327,6 +327,7 @@ fn multi_bit_pbs<
                     &accumulator.as_view(),
                     &multi_bit_bsk,
                     ThreadCount(10),
+                    false,
                 );
                 black_box(&mut out_pbs_ct);
             })
@@ -416,12 +417,13 @@ fn multi_bit_deterministic_pbs<
         let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
-                multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
                     &mut out_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
                     ThreadCount(10),
+                    true,
                 );
                 black_box(&mut out_pbs_ct);
             })
