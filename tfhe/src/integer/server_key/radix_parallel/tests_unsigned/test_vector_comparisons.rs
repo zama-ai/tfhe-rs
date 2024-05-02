@@ -20,6 +20,8 @@ use rand::prelude::*;
 create_parametrized_test!(integer_unchecked_all_eq_slices_test_case);
 create_parametrized_test!(integer_default_all_eq_slices_test_case);
 
+create_parametrized_test!(integer_unchecked_contains_slice_test_case);
+
 fn integer_unchecked_all_eq_slices_test_case<P>(param: P)
 where
     P: Into<PBSParameters>,
@@ -34,6 +36,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::all_eq_slices_parallelized);
     default_all_eq_slices_test_case(param, executor);
+}
+
+fn integer_unchecked_contains_slice_test_case<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_contains_sub_slice_parallelized);
+    unchecked_slice_contains_test_case(param, executor);
 }
 
 /// Unchecked test for the function that compares slices of radix ciphertexts
@@ -227,4 +237,109 @@ where
     executor.setup(&cks, sks.clone());
 
     default_all_eq_slices_test_case_impl(executor, &sks, &cks, 0..modulus, RadixClientKey::encrypt);
+}
+
+pub(crate) fn unchecked_slice_contains_test_case<P, E>(params: P, mut executor: E)
+where
+    P: Into<PBSParameters>,
+    E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+
+    let sks = Arc::new(sks);
+
+    let nb_ctxt = 8usize.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
+    let cks = RadixClientKey::from((cks, nb_ctxt));
+
+    executor.setup(&cks, sks);
+
+    const ALPHABET: [char; 36] = [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+        't', 'u', 'v', 'x', 'y', 'z', '0', '🐧', '🦆', '🦦', '🦨', '🐈', '🐱', '🎮', '⊹', 'Ã',
+        '🤗', '✅',
+    ];
+
+    let nb_tests = nb_tests_for_params(cks.parameters());
+    let mut rng = thread_rng();
+
+    let halved_tests = (nb_tests / 2).max(1);
+
+    const MIN_STR_LEN: usize = 25;
+    const MAX_STR_LEN: usize = 50;
+
+    // First half of test: tests when the sub slice is actually contained
+    for _ in 0..halved_tests {
+        let str_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let mut str = String::with_capacity(str_size);
+        for _ in 0..str_size {
+            let i = rng.gen_range(0..ALPHABET.len());
+            str.push(ALPHABET[i]);
+        }
+
+        let slice_start = rng.gen_range(0..str_size - 1);
+        let slice_end = rng.gen_range(slice_start + 1..str_size);
+        let slice = str
+            .chars()
+            .skip(slice_start)
+            .take(slice_end - slice_start)
+            .collect::<String>();
+        assert!(str.contains(&slice));
+
+        let encrypted_str = str
+            .as_bytes()
+            .iter()
+            .map(|byte| cks.encrypt(*byte))
+            .collect::<Vec<_>>();
+        let encrypted_slice = slice
+            .as_bytes()
+            .iter()
+            .map(|byte| cks.encrypt(*byte))
+            .collect::<Vec<_>>();
+
+        let is_contained = executor.execute((&encrypted_str, &encrypted_slice));
+
+        let is_contained = cks.decrypt_bool(&is_contained);
+        assert!(is_contained);
+    }
+
+    // Second half of test: tests when the sub slice is NOT actually contained
+    for _ in 0..halved_tests {
+        let str_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let mut str = String::with_capacity(str_size);
+        for _ in 0..str_size {
+            let i = rng.gen_range(0..ALPHABET.len());
+            str.push(ALPHABET[i]);
+        }
+
+        let slice_size = rng.gen_range(MIN_STR_LEN..MAX_STR_LEN);
+        let mut slice = String::with_capacity(str_size);
+        loop {
+            for _ in 0..slice_size {
+                let i = rng.gen_range(0..ALPHABET.len());
+                slice.push(ALPHABET[i]);
+            }
+
+            if !str.contains(&slice) {
+                break;
+            }
+            slice.clear();
+        }
+
+        let encrypted_str = str
+            .as_bytes()
+            .iter()
+            .map(|byte| cks.encrypt(*byte))
+            .collect::<Vec<_>>();
+        let encrypted_slice = slice
+            .as_bytes()
+            .iter()
+            .map(|byte| cks.encrypt(*byte))
+            .collect::<Vec<_>>();
+
+        let is_contained = executor.execute((&encrypted_str, &encrypted_slice));
+
+        let is_contained = cks.decrypt_bool(&is_contained);
+        assert!(!is_contained);
+    }
 }
