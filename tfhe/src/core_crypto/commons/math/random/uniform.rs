@@ -48,6 +48,20 @@ macro_rules! implement_uniform_uint {
                     }
                 }
             }
+
+            fn single_sample_success_probability(
+                _distribution: Uniform,
+                modulus: Option<Self::CustomModulus>,
+            ) -> f64 {
+                // The parameters of the distribution do not impact generation success
+                match modulus {
+                    Some(modulus) => {
+                        let modulus_bits = modulus.ceil_ilog2().try_into().unwrap();
+                        modulus as f64 / 2.0f64.powi(modulus_bits)
+                    }
+                    None => 1.0,
+                }
+            }
         }
     };
 }
@@ -73,6 +87,17 @@ macro_rules! implement_uniform_int {
                 // We use from_le_bytes as most platforms are low endian, this avoids endianness
                 // issues
                 <$T>::from_le_bytes(buf)
+            }
+
+            fn single_sample_success_probability(
+                _distribution: Uniform,
+                modulus: Option<Self::CustomModulus>,
+            ) -> f64 {
+                // The parameters of the distribution do not impact generation success
+                match modulus {
+                    Some(_modulus) => panic!("Uniform generation for signed integers with CustomModulus is not supported."),
+                    None => 1.0,
+                }
             }
         }
     };

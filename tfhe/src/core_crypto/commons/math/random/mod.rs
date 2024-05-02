@@ -83,6 +83,22 @@ where
             *s = Self::generate_one_custom_modulus(generator, distribution, custom_modulus);
         }
     }
+
+    /// Return the probability to successfully generate a sample from the given distribution for the
+    /// type the trait is implemented on.
+    ///
+    /// If the generation can never fail it should return 1.0, otherwise it returns a value in
+    /// ]0; 1[.
+    ///
+    /// If None is passed for modulus, then the native modulus of the type (e.g. $2^{64}$ for u64)
+    /// or no modulus for floating points values is used.
+    ///
+    /// Otherwise the given modulus is interpreted as being the one used for a call to
+    /// [`RandomGenerable::generate_one_custom_modulus`].
+    fn single_sample_success_probability(
+        distribution: D,
+        modulus: Option<Self::CustomModulus>,
+    ) -> f64;
 }
 
 /// A marker trait for types representing distributions.
@@ -276,6 +292,24 @@ impl<
             }
             DynamicDistribution::TUniform(t_uniform) => {
                 Self::generate_one_custom_modulus(generator, t_uniform, custom_modulus)
+            }
+        }
+    }
+
+    fn single_sample_success_probability(
+        distribution: DynamicDistribution<T>,
+        modulus: Option<Self::CustomModulus>,
+    ) -> f64 {
+        match distribution {
+            DynamicDistribution::Gaussian(gaussian) => {
+                <Self as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
+                    gaussian, modulus,
+                )
+            }
+            DynamicDistribution::TUniform(t_uniform) => {
+                <Self as RandomGenerable<TUniform<T>>>::single_sample_success_probability(
+                    t_uniform, modulus,
+                )
             }
         }
     }

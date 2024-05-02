@@ -690,3 +690,25 @@ fn test_t_uniform_random_u64() {
     let ciphertext_modulus = CiphertextModulus::new_native();
     test_random_from_distribution_custom_mod::<u64, TUniform<_>>(bound_log2, ciphertext_modulus);
 }
+
+#[test]
+fn test_uniform_sample_success_probability() {
+    {
+        let modulus = ((1u128 << 64) - (1 << 32) + 1) as u64;
+        let generation_success_rate =
+            <u64 as RandomGenerable<Uniform>>::single_sample_success_probability(
+                Uniform,
+                Some(modulus),
+            );
+
+        assert_eq!(generation_success_rate, modulus as f64 / 2.0f64.powi(64));
+    }
+
+    {
+        // None = native modulus
+        let generation_success_rate =
+            <u64 as RandomGenerable<Uniform>>::single_sample_success_probability(Uniform, None);
+
+        assert_eq!(generation_success_rate, 1.0);
+    }
+}
