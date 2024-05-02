@@ -1,6 +1,7 @@
 //! Module containing primitives pertaining to the [`LWE programmable
 //! bootstrap`](`LweBootstrapKey#programmable-bootstrapping`).
 
+use crate::core_crypto::algorithms::glwe_encryption::allocate_and_trivially_encrypt_new_glwe_ciphertext;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
@@ -133,57 +134,8 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// // with a cleartext, however it resets the noise in a ciphertext to a nominal level and allows
 /// // to evaluate arbitrary functions so depending on your use case it can be a better fit.
 ///
-/// // Here we will define a helper function to generate an accumulator for a PBS
-/// fn generate_accumulator<F>(
-///     polynomial_size: PolynomialSize,
-///     glwe_size: GlweSize,
-///     message_modulus: usize,
-///     ciphertext_modulus: CiphertextModulus<u64>,
-///     delta: u64,
-///     f: F,
-/// ) -> GlweCiphertextOwned<u64>
-/// where
-///     F: Fn(u64) -> u64,
-/// {
-///     // N/(p/2) = size of each block, to correct noise from the input we introduce the notion of
-///     // box, which manages redundancy to yield a denoised value for several noisy values around
-///     // a true input value.
-///     let box_size = polynomial_size.0 / message_modulus;
-///
-///     // Create the accumulator
-///     let mut accumulator_u64 = vec![0_u64; polynomial_size.0];
-///
-///     // Fill each box with the encoded denoised value
-///     for i in 0..message_modulus {
-///         let index = i * box_size;
-///         accumulator_u64[index..index + box_size]
-///             .iter_mut()
-///             .for_each(|a| *a = f(i as u64) * delta);
-///     }
-///
-///     let half_box_size = box_size / 2;
-///
-///     // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-///     for a_i in accumulator_u64[0..half_box_size].iter_mut() {
-///         *a_i = (*a_i).wrapping_neg();
-///     }
-///
-///     // Rotate the accumulator
-///     accumulator_u64.rotate_left(half_box_size);
-///
-///     let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
-///
-///     let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
-///         glwe_size,
-///         &accumulator_plaintext,
-///         ciphertext_modulus,
-///     );
-///
-///     accumulator
-/// }
-///
 /// // Generate the accumulator for our multiplication by 2 using a simple closure
-/// let mut accumulator: GlweCiphertextOwned<u64> = generate_accumulator(
+/// let mut accumulator: GlweCiphertextOwned<u64> = generate_programmable_bootstrap_glwe_lut(
 ///     polynomial_size,
 ///     glwe_dimension.to_glwe_size(),
 ///     message_modulus as usize,
@@ -923,57 +875,8 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// // with a cleartext, however it resets the noise in a ciphertext to a nominal level and allows
 /// // to evaluate arbitrary functions so depending on your use case it can be a better fit.
 ///
-/// // Here we will define a helper function to generate an accumulator for a PBS
-/// fn generate_accumulator<F>(
-///     polynomial_size: PolynomialSize,
-///     glwe_size: GlweSize,
-///     message_modulus: usize,
-///     ciphertext_modulus: CiphertextModulus<u64>,
-///     delta: u64,
-///     f: F,
-/// ) -> GlweCiphertextOwned<u64>
-/// where
-///     F: Fn(u64) -> u64,
-/// {
-///     // N/(p/2) = size of each block, to correct noise from the input we introduce the notion of
-///     // box, which manages redundancy to yield a denoised value for several noisy values around
-///     // a true input value.
-///     let box_size = polynomial_size.0 / message_modulus;
-///
-///     // Create the accumulator
-///     let mut accumulator_u64 = vec![0_u64; polynomial_size.0];
-///
-///     // Fill each box with the encoded denoised value
-///     for i in 0..message_modulus {
-///         let index = i * box_size;
-///         accumulator_u64[index..index + box_size]
-///             .iter_mut()
-///             .for_each(|a| *a = f(i as u64) * delta);
-///     }
-///
-///     let half_box_size = box_size / 2;
-///
-///     // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-///     for a_i in accumulator_u64[0..half_box_size].iter_mut() {
-///         *a_i = (*a_i).wrapping_neg();
-///     }
-///
-///     // Rotate the accumulator
-///     accumulator_u64.rotate_left(half_box_size);
-///
-///     let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
-///
-///     let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
-///         glwe_size,
-///         &accumulator_plaintext,
-///         ciphertext_modulus,
-///     );
-///
-///     accumulator
-/// }
-///
 /// // Generate the accumulator for our multiplication by 2 using a simple closure
-/// let accumulator: GlweCiphertextOwned<u64> = generate_accumulator(
+/// let accumulator: GlweCiphertextOwned<u64> = generate_programmable_bootstrap_glwe_lut(
 ///     polynomial_size,
 ///     glwe_dimension.to_glwe_size(),
 ///     message_modulus as usize,
@@ -1255,57 +1158,8 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// // with a cleartext, however it resets the noise in a ciphertext to a nominal level and allows
 /// // to evaluate arbitrary functions so depending on your use case it can be a better fit.
 ///
-/// // Here we will define a helper function to generate an accumulator for a PBS
-/// fn generate_accumulator<F>(
-///     polynomial_size: PolynomialSize,
-///     glwe_size: GlweSize,
-///     message_modulus: usize,
-///     ciphertext_modulus: CiphertextModulus<u128>,
-///     delta: u128,
-///     f: F,
-/// ) -> GlweCiphertextOwned<u128>
-/// where
-///     F: Fn(u128) -> u128,
-/// {
-///     // N/(p/2) = size of each block, to correct noise from the input we introduce the notion of
-///     // box, which manages redundancy to yield a denoised value for several noisy values around
-///     // a true input value.
-///     let box_size = polynomial_size.0 / message_modulus;
-///
-///     // Create the accumulator
-///     let mut accumulator_u128 = vec![0_u128; polynomial_size.0];
-///
-///     // Fill each box with the encoded denoised value
-///     for i in 0..message_modulus {
-///         let index = i * box_size;
-///         accumulator_u128[index..index + box_size]
-///             .iter_mut()
-///             .for_each(|a| *a = f(i as u128) * delta);
-///     }
-///
-///     let half_box_size = box_size / 2;
-///
-///     // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-///     for a_i in accumulator_u128[0..half_box_size].iter_mut() {
-///         *a_i = (*a_i).wrapping_neg();
-///     }
-///
-///     // Rotate the accumulator
-///     accumulator_u128.rotate_left(half_box_size);
-///
-///     let accumulator_plaintext = PlaintextList::from_container(accumulator_u128);
-///
-///     let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
-///         glwe_size,
-///         &accumulator_plaintext,
-///         ciphertext_modulus,
-///     );
-///
-///     accumulator
-/// }
-///
 /// // Generate the accumulator for our multiplication by 2 using a simple closure
-/// let accumulator: GlweCiphertextOwned<u128> = generate_accumulator(
+/// let accumulator: GlweCiphertextOwned<u128> = generate_programmable_bootstrap_glwe_lut(
 ///     polynomial_size,
 ///     glwe_dimension.to_glwe_size(),
 ///     message_modulus as usize,
@@ -1429,4 +1283,65 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
     fft: Fft128View<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
+}
+
+/// Helper function to generate an accumulator for a PBS
+///
+/// message_modulus is the number of values that can be encoded (without filling the padding bit)
+/// it must be a power of 2
+///
+/// delta is a constant by which the outputs of the LUT are scaled to be encoded
+///
+/// see [programmable_bootstrap_lwe_ciphertext#example] for usage
+pub fn generate_programmable_bootstrap_glwe_lut<F, Scalar: UnsignedTorus + CastFrom<usize>>(
+    polynomial_size: PolynomialSize,
+    glwe_size: GlweSize,
+    message_modulus: usize,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    delta: Scalar,
+    f: F,
+) -> GlweCiphertextOwned<Scalar>
+where
+    F: Fn(Scalar) -> Scalar,
+{
+    // N/(p/2) = size of each block, to correct noise from the input we introduce the
+    // notion of box, which manages redundancy to yield a denoised value
+    // for several noisy values around a true input value.
+    let box_size = polynomial_size.0 / message_modulus;
+
+    // Create the accumulator
+    let mut accumulator_scalar = vec![Scalar::ZERO; polynomial_size.0];
+
+    // Fill each box with the encoded denoised value
+    for i in 0..message_modulus {
+        let index = i * box_size;
+        accumulator_scalar[index..index + box_size]
+            .iter_mut()
+            .for_each(|a| *a = f(Scalar::cast_from(i)) * delta);
+    }
+
+    let half_box_size = box_size / 2;
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        // Negate the first half_box_size coefficients to manage negacyclicity and rotate
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg();
+        }
+    } else {
+        let modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg_custom_mod(modulus);
+        }
+    }
+
+    // Rotate the accumulator
+    accumulator_scalar.rotate_left(half_box_size);
+
+    let accumulator_plaintext = PlaintextList::from_container(accumulator_scalar);
+
+    allocate_and_trivially_encrypt_new_glwe_ciphertext(
+        glwe_size,
+        &accumulator_plaintext,
+        ciphertext_modulus,
+    )
 }
