@@ -5,7 +5,7 @@ use paste::paste;
 use rand::Rng;
 use std::sync::Arc;
 
-use super::tests_cases_unsigned::*;
+use super::super::tests_cases_unsigned::*;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive

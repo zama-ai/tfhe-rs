@@ -3,7 +3,6 @@ use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{IntegerKeyKind, ServerKey, I256, U256};
 use crate::shortint::ClassicPBSParameters;
-use rand;
 use rand::prelude::*;
 
 /// Function to test an "unchecked" server key function.

@@ -24,11 +24,12 @@ pub(crate) mod tests_cases_comparisons;
 #[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]
-mod tests_signed;
+pub(crate) mod tests_signed;
 #[cfg(test)]
 pub(crate) mod tests_unsigned;
 
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+mod vector_comparisons;
 
 use super::ServerKey;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};

@@ -60,7 +60,7 @@ impl MaxNoiseLevel {
 }
 
 /// This tracks the amount of noise in a ciphertext.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Copy, Clone, Serialize, Deserialize)]
 pub struct NoiseLevel(usize);
 
 impl NoiseLevel {
@@ -142,7 +142,7 @@ impl MaxDegree {
 }
 
 /// This tracks the number of operations that has been done.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(usize);
 
 impl Degree {

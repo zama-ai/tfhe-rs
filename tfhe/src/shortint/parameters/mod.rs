@@ -22,6 +22,9 @@ pub mod parameters_wopbs_message_carry;
 pub(crate) mod parameters_wopbs_prime_moduli;
 
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
+
+#[cfg(tarpaulin)]
+pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
 pub use parameters_compact_pk::*;
