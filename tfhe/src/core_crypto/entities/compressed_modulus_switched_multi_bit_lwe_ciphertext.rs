@@ -219,10 +219,10 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         let mut diffs = vec![];
 
         for lwe_mask_elements in input_lwe_mask.as_ref().chunks_exact(grouping_factor.0) {
-            for ggsw_idx in 1..grouping_factor.ggsw_per_multi_bit_element().0 {
+            for power_set_index in 1..grouping_factor.multi_bit_power_set_size().0 {
                 // We need to store the diff sums of more than one element as we store the
                 // individual modulus_switched elements
-                if ggsw_idx.count_ones() == 1 {
+                if power_set_index.count_ones() == 1 {
                     continue;
                 }
 
@@ -232,7 +232,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
                 for (&mask_element, selection_bit) in lwe_mask_elements
                     .iter()
-                    .zip_eq(selection_bit(grouping_factor, ggsw_idx))
+                    .zip_eq(selection_bit(grouping_factor, power_set_index))
                 {
                     let selection_bit: Scalar = Scalar::cast_from(selection_bit);
 
@@ -337,17 +337,17 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         let mut switched_modulus_input_mask_per_group: Vec<usize> = vec![];
 
         for lwe_mask_elements in masks.chunks_exact(self.grouping_factor.0) {
-            for ggsw_idx in 1..self.grouping_factor.ggsw_per_multi_bit_element().0 {
+            for power_set_index in 1..self.grouping_factor.multi_bit_power_set_size().0 {
                 let mut monomial_degree = 0;
                 for (&mask_element, selection_bit) in lwe_mask_elements
                     .iter()
-                    .zip_eq(selection_bit(self.grouping_factor, ggsw_idx))
+                    .zip_eq(selection_bit(self.grouping_factor, power_set_index))
                 {
                     monomial_degree =
                         monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
                 }
 
-                if ggsw_idx.count_ones() != 1 {
+                if power_set_index.count_ones() != 1 {
                     let diff = diffs(diff_index);
 
                     diff_index += 1;
@@ -387,9 +387,9 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
         &self,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_ {
-        let ggsw_per_multi_bit_element = self.grouping_factor.ggsw_per_multi_bit_element();
+        let multi_bit_power_set_size = self.grouping_factor.multi_bit_power_set_size();
 
-        let chunk_size = ggsw_per_multi_bit_element.0 - 1;
+        let chunk_size = multi_bit_power_set_size.0 - 1;
 
         self.switched_modulus_input_mask_per_group[index * chunk_size..(index + 1) * chunk_size]
             .iter()

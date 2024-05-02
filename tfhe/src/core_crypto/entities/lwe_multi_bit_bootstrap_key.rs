@@ -52,8 +52,7 @@ pub fn lwe_multi_bit_bootstrap_key_size(
     }
 
     let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
-    let ggsw_count =
-        equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
+    let ggsw_count = equivalent_multi_bit_dimension * grouping_factor.multi_bit_power_set_size().0;
 
     Ok(ggsw_ciphertext_list_size(
         GgswCiphertextCount(ggsw_count),
@@ -81,14 +80,14 @@ where
     MaskDistribution: Distribution,
     NoiseDistribution: Distribution,
 {
-    let ggsw_group_mask_sample_count = grouping_factor.ggsw_per_multi_bit_element().0
+    let ggsw_group_mask_sample_count = grouping_factor.multi_bit_power_set_size().0
         * ggsw_ciphertext_encryption_mask_sample_count(
             glwe_size,
             polynomial_size,
             decomposition_level_count,
         );
 
-    let ggsw_group_noise_sample_count = grouping_factor.ggsw_per_multi_bit_element().0
+    let ggsw_group_noise_sample_count = grouping_factor.multi_bit_power_set_size().0
         * ggsw_ciphertext_encryption_noise_sample_count(
             glwe_size,
             polynomial_size,
@@ -234,9 +233,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
     /// See [`LweMultiBitBootstrapKey::from_container`] for usage.
     pub fn input_lwe_dimension(&self) -> LweDimension {
         let grouping_factor = self.grouping_factor;
-        let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+        let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
         LweDimension(
-            self.ggsw_ciphertext_count().0 * grouping_factor.0 / ggsw_per_multi_bit_element.0,
+            self.ggsw_ciphertext_count().0 * grouping_factor.0 / multi_bit_power_set_size.0,
         )
     }
 
@@ -373,7 +372,7 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
                 decomp_base_log,
                 decomp_level_count,
                 GgswCiphertextCount(
-                    equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0,
+                    equivalent_multi_bit_dimension * grouping_factor.multi_bit_power_set_size().0,
                 ),
                 ciphertext_modulus,
             ),
@@ -414,7 +413,7 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
         );
         let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
         let ggsw_count =
-            equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
+            equivalent_multi_bit_dimension * grouping_factor.multi_bit_power_set_size().0;
         let expected_container_size = ggsw_count
             * fourier_ggsw_ciphertext_size(
                 glwe_size,
@@ -560,7 +559,7 @@ impl FourierLweMultiBitBootstrapKeyOwned {
         );
         let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
         let ggsw_count =
-            equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
+            equivalent_multi_bit_dimension * grouping_factor.multi_bit_power_set_size().0;
         let container_size = ggsw_count
             * fourier_ggsw_ciphertext_size(
                 glwe_size,

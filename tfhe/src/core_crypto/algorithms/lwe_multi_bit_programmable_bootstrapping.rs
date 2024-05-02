@@ -29,7 +29,7 @@ where
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
 {
     // Start at 1, the first ggsw is not rotated
-    (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
+    (1..grouping_factor.multi_bit_power_set_size().0).map(move |power_set_index| {
         let mut monomial_degree = Scalar::ZERO;
         for (&mask_element, selection_bit) in lwe_mask_elements
             .iter()
@@ -49,7 +49,7 @@ pub(crate) fn selection_bit(
     grouping_factor: LweBskGroupingFactor,
     power_set_index: usize,
 ) -> impl Iterator<Item = usize> {
-    debug_assert!(power_set_index < grouping_factor.ggsw_per_multi_bit_element().0);
+    debug_assert!(power_set_index < grouping_factor.multi_bit_power_set_size().0);
 
     (0..grouping_factor.0).map(move |mask_idx| {
         let mask_position = grouping_factor.0 - (mask_idx + 1);
@@ -417,7 +417,7 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
     let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
@@ -473,8 +473,8 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 let switched_degrees =
                     switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
 
-                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
-                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+                let ggsw_group = &ggsw_vec[work_index * multi_bit_power_set_size.0
+                    ..(work_index + 1) * multi_bit_power_set_size.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -648,7 +648,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     let ggsw_vec: Vec<_> = multi_bit_bsk.ggsw_iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
@@ -699,8 +699,8 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
                 let switched_degrees =
                     switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
 
-                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
-                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+                let ggsw_group = &ggsw_vec[work_index * multi_bit_power_set_size.0
+                    ..(work_index + 1) * multi_bit_power_set_size.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -1236,7 +1236,7 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
     let ggsw_vec: Vec<_> = multi_bit_bsk.iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
@@ -1312,8 +1312,8 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
                 let switched_degrees =
                     switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
 
-                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
-                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+                let ggsw_group = &ggsw_vec[work_index * multi_bit_power_set_size.0
+                    ..(work_index + 1) * multi_bit_power_set_size.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -1502,7 +1502,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
     let ggsw_vec: Vec<_> = multi_bit_bsk.iter().collect();
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
@@ -1573,8 +1573,8 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                 let switched_degrees =
                     switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
 
-                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
-                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+                let ggsw_group = &ggsw_vec[work_index * multi_bit_power_set_size.0
+                    ..(work_index + 1) * multi_bit_power_set_size.0];
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 

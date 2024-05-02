@@ -222,14 +222,14 @@ pub struct ThreadCount(pub usize);
 pub struct LweBskGroupingFactor(pub usize);
 
 impl LweBskGroupingFactor {
-    pub fn ggsw_per_multi_bit_element(&self) -> GgswPerLweMultiBitBskElement {
-        GgswPerLweMultiBitBskElement(1 << self.0)
+    pub fn multi_bit_power_set_size(&self) -> MultiBitPowerSetSize {
+        MultiBitPowerSetSize(1 << self.0)
     }
 }
 
 /// The number of GGSW ciphertexts required per multi_bit BSK element
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct GgswPerLweMultiBitBskElement(pub usize);
+pub struct MultiBitPowerSetSize(pub usize);
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum EncryptionKeyChoice {
