@@ -25,7 +25,7 @@ use rayon::prelude::*;
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
-/// let grouping_factor = LweBskGroupingFactor(2);
+/// let grouping_factor = MultiBitGroupingFactor(2);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -182,7 +182,7 @@ pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -232,7 +232,7 @@ where
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
-/// let grouping_factor = LweBskGroupingFactor(2);
+/// let grouping_factor = MultiBitGroupingFactor(2);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -436,7 +436,7 @@ pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -612,7 +612,7 @@ pub fn allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
@@ -766,7 +766,7 @@ pub fn par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>

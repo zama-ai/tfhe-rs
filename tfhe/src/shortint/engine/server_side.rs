@@ -1,8 +1,8 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, PolynomialSize, ThreadCount,
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
+    MultiBitGroupingFactor, PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
@@ -27,7 +27,7 @@ impl ShortintEngine {
         polynomial_size: PolynomialSize,
         pbs_base_log: DecompositionBaseLog,
         pbs_level: DecompositionLevelCount,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
     ) -> ThreadCount {
         // TODO
         // Will be used later when we dynamically compute thread counts, put them in the public

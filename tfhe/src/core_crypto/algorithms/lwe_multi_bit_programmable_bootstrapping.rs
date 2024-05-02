@@ -22,7 +22,7 @@ pub use super::lwe_programmable_bootstrapping::generate_programmable_bootstrap_g
 
 pub fn modulus_switch_multi_bit<Scalar>(
     ciphertext_modulus_log: CiphertextModulusLog,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     lwe_mask_elements: &[Scalar],
 ) -> impl Iterator<Item = usize> + '_
 where
@@ -46,7 +46,7 @@ where
 // Returns an iterator of booleans (as usize), corresponding to successive mask group elements
 // to indicate if they must be used at the given power_set_index
 pub(crate) fn selection_bit(
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     power_set_index: usize,
 ) -> impl Iterator<Item = usize> {
     debug_assert!(power_set_index < grouping_factor.multi_bit_power_set_size().0);
@@ -72,7 +72,7 @@ pub struct StandardMultiBitModulusSwitchedCt<
     C: Container<Element = Scalar> + Sync,
 > {
     pub input: &'a LweCiphertext<C>,
-    pub grouping_factor: LweBskGroupingFactor,
+    pub grouping_factor: MultiBitGroupingFactor,
     pub log_modulus: CiphertextModulusLog,
 }
 
@@ -165,7 +165,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
-/// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
+/// let grouping_factor = MultiBitGroupingFactor(2); // Group bits in pairs
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
@@ -843,7 +843,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
-/// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
+/// let grouping_factor = MultiBitGroupingFactor(2); // Group bits in pairs
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to

@@ -192,7 +192,7 @@ pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     )),
     message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     thread_count: ThreadCount(5),
 };
 
@@ -210,7 +210,7 @@ pub const MULTI_BIT_3_3_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     )),
     message_modulus_log: MessageModulusLog(6),
     ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     thread_count: ThreadCount(5),
 };
 
@@ -228,7 +228,7 @@ pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     )),
     message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     thread_count: ThreadCount(5),
 };
 
@@ -246,7 +246,7 @@ pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     )),
     message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     thread_count: ThreadCount(12),
 };
 
@@ -264,7 +264,7 @@ pub const MULTI_BIT_3_3_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     )),
     message_modulus_log: MessageModulusLog(6),
     ciphertext_modulus: CiphertextModulus::new_native(),
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     thread_count: ThreadCount(5),
 };
 
@@ -282,7 +282,7 @@ pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitT
     )),
     message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     thread_count: ThreadCount(12),
 };
 

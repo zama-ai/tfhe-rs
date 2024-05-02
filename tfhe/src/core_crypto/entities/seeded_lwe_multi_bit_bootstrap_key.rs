@@ -26,7 +26,7 @@ where
     // GgswCiphertextList and use Deref to have access to all the primitives of the
     // SeededGgswCiphertextList easily
     ggsw_list: SeededGgswCiphertextList<C>,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref
@@ -72,7 +72,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
     /// let input_lwe_dimension = LweDimension(600);
-    /// let grouping_factor = LweBskGroupingFactor(2);
+    /// let grouping_factor = MultiBitGroupingFactor(2);
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Get a seeder
@@ -177,7 +177,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         compression_seed: CompressionSeed,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
@@ -236,10 +236,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
-    /// Return the [`LweBskGroupingFactor`] of the current [`LweMultiBitBootstrapKey`].
+    /// Return the [`MultiBitGroupingFactor`] of the current [`LweMultiBitBootstrapKey`].
     ///
     /// See [`SeededLweMultiBitBootstrapKey::from_container`] for usage.
-    pub fn grouping_factor(&self) -> LweBskGroupingFactor {
+    pub fn grouping_factor(&self) -> MultiBitGroupingFactor {
         self.grouping_factor
     }
 
@@ -412,7 +412,7 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         input_lwe_dimension: LweDimension,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {

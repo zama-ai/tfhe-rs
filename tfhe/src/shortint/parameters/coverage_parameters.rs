@@ -3,7 +3,7 @@
 //! This module provides the structure containing the cryptographic parameters only intended to be
 //! used to speed up test coverage operations.
 //! These parameters are *NOT safe*.
-use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::core_crypto::prelude::MultiBitGroupingFactor;
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
@@ -100,7 +100,7 @@ pub const COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBS
         log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 

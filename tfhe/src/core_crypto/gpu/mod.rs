@@ -6,7 +6,7 @@ pub mod vec;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
-    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweCiphertextIndex, LweDimension,
+    GlweDimension, LweCiphertextCount, LweCiphertextIndex, LweDimension, MultiBitGroupingFactor,
     PolynomialSize, UnsignedInteger,
 };
 pub use algorithms::*;
@@ -157,7 +157,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
     base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     num_samples: u32,
     lwe_idx: LweCiphertextIndex,
 ) {
@@ -303,7 +303,7 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
     glwe_dim: GlweDimension,
     l_gadget: DecompositionLevelCount,
     polynomial_size: PolynomialSize,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     let size = std::mem::size_of_val(src);
     assert_eq!(dest.len() * std::mem::size_of::<T>(), size);

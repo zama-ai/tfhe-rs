@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
+use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount, MultiBitGroupingFactor};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
@@ -199,7 +199,7 @@ impl CudaServerKey {
                     op,
                     signed_with_positive_scalar,
                     PBSType::Classical,
-                    LweBskGroupingFactor(0),
+                    MultiBitGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -361,7 +361,7 @@ impl CudaServerKey {
                     op,
                     T::IS_SIGNED,
                     PBSType::Classical,
-                    LweBskGroupingFactor(0),
+                    MultiBitGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

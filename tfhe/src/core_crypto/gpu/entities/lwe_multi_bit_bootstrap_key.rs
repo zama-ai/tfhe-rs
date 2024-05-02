@@ -4,7 +4,7 @@ use crate::core_crypto::gpu::{
 };
 use crate::core_crypto::prelude::{
     lwe_multi_bit_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
+    GlweDimension, LweDimension, LweMultiBitBootstrapKey, MultiBitGroupingFactor, PolynomialSize,
     UnsignedInteger,
 };
 
@@ -24,7 +24,7 @@ pub struct CudaLweMultiBitBootstrapKey {
     // Decomposition level count
     pub(crate) decomp_level_count: DecompositionLevelCount,
     // Grouping factor
-    pub(crate) grouping_factor: LweBskGroupingFactor,
+    pub(crate) grouping_factor: MultiBitGroupingFactor,
 }
 
 impl CudaLweMultiBitBootstrapKey {
@@ -105,7 +105,7 @@ impl CudaLweMultiBitBootstrapKey {
         self.decomp_level_count
     }
 
-    pub(crate) fn grouping_factor(&self) -> LweBskGroupingFactor {
+    pub(crate) fn grouping_factor(&self) -> MultiBitGroupingFactor {
         self.grouping_factor
     }
 }

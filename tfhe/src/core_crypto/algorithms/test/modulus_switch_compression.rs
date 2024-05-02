@@ -79,7 +79,7 @@ fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usiz
 fn assert_ms_multi_bit_compression<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>>(
     ct: &LweCiphertext<Vec<Scalar>>,
     log_modulus: CiphertextModulusLog,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     let a = StandardMultiBitModulusSwitchedCt {
         input: ct,
@@ -124,7 +124,7 @@ fn test_ms_with_packing() {
 
                 assert_ms_compression(&lwe_ciphertext_in, log_modulus);
 
-                for grouping_factor in (1..6).map(LweBskGroupingFactor) {
+                for grouping_factor in (1..6).map(MultiBitGroupingFactor) {
                     if lwe_dimension.0 % grouping_factor.0 == 0 {
                         assert_ms_multi_bit_compression(
                             &lwe_ciphertext_in,

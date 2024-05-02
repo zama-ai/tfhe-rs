@@ -21,7 +21,7 @@ use itertools::Itertools;
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
-/// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
+/// let grouping_factor = MultiBitGroupingFactor(2); // Group bits in pairs
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
@@ -172,7 +172,7 @@ pub struct CompressedModulusSwitchedMultiBitLweCiphertext<
     packed_diffs: Option<PackedIntegers<usize>>,
     lwe_dimension: LweDimension,
     uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 }
 
 impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
@@ -183,7 +183,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     pub fn compress<Cont: Container<Element = Scalar>>(
         ct: &LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
     ) -> Self {
         let uncompressed_ciphertext_modulus = ct.ciphertext_modulus();
 
@@ -372,7 +372,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 pub struct FromCompressionMultiBitModulusSwitchedCt {
     switched_modulus_input_lwe_body: usize,
     switched_modulus_input_mask_per_group: Vec<usize>,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     lwe_dimension: LweDimension,
 }
 

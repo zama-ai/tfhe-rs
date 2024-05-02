@@ -219,9 +219,9 @@ pub struct ThreadCount(pub usize);
 
 /// The number of key bits grouped together in the multi_bit PBS
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct LweBskGroupingFactor(pub usize);
+pub struct MultiBitGroupingFactor(pub usize);
 
-impl LweBskGroupingFactor {
+impl MultiBitGroupingFactor {
     pub fn multi_bit_power_set_size(&self) -> MultiBitPowerSetSize {
         MultiBitPowerSetSize(1 << self.0)
     }

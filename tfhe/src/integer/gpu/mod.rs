@@ -5,8 +5,8 @@ use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{get_max_shared_memory, CudaStreams};
 use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, Numeric, PolynomialSize, UnsignedInteger,
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
+    MultiBitGroupingFactor, Numeric, PolynomialSize, UnsignedInteger,
 };
 use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
@@ -211,7 +211,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     num_blocks: u32,
     num_scalars: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -327,7 +327,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     ks_level: DecompositionLevelCount,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -413,7 +413,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     op: BitOpType,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -497,7 +497,7 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -580,7 +580,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     op: BitOpType,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -670,7 +670,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     op: ComparisonType,
     is_signed: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -767,7 +767,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     op: ComparisonType,
     signed_with_positive_scalar: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -859,7 +859,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -938,7 +938,7 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1019,7 +1019,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1101,7 +1101,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1183,7 +1183,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1266,7 +1266,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     num_blocks: u32,
     is_signed: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1352,7 +1352,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     num_blocks: u32,
     is_signed: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1441,7 +1441,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     num_blocks: u32,
     is_signed: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1530,7 +1530,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     num_blocks: u32,
     is_signed: bool,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1617,7 +1617,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1715,7 +1715,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1797,7 +1797,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1879,7 +1879,7 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
     num_blocks: u32,
     num_radixes: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1968,7 +1968,7 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2063,7 +2063,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2151,7 +2151,7 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     num_blocks: u32,
     pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 ) {
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
