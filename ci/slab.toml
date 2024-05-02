@@ -1,14 +1,14 @@
-[profile.cpu-big]
+[backend.aws.cpu-big]
 region = "eu-west-3"
 image_id = "ami-051942e4055555752"
 instance_type = "m6i.32xlarge"
 
-[profile.cpu-big_fallback]
+[backend.aws.cpu-big_fallback]
 region = "us-east-1"
 image_id = "ami-04e3bb9aebb6786df"
 instance_type = "m6i.32xlarge"
 
-[profile.cpu-small]
+[backend.aws.cpu-small]
 region = "eu-west-3"
 image_id = "ami-051942e4055555752"
 instance_type = "m6i.4xlarge"
@@ -18,7 +18,7 @@ region = "eu-west-1"
 image_id = "ami-0e88d98b86aff13de"
 instance_type = "hpc7a.96xlarge"
 
-[profile.gpu-test]
+[backend.aws.gpu-test]
 region = "us-east-1"
 image_id = "ami-0c0bf195ca4c175b6"
 instance_type = "p3.2xlarge"
