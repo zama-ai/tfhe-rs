@@ -105,4 +105,78 @@ impl ServerKey {
 
         self.unchecked_all_eq_slices_parallelized(lhs, rhs)
     }
+
+    /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
+    pub fn unchecked_contains_sub_slice_parallelized<T>(&self, lhs: &[T], rhs: &[T]) -> BooleanBlock
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if rhs.len() > lhs.len() {
+            return self.create_trivial_boolean_block(false);
+        }
+
+        let windows_results = lhs
+            .par_windows(rhs.len())
+            .map(|lhs_sub_slice| {
+                self.unchecked_all_eq_slices_parallelized(lhs_sub_slice, rhs)
+                    .0
+            })
+            .collect::<Vec<_>>();
+
+        BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(windows_results))
+    }
+
+    /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
+    pub fn smart_contains_sub_slice_parallelized<T>(
+        &self,
+        lhs: &mut [T],
+        rhs: &mut [T],
+    ) -> BooleanBlock
+    where
+        T: IntegerRadixCiphertext,
+    {
+        lhs.par_iter_mut()
+            .chain(rhs.par_iter_mut())
+            .filter(|radix| !radix.block_carries_are_empty())
+            .for_each(|radix| {
+                self.full_propagate_parallelized(radix);
+            });
+
+        self.unchecked_contains_sub_slice_parallelized(lhs, rhs)
+    }
+
+    /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
+    pub fn contains_sub_slice_parallelized<T>(&self, lhs: &mut [T], rhs: &mut [T]) -> BooleanBlock
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let full_propagate_slice = |slice: &mut [T]| {
+            slice
+                .par_iter_mut()
+                .filter(|radix| !radix.block_carries_are_empty())
+                .for_each(|radix| {
+                    self.full_propagate_parallelized(radix);
+                });
+        };
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+
+        let lhs = if lhs.iter().all(T::block_carries_are_empty) {
+            lhs
+        } else {
+            tmp_lhs = lhs.to_vec();
+            full_propagate_slice(&mut tmp_lhs);
+            tmp_lhs.as_slice()
+        };
+
+        let rhs = if rhs.iter().all(T::block_carries_are_empty) {
+            rhs
+        } else {
+            tmp_rhs = rhs.to_vec();
+            full_propagate_slice(&mut tmp_rhs);
+            tmp_rhs.as_slice()
+        };
+
+        self.unchecked_contains_sub_slice_parallelized(lhs, rhs)
+    }
 }
