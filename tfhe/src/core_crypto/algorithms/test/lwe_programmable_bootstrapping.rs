@@ -92,7 +92,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
 
-    let accumulator = generate_accumulator(
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         msg_modulus.cast_into(),
@@ -452,7 +452,7 @@ where
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
 
-    let accumulator = generate_accumulator(
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         msg_modulus.cast_into(),

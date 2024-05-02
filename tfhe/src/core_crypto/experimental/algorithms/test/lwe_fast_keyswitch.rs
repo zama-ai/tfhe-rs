@@ -199,7 +199,7 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
 
     drop(bsk);
 
-    let accumulator = generate_accumulator(
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         msg_modulus.cast_into(),

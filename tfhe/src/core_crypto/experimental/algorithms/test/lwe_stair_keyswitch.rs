@@ -199,7 +199,7 @@ fn lwe_encrypt_stair_keyswitch_pbs_decrypt_custom_mod<
         convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
         drop(bsk);
 
-        let accumulator = generate_accumulator(
+        let accumulator = generate_programmable_bootstrap_glwe_lut(
             polynomial_size,
             glwe_dimension.to_glwe_size(),
             msg_modulus.cast_into(),
