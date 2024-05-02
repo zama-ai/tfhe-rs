@@ -96,6 +96,14 @@ macro_rules! implement_t_uniform_uint {
                 candidate_for_random = candidate_for_random.wrapping_add(bit_b_p_1);
                 candidate_for_random.wrapping_sub(1 << bound_log2)
             }
+
+            fn single_sample_success_probability(
+                _distribution: TUniform<$T>,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> f64 {
+                // The modulus and parameters of the distribution do not impact generation success
+                1.0
+            }
         }
     };
 }

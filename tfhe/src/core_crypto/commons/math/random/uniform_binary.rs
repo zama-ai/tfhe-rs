@@ -19,6 +19,14 @@ macro_rules! implement_uniform_binary {
                     0
                 }
             }
+
+            fn single_sample_success_probability(
+                _distribution: UniformBinary,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> f64 {
+                // The modulus and parameters of the distribution do not impact generation success
+                1.0
+            }
         }
     };
 }

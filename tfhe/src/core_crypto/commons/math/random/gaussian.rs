@@ -63,6 +63,17 @@ macro_rules! implement_gaussian {
                 }
                 output
             }
+
+            fn single_sample_success_probability(
+                _distribution: Gaussian<$T>,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> f64 {
+                // The modulus and parameters of the distribution do not impact generation success
+                // The sample is valid if it's in the circle of radius pi and
+                // Samples are drawn in a 2 by 2 square, use area(circle) / area(square) as
+                // probability
+                std::f64::consts::PI / 4.0
+            }
         }
     };
 }
@@ -98,6 +109,17 @@ where
             <Torus as FromTorus<f64>>::from_torus_custom_mod(s2, custom_modulus),
         )
     }
+
+    fn single_sample_success_probability(
+        distribution: Gaussian<f64>,
+        _modulus: Option<Self::CustomModulus>,
+    ) -> f64 {
+        // The modulus does not impact gaussian generation success
+        <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
+            distribution,
+            None,
+        )
+    }
 }
 
 impl<Torus> RandomGenerable<Gaussian<f64>> for Torus
@@ -121,5 +143,16 @@ where
     ) -> Self {
         let (s1, _) = <(f64, f64)>::generate_one(generator, distribution);
         <Torus as FromTorus<f64>>::from_torus_custom_mod(s1, custom_modulus)
+    }
+
+    fn single_sample_success_probability(
+        distribution: Gaussian<f64>,
+        _modulus: Option<Self::CustomModulus>,
+    ) -> f64 {
+        // The modulus does not impact gaussian generation success
+        <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
+            distribution,
+            None,
+        )
     }
 }
