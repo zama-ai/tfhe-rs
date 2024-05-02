@@ -16,6 +16,7 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_vector_comparisons;
 pub(crate) mod test_vector_find;
 
 use super::tests_cases_unsigned::*;
