@@ -14,6 +14,7 @@ pub use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::prelude::{LweCiphertextListParameters, LweCiphertextParameters};
 use serde::{Deserialize, Serialize};
 
+pub mod bc;
 pub mod classic;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;

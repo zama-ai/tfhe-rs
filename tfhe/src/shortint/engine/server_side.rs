@@ -159,13 +159,29 @@ impl ShortintEngine {
         cks2: &ClientKey,
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
+        let input_key = match cks1.parameters.encryption_key_choice() {
+            test::EncryptionKeyChoice::Big => cks1.large_lwe_secret_key(),
+            test::EncryptionKeyChoice::Small => cks1.small_lwe_secret_key(),
+        };
+
+        let (output_key, encryption_noise) = match cks2.parameters.encryption_key_choice() {
+            test::EncryptionKeyChoice::Big => (
+                cks2.large_lwe_secret_key(),
+                cks2.parameters.glwe_noise_distribution(),
+            ),
+            test::EncryptionKeyChoice::Small => (
+                cks2.small_lwe_secret_key(),
+                cks2.parameters.lwe_noise_distribution(),
+            ),
+        };
+
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(
-            &cks1.large_lwe_secret_key(),
-            &cks2.large_lwe_secret_key(),
+            &input_key,
+            &output_key,
             params.ks_base_log,
             params.ks_level,
-            cks2.parameters.lwe_noise_distribution(),
+            encryption_noise,
             cks2.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         )
