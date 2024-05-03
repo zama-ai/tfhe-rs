@@ -5,6 +5,8 @@
 #include "programmable_bootstrap.h"
 #include <cstdint>
 
+extern monomials_t monomials;
+
 extern "C" {
 
 bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
@@ -171,8 +173,6 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
   PBS_VARIANT pbs_variant;
 
-  double2 *monomials;
-
   pbs_buffer(cuda_stream_t *stream, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
@@ -225,28 +225,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 #endif
 
     if (allocate_gpu_memory) {
-      // Pre-calculates all possible monomials to be used during keybundle
-      // calculation
-      int64_t *h_monomials = (int64_t *)malloc(
-          2 * polynomial_size * polynomial_size * sizeof(int64_t));
-      memset(h_monomials, 0,
-             2 * polynomial_size * polynomial_size * sizeof(int64_t));
-
-      int64_t *monomial = h_monomials;
-      for (int monomial_degree = 0; monomial_degree < 2 * polynomial_size;
-           monomial_degree++) {
-        int full_cycles_count = monomial_degree / polynomial_size;
-        int remainder_degrees = monomial_degree % polynomial_size;
-        monomial[remainder_degrees] = (full_cycles_count % 2 ? -1 : 1);
-        monomial += polynomial_size;
-      }
-
-      monomials = (double2 *)cuda_malloc_async(
-          2 * polynomial_size * polynomial_size / 2 * sizeof(double2), stream);
-      cuda_batch_convert_std_to_fft<uint64_t>(
-          stream, monomials, h_monomials, polynomial_size, 2 * polynomial_size);
-      cuda_stream_add_callback(stream, host_free_on_stream_callback,
-                               h_monomials);
+        monomials.init(stream->gpu_index, polynomial_size);
 
       // Keybundle
       if (max_shared_memory < full_sm_keybundle)
@@ -314,7 +293,6 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   }
 
   void release(cuda_stream_t *stream) {
-    cuda_drop_async(monomials, stream);
     if (d_mem_keybundle)
       cuda_drop_async(d_mem_keybundle, stream);
     switch (pbs_variant) {

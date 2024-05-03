@@ -3,6 +3,8 @@
 #include "programmable_bootstrap_multibit.cuh"
 #include "programmable_bootstrap_multibit.h"
 
+monomials_t monomials;
+
 #if (CUDA_ARCH >= 900)
 #include "programmable_bootstrap_tbc_multibit.cuh"
 #endif

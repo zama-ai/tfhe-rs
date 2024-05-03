@@ -473,25 +473,27 @@ __host__ void execute_compute_keybundle(
 
   auto d_mem = buffer->d_mem_keybundle;
   auto keybundle_fft = buffer->keybundle_fft;
-  auto monomials = buffer->monomials;
 
   // Compute a keybundle
   dim3 grid_keybundle(num_samples * chunk_size,
                       (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
+  if(!monomials.is_init)
+      PANIC("Monomials are not initialized")
+
   if (max_shared_memory < full_sm_keybundle)
     device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>
         <<<grid_keybundle, thds, 0, stream->stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            monomials, lwe_dimension, glwe_dimension, polynomial_size,
+            monomials.d_monomials, lwe_dimension, glwe_dimension, polynomial_size,
             grouping_factor, base_log, level_count, lwe_offset, chunk_size,
             keybundle_size_per_input, d_mem, full_sm_keybundle);
   else
     device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
         <<<grid_keybundle, thds, full_sm_keybundle, stream->stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            monomials, lwe_dimension, glwe_dimension, polynomial_size,
+            monomials.d_monomials, lwe_dimension, glwe_dimension, polynomial_size,
             grouping_factor, base_log, level_count, lwe_offset, chunk_size,
             keybundle_size_per_input, d_mem, 0);
   check_cuda_error(cudaGetLastError());
