@@ -160,6 +160,12 @@ check_nvm_installed:
 	@source ~/.nvm/nvm.sh && nvm --version > /dev/null 2>&1 || \
 	( echo "Unable to locate Node. Run 'make install_node'" && exit 1 )
 
+.PHONY: install_mlc # Install mlc (Markup Link Checker)
+install_mlc: install_rs_build_toolchain
+	@mlc --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install mlc --locked || \
+	( echo "Unable to install mlc, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -682,6 +688,14 @@ format_doc_latex:
 check_md_docs_are_tested:
 	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
 
+.PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
+check_intra_md_links: install_mlc
+	mlc --offline --match-file-extension tfhe/docs
+
+.PHONY: check_md_links # Checks all broken links in Markdown docs
+check_md_links: install_mlc
+	mlc --match-file-extension tfhe/docs
+
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
@@ -940,8 +954,8 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
-pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested clippy_all \
-check_compile_tests
+pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested check_intra_md_links \
+clippy_all check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
