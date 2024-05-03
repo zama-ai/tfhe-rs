@@ -6,8 +6,8 @@ void cuda_convert_lwe_programmable_bootstrap_key_32(
   uint32_t total_polynomials =
       input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
-      (double2 *)dest, (int32_t *)src, stream, input_lwe_dim, glwe_dim,
-      level_count, polynomial_size, total_polynomials);
+      (double2 *)dest, (int32_t *)src, stream, polynomial_size,
+      total_polynomials);
 }
 
 void cuda_convert_lwe_programmable_bootstrap_key_64(
@@ -16,8 +16,8 @@ void cuda_convert_lwe_programmable_bootstrap_key_64(
   uint32_t total_polynomials =
       input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
-      (double2 *)dest, (int64_t *)src, stream, input_lwe_dim, glwe_dim,
-      level_count, polynomial_size, total_polynomials);
+      (double2 *)dest, (int64_t *)src, stream, polynomial_size,
+      total_polynomials);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
@@ -28,8 +28,8 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
                                level_count * (1 << grouping_factor) /
                                grouping_factor;
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
-      (double2 *)dest, (int64_t *)src, stream, input_lwe_dim, glwe_dim,
-      level_count, polynomial_size, total_polynomials);
+      (double2 *)dest, (int64_t *)src, stream, polynomial_size,
+      total_polynomials);
 }
 
 // We need these lines so the compiler knows how to specialize these functions

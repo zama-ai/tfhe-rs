@@ -145,7 +145,7 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
 }
 
 template <typename Torus>
-__global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
+__global__ void cuda_set_value_kernel(Torus *array, Torus value, uint32_t n) {
   int index = threadIdx.x + blockIdx.x * blockDim.x;
   if (index < n)
     array[index] = value;
@@ -153,7 +153,7 @@ __global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
 
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
-                          Torus n) {
+                          uint32_t n) {
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
   if (attr.type != cudaMemoryTypeDevice) {
@@ -169,10 +169,12 @@ void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
 }
 
 /// Explicitly instantiate cuda_set_value_async for 32 and 64 bits
+template void cuda_set_value_async(cudaStream_t *stream, double2 *d_array,
+                                   double2 value, uint32_t n);
 template void cuda_set_value_async(cudaStream_t *stream, uint64_t *d_array,
-                                   uint64_t value, uint64_t n);
-template void cuda_set_value_async(cudaStream_t *stream, uint32_t *d_array,
-                                   uint32_t value, uint32_t n);
+                                   uint64_t value, uint32_t n);
+// template void cuda_set_value_async(cudaStream_t *stream, uint32_t *d_array,
+//                                    uint32_t value, uint32_t n);
 
 /// Copy memory to the CPU asynchronously
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,

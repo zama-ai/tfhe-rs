@@ -58,13 +58,14 @@ __device__ T *get_multi_bit_ith_lwe_gth_group_kth_block(
 
 ////////////////////////////////////////////////
 template <typename T, typename ST>
-void cuda_convert_lwe_programmable_bootstrap_key(
-    double2 *dest, ST *src, cuda_stream_t *stream, uint32_t input_lwe_dim,
-    uint32_t glwe_dim, uint32_t level_count, uint32_t polynomial_size,
-    uint32_t total_polynomials) {
+void cuda_convert_lwe_programmable_bootstrap_key(double2 *dest, ST *src,
+                                                 cuda_stream_t *stream,
+                                                 uint32_t polynomial_size,
+                                                 uint32_t total_polynomials) {
 
   cudaSetDevice(stream->gpu_index);
-  int shared_memory_size = sizeof(double) * polynomial_size;
+  // shared_memory_size may assume a big value for polynomial_size >= 16384
+  T shared_memory_size = sizeof(double) * polynomial_size;
 
   // Here the buffer size is the size of double2 times the number of polynomials
   // times the polynomial size over 2 because the polynomials are compressed
@@ -229,9 +230,9 @@ void cuda_convert_lwe_programmable_bootstrap_key(
           "N's are powers of two in the interval [256..16384].")
   }
 
+  cuda_stream_add_callback(stream, host_free_on_stream_callback, h_bsk);
   cuda_drop_async(d_bsk, stream);
   cuda_drop_async(buffer, stream);
-  free(h_bsk);
 }
 
 void cuda_fourier_polynomial_mul(void *_input1, void *_input2, void *_output,

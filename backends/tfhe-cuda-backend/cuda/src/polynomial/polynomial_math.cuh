@@ -103,5 +103,4 @@ __device__ void set_monomial(double2 *poly, uint32_t monomial_degree) {
     tid += params::degree / params::opt;
   }
 }
-
 #endif // CNCRT_POLYNOMIAL_MATH_H

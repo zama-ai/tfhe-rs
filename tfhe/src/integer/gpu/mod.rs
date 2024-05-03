@@ -2992,7 +2992,7 @@ impl CudaStream {
         remainder: &mut CudaVec<T>,
         numerator: &CudaVec<T>,
         divisor: &CudaVec<T>,
-        bootstrapping_key: &CudaVec<u64>,
+        bootstrapping_key: &CudaVec<f64>,
         keyswitch_key: &CudaVec<u64>,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,

@@ -91,5 +91,5 @@ void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
 
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t *stream, Torus *d_array, Torus value,
-                          Torus n);
+                          uint32_t n);
 #endif
