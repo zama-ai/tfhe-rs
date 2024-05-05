@@ -53,13 +53,33 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
     /// let ciphertext_count = GlweCiphertextCount(2);
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
-    /// // Create a new GlweCiphertextList
+    /// // Create a new GlweCiphertextList and fill it using copies of a single element
     /// let glwe_list = GlweCiphertextList::new(
     ///     0u64,
     ///     glwe_size,
     ///     polynomial_size,
     ///     ciphertext_count,
     ///     ciphertext_modulus,
+    /// );
+    ///
+    /// assert_eq!(glwe_list.glwe_size(), glwe_size);
+    /// assert_eq!(glwe_list.polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe_list.glwe_ciphertext_count(), ciphertext_count);
+    /// assert_eq!(glwe_list.ciphertext_modulus(), ciphertext_modulus);
+    ///
+    /// // Alternatively, create a new GlweCiphertextList and fill it using a function
+    /// let glwe_list = GlweCiphertextList::from_fn(
+    ///     glwe_size,
+    ///     polynomial_size,
+    ///     ciphertext_count,
+    ///     ciphertext_modulus,
+    ///     |i, j| {
+    ///         // The `i` value represents the index in the list being filled;
+    ///         // The `j` value represents the index in the ciphertext being filled;
+    ///         // In this example, for every index pair `(i, j)`, we fill the
+    ///         // corresponding value using the formula `i + j`
+    ///         (i + j) as u64
+    ///     },
     /// );
     ///
     /// assert_eq!(glwe_list.glwe_size(), glwe_size);
@@ -174,6 +194,36 @@ impl<Scalar: UnsignedInteger> GlweCiphertextListOwned<Scalar> {
             polynomial_size,
             ciphertext_modulus,
         )
+    }
+
+    /// Allocate memory and create a new owned [`LweCiphertextList`], where each element
+    /// is provided by the `fill_with` function, invoked for each consecutive index.
+    ///
+    /// # Note
+    ///
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to encrypt data in the list you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
+    /// a single ciphertext at a time [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on
+    /// the individual ciphertexts in the list.
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
+    pub fn from_fn<F>(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        ciphertext_count: GlweCiphertextCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+        mut fill_with: F,
+    ) -> Self
+    where
+        F: FnMut(usize, usize) -> Scalar,
+    {
+        let ciphertext_size = glwe_ciphertext_size(glwe_size, polynomial_size);
+        let container: Vec<_> = (0..ciphertext_count.0)
+            .flat_map(move |i| (0..ciphertext_size).map(move |j| (i, j)))
+            .map(|(i, j)| fill_with(i, j))
+            .collect();
+        Self::from_container(container, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
 
