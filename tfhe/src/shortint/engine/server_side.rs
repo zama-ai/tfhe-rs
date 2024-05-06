@@ -164,16 +164,22 @@ impl ShortintEngine {
             test::EncryptionKeyChoice::Small => cks1.small_lwe_secret_key(),
         };
 
-        let (output_key, encryption_noise) = match cks2.parameters.encryption_key_choice() {
-            test::EncryptionKeyChoice::Big => (
-                cks2.large_lwe_secret_key(),
-                cks2.parameters.glwe_noise_distribution(),
-            ),
-            test::EncryptionKeyChoice::Small => (
-                cks2.small_lwe_secret_key(),
-                cks2.parameters.lwe_noise_distribution(),
-            ),
-        };
+        // // TODO: manage more cases ?
+        // let (output_key, encryption_noise) = match cks2.parameters.encryption_key_choice() {
+        //     test::EncryptionKeyChoice::Big => (
+        //         cks2.large_lwe_secret_key(),
+        //         cks2.parameters.glwe_noise_distribution(),
+        //     ),
+        //     test::EncryptionKeyChoice::Small => (
+        //         cks2.small_lwe_secret_key(),
+        //         cks2.parameters.lwe_noise_distribution(),
+        //     ),
+        // };
+
+        let (output_key, encryption_noise) = (
+            cks2.small_lwe_secret_key(),
+            cks2.parameters.lwe_noise_distribution(),
+        );
 
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(

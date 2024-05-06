@@ -251,8 +251,13 @@ impl KeySwitchingKey {
     /// assert_eq!(ck2.decrypt(&cipher_2), cleartext);
     /// ```
     pub fn cast(&self, ct: &Ciphertext) -> Ciphertext {
-        let mut ret = self.dest_server_key.create_trivial(0);
+        // let mut ret = self.dest_server_key.create_trivial(0);
+        let out_small_lwe_size = self.dest_server_key.key_switching_key.output_lwe_size();
+        let mut ret = self
+            .dest_server_key
+            .unchecked_create_trivial_with_lwe_size(0, out_small_lwe_size);
         self.cast_into(ct, &mut ret);
+        ret.degree = ct.degree;
         ret
     }
 }

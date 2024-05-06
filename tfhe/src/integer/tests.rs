@@ -4,9 +4,11 @@ use crate::integer::{
     gen_keys, ClientKey, CompactPublicKey, CompressedPublicKey, IntegerCiphertext, IntegerKeyKind,
     PublicKey, RadixCiphertext, RadixClientKey, ServerKey,
 };
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::bc::*;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use crate::shortint::server_key::apply_programmable_bootstrap;
 use crate::shortint::ClassicPBSParameters;
 
 macro_rules! create_parametrized_test {
@@ -106,7 +108,7 @@ fn pke_ap(
     assert_eq!(param_pke.message_modulus, param_fhe.message_modulus);
     assert_eq!(param_pke.carry_modulus, param_fhe.carry_modulus);
 
-    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = dbg!(param_fhe.message_modulus.0.pow(num_block as u32) as u64);
 
     let cks_pke = ClientKey::new(param_pke);
     let sks_pke = ServerKey::new_radix_server_key(&cks_pke);
@@ -117,39 +119,63 @@ fn pke_ap(
 
     let ksk = KeySwitchingKey::new((&cks_pke, &sks_pke), (&cks_fhe, &sks_fhe), param_ksk);
 
-    let input_msg: u8 = (228u64 % modulus).try_into().unwrap();
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u64 = dbg!(rng.gen_range(0..modulus));
 
     // Encrypt a value and cast
     let ct1 = pk.encrypt_radix_compact(input_msg, num_block);
     let ct1_extracted: &RadixCiphertext = &ct1.expand()[0];
 
-    let sanity_extracted: u8 = cks_pke.decrypt_radix(&ct1_extracted);
+    let sanity_extracted: u64 = cks_pke.decrypt_radix(&ct1_extracted);
     assert_eq!(sanity_extracted, input_msg);
 
     // KSK Cast
-    let mut ct2 = ksk.cast(ct1_extracted);
-
-    let sanity_cast: u8 = cks_fhe.decrypt_radix(&ct2);
-    assert_eq!(sanity_cast, input_msg);
+    let ct_cast = ksk.cast(ct1_extracted);
+    let mut ct2: RadixCiphertext = sks_fhe.create_trivial_radix(0u64, ct_cast.blocks().len());
 
     // PBS to clean
     let acc = sks_fhe.key.generate_lookup_table(|x| x);
-    for blocks in ct2.blocks_mut() {
-        sks_fhe.key.apply_lookup_table_assign(blocks, &acc)
+    for (input, output) in ct_cast.blocks().iter().zip(ct2.blocks_mut()) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let (_, buffers) = engine.get_buffers(&sks_fhe.key);
+            apply_programmable_bootstrap(
+                &sks_fhe.key.bootstrapping_key,
+                &input.ct,
+                &mut output.ct,
+                &acc,
+                buffers,
+            );
+        });
+
+        // sks_fhe.key.apply_lookup_table_assign(blocks, &acc)
     }
 
-    let sanity_pbs: u8 = cks_fhe.decrypt_radix(&ct2);
+    let sanity_pbs: u64 = cks_fhe.decrypt_radix(&ct2);
     assert_eq!(sanity_pbs, input_msg);
 
-    let multiplier = 255u64 % modulus;
+    let multiplier = dbg!(rng.gen_range(0..modulus));
 
     // Classical AP: DP, KS, PBS
     sks_fhe.scalar_mul_assign_parallelized(&mut ct2, multiplier);
 
+    {
+        let mut input_fresh = cks_fhe.encrypt_radix(input_msg, num_block);
+        for ct in input_fresh.blocks_mut() {
+            sks_fhe.key.apply_lookup_table_assign(ct, &acc);
+        }
+        sks_fhe.scalar_mul_assign_parallelized(&mut input_fresh, multiplier);
+        // High level decryption and test
+        let clear_fresh = cks_fhe.decrypt_radix::<u64>(&input_fresh) % modulus;
+        //let clear: u64 = cks_fhe.decrypt_radix(&ct1_extracted[0]);
+        assert_eq!(clear_fresh, (input_msg * multiplier) % modulus);
+    }
+
     // High level decryption and test
-    let clear: u64 = cks_fhe.decrypt_radix(&ct2);
+    let clear = cks_fhe.decrypt_radix::<u64>(&ct2) % modulus;
     //let clear: u64 = cks_fhe.decrypt_radix(&ct1_extracted[0]);
-    assert_eq!(clear, (input_msg as u64 * multiplier) % modulus);
+    assert_eq!(clear, (input_msg * multiplier) % modulus);
 }
 
 macro_rules! create_parametrized_test_pke {
