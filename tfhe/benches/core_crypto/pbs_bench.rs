@@ -12,27 +12,39 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
-    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
-    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
-];
+// const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
+//     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+//     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+//     PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+//     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+//     PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+//     PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+//     PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+//     PARAM_MESSAGE_3_CARRY_3_PBS_KS,
+//     PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+// ];
+
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 352] = ALL_SEC_PFAIL_VEC;
+
+// const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 2] = [
+//     // PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M40_SEC_128_2M40,
+//     // PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40_SEC_128_2M40,
+//     // PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS_TUNIFORM_2M40_SEC_128_2M40,
+//     // PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS_TUNIFORM_2M40_SEC_128_2M40,
+//     // PARAM_MESSAGE_1_CARRY_1_PK_PBS_KS_2M128_SEC_132,
+//     PARAM_MESSAGE_1_CARRY_1_PK_KS_PBS_2M40_SEC_128,
+//     PARAM_MESSAGE_1_CARRY_1_PK_PBS_KS_2M40_SEC_128,
+// ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
     ("BOOLEAN_DEFAULT_PARAMS", DEFAULT_PARAMETERS),
@@ -141,12 +153,19 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
     }
 }
 
-fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
-    let bench_name = "core_crypto::pbs_mem_optimized";
+fn mem_optimized_pbs<
+    Scalar: UnsignedTorus
+        + CastInto<usize>
+        + Serialize
+        + RandomGenerable<DynamicDistribution<u64>, CustomModulus = Scalar>,
+>(
+    c: &mut Criterion,
+) {
+    let bench_name = "pbs";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .measurement_time(std::time::Duration::from_secs(40));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -156,7 +175,45 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
+    let mut params_vec = vec![];
+    let pfails = vec!["2M128", "2M40", "2M64", "2M80"];
+
     for (name, params) in benchmark_parameters::<Scalar>().iter() {
+        let mut correct_name = name.to_string();
+        if params_vec.contains(name) {
+            let last_elem = params_vec.last().unwrap();
+            let splited = last_elem
+                .split("_")
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+            let mut correct_name_splitted = splited.clone();
+
+            let last_sec_level = splited.last().unwrap().parse::<u32>().unwrap();
+            let mut pfail = splited[8].clone();
+            let mut new_sec_level = last_sec_level;
+
+            if last_sec_level < 138 {
+                new_sec_level += 1;
+            } else {
+                new_sec_level = 128;
+                let current_pfail_index = pfails.iter().position(|&r| r == pfail).unwrap();
+                pfail = pfails[current_pfail_index + 1].to_string();
+            }
+
+            correct_name_splitted[8] = pfail;
+            correct_name_splitted[10] = new_sec_level.to_string();
+            correct_name = correct_name_splitted.join("_");
+            println!(
+                "---------------------------------------------------CORRECT NAME: {}",
+                correct_name
+            );
+            params_vec.push(correct_name.to_string());
+        } else {
+            params_vec.push(correct_name.to_owned());
+        }
+
+        let is_ks_pbs = correct_name.contains("_KS_PBS__2M");
+
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension.unwrap(),
@@ -170,6 +227,18 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             );
         let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
 
+        let lwe_noise_distribution = params.lwe_std_dev.unwrap();
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &output_lwe_secret_key,
+            &input_lwe_secret_key,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
         // Create the empty bootstrapping key in the Fourier domain
         let fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
@@ -179,29 +248,63 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             params.pbs_level.unwrap(),
         );
 
-        let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
+        // let lwe_noise_distribution =
+        // DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
-        // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
-            lwe_noise_distribution,
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-            &mut encryption_generator,
-        );
+        let mut lwe_ciphertext_in: LweCiphertextOwned<Scalar>;
+        let mut temp_ct: LweCiphertextOwned<Scalar>;
+        let mut out_pbs_ct: LweCiphertextOwned<Scalar>;
+
+        if is_ks_pbs {
+            // Allocate a new LweCiphertext and encrypt our plaintext
+            lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                // &input_lwe_secret_key,
+                &output_lwe_secret_key,
+                Plaintext(Scalar::ZERO),
+                lwe_noise_distribution,
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                &mut encryption_generator,
+            );
+
+            temp_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
+            // Allocate the LweCiphertext to store the result of the PBS
+            out_pbs_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+        } else {
+            lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                Plaintext(Scalar::ZERO),
+                lwe_noise_distribution,
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                &mut encryption_generator,
+            );
+
+            temp_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
+            // Allocate the LweCiphertext to store the result of the PBS
+            out_pbs_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+        }
 
         let accumulator = GlweCiphertext::new(
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
-        // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
-            Scalar::ZERO,
-            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
@@ -220,19 +323,38 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
             .unaligned_bytes_required(),
         );
 
-        let id = format!("{bench_name}::{name}");
+        // let id = format!("{bench_name}::{name}");
+        let id = format!("{bench_name}::{correct_name}");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
-                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                        &lwe_ciphertext_in,
-                        &mut out_pbs_ct,
-                        &accumulator.as_view(),
-                        &fourier_bsk,
-                        fft,
-                        buffers.stack(),
-                    );
-                    black_box(&mut out_pbs_ct);
+                    if is_ks_pbs {
+                        keyswitch_lwe_ciphertext(
+                            &ksk_big_to_small,
+                            &lwe_ciphertext_in,
+                            &mut temp_ct,
+                        );
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                            // &lwe_ciphertext_in,
+                            &temp_ct,
+                            &mut out_pbs_ct,
+                            &accumulator.as_view(),
+                            &fourier_bsk,
+                            fft,
+                            buffers.stack(),
+                        );
+                    } else {
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                            &lwe_ciphertext_in,
+                            // &mut out_pbs_ct,
+                            &mut temp_ct,
+                            &accumulator.as_view(),
+                            &fourier_bsk,
+                            fft,
+                            buffers.stack(),
+                        );
+                        keyswitch_lwe_ciphertext(&ksk_big_to_small, &temp_ct, &mut out_pbs_ct);
+                    }
                 })
             });
         }
@@ -251,7 +373,13 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
 }
 
 fn multi_bit_pbs<
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Sync + Serialize,
+    Scalar: UnsignedTorus
+        + CastInto<usize>
+        + CastFrom<usize>
+        + Default
+        + Sync
+        + Serialize
+        + RandomGenerable<DynamicDistribution<u64>, CustomModulus = Scalar>,
 >(
     c: &mut Criterion,
 ) {
@@ -292,8 +420,8 @@ fn multi_bit_pbs<
             *grouping_factor,
         );
 
-        let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
+        let lwe_noise_distribution = params.lwe_std_dev.unwrap();
+        // DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -347,7 +475,13 @@ fn multi_bit_pbs<
 }
 
 fn multi_bit_deterministic_pbs<
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
+    Scalar: UnsignedTorus
+        + CastInto<usize>
+        + CastFrom<usize>
+        + Default
+        + Serialize
+        + Sync
+        + RandomGenerable<DynamicDistribution<u64>, CustomModulus = Scalar>,
 >(
     c: &mut Criterion,
 ) {
@@ -388,8 +522,8 @@ fn multi_bit_deterministic_pbs<
             *grouping_factor,
         );
 
-        let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
+        let lwe_noise_distribution = params.lwe_std_dev.unwrap();
+        // DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         // Allocate a new LweCiphertext and encrypt our plaintext
         let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -442,7 +576,14 @@ fn multi_bit_deterministic_pbs<
     }
 }
 
-fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serialize>(
+fn pbs_throughput<
+    Scalar: UnsignedTorus
+        + CastInto<usize>
+        + Sync
+        + Send
+        + Serialize
+        + RandomGenerable<DynamicDistribution<u64>, CustomModulus = Scalar>,
+>(
     c: &mut Criterion,
 ) {
     let bench_name = "core_crypto::pbs_throughput";
@@ -473,8 +614,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
         let big_lwe_dimension = big_lwe_sk.lwe_dimension();
 
-        let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
+        let lwe_noise_distribution = params.lwe_std_dev.unwrap();
+        // DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
         const NUM_CTS: usize = 8192;
         let lwe_vec: Vec<_> = (0..NUM_CTS)
@@ -1181,29 +1322,32 @@ use cuda::{
     cuda_multi_bit_pbs_group, cuda_multi_bit_pbs_throughput_group, cuda_pbs_group,
     cuda_pbs_throughput_group,
 };
+use tfhe::core_crypto::commons::math::random::RandomGenerable;
+use tfhe::shortint::parameters::sec_and_pfail_params::*;
 
 criterion_group!(
     pbs_group,
     mem_optimized_pbs::<u64>,
-    mem_optimized_pbs::<u32>
+    // mem_optimized_pbs::<u32>
 );
 
 criterion_group!(
     multi_bit_pbs_group,
     multi_bit_pbs::<u64>,
-    multi_bit_pbs::<u32>,
+    // multi_bit_pbs::<u32>,
     multi_bit_deterministic_pbs::<u64>,
-    multi_bit_deterministic_pbs::<u32>,
+    // multi_bit_deterministic_pbs::<u32>,
 );
 
 criterion_group!(
     pbs_throughput_group,
     pbs_throughput::<u64>,
-    pbs_throughput::<u32>
+    // pbs_throughput::<u32>
 );
 
 #[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+criterion_main!(pbs_group);
+// criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
 criterion_main!(
     cuda_pbs_group,
