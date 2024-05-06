@@ -148,6 +148,7 @@ fn pke_ap(
                 buffers,
             );
         });
+        output.degree = input.degree;
 
         // sks_fhe.key.apply_lookup_table_assign(blocks, &acc)
     }
