@@ -45,7 +45,7 @@ protected:
   uint64_t *lwe_sk_in_array;
   uint64_t *lwe_sk_out_array;
   uint64_t *plaintexts;
-  uint64_t *d_bsk;
+  double2 *d_bsk;
   uint64_t *d_lut_pbs_identity;
   uint64_t *d_lut_pbs_indexes;
   uint64_t *d_lwe_ct_in_array;

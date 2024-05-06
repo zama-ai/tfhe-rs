@@ -44,7 +44,7 @@ protected:
   uint64_t *lwe_sk_in_array;
   uint64_t *lwe_sk_out_array;
   uint64_t *plaintexts;
-  uint64_t *d_bsk_array;
+  double2 *d_bsk_array;
   uint64_t *d_lut_pbs_identity;
   uint64_t *d_lut_pbs_indexes;
   uint64_t *d_lwe_ct_in_array;
@@ -120,7 +120,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
                  (1 << grouping_factor);
 
   for (int r = 0; r < repetitions; r++) {
-    uint64_t *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
+    double2 *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
     uint64_t *lwe_sk_out =
         lwe_sk_out_array + (ptrdiff_t)(r * glwe_dimension * polynomial_size);
     for (int s = 0; s < samples; s++) {

@@ -176,7 +176,7 @@ void generate_lwe_programmable_bootstrap_keys(cuda_stream_t *stream,
 }
 
 void generate_lwe_multi_bit_programmable_bootstrap_keys(
-    cuda_stream_t *stream, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
+    cuda_stream_t *stream, double2 **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor, int pbs_level, int pbs_base_log,
     Seed *seed, DynamicDistribution noise_distribution,
@@ -189,7 +189,7 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
   uint64_t *bsk_array = (uint64_t *)malloc(bsk_array_size * sizeof(uint64_t));
 
   *d_bsk_array =
-      (uint64_t *)cuda_malloc_async(bsk_array_size * sizeof(uint64_t), stream);
+      (double2 *)cuda_malloc_async(bsk_array_size * sizeof(double), stream);
   for (uint r = 0; r < repetitions; r++) {
     int shift_in = 0;
     int shift_out = 0;
@@ -199,14 +199,14 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
         lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
         polynomial_size, bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log,
         pbs_level, grouping_factor, noise_distribution, 0, 0);
-    uint64_t *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
+    double2 *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
         d_bsk, bsk, stream, lwe_dimension, glwe_dimension, pbs_level,
         polynomial_size, grouping_factor);
     shift_in += lwe_dimension;
     shift_out += glwe_dimension * polynomial_size;
-    shift_bsk += bsk_size;
+    shift_bsk += bsk_size / 2;
   }
   cuda_synchronize_stream(stream);
   free(bsk_array);
