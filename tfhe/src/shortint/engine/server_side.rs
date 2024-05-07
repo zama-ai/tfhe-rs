@@ -6,7 +6,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
-use crate::shortint::parameters::{ShortintKeySwitchingParameters, EncryptionKeyChoice};
+use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
 

@@ -51,25 +51,33 @@ struct GroupElements<G: Curve> {
 
 impl<G: Curve> GroupElements<G> {
     pub fn new(message_len: usize, alpha: G::Zp) -> Self {
-        let mut g_list = Vec::new();
-        let mut g_hat_list = Vec::new();
+        let (g_list, g_hat_list) = rayon::join(
+            || {
+                let mut g_list = Vec::new();
 
-        let mut g_cur = G::G1::GENERATOR.mul_scalar(alpha);
+                let mut g_cur = G::G1::GENERATOR.mul_scalar(alpha);
 
-        for i in 0..2 * message_len {
-            if i == message_len {
-                g_list.push(G::G1::ZERO);
-            } else {
-                g_list.push(g_cur);
-            }
-            g_cur = g_cur.mul_scalar(alpha);
-        }
+                for i in 0..2 * message_len {
+                    if i == message_len {
+                        g_list.push(G::G1::ZERO);
+                    } else {
+                        g_list.push(g_cur);
+                    }
+                    g_cur = g_cur.mul_scalar(alpha);
+                }
 
-        let mut g_hat_cur = G::G2::GENERATOR.mul_scalar(alpha);
-        for _ in 0..message_len {
-            g_hat_list.push(g_hat_cur);
-            g_hat_cur = (g_hat_cur).mul_scalar(alpha);
-        }
+                g_list
+            },
+            || {
+                let mut g_hat_list = Vec::new();
+                let mut g_hat_cur = G::G2::GENERATOR.mul_scalar(alpha);
+                for _ in 0..message_len {
+                    g_hat_list.push(g_hat_cur);
+                    g_hat_cur = (g_hat_cur).mul_scalar(alpha);
+                }
+                g_hat_list
+            },
+        );
 
         Self {
             g_list: OneBased::new(g_list),

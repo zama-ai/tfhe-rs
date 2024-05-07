@@ -9,6 +9,7 @@ def main(args):
 
     data = []
     for json_file in sorted(criterion_dir.glob("**/*.json")):
+        # print(json_file)
         if json_file.parent.name == "base" or json_file.name != "benchmark.json":
             continue
 
@@ -16,23 +17,24 @@ def main(args):
             bench_data = json.loads(json_file.read_text())
             estimate_file = json_file.with_name("estimates.json")
             estimate_data = json.loads(estimate_file.read_text())
+            parameter_set = json_file.parent.parent.name
 
-            bench_function_id = bench_data["function_id"]
+            # bench_function_id = bench_data["function_id"]
 
-            split = bench_function_id.split("::")
-            if split.len() == 5:  # Signed integers
-                (_, _, function_name, parameter_set, bits) = split
-            else:  # Unsigned integers
-                (_, function_name, parameter_set, bits) = split
+            # split = bench_function_id.split("::")
+            # if split.len() == 5:  # Signed integers
+            #     (_, _, function_name, parameter_set, bits) = split
+            # else:  # Unsigned integers
+            #     (_, function_name, parameter_set, bits) = split
 
-            if "_scalar_" in bits:
-                (bits, scalar) = bits.split("_bits_scalar_")
-                bits = int(bits)
-                scalar = int(scalar)
-            else:
-                (bits, _) = bits.split("_")
-                bits = int(bits)
-                scalar = None
+            # if "_scalar_" in bits:
+            #     (bits, scalar) = bits.split("_bits_scalar_")
+            #     bits = int(bits)
+            #     scalar = int(scalar)
+            # else:
+            #     (bits, _) = bits.split("_")
+            #     bits = int(bits)
+            #     scalar = None
 
             estimate_mean_ms = estimate_data["mean"]["point_estimate"] / 1000000
             estimate_lower_bound_ms = (
@@ -44,10 +46,10 @@ def main(args):
 
             data.append(
                 (
-                    function_name,
+                    # bench_function_id,
                     parameter_set,
-                    bits,
-                    scalar,
+                    # bits,
+                    # scalar,
                     estimate_mean_ms,
                     estimate_lower_bound_ms,
                     estimate_upper_bound_ms,
@@ -62,7 +64,7 @@ def main(args):
 
     with open(output_file, "w", encoding="utf-8") as output:
         output.write(
-            "function_name,parameter_set,bits,scalar,mean_ms,"
+            "parameter_set,mean_ms,"
             "confidence_interval_lower_bound_ms,confidence_interval_upper_bound_ms\n"
         )
         # Sort by func_name, bit width and then parameters
@@ -70,16 +72,15 @@ def main(args):
 
         for dat in data:
             (
-                function_name,
                 parameter_set,
-                bits,
-                scalar,
+                # bits,
+                # scalar,
                 estimate_mean_ms,
                 estimate_lower_bound_ms,
                 estimate_upper_bound_ms,
             ) = dat
             output.write(
-                f"{function_name},{parameter_set},{bits},{scalar},{estimate_mean_ms},"
+                f"{parameter_set},{estimate_mean_ms},"
                 f"{estimate_lower_bound_ms},{estimate_upper_bound_ms}\n"
             )
 

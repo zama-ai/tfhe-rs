@@ -7743,3 +7743,22 @@ pub const PARAM_KEYSWITCH_MESSAGE_4_CARRY_4_138_40: ShortintKeySwitchingParamete
         ks_level: DecompositionLevelCount(3),
         ks_base_log: DecompositionBaseLog(6),
     };
+
+///////////////////
+pub const OLD_PARAM_PKE_2_2: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(41),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(14),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(6),
+    ks_level: DecompositionLevelCount(3),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    log2_p_fail: -40.0,
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
