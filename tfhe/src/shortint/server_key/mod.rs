@@ -1470,7 +1470,7 @@ pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
     };
 }
 
-pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
+pub fn apply_programmable_bootstrap<InputCont, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey,
     in_buffer: &LweCiphertext<InputCont>,
     out_buffer: &mut LweCiphertext<OutputCont>,

@@ -6,7 +6,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
-use crate::shortint::parameters::ShortintKeySwitchingParameters;
+use crate::shortint::parameters::{ShortintKeySwitchingParameters, EncryptionKeyChoice};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
 
@@ -160,17 +160,17 @@ impl ShortintEngine {
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
         let input_key = match cks1.parameters.encryption_key_choice() {
-            test::EncryptionKeyChoice::Big => cks1.large_lwe_secret_key(),
-            test::EncryptionKeyChoice::Small => cks1.small_lwe_secret_key(),
+            EncryptionKeyChoice::Big => cks1.large_lwe_secret_key(),
+            EncryptionKeyChoice::Small => cks1.small_lwe_secret_key(),
         };
 
         // // TODO: manage more cases ?
         // let (output_key, encryption_noise) = match cks2.parameters.encryption_key_choice() {
-        //     test::EncryptionKeyChoice::Big => (
+        //     EncryptionKeyChoice::Big => (
         //         cks2.large_lwe_secret_key(),
         //         cks2.parameters.glwe_noise_distribution(),
         //     ),
-        //     test::EncryptionKeyChoice::Small => (
+        //     EncryptionKeyChoice::Small => (
         //         cks2.small_lwe_secret_key(),
         //         cks2.parameters.lwe_noise_distribution(),
         //     ),
