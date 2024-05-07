@@ -21,19 +21,8 @@ pub fn shortint_public_key_zero_encryption_count(
 
 impl ShortintEngine {
     pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
-        let client_parameters = client_key.parameters;
-
         let (secret_encryption_key, encryption_noise_distribution) =
-            match client_parameters.encryption_key_choice().into() {
-                crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    client_key.large_lwe_secret_key(),
-                    client_parameters.glwe_noise_distribution(),
-                ),
-                crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    client_key.small_lwe_secret_key(),
-                    client_parameters.lwe_noise_distribution(),
-                ),
-            };
+            client_key.encryption_key_and_noise();
 
         let zero_encryption_count = shortint_public_key_zero_encryption_count(
             secret_encryption_key.lwe_dimension().to_lwe_size(),
@@ -70,16 +59,7 @@ impl ShortintEngine {
         let client_parameters = client_key.parameters;
 
         let (secret_encryption_key, encryption_noise_distribution) =
-            match client_parameters.encryption_key_choice().into() {
-                crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    client_key.large_lwe_secret_key(),
-                    client_parameters.glwe_noise_distribution(),
-                ),
-                crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    client_key.small_lwe_secret_key(),
-                    client_parameters.lwe_noise_distribution(),
-                ),
-            };
+            client_key.encryption_key_and_noise();
 
         let zero_encryption_count = shortint_public_key_zero_encryption_count(
             secret_encryption_key.lwe_dimension().to_lwe_size(),

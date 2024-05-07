@@ -54,16 +54,7 @@ impl CompactPublicKey {
     pub fn try_new(client_key: &ClientKey) -> Option<Self> {
         let parameters = client_key.parameters;
         let (secret_encryption_key, encryption_noise_distribution) =
-            match client_key.parameters.encryption_key_choice().into() {
-                crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    client_key.large_lwe_secret_key(),
-                    parameters.glwe_noise_distribution(),
-                ),
-                crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    client_key.small_lwe_secret_key(),
-                    parameters.lwe_noise_distribution(),
-                ),
-            };
+            client_key.encryption_key_and_noise();
 
         if !secret_encryption_key.lwe_dimension().0.is_power_of_two() {
             return None;
@@ -125,12 +116,7 @@ impl CompactPublicKey {
             provided PBSOrder ({pbs_order:?})"
         );
 
-        let ciphertext_lwe_dimension = match pbs_order {
-            PBSOrder::KeyswitchBootstrap => parameters
-                .glwe_dimension()
-                .to_equivalent_lwe_dimension(parameters.polynomial_size()),
-            PBSOrder::BootstrapKeyswitch => parameters.lwe_dimension(),
-        };
+        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
 
         assert_eq!(
             key.lwe_dimension(),
@@ -169,10 +155,7 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
-        let encryption_noise_distribution = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
-            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
-        };
+        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
 
         ShortintEngine::with_thread_local_mut(|engine| {
             encrypt_lwe_ciphertext_with_compact_public_key(
@@ -211,10 +194,7 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
-        let encryption_noise_distribution = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
-            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
-        };
+        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
 
         let plaintext_modulus =
             (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
@@ -266,10 +246,7 @@ impl CompactPublicKey {
             self.parameters.ciphertext_modulus(),
         );
 
-        let encryption_noise_distribution = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
-            PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
-        };
+        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
 
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
@@ -338,10 +315,7 @@ impl CompactPublicKey {
                 self.parameters.ciphertext_modulus(),
             );
 
-            let encryption_noise_distribution = match self.pbs_order {
-                PBSOrder::KeyswitchBootstrap => self.parameters.glwe_noise_distribution(),
-                PBSOrder::BootstrapKeyswitch => self.parameters.lwe_noise_distribution(),
-            };
+            let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
 
             // No parallelism allowed
             #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
@@ -421,16 +395,7 @@ impl CompressedCompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         let parameters = client_key.parameters;
         let (secret_encryption_key, encryption_noise_distribution) =
-            match client_key.parameters.encryption_key_choice().into() {
-                crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                    client_key.large_lwe_secret_key(),
-                    parameters.glwe_noise_distribution(),
-                ),
-                crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                    client_key.small_lwe_secret_key(),
-                    parameters.lwe_noise_distribution(),
-                ),
-            };
+            client_key.encryption_key_and_noise();
 
         let key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_compact_public_key(
@@ -483,12 +448,7 @@ impl CompressedCompactPublicKey {
             provided PBSOrder ({pbs_order:?})"
         );
 
-        let ciphertext_lwe_dimension = match pbs_order {
-            PBSOrder::KeyswitchBootstrap => parameters
-                .glwe_dimension()
-                .to_equivalent_lwe_dimension(parameters.polynomial_size()),
-            PBSOrder::BootstrapKeyswitch => parameters.lwe_dimension(),
-        };
+        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
 
         assert_eq!(
             key.lwe_dimension(),

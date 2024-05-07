@@ -94,16 +94,8 @@ impl ShortintEngine {
     ) -> Ciphertext {
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = self.encrypt_inner_ct(
             &client_key.parameters,
@@ -146,16 +138,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = self.encrypt_inner_ct(
             &client_key.parameters,
@@ -201,16 +185,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
             &encryption_lwe_sk,
@@ -233,16 +209,8 @@ impl ShortintEngine {
     pub(crate) fn unchecked_encrypt(&mut self, client_key: &ClientKey, message: u64) -> Ciphertext {
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let delta = (1_u64 << 63)
             / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
@@ -289,16 +257,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &encryption_lwe_sk,
@@ -335,16 +295,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
             &encryption_lwe_sk,
@@ -378,16 +330,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &encryption_lwe_sk,
@@ -421,16 +365,8 @@ impl ShortintEngine {
 
         let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
-        let (encryption_lwe_sk, encryption_noise_distribution) = match params_op_order {
-            PBSOrder::KeyswitchBootstrap => (
-                client_key.large_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution(),
-            ),
-            PBSOrder::BootstrapKeyswitch => (
-                client_key.small_lwe_secret_key(),
-                client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (encryption_lwe_sk, encryption_noise_distribution) =
+            client_key.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
             &encryption_lwe_sk,

@@ -5,7 +5,7 @@
 
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
-use crate::boolean::parameters::BooleanParameters;
+use crate::boolean::parameters::{BooleanParameters, DynamicDistribution, EncryptionKeyChoice};
 use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
@@ -46,6 +46,22 @@ impl Debug for ClientKey {
 }
 
 impl ClientKey {
+    /// Returns a view to the encryption key and the corresponding noise distribution.
+    pub fn encryption_key_and_noise(
+        &self,
+    ) -> (LweSecretKeyView<'_, u32>, DynamicDistribution<u32>) {
+        match self.parameters.encryption_key_choice {
+            EncryptionKeyChoice::Big => (
+                self.glwe_secret_key.as_lwe_secret_key(),
+                self.parameters.glwe_noise_distribution,
+            ),
+            EncryptionKeyChoice::Small => (
+                self.lwe_secret_key.as_view(),
+                self.parameters.lwe_noise_distribution,
+            ),
+        }
+    }
+
     /// Encrypt a Boolean message using the client key.
     ///
     /// # Example
