@@ -110,18 +110,7 @@ impl BooleanEngine {
     }
 
     pub fn create_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
-        let client_parameters = client_key.parameters;
-
-        let (lwe_sk, encryption_noise) = match client_parameters.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                client_key.glwe_secret_key.as_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution,
-            ),
-            EncryptionKeyChoice::Small => (
-                client_key.lwe_secret_key.as_view(),
-                client_key.parameters.lwe_noise_distribution,
-            ),
-        };
+        let (lwe_sk, encryption_noise) = client_key.encryption_key_and_noise();
 
         // Formula is (n + 1) * log2(q) + 128
         let zero_encryption_count = LwePublicKeyZeroEncryptionCount(
@@ -153,18 +142,7 @@ impl BooleanEngine {
     }
 
     pub fn create_compressed_public_key(&mut self, client_key: &ClientKey) -> CompressedPublicKey {
-        let client_parameters = client_key.parameters;
-
-        let (lwe_sk, encryption_noise) = match client_parameters.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                client_key.glwe_secret_key.as_lwe_secret_key(),
-                client_key.parameters.glwe_noise_distribution,
-            ),
-            EncryptionKeyChoice::Small => (
-                client_key.lwe_secret_key.as_view(),
-                client_key.parameters.lwe_noise_distribution,
-            ),
-        };
+        let (lwe_sk, encryption_noise) = client_key.encryption_key_and_noise();
 
         // Formula is (n + 1) * log2(q) + 128
         let zero_encryption_count = LwePublicKeyZeroEncryptionCount(
@@ -191,7 +169,7 @@ impl BooleanEngine {
 
         CompressedPublicKey {
             compressed_lwe_public_key,
-            parameters: client_parameters,
+            parameters: client_key.parameters,
         }
     }
 
@@ -243,17 +221,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             Plaintext(PLAINTEXT_FALSE)
         };
 
-        let (lwe_sk, encryption_noise) = match cks.parameters.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                cks.glwe_secret_key.as_lwe_secret_key(),
-                cks.parameters.glwe_noise_distribution,
-            ),
-            EncryptionKeyChoice::Small => (
-                cks.lwe_secret_key.as_view(),
-                cks.parameters.lwe_noise_distribution,
-            ),
-        };
-
+        let (lwe_sk, encryption_noise) = cks.encryption_key_and_noise();
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &lwe_sk,
             plain,
@@ -273,16 +241,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
             Plaintext(PLAINTEXT_FALSE)
         };
 
-        let (lwe_sk, encryption_noise) = match cks.parameters.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                cks.glwe_secret_key.as_lwe_secret_key(),
-                cks.parameters.glwe_noise_distribution,
-            ),
-            EncryptionKeyChoice::Small => (
-                cks.lwe_secret_key.as_view(),
-                cks.parameters.lwe_noise_distribution,
-            ),
-        };
+        let (lwe_sk, encryption_noise) = cks.encryption_key_and_noise();
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
             &lwe_sk,

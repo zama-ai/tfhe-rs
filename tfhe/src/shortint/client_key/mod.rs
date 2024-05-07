@@ -5,7 +5,9 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
+use crate::shortint::parameters::{
+    DynamicDistribution, EncryptionKeyChoice, MessageModulus, ShortintParameterSet,
+};
 use crate::shortint::CarryModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -56,6 +58,22 @@ impl ClientKey {
     /// Returns a view to the `lwe_secret_key`
     pub(crate) fn small_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
         self.lwe_secret_key.as_view()
+    }
+
+    /// Returns a view to the encryption key and the corresponding noise distribution.
+    pub fn encryption_key_and_noise(
+        &self,
+    ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
+        match self.parameters.encryption_key_choice() {
+            EncryptionKeyChoice::Big => (
+                self.glwe_secret_key.as_lwe_secret_key(),
+                self.parameters.glwe_noise_distribution(),
+            ),
+            EncryptionKeyChoice::Small => (
+                self.lwe_secret_key.as_view(),
+                self.parameters.lwe_noise_distribution(),
+            ),
+        }
     }
 
     /// Deconstruct a [`ClientKey`] into its constituents.

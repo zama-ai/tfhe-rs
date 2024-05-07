@@ -96,7 +96,7 @@ impl GlweDimension {
         GlweSize(self.0 + 1)
     }
 
-    pub fn to_equivalent_lwe_dimension(self, poly_size: PolynomialSize) -> LweDimension {
+    pub const fn to_equivalent_lwe_dimension(self, poly_size: PolynomialSize) -> LweDimension {
         LweDimension(self.0 * poly_size.0)
     }
 }

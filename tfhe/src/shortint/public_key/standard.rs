@@ -63,12 +63,7 @@ impl PublicKey {
             provided PBSOrder ({pbs_order:?})"
         );
 
-        let ciphertext_lwe_dimension = match pbs_order {
-            PBSOrder::KeyswitchBootstrap => parameters
-                .glwe_dimension()
-                .to_equivalent_lwe_dimension(parameters.polynomial_size()),
-            PBSOrder::BootstrapKeyswitch => parameters.lwe_dimension(),
-        };
+        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
 
         assert_eq!(
             (*lwe_public_key).lwe_size().to_lwe_dimension(),

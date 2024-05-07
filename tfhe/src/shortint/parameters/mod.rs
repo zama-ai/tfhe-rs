@@ -537,6 +537,22 @@ impl ShortintParameterSet {
         }
     }
 
+    pub const fn encryption_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self.glwe_noise_distribution(),
+            EncryptionKeyChoice::Small => self.lwe_noise_distribution(),
+        }
+    }
+
+    pub const fn encryption_lwe_dimension(&self) -> LweDimension {
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size()),
+            EncryptionKeyChoice::Small => self.lwe_dimension(),
+        }
+    }
+
     pub const fn pbs_only(&self) -> bool {
         self.inner.is_pbs_only()
     }
