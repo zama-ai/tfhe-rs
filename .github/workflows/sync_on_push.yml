@@ -16,11 +16,6 @@ jobs:
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
         with:
           fetch-depth: 0
-      - name: Save repo
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
-        with:
-          name: repo-archive
-          path: '.'
       - name: git-sync
         uses: wei/git-sync@55c6b63b4f21607da0e9877ca9b4d11a29fc6d83
         with:
