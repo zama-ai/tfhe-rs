@@ -34,7 +34,8 @@ use tfhe::shortint::parameters::*;
 //     PARAM_MESSAGE_4_CARRY_4_PBS_KS,
 // ];
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 352] = ALL_SEC_PFAIL_VEC;
+// const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 352] = ALL_SEC_PFAIL_VEC;
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 8] = ALL_SEC_PFAIL_VEC_CURRENT;
 
 // const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 2] = [
 //     // PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M40_SEC_128_2M40,
@@ -212,7 +213,7 @@ fn mem_optimized_pbs<
             params_vec.push(correct_name.to_owned());
         }
 
-        let is_ks_pbs = correct_name.contains("_KS_PBS__2M");
+        let is_ks_pbs = correct_name.contains("KS_PBS");
 
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -225,7 +226,7 @@ fn mem_optimized_pbs<
                 params.polynomial_size.unwrap(),
                 &mut secret_generator,
             );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+        let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
 
         let lwe_noise_distribution = params.lwe_std_dev.unwrap();
 
@@ -239,14 +240,41 @@ fn mem_optimized_pbs<
             &mut encryption_generator,
         );
 
-        // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        // // Create the empty bootstrapping key in the Fourier domain
+        // let fourier_bsk = FourierLweBootstrapKey::new(
+        //     params.lwe_dimension.unwrap(),
+        //     params.glwe_dimension.unwrap().to_glwe_size(),
+        //     params.polynomial_size.unwrap(),
+        //     params.pbs_base_log.unwrap(),
+        //     params.pbs_level.unwrap(),
+        // );
+        let mut bsk = LweBootstrapKey::new(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.lwe_dimension.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        par_generate_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &output_glwe_secret_key,
+            &mut bsk,
+            lwe_noise_distribution,
+            &mut encryption_generator,
+        );
+
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension.unwrap(),
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             params.pbs_base_log.unwrap(),
             params.pbs_level.unwrap(),
         );
+
+        par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fourier_bsk);
 
         // let lwe_noise_distribution =
         // DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
@@ -302,7 +330,7 @@ fn mem_optimized_pbs<
         }
 
         let accumulator = GlweCiphertext::new(
-            Scalar::ZERO,
+            Scalar::ONE << 62,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
             tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
@@ -1322,6 +1350,7 @@ use cuda::{
     cuda_multi_bit_pbs_group, cuda_multi_bit_pbs_throughput_group, cuda_pbs_group,
     cuda_pbs_throughput_group,
 };
+use tfhe::core_crypto::algorithms::misc::check_encrypted_content_respects_mod;
 use tfhe::core_crypto::commons::math::random::RandomGenerable;
 use tfhe::shortint::parameters::sec_and_pfail_params::*;
 
