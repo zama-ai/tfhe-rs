@@ -1,0 +1,221 @@
+# These jobs will dispatch test for every tfhe-rs layers and crates.
+name: CI Dispatch
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+      - 'release/*'
+  schedule:
+    # Nightly tests @ 1AM after each work day
+    - cron: "0 1 * * MON-FRI"
+
+jobs:
+  file-change:
+    if: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      core_crypto_test: ${{ steps.changed-files.outputs.core_crypto_test_any_changed }}
+      shortint_test: ${{ steps.changed-files.outputs.shortint_test_any_changed }}
+      integer_test: ${{ steps.changed-files.outputs.integer_test_any_changed }}
+      boolean_test: ${{ steps.changed-files.outputs.boolean_test_any_changed }}
+      cuda_test: ${{ steps.changed-files.outputs.cuda_test_any_changed }}
+      wasm_client_test: ${{ steps.changed-files.outputs.wasm_client_test_any_changed }}
+      zk_pok_test: ${{ steps.changed-files.outputs.zk_pok_test_any_changed }}
+      csprng_test: ${{ steps.changed-files.outputs.csprng_test_any_changed }}
+      trivium_test: ${{ steps.changed-files.outputs.trivium_test_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@5e85e31a0187e8df23b438284aa04f21b55f1510
+        with:
+          files_yaml: |
+            core_crypto_test:
+              - tfhe/src/core_crypto/**
+            boolean_test:
+              - tfhe/src/boolean/**
+            shortint_test:
+              - tfhe/src/shortint/**
+            integer_test:
+              - tfhe/src/integer/**
+            wasm_client_test:
+              - tfhe/web_wasm_parallel_tests/**
+            cuda_test:
+              - backends/tfhe-cuda-backend/src/**
+              - backends/tfhe-cuda-backend/cuda/**
+              - backends/tfhe-cuda-backend/build.rs
+              - backends/tfhe-cuda-backend/Cargo.toml
+            zk_pok_test:
+              - tfhe-zk-pok/src/**
+            csprng_test:
+              - concrete-csprng/src/**
+            trivium_test:
+              - apps/trivium/src/**
+
+  core_cryto_tests:
+    name: Run core_crypto tests
+    needs: file-change
+    if: needs.file-change.outputs.core_crypto_test == 'true'
+    uses: ./.github/workflows/aws_tfhe_fast_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  boolean_tests:
+    name: Run boolean tests
+    needs: file-change
+    if: (needs.file-change.outputs.boolean_test == 'true' ||
+      needs.file-change.outputs.core_crypto_test == 'true')
+    uses: ./.github/workflows/aws_boolean_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  shortint_tests:
+    name: Run shortint tests
+    needs: file-change
+    if: (needs.file-change.outputs.integer_test == 'true' ||
+      needs.file-change.outputs.shortint_test == 'true')
+    uses: ./.github/workflows/aws_shortint_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  integer_tests:
+    name: Run integer tests (unsigned)
+    needs: file-change
+    if: (needs.file-change.outputs.integer_test == 'true' ||
+      needs.file-change.outputs.shortint_test == 'true' ||
+      needs.file-change.outputs.core_crypto_test == 'true')
+    uses: ./.github/workflows/aws_tfhe_integer_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  signed_integer_tests:  # TODO utiliser une variable (type choice) de workflow pour choisir entre unsigned et signed et ainsi éviter d'avoir deux fichiers.
+    name: Run integer tests (signed)
+    needs: file-change
+    if: (needs.file-change.outputs.integer_test == 'true' ||
+      needs.file-change.outputs.shortint_test == 'true' ||
+      needs.file-change.outputs.core_crypto_test == 'true')
+    uses: ./.github/workflows/aws_tfhe_gpu_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  cuda_integer_tests:
+    name: Run CUDA integer tests (unsigned)
+    needs: file-change
+    if: (needs.file-change.outputs.cuda_test == 'true' ||
+      needs.file-change.outputs.integer_test == 'true' ||
+      needs.file-change.outputs.core_crypto_test == 'true')
+    uses: ./.github/workflows/aws_tfhe_gpu_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  cuda_signed_integer_tests: # TODO utiliser une variable (type choice) de workflow pour choisir entre unsigned et signed et ainsi éviter d'avoir deux fichiers.
+    name: Run CUDA integer tests (signed)
+    needs: file-change
+    if: (needs.file-change.outputs.cuda_test == 'true' ||
+      needs.file-change.outputs.integer_test == 'true' ||
+      needs.file-change.outputs.core_crypto_test == 'true')
+    uses: ./.github/workflows/aws_tfhe_signed_integer_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  wasm_client_tests:
+    name: Run WASM client tests
+    needs: file-change
+    if: needs.file-change.outputs.wasm_client_test == 'true'  # FIXME Define dependency tree
+    uses: ./.github/workflows/aws_tfhe_wasm_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  zk_pok_tests:
+    name: Run zk-pok tests
+    needs: file-change
+    if: needs.file-change.outputs.zk_pok_test == 'true'  # FIXME Define dependency tree
+    uses: ./.github/workflows/aws_zk_pok_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  csprng_tests:
+    name: Run concrete-csprng tests
+    needs: file-change
+    if: needs.file-change.outputs.csprng_test == 'true'  # FIXME Define dependency tree
+    uses: ./.github/workflows/aws_csprng_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  trivium_tests:
+    name: Run trivium app tests
+    needs: file-change
+    if: needs.file-change.outputs.trivium_test == 'true'  # FIXME Define dependency tree
+    uses: ./.github/workflows/aws_trivium_tests.yml
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+# TODO: Ajouter les différents cargo.toml ?
+# Faire les tests avec la chaine de dépendance:
+# exemple si changement dans core_crypto: on run core, shortint et integer
+# TODO: réfléchir à comment lancer les différents workflows afin de ne pas démarrer trop de machines
+# Comment gérer les petits workflows ? Une machine pour plusieurs workflows ?
+# Comment gérer les gros worflows (integer, signed_integers, ...) ? Faire comme actuellement ?
