@@ -78,9 +78,8 @@ impl CudaServerKey {
             }
         };
 
-        // TODO write info update for div_rem
-        quotient.as_mut().info = quotient.as_ref().info.after_mul();
-        remainder.as_mut().info = remainder.as_ref().info.after_mul();
+        quotient.as_mut().info = quotient.as_ref().info.after_div_rem();
+        remainder.as_mut().info = remainder.as_ref().info.after_div_rem();
     }
 
     pub fn unsigned_unchecked_div_rem_assign(
