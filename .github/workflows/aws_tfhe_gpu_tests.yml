@@ -18,8 +18,8 @@ on:
   pull_request:
 
 jobs:
-  setup-ec2:
-    name: Setup EC2 instance (cuda-tests)
+  setup-instance:
+    name: Setup instance (cuda-tests)
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -37,11 +37,11 @@ jobs:
 
   cuda-pcc:
     name: CUDA post-commit checks
-    needs: setup-ec2
+    needs: setup-instance
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -103,11 +103,11 @@ jobs:
 
   cuda-tests-linux:
     name: CUDA tests
-    needs: [ setup-ec2, cuda-pcc ]
+    needs: [ setup-instance, cuda-pcc ]
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -175,10 +175,10 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "CUDA AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
-  teardown-ec2:
-    name: Teardown EC2 instance (cuda-tests)
-    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
-    needs: [ setup-ec2, cuda-pcc, cuda-tests-linux ]
+  teardown-instance:
+    name: Teardown instance (cuda-tests)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, cuda-pcc, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -189,7 +189,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-ec2.outputs.runner-name }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
 
       - name: Slack Notification
         if: ${{ failure() }}
@@ -197,4 +197,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "EC2 teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

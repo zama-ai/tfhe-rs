@@ -1,32 +1,11 @@
-# Run all integer benchmarks on an AWS instance with CUDA and return parsed results to Slab CI bot.
+# Run all integer benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
 name: Integer GPU full benchmarks
 
 on:
   workflow_dispatch:
-    inputs:
-      instance_id:
-        description: "Instance ID"
-        type: string
-      instance_image_id:
-        description: "Instance AMI ID"
-        type: string
-      instance_type:
-        description: "Instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: "Slab request ID"
-        type: string
-      # This input is not used in this workflow but still mandatory since a calling workflow could
-      # use it. If a triggering command include a user_inputs field, then the triggered workflow
-      # must include this very input, otherwise the workflow won't be called.
-      # See start_full_benchmarks.yml as example.
-      user_inputs:
-        description: "Type of benchmarks to run"
-        type: string
-        default: "weekly_benchmarks"
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
 
 env:
   CARGO_TERM_COLOR: always
@@ -34,13 +13,34 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  integer-benchmarks:
-    name: Execute integer benchmarks for all operations flavor
-    runs-on: ${{ github.event.inputs.runner_name }}
+  setup-instance:
+    name: Setup instance (cuda-integer-full-benchmarks)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: hyperstack
+          profile: single-h100
+
+  cuda-integer-full-benchmarks:
+    name: Execute GPU integer benchmarks for all operations flavor
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
-    if: ${{ !cancelled() }}
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -52,16 +52,31 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
-            gcc: 9
+            gcc: 11
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+      CMAKE_VERSION: 3.29.1
     steps:
-      - name: Instance configuration used
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
         run: |
-          echo "IDs: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
+          sudo apt update
+          sudo apt install ca-certificates curl
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          sudo chmod a+r /etc/apt/keyrings/docker.asc  
+          echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
 
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b
@@ -121,7 +136,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware ${{ inputs.instance_type }} \
+          --hardware "n3-H100x1" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
@@ -151,19 +166,34 @@ jobs:
           -d @${{ env.RESULTS_FILENAME }} \
           ${{ secrets.SLAB_URL }}
 
-  slack-notification:
-    name: Slack Notification
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !success() && !cancelled() }}
-    needs: integer-benchmarks
-    steps:
-      - name: Notify
+      - name: Slack Notification
+        if: ${{ !success() && !cancelled() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "Integer GPU full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-instance:
+    name: Teardown instance (cuda-integer-full-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, cuda-integer-full-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-integer-full-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
