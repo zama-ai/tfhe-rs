@@ -524,7 +524,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     auto conditionally_zero_out_merged_interesting_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
+          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data,
@@ -536,7 +536,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     auto conditionally_zero_out_merged_new_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
+          integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, new_remainder.data,
               new_remainder.data, overflow_sum_radix.data, bsk, ksk,
               new_remainder.len,
@@ -549,7 +549,9 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           streams, gpu_indexes, gpu_count, did_not_overflow.data,
           subtraction_overflowed.data,
           at_least_one_upper_block_is_non_zero.data, bsk, ksk, 1,
-          mem_ptr->merge_overflow_flags_luts[pos_in_block]);
+          mem_ptr->merge_overflow_flags_luts[pos_in_block],
+          mem_ptr->merge_overflow_flags_luts[pos_in_block]
+              ->params.message_modulus);
 
       host_addition(streams[0], gpu_indexes[0],
                     &quotient[block_of_bit * big_lwe_size],
