@@ -21,8 +21,8 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  setup-ec2:
-    name: Setup EC2 instance (publish-cuda-release)
+  setup-instance:
+    name: Setup instance (publish-cuda-release)
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -40,8 +40,8 @@ jobs:
 
   publish-cuda-release:
     name: Publish CUDA Release
-    needs: setup-ec2
-    runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -104,10 +104,10 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-cuda-backend release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
-  teardown-ec2:
-    name: Teardown EC2 instance (publish-release)
-    if: ${{ always() && needs.setup-ec2.result != 'skipped' }}
-    needs: [ setup-ec2, publish-cuda-release ]
+  teardown-instance:
+    name: Teardown instance (publish-release)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, publish-cuda-release ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -118,7 +118,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-ec2.outputs.runner-name }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
 
       - name: Slack Notification
         if: ${{ failure() }}
@@ -126,4 +126,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "EC2 teardown (publish-cuda-release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (publish-cuda-release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
