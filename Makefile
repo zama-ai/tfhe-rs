@@ -653,6 +653,11 @@ test_zk_pok: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok
 
+.PHONY: test_versionable # Run tests for tfhe-versionable subcrate
+test_versionable: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		-p tfhe-versionable
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
