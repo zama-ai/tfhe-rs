@@ -1,5 +1,7 @@
-use super::{BaseRadixCiphertext, BaseSignedRadixCiphertext};
-use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
+use crate::integer::parameters::RadixCiphertextConformanceParams;
+use crate::prelude::ParameterSetConformant;
+use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, MaxDegree};
+use crate::shortint::parameters::Degree;
 
 /// An object to store a ciphertext in little memory.
 /// Decompressing it requires a PBS
@@ -27,8 +29,18 @@ use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 ///
 /// assert_eq!(clear, dec);
 /// ```
-pub type CompressedModulusSwitchedRadixCiphertext =
-    BaseRadixCiphertext<CompressedModulusSwitchedCiphertext>;
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct CompressedModulusSwitchedRadixCiphertext(
+    pub(crate) CompressedModulusSwitchedRadixCiphertextGeneric,
+);
+
+impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.0.is_conformant(params)
+    }
+}
 
 /// An object to store a signed ciphertext in little memory.
 /// Decompressing it requires a PBS
@@ -56,5 +68,54 @@ pub type CompressedModulusSwitchedRadixCiphertext =
 ///
 /// assert_eq!(clear, dec);
 /// ```
-pub type CompressedModulusSwitchedSignedRadixCiphertext =
-    BaseSignedRadixCiphertext<CompressedModulusSwitchedCiphertext>;
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct CompressedModulusSwitchedSignedRadixCiphertext(
+    pub(crate) CompressedModulusSwitchedRadixCiphertextGeneric,
+);
+
+impl ParameterSetConformant for CompressedModulusSwitchedSignedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.0.is_conformant(params)
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct CompressedModulusSwitchedRadixCiphertextGeneric {
+    pub paired_blocks: Vec<CompressedModulusSwitchedCiphertext>,
+    pub last_block: Option<CompressedModulusSwitchedCiphertext>,
+}
+
+impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        let mut shortint_params = params.shortint_params;
+
+        shortint_params.degree = Degree::new(
+            MaxDegree::from_msg_carry_modulus(
+                shortint_params.message_modulus,
+                shortint_params.carry_modulus,
+            )
+            .get(),
+        );
+
+        let paired_blocks_len_ok = self.paired_blocks.len() == params.num_blocks_per_integer / 2;
+
+        let paired_blocks_ok = self
+            .paired_blocks
+            .iter()
+            .all(|block| block.is_conformant(&shortint_params));
+
+        let last_item_ok = if params.num_blocks_per_integer % 2 == 1 {
+            self.last_block.as_ref().map_or(false, |last_block| {
+                last_block.is_conformant(&params.shortint_params)
+            })
+        } else {
+            true
+        };
+
+        paired_blocks_len_ok && paired_blocks_ok && last_item_ok
+    }
+}
