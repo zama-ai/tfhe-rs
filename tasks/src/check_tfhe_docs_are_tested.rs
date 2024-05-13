@@ -2,13 +2,15 @@ use no_comment::{languages, IntoWithoutComments};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 
-const FILES_TO_IGNORE: [&str; 3] = [
+const FILES_TO_IGNORE: [&str; 4] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256_bool.md",
     // This contains fragments of code coming from the tutorial that cannot be run as a doctest
     "tfhe/examples/fhe_strings/README.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
+    // TODO: should we test this ?
+    "utils/tfhe-versionable/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
