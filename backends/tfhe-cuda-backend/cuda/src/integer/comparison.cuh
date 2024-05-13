@@ -313,7 +313,8 @@ __host__ void host_integer_radix_equality_check_kb(
   auto comparisons = mem_ptr->tmp_block_comparisons;
   integer_radix_apply_bivariate_lookup_table_kb(
       streams, gpu_indexes, gpu_count, comparisons, lwe_array_1, lwe_array_2,
-      bsk, ksk, num_radix_blocks, eq_buffer->operator_lut);
+      bsk, ksk, num_radix_blocks, eq_buffer->operator_lut,
+      eq_buffer->operator_lut->params.message_modulus);
 
   // This takes a Vec of blocks, where each block is either 0 or 1.
   //
@@ -554,7 +555,7 @@ __host__ void host_integer_radix_difference_check_kb(
           comparisons + (packed_num_radix_blocks + 1) * big_lwe_size,
           lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
           lwe_array_right + (num_radix_blocks - 1) * big_lwe_size, bsk, ksk, 1,
-          mem_ptr->signed_lut);
+          mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
       num_comparisons = packed_num_radix_blocks + 2;
 
     } else {
@@ -567,7 +568,7 @@ __host__ void host_integer_radix_difference_check_kb(
           comparisons + (num_radix_blocks - 1) * big_lwe_size,
           lwe_array_left + (num_radix_blocks - 1) * big_lwe_size,
           lwe_array_right + (num_radix_blocks - 1) * big_lwe_size, bsk, ksk, 1,
-          mem_ptr->signed_lut);
+          mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
       num_comparisons = num_radix_blocks;
     }
   }

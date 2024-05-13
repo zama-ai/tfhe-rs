@@ -87,7 +87,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
         partial_current_blocks, partial_previous_blocks, bsk, ksk,
-        partial_block_count, lut_bivariate);
+        partial_block_count, lut_bivariate,
+        lut_bivariate->params.message_modulus);
 
   } else {
     // right shift
@@ -116,7 +117,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
         partial_current_blocks, partial_next_blocks, bsk, ksk,
-        partial_block_count, lut_bivariate);
+        partial_block_count, lut_bivariate,
+        lut_bivariate->params.message_modulus);
   }
 }
 
@@ -213,7 +215,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, partial_current_blocks,
           partial_current_blocks, partial_next_blocks, bsk, ksk,
-          partial_block_count, lut_bivariate);
+          partial_block_count, lut_bivariate,
+          lut_bivariate->params.message_modulus);
     }
     // Since our CPU threads will be working on different streams we shall
     // assert the work in the main stream is completed

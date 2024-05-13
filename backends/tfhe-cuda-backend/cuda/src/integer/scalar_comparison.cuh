@@ -150,7 +150,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     integer_radix_apply_bivariate_lookup_table_kb(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_lsb_out,
-        lwe_array_msb_out, bsk, ksk, 1, lut);
+        lwe_array_msb_out, bsk, ksk, 1, lut, lut->params.message_modulus);
 
   } else {
     // We only have to do the regular comparison
@@ -281,7 +281,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     integer_radix_apply_bivariate_lookup_table_kb(
         streams, gpu_indexes, gpu_count, lwe_array_out, are_all_msb_zeros,
-        sign_block, bsk, ksk, 1, lut);
+        sign_block, bsk, ksk, 1, lut, lut->params.message_modulus);
 
   } else if (total_num_scalar_blocks < total_num_radix_blocks) {
     // We have to handle both part of the work described above
@@ -379,7 +379,8 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         Torus *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
         integer_radix_apply_bivariate_lookup_table_kb(
             &msb_stream, &gpu_indexes[0], 1, lwe_array_msb_out, sign_block,
-            are_all_msb_zeros, bsk, ksk, 1, signed_msb_lut);
+            are_all_msb_zeros, bsk, ksk, 1, signed_msb_lut,
+            signed_msb_lut->params.message_modulus);
       }
     }
     cuda_synchronize_stream(lsb_stream, gpu_indexes[0]);
@@ -443,7 +444,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         integer_radix_apply_bivariate_lookup_table_kb(
             &msb_stream, &gpu_indexes[0], 1, lwe_array_sign_out,
             encrypted_sign_block, trivial_sign_block, bsk, ksk, 1,
-            mem_ptr->signed_lut);
+            mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
       }
     }
     cuda_synchronize_stream(lsb_stream, gpu_indexes[0]);

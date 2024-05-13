@@ -80,7 +80,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
-        giver_blocks, bsk, ksk, num_blocks, lut_bivariate);
+        giver_blocks, bsk, ksk, num_blocks, lut_bivariate,
+        lut_bivariate->params.message_modulus);
 
   } else {
     // left shift
@@ -103,7 +104,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
-        giver_blocks, bsk, ksk, num_blocks, lut_bivariate);
+        giver_blocks, bsk, ksk, num_blocks, lut_bivariate,
+        lut_bivariate->params.message_modulus);
   }
 }
 

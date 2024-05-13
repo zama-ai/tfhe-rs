@@ -23,7 +23,7 @@ host_integer_radix_bitop_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_1, lwe_array_2,
-      bsk, ksk, num_radix_blocks, lut);
+      bsk, ksk, num_radix_blocks, lut, lut->params.message_modulus);
 }
 
 template <typename Torus>

@@ -445,7 +445,8 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, block_mul_res, block_mul_res,
-      vector_result_sb, bsk, ksk, total_block_count, luts_array);
+      vector_result_sb, bsk, ksk, total_block_count, luts_array,
+      luts_array->params.message_modulus);
 
   vector_result_lsb = &block_mul_res[0];
   vector_result_msb = &block_mul_res[lsb_vector_block_count *
