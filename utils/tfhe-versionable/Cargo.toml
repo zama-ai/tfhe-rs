@@ -1,0 +1,28 @@
+[package]
+name = "tfhe-versionable"
+version = "0.1.0"
+edition = "2021"
+keywords = ["versioning", "serialization", "encoding"]
+homepage = "https://zama.ai/"
+documentation = "https://docs.rs/tfhe_versionable"
+repository = "https://github.com/zama-ai/tfhe-rs"
+license = "BSD-3-Clause-Clear"
+description = "tfhe-versionable: Add versioning informations/backward compatibility on rust types used for serialization"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+static_assertions = "1.1"
+trybuild = { version = "1", features = ["diff"] }
+
+# used to test various serialization formats
+bincode = "1.3"
+serde_json = "1.0"
+ciborium = "0.2"
+rmp-serde = "1.3"
+serde_yaml = "0.9"
+toml = "0.8"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+tfhe-versionable-derive = { version = "0.1.0", path = "../tfhe-versionable-derive" }
