@@ -128,6 +128,22 @@ impl CudaRadixCiphertextInfo {
         }
     }
 
+    pub(crate) fn after_div_rem(&self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .map(|left| CudaBlockInfo {
+                    degree: Degree::new(left.message_modulus.0 - 1),
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: NoiseLevel::NOMINAL,
+                })
+                .collect(),
+        }
+    }
+
     pub(crate) fn after_overflowing_sub(&self, other: &Self) -> Self {
         Self {
             blocks: self
