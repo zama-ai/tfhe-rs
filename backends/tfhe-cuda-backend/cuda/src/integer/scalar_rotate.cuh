@@ -60,8 +60,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   // block_count blocks will be used in the grid
   // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
-    radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
-        rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
+                                   rotated_buffer, lwe_array, rotations,
+                                   num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
@@ -73,8 +74,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
-        giver_blocks, lwe_array, 1, num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
+                                   giver_blocks, lwe_array, 1, num_blocks,
+                                   big_lwe_size);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
@@ -82,8 +84,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
   } else {
     // left shift
-    radix_blocks_rotate_left<<<num_blocks, 256, 0, streams[0]>>>(
-        rotated_buffer, lwe_array, rotations, num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
+                                  rotated_buffer, lwe_array, rotations,
+                                  num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
@@ -95,8 +98,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    radix_blocks_rotate_left<<<num_blocks, 256, 0, streams[0]>>>(
-        giver_blocks, lwe_array, 1, num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count, giver_blocks,
+                                  lwe_array, 1, num_blocks, big_lwe_size);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,

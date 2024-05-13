@@ -59,6 +59,40 @@ __global__ void radix_blocks_rotate_left(Torus *dst, Torus *src, uint32_t value,
   }
 }
 
+// rotate radix ciphertext right with specific value
+// calculation is not inplace, so `dst` and `src` must not be the same
+template <typename Torus>
+__host__ void
+host_radix_blocks_rotate_right(cudaStream_t *streams, uint32_t *gpu_indexes,
+                               uint32_t gpu_count, Torus *dst, Torus *src,
+                               uint32_t value, uint32_t blocks_count,
+                               uint32_t lwe_size) {
+  if (src == dst) {
+    PANIC("Cuda error (blocks_rotate_right): the source and destination "
+          "pointers should be different");
+  }
+  cudaSetDevice(gpu_indexes[0]);
+  radix_blocks_rotate_right<<<blocks_count, 256, 0, streams[0]>>>(
+      dst, src, value, blocks_count, lwe_size);
+}
+
+// rotate radix ciphertext left with specific value
+// calculation is not inplace, so `dst` and `src` must not be the same
+template <typename Torus>
+__host__ void
+host_radix_blocks_rotate_left(cudaStream_t *streams, uint32_t *gpu_indexes,
+                              uint32_t gpu_count, Torus *dst, Torus *src,
+                              uint32_t value, uint32_t blocks_count,
+                              uint32_t lwe_size) {
+  if (src == dst) {
+    PANIC("Cuda error (blocks_rotate_left): the source and destination "
+          "pointers should be different");
+  }
+  cudaSetDevice(gpu_indexes[0]);
+  radix_blocks_rotate_left<<<blocks_count, 256, 0, streams[0]>>>(
+      dst, src, value, blocks_count, lwe_size);
+}
+
 // polynomial_size threads
 template <typename Torus>
 __global__ void
@@ -465,8 +499,9 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
 
   cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
-      step_output, generates_or_propagates, 1, num_blocks, big_lwe_size);
+  host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
+                                 generates_or_propagates, 1, num_blocks,
+                                 big_lwe_size);
   cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
                     gpu_indexes[0]);
 
@@ -529,8 +564,9 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
       overflowed, &generates_or_propagates[big_lwe_size * (num_blocks - 1)],
       big_lwe_size_bytes, streams[0], gpu_indexes[0]);
 
-  radix_blocks_rotate_right<<<num_blocks, 256, 0, streams[0]>>>(
-      step_output, generates_or_propagates, 1, num_blocks, big_lwe_size);
+  host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
+                                 generates_or_propagates, 1, num_blocks,
+                                 big_lwe_size);
   cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
                     gpu_indexes[0]);
 
