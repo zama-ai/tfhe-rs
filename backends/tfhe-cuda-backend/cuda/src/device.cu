@@ -86,12 +86,16 @@ bool cuda_check_support_cooperative_groups() {
 ///  false if Thread Block Cluster is not supported.
 ///  true otherwise
 bool cuda_check_support_thread_block_clusters() {
+#if CUDA_ARCH >= 900
   // To-do: Is this really the best way to check support?
   int tbc_supported = 0;
   check_cuda_error(
       cudaDeviceGetAttribute(&tbc_supported, cudaDevAttrClusterLaunch, 0));
 
   return tbc_supported > 0;
+#else
+  return false;
+#endif
 }
 
 /// Copy memory to the GPU asynchronously
