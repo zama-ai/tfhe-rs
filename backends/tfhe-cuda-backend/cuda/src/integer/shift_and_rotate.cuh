@@ -90,8 +90,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     auto rotations = 1 << d;
     switch (mem->shift_type) {
     case LEFT_SHIFT:
-      radix_blocks_rotate_right<<<total_nb_bits, 256, 0, streams[0]>>>(
-          rotated_input, input_bits_b, rotations, total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
+                                     rotated_input, input_bits_b, rotations,
+                                     total_nb_bits, big_lwe_size);
 
       if (mem->is_signed && mem->shift_type == RIGHT_SHIFT)
         for (int i = 0; i < rotations; i++)
@@ -103,8 +104,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                           streams[0], gpu_indexes[0]);
       break;
     case RIGHT_SHIFT:
-      radix_blocks_rotate_left<<<total_nb_bits, 256, 0, streams[0]>>>(
-          rotated_input, input_bits_b, rotations, total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
+                                    rotated_input, input_bits_b, rotations,
+                                    total_nb_bits, big_lwe_size);
 
       if (mem->is_signed)
         for (int i = 0; i < rotations; i++)
@@ -117,12 +119,14 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
             rotations * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
       break;
     case LEFT_ROTATE:
-      radix_blocks_rotate_right<<<total_nb_bits, 256, 0, streams[0]>>>(
-          rotated_input, input_bits_b, rotations, total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
+                                     rotated_input, input_bits_b, rotations,
+                                     total_nb_bits, big_lwe_size);
       break;
     case RIGHT_ROTATE:
-      radix_blocks_rotate_left<<<total_nb_bits, 256, 0, streams[0]>>>(
-          rotated_input, input_bits_b, rotations, total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
+                                    rotated_input, input_bits_b, rotations,
+                                    total_nb_bits, big_lwe_size);
       break;
     default:
       PANIC("Unknown operation")

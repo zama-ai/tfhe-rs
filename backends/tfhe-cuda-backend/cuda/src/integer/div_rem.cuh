@@ -348,10 +348,9 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                interesting_remainder1.len - 1, streams[0],
                                gpu_indexes[0]);
 
-          radix_blocks_rotate_left<<<interesting_remainder1.len, 256, 0,
-                                     streams[0]>>>(
-              interesting_remainder1.data, tmp_radix.data, 1,
-              interesting_remainder1.len, big_lwe_size);
+          host_radix_blocks_rotate_left(
+              streams, gpu_indexes, gpu_count, interesting_remainder1.data,
+              tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
 
           numerator_block_1.clone_from(
               interesting_remainder1, interesting_remainder1.len - 1,
