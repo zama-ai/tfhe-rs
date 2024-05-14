@@ -146,7 +146,7 @@ impl ServerKey {
     }
 
     /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
-    pub fn contains_sub_slice_parallelized<T>(&self, lhs: &mut [T], rhs: &mut [T]) -> BooleanBlock
+    pub fn contains_sub_slice_parallelized<T>(&self, lhs: &[T], rhs: &[T]) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
