@@ -19,6 +19,39 @@
 #include <string>
 #include <vector>
 
+#define BENCH_SCRATCH_LEVEL_1
+#define BENCH_HOST_LEVEL_1
+#define BENCH_DROP_LEVEL_1
+
+#define BENCH_HOST_PHASE_0_LEVEL_2
+#define BENCH_HOST_PHASE_1_LEVEL_3
+#define BENCH_HOST_PHASE_2_LEVEL_3
+#define BENCH_HOST_PHASE_3_LEVEL_3
+#define BENCH_HOST_PHASE_4_LEVEL_2
+#define BENCH_LEVEL_4
+#define BENCH_OVERFLOW_SUM_LEVEL_2
+
+float total_phase_1 = 0;
+float total_phase_2 = 0;
+float total_phase_3 = 0;
+float total_phase_overflow = 0;
+
+float total_phase_1_1 = 0;
+float total_phase_1_2 = 0;
+float total_phase_1_3 = 0;
+float total_phase_1_4 = 0;
+
+float total_phase_2_1 = 0;
+float total_phase_2_2 = 0;
+float total_phase_2_3 = 0;
+float total_phase_2_4 = 0;
+
+float total_phase_3_1 = 0;
+float total_phase_3_2 = 0;
+float total_phase_3_3 = 0;
+float total_phase_3_4 = 0;
+
+
 int ceil_div(int a, int b) { return (a + b - 1) / b; }
 
 // struct makes it easier to use list of ciphertexts and move data between them
@@ -169,7 +202,6 @@ scratch_cuda_integer_div_rem_kb(cudaStream_t stream, uint32_t gpu_index,
                                 int_div_rem_memory<Torus> **mem_ptr,
                                 uint32_t num_blocks, int_radix_params params,
                                 bool allocate_gpu_memory) {
-
   *mem_ptr = new int_div_rem_memory<Torus>(stream, gpu_index, params,
                                            num_blocks, allocate_gpu_memory);
 }
@@ -182,6 +214,35 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                         uint64_t *ksk, int_div_rem_memory<uint64_t> *mem_ptr,
                         uint32_t num_blocks) {
 
+  total_phase_1 = 0;
+  total_phase_2 = 0;
+  total_phase_3 = 0;
+  total_phase_overflow = 0;
+
+  total_phase_1_1 = 0;
+  total_phase_1_2 = 0;
+  total_phase_1_3 = 0;
+  total_phase_1_4 = 0;
+
+  total_phase_2_1 = 0;
+  total_phase_2_2 = 0;
+  total_phase_2_3 = 0;
+
+  total_phase_3_1 = 0;
+  total_phase_3_2 = 0;
+  total_phase_3_3 = 0;
+  total_phase_3_4 = 0;
+
+
+  cudaEvent_t start, stop;
+  float milliseconds = 0;
+#ifdef BENCH_HOST_PHASE_0_LEVEL_2
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Record start time
+  cudaEventRecord(start, streams[0]);
+#endif
   auto radix_params = mem_ptr->params;
 
   auto big_lwe_dimension = radix_params.big_lwe_dimension;
@@ -235,8 +296,23 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   cuda_memset_async(quotient, 0, big_lwe_size_bytes * num_blocks, streams[0],
                     gpu_indexes[0]);
+#ifdef BENCH_HOST_PHASE_0_LEVEL_2
+  cudaEventRecord(stop, streams[0]);
+  cudaEventSynchronize(stop);
+
+  milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("--Time for phase_0 operations: %.3f ms\n", milliseconds);
+#endif
 
   for (int i = total_bits - 1; i >= 0; i--) {
+#ifdef BENCH_HOST_PHASE_1_LEVEL_3
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Record start time
+    cudaEventRecord(start, streams[0]);
+#endif
     uint32_t block_of_bit = i / num_bits_in_message;
     uint32_t pos_in_block = i % num_bits_in_message;
     uint32_t msb_bit_set = total_bits - 1 - i;
@@ -263,7 +339,15 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // one PBS on the last block of the interesting_divisor, and first block of
     // divisor_ms_blocks to trim out bits which should not be there
     auto trim_last_interesting_divisor_bits =
-        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+        [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count)
+        {
+#ifdef BENCH_LEVEL_4
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      // Record start time
+      cudaEventRecord(start, streams[0]);
+#endif
           if ((msb_bit_set + 1) % num_bits_in_message == 0) {
             return;
           }
@@ -292,10 +376,27 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
               streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
               interesting_divisor.last_block(), bsk, ksk, 1,
               mem_ptr->masking_luts_1[shifted_mask]);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_1_1 += milliseconds;
+          //printf("Time for scratch operations: %.3f ms\n", milliseconds);
+#endif
+
         }; // trim_last_interesting_divisor_bits
 
     auto trim_first_divisor_ms_bits =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+              cudaEvent_t start, stop;
+              cudaEventCreate(&start);
+              cudaEventCreate(&stop);
+              // Record start time
+              cudaEventRecord(start, streams[0]);
+#endif
           if (divisor_ms_blocks.is_empty() ||
               ((msb_bit_set + 1) % num_bits_in_message) == 0) {
             return;
@@ -320,6 +421,14 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
               streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
               divisor_ms_blocks.first_block(), bsk, ksk, 1,
               mem_ptr->masking_luts_2[shifted_mask]);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_1_2 += milliseconds;
+#endif
         }; // trim_first_divisor_ms_bits
 
     // This does
@@ -333,6 +442,13 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // of the Remainder, so that left shifting will pull the bit we need.
     auto left_shift_interesting_remainder1 =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+          cudaEvent_t start, stop;
+          cudaEventCreate(&start);
+          cudaEventCreate(&stop);
+          // Record start time
+          cudaEventRecord(start, streams[0]);
+#endif
           numerator_block_1.clone_from(
               numerator_block_stack, numerator_block_stack.len - 1,
               numerator_block_stack.len - 1, streams[0], gpu_indexes[0]);
@@ -366,13 +482,36 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
             numerator_block_stack.push(numerator_block_1.first_block(),
                                        streams[0], gpu_indexes[0]);
           }
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_1_3 += milliseconds;
+#endif
         }; // left_shift_interesting_remainder1
 
     auto left_shift_interesting_remainder2 =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+          cudaEvent_t start, stop;
+          cudaEventCreate(&start);
+          cudaEventCreate(&stop);
+          // Record start time
+          cudaEventRecord(start, streams[0]);
+#endif
           host_integer_radix_logical_scalar_shift_kb_inplace(
               streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
               mem_ptr->shift_mem_2, bsk, ksk, interesting_remainder2.len);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_1_4 += milliseconds;
+#endif
         }; // left_shift_interesting_remainder2
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -431,16 +570,48 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // `new_remainder` is not initialized yet, so need to set length
     new_remainder.len = merged_interesting_remainder.len;
 
+#ifdef BENCH_HOST_PHASE_1_LEVEL_3
+    cudaEventRecord(stop, streams[0]);
+    cudaEventSynchronize(stop);
+
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    total_phase_1 += milliseconds;
+    //printf("----Time for phase_1 operations: %.3f ms\n", milliseconds);
+#endif
+#ifdef BENCH_HOST_PHASE_2_LEVEL_3
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Record start time
+    cudaEventRecord(start, streams[0]);
+#endif
+
     // fills:
     //  `new_remainder` - radix ciphertext
     //  `subtraction_overflowed` - single ciphertext
     auto do_overflowing_sub = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
                                   uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      // Record start time
+      cudaEventRecord(start, streams[0]);
+#endif
       host_integer_overflowing_sub_kb<Torus, params>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
           subtraction_overflowed.data, merged_interesting_remainder.data,
           interesting_divisor.data, bsk, ksk, mem_ptr->overflow_sub_mem,
           merged_interesting_remainder.len);
+#ifdef BENCH_LEVEL_4
+      cudaEventRecord(stop, streams[0]);
+      cudaEventSynchronize(stop);
+
+      float milliseconds = 0;
+      cudaEventElapsedTime(&milliseconds, start, stop);
+      total_phase_2_1 += milliseconds;
+#endif
     };
 
     // fills:
@@ -448,6 +619,13 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     auto check_divisor_upper_blocks = [&](cudaStream_t *streams,
                                           uint32_t *gpu_indexes,
                                           uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      // Record start time
+      cudaEventRecord(start, streams[0]);
+#endif
       auto &trivial_blocks = divisor_ms_blocks;
       if (trivial_blocks.is_empty()) {
         cuda_memset_async(at_least_one_upper_block_is_non_zero.first_block(), 0,
@@ -470,6 +648,14 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
             at_least_one_upper_block_is_non_zero.data, tmp_1.data,
             mem_ptr->comparison_buffer, bsk, ksk, tmp_1.len);
       }
+#ifdef BENCH_LEVEL_4
+      cudaEventRecord(stop, streams[0]);
+      cudaEventSynchronize(stop);
+
+      float milliseconds = 0;
+      cudaEventElapsedTime(&milliseconds, start, stop);
+      total_phase_2_2 += milliseconds;
+#endif
     };
 
     // Creates a cleaned version (noise wise) of the merged remainder
@@ -478,12 +664,27 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     //  `cleaned_merged_interesting_remainder` - radix ciphertext
     auto create_clean_version_of_merged_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+          cudaEvent_t start, stop;
+          cudaEventCreate(&start);
+          cudaEventCreate(&stop);
+          // Record start time
+          cudaEventRecord(start, streams[0]);
+#endif
           integer_radix_apply_univariate_lookup_table_kb(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data, bsk, ksk,
               cleaned_merged_interesting_remainder.len,
               mem_ptr->message_extract_lut_1);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_2_3 += milliseconds;
+#endif
         };
 
     // phase 2
@@ -512,6 +713,23 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
     cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
 
+#ifdef BENCH_HOST_PHASE_2_LEVEL_3
+    cudaEventRecord(stop, streams[0]);
+    cudaEventSynchronize(stop);
+
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    total_phase_2 += milliseconds;
+//    printf("----Time for phase_2 operations: %.3f ms\n", milliseconds);
+#endif
+
+#ifdef BENCH_OVERFLOW_SUM_LEVEL_2
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Record start time
+    cudaEventRecord(start, streams[0]);
+#endif
     host_addition(streams[0], gpu_indexes[0], overflow_sum.data,
                   subtraction_overflowed.data,
                   at_least_one_upper_block_is_non_zero.data,
@@ -523,8 +741,31 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         overflow_sum.first_block(), cleaned_merged_interesting_remainder.len,
         streams[0], gpu_indexes[0]);
 
+#ifdef BENCH_OVERFLOW_SUM_LEVEL_2
+    cudaEventRecord(stop, streams[0]);
+    cudaEventSynchronize(stop);
+
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    total_phase_overflow += milliseconds;
+//    printf("----Time for phase_2 operations: %.3f ms\n", milliseconds);
+#endif
+#ifdef BENCH_HOST_PHASE_3_LEVEL_3
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Record start time
+    cudaEventRecord(start, streams[0]);
+#endif
     auto conditionally_zero_out_merged_interesting_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+          cudaEvent_t start, stop;
+          cudaEventCreate(&start);
+          cudaEventCreate(&stop);
+          // Record start time
+          cudaEventRecord(start, streams[0]);
+#endif
           integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
@@ -533,19 +774,49 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
               cleaned_merged_interesting_remainder.len,
               mem_ptr->zero_out_if_overflow_did_not_happen[factor_lut_id],
               factor);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_3_1 += milliseconds;
+#endif
         };
 
     auto conditionally_zero_out_merged_new_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+          cudaEvent_t start, stop;
+          cudaEventCreate(&start);
+          cudaEventCreate(&stop);
+          // Record start time
+          cudaEventRecord(start, streams[0]);
+#endif
           integer_radix_apply_bivariate_lookup_table_kb_factor<Torus>(
               streams, gpu_indexes, gpu_count, new_remainder.data,
               new_remainder.data, overflow_sum_radix.data, bsk, ksk,
               new_remainder.len,
               mem_ptr->zero_out_if_overflow_happened[factor_lut_id], factor);
+#ifdef BENCH_LEVEL_4
+          cudaEventRecord(stop, streams[0]);
+          cudaEventSynchronize(stop);
+
+          float milliseconds = 0;
+          cudaEventElapsedTime(&milliseconds, start, stop);
+          total_phase_3_2 += milliseconds;
+#endif
         };
 
     auto set_quotient_bit = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
                                 uint32_t gpu_count) {
+#ifdef BENCH_LEVEL_4
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      // Record start time
+      cudaEventRecord(start, streams[0]);
+#endif
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, did_not_overflow.data,
           subtraction_overflowed.data,
@@ -556,6 +827,14 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                     &quotient[block_of_bit * big_lwe_size],
                     &quotient[block_of_bit * big_lwe_size],
                     did_not_overflow.data, radix_params.big_lwe_dimension, 1);
+#ifdef BENCH_LEVEL_4
+      cudaEventRecord(stop, streams[0]);
+      cudaEventSynchronize(stop);
+
+      float milliseconds = 0;
+      cudaEventElapsedTime(&milliseconds, start, stop);
+      total_phase_3_3 += milliseconds;
+#endif
     };
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -590,8 +869,63 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                          first_trivial_block - 1, streams[0], gpu_indexes[0]);
     remainder2.copy_from(new_remainder, 0, first_trivial_block - 1, streams[0],
                          gpu_indexes[0]);
+#ifdef BENCH_HOST_PHASE_3_LEVEL_3
+    cudaEventRecord(stop, streams[0]);
+    cudaEventSynchronize(stop);
+
+    milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    total_phase_3 += milliseconds;
+    //printf("----Time for phase_3 operations: %.3f ms\n", milliseconds);
+#endif
   }
 
+
+  printf("----phase_1 total = %.3f ms; avg: = %.3f ms\n", total_phase_1,
+         total_phase_1 / total_bits);
+  {
+    printf("------phase_1_1 total = %.3f ms; avg: = %.3f ms\n", total_phase_1_1,
+           total_phase_1_1 / total_bits);
+    printf("------phase_1_2 total = %.3f ms; avg: = %.3f ms\n", total_phase_1_2,
+           total_phase_1_2 / total_bits);
+    printf("------phase_1_3 total = %.3f ms; avg: = %.3f ms\n", total_phase_1_3,
+           total_phase_1_3 / total_bits);
+    printf("------phase_1_4 total = %.3f ms; avg: = %.3f ms\n", total_phase_1_4,
+           total_phase_1_4 / total_bits);
+  }
+
+  printf("----phase_2 total = %.3f ms; avg: = %.3f ms\n", total_phase_2,
+         total_phase_2 / total_bits);
+  {
+    printf("------phase_2_1 total = %.3f ms; avg: = %.3f ms\n", total_phase_2_1,
+           total_phase_2_1 / total_bits);
+    printf("------phase_2_2 total = %.3f ms; avg: = %.3f ms\n", total_phase_2_2,
+           total_phase_2_2 / total_bits);
+    printf("------phase_2_3 total = %.3f ms; avg: = %.3f ms\n", total_phase_2_3,
+           total_phase_2_3 / total_bits);
+  }
+//  printf("----phase_overflow_sum total = %.3f ms; avg: = %.3f ms\n",
+//         total_phase_overflow,
+//         total_phase_overflow / total_bits);
+  printf("----phase_3 total = %.3f ms; avg: = %.3f ms\n", total_phase_3,
+         total_phase_3 / total_bits);
+  {
+    printf("------phase_3_1 total = %.3f ms; avg: = %.3f ms\n", total_phase_3_1,
+           total_phase_3_1 / total_bits);
+    printf("------phase_3_2 total = %.3f ms; avg: = %.3f ms\n", total_phase_3_2,
+           total_phase_3_2 / total_bits);
+    printf("------phase_3_3 total = %.3f ms; avg: = %.3f ms\n", total_phase_3_3,
+           total_phase_3_3 / total_bits);
+  }
+
+
+#ifdef BENCH_HOST_PHASE_4_LEVEL_2
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Record start time
+  cudaEventRecord(start, streams[0]);
+#endif
   assert(remainder1.len == remainder2.len);
 
   // Clean the quotient and remainder
@@ -618,6 +952,14 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
   cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
   cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
+#ifdef BENCH_HOST_PHASE_4_LEVEL_2
+  cudaEventRecord(stop, streams[0]);
+  cudaEventSynchronize(stop);
+
+  milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("--Time for phase_4 operations: %.3f ms\n", milliseconds);
+#endif
 }
 
 #endif // TFHE_RS_DIV_REM_CUH

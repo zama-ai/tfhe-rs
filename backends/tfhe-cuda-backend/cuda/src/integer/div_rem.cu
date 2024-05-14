@@ -8,6 +8,15 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, bool allocate_gpu_memory) {
 
+#ifdef BENCH_SCRATCH_LEVEL_1
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Record start time
+  cudaEventRecord(start, static_cast<cudaStream_t>(stream));
+#endif
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -17,6 +26,16 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
       static_cast<cudaStream_t>(stream), gpu_index,
       (int_div_rem_memory<uint64_t> **)mem_ptr, num_blocks, params,
       allocate_gpu_memory);
+
+#ifdef BENCH_SCRATCH_LEVEL_1
+  cudaEventRecord(stop, static_cast<cudaStream_t>(stream));
+  cudaEventSynchronize(stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("Time for scratch operations: %.3f ms\n", milliseconds);
+#endif
+
 }
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
@@ -24,6 +43,16 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
     void *remainder, void *numerator, void *divisor, int8_t *mem_ptr, void *bsk,
     void *ksk, uint32_t num_blocks) {
 
+  auto stream_array = (cudaStream_t *)(streams);
+  auto cur_stream = stream_array[0];
+#ifdef BENCH_HOST_LEVEL_1
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Record start time
+  cudaEventRecord(start, cur_stream);
+#endif
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 
   switch (mem->params.polynomial_size) {
@@ -74,12 +103,39 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
     PANIC("Cuda error (integer div_rem): unsupported polynomial size. "
           "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
   }
+
+#ifdef BENCH_HOST_LEVEL_1
+  cudaEventRecord(stop, cur_stream);
+  cudaEventSynchronize(stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("Time for host operations: %.3f ms\n", milliseconds);
+#endif
+
 }
 
 void cleanup_cuda_integer_div_rem(void *stream, uint32_t gpu_index,
                                   int8_t **mem_ptr_void) {
+#ifdef BENCH_DROP_LEVEL_1
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Record start time
+  cudaEventRecord(start, static_cast<cudaStream_t>(stream));
+#endif
   int_div_rem_memory<uint64_t> *mem_ptr =
       (int_div_rem_memory<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release(static_cast<cudaStream_t>(stream), gpu_index);
+
+#ifdef BENCH_DROP_LEVEL_1
+  cudaEventRecord(stop, static_cast<cudaStream_t>(stream));
+  cudaEventSynchronize(stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("Time for drop operations: %.3f ms\n", milliseconds);
+#endif
 }
