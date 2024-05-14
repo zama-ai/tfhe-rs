@@ -20,7 +20,7 @@ use std::thread;
 
 pub use super::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 
-pub(crate) fn modulus_switch_multi_bit<Scalar>(
+pub fn modulus_switch_multi_bit<Scalar>(
     ciphertext_modulus_log: CiphertextModulusLog,
     grouping_factor: LweBskGroupingFactor,
     lwe_mask_elements: &[Scalar],
