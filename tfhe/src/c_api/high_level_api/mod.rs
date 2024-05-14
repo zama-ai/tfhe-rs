@@ -1,3 +1,4 @@
+mod array;
 #[cfg(feature = "boolean")]
 pub mod booleans;
 pub mod config;
