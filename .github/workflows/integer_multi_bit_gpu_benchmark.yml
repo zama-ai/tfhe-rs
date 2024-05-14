@@ -61,7 +61,7 @@ jobs:
           sudo apt install ca-certificates curl
           sudo install -m 0755 -d /etc/apt/keyrings
           sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-          sudo chmod a+r /etc/apt/keyrings/docker.asc  
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
           echo \
           "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
           $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
@@ -174,18 +174,24 @@ jobs:
           -d @${{ env.RESULTS_FILENAME }} \
           ${{ secrets.SLAB_URL }}
 
-      - name: Slack Notification
-        if: ${{ !success() && !cancelled() }}
-        continue-on-error: true
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-integer-multi-bit-benchmarks ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    if: ${{ !success() && !cancelled() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Integer GPU multi-bit benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_COLOR: ${{ needs.cuda-integer-multi-bit-benchmarks.result }}
+          SLACK_MESSAGE: "Integer GPU multi-bit benchmarks finished with status: ${{ needs.cuda-integer-multi-bit-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-integer-full-benchmarks)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-integer-multi-bit-benchmarks ]
+    needs: [ setup-instance, cuda-integer-multi-bit-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
