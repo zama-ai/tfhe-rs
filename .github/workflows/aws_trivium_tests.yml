@@ -1,4 +1,4 @@
-name: CSPRNG randomness testing Workflow
+name: AWS Tests for Trivium app
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,10 +29,9 @@ on:
       SLACK_WEBHOOK:
         required: true
 
-
 jobs:
   setup-instance:
-    name: Setup instance (csprng-randomness-tests)
+    name: Setup instance (trivium-tests)
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
     runs-on: ubuntu-latest
     outputs:
@@ -49,8 +48,8 @@ jobs:
           backend: aws
           profile: cpu-small
 
-  csprng-randomness-tests:
-    name: CSPRNG randomness tests
+  trivium-tests:
+    name: Trivium tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
@@ -69,22 +68,23 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Dieharder randomness test suite
+      - name: Run tests
         run: |
-          make dieharder_csprng
+          make test_trivium
+          make test_kreyvium
 
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ always() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "concrete-csprng randomness check finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Trivium tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (csprng-randomness-tests)
+    name: Teardown instance (trivium-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, csprng-randomness-tests ]
+    needs: [ setup-instance, trivium-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -103,4 +103,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (csprng-randomness-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (trivium-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

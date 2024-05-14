@@ -178,7 +178,7 @@ jobs:
     name: Run zk-pok tests
     needs: file-change
     if: needs.file-change.outputs.zk_pok_test == 'true'  # FIXME Define dependency tree
-    uses: ./.github/workflows/aws_zk_pok_tests.yml
+    uses: ./.github/workflows/aws_tfhe_zk_pok_tests.yml
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
@@ -191,7 +191,7 @@ jobs:
     name: Run concrete-csprng tests
     needs: file-change
     if: needs.file-change.outputs.csprng_test == 'true'  # FIXME Define dependency tree
-    uses: ./.github/workflows/aws_csprng_tests.yml
+    uses: ./.github/workflows/csprng_tests.yml
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
