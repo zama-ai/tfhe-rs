@@ -153,41 +153,29 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
-  /// If the number of radix blocks is lower than the number of GPUs, not all
-  /// GPUs will be active and there will be 1 input per GPU
-  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
-  int num_radix_blocks_on_gpu_0 =
-      get_num_inputs_on_gpu(num_radix_blocks, 0, gpu_count);
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-#pragma omp parallel for num_threads(active_gpu_count)
-  for (uint i = 0; i < active_gpu_count; i++) {
-    int num_radix_blocks_on_gpu =
-        get_num_inputs_on_gpu(num_radix_blocks, i, gpu_count);
-    int big_lwe_start_index =
-        i * num_radix_blocks_on_gpu_0 * (big_lwe_dimension + 1);
-    int small_lwe_start_index =
-        i * num_radix_blocks_on_gpu_0 * (small_lwe_dimension + 1);
-    auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(big_lwe_start_index);
-    auto d_lwe_ct_out =
-        lut->tmp_lwe_after_ks + (ptrdiff_t)(small_lwe_start_index);
 
-    // Compute Keyswitch-PBS
-    cuda_keyswitch_lwe_ciphertext_vector(
-        streams[i], gpu_indexes[i], d_lwe_ct_out, lut->lwe_trivial_indexes,
-        d_lwe_ct_in, lut->lwe_indexes_in, ksk, big_lwe_dimension,
-        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks_on_gpu);
-  }
+  /// Apply KS to go from a big LWE dimension to a small LWE dimension
+  execute_keyswitch(streams, gpu_indexes, gpu_count, lut->tmp_lwe_after_ks,
+                    lut->lwe_trivial_indexes, lwe_array_in, lut->lwe_indexes_in,
+                    ksk, big_lwe_dimension, small_lwe_dimension, ks_base_log,
+                    ks_level, num_radix_blocks, false);
+
+  /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+  /// dimension to a big LWE dimension
+  execute_pbs<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lut->lwe_indexes_out,
+      lut->lut, lut->lut_indexes, lut->tmp_lwe_after_ks,
+      lut->lwe_trivial_indexes, bsk, lut->buffer, glwe_dimension,
+      small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+      grouping_factor, num_radix_blocks, 1, 0,
+      cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
+
+  /// Synchronize all GPUs
+  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
   for (uint i = 0; i < active_gpu_count; i++) {
     cuda_synchronize_stream(streams[i], gpu_indexes[i]);
   }
-
-  execute_pbs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
-                     lut->lwe_indexes_out, lut->lut, lut->lut_indexes,
-                     lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, bsk,
-                     lut->buffer, glwe_dimension, small_lwe_dimension,
-                     polynomial_size, pbs_base_log, pbs_level, grouping_factor,
-                     num_radix_blocks, 1, 0,
-                     cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
 }
 
 template <typename Torus>
@@ -218,21 +206,30 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
                         num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 
-  // Apply LUT
-  cudaSetDevice(0);
-  cuda_keyswitch_lwe_ciphertext_vector(
-      streams[0], gpu_indexes[0], lut->tmp_lwe_after_ks,
-      lut->lwe_trivial_indexes, lwe_array_pbs_in, lut->lwe_trivial_indexes, ksk,
-      big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-      num_radix_blocks);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
-  execute_pbs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
-                     lut->lwe_indexes_out, lut->lut, lut->lut_indexes,
-                     lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes, bsk,
-                     lut->buffer, glwe_dimension, small_lwe_dimension,
-                     polynomial_size, pbs_base_log, pbs_level, grouping_factor,
-                     num_radix_blocks, 1, 0,
-                     cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
+  /// Apply KS to go from a big LWE dimension to a small LWE dimension
+  execute_keyswitch(streams, gpu_indexes, gpu_count, lut->tmp_lwe_after_ks,
+                    lut->lwe_trivial_indexes, lwe_array_pbs_in,
+                    lut->lwe_indexes_in, ksk, big_lwe_dimension,
+                    small_lwe_dimension, ks_base_log, ks_level,
+                    num_radix_blocks, false);
+
+  /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+  /// dimension to a big LWE dimension
+  execute_pbs<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out, lut->lwe_indexes_out,
+      lut->lut, lut->lut_indexes, lut->tmp_lwe_after_ks,
+      lut->lwe_trivial_indexes, bsk, lut->buffer, glwe_dimension,
+      small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+      grouping_factor, num_radix_blocks, 1, 0,
+      cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
+
+  /// Synchronize all GPUs
+  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
+  for (uint i = 0; i < active_gpu_count; i++) {
+    cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+  }
 }
 
 // Rotates the slice in-place such that the first mid elements of the slice move
