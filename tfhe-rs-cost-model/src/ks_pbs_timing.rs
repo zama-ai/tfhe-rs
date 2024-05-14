@@ -318,7 +318,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
             },
         )
         .filter(|(_params, variances)| {
-            let noise_ok = variances.all_noises_are_not_uniformly_random();
+            // let noise_ok = variances.all_noises_are_not_uniformly_random();
             // let base_logs_not_too_small = params.pbs_base_log.0 != 1 && params.ks_base_log.0 != 1;
 
             // noise_ok && base_logs_not_too_small
@@ -328,7 +328,9 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
 
             // noise_ok && glwe_poly_not_too_big
 
-            noise_ok
+            // noise_ok
+
+            variances.all_noises_are_not_uniformly_random()
         })
         .collect();
 

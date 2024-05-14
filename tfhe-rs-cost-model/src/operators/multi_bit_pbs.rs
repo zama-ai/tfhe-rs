@@ -8,11 +8,11 @@ use tfhe::core_crypto::prelude::{
     add_external_product_assign_mem_optimized, allocate_and_generate_new_binary_glwe_secret_key,
     allocate_and_generate_new_lwe_multi_bit_bootstrap_key,
     convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized, decrypt_glwe_ciphertext,
-    encrypt_glwe_ciphertext, prepare_multi_bit_ggsw_mem_optimized, std_prepare_multi_bit_ggsw,
-    ActivatedRandomGenerator, ComputationBuffers, ContiguousEntityContainer,
-    EncryptionRandomGenerator, FourierLweMultiBitBootstrapKey, GgswCiphertext, GlweCiphertext,
-    LweBskGroupingFactor, LweSecretKey, MonomialDegree, Numeric, PlaintextCount, PlaintextList,
-    SecretRandomGenerator,
+    encrypt_glwe_ciphertext, modulus_switch_multi_bit, prepare_multi_bit_ggsw_mem_optimized,
+    std_prepare_multi_bit_ggsw, ActivatedRandomGenerator, ComputationBuffers,
+    ContiguousEntityContainer, EncryptionRandomGenerator, FourierLweMultiBitBootstrapKey,
+    GgswCiphertext, GlweCiphertext, LweBskGroupingFactor, LweSecretKey, MonomialDegree, Numeric,
+    PlaintextCount, PlaintextList, SecretRandomGenerator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -91,7 +91,11 @@ pub fn multi_bit_pbs_external_product(
     prepare_multi_bit_ggsw_mem_optimized(
         &mut fourier_ggsw,
         &ggsw_vec,
-        &random_mask,
+        modulus_switch_multi_bit(
+            fbsk.polynomial_size().to_blind_rotation_input_modulus_log(),
+            grouping_factor,
+            &random_mask,
+        ),
         &mut fourier_a_monomial,
         fft,
     );
@@ -198,10 +202,12 @@ pub fn std_multi_bit_pbs_external_product(
         encryption_random_generator,
     );
 
+    let ggsw_vec: Vec<_> = bsk.iter().collect();
+
     let grouping_factor = bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
-    assert_eq!(bsk.entity_count(), ggsw_per_multi_bit_element.0);
+    assert_eq!(ggsw_vec.len(), ggsw_per_multi_bit_element.0);
 
     let mut random_mask = vec![0u64; grouping_factor.0];
     encryption_random_generator.fill_slice_with_random_uniform_mask(&mut random_mask);
@@ -239,7 +245,16 @@ pub fn std_multi_bit_pbs_external_product(
     );
 
     let prep_start = std::time::Instant::now();
-    std_prepare_multi_bit_ggsw(&mut std_ggsw, &mut tmp_std_ggsw, &bsk, &random_mask);
+    std_prepare_multi_bit_ggsw(
+        &mut std_ggsw,
+        &mut tmp_std_ggsw,
+        &ggsw_vec,
+        modulus_switch_multi_bit(
+            bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
+            grouping_factor,
+            &random_mask,
+        ),
+    );
     fourier_ggsw.as_mut_view().fill_with_forward_fourier(
         std_ggsw.as_view(),
         fft,
