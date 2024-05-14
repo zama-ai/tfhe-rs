@@ -250,7 +250,7 @@ macro_rules! create_integer_wrapper_type {
         $(,)?
     ) => {
 
-        pub struct $name($crate::high_level_api::$name);
+        pub struct $name(pub(in $crate::c_api) $crate::high_level_api::$name);
 
         impl_destroy_on_type!($name);
 

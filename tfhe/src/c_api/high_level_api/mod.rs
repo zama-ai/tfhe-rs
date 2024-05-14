@@ -1,5 +1,6 @@
 #[macro_use]
 mod utils;
+mod array;
 #[cfg(feature = "boolean")]
 pub mod booleans;
 pub mod config;
