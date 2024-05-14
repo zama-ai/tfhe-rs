@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "gadget.cuh"
+#include "helper.h"
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
 #include <thread>
@@ -90,6 +91,43 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
       lwe_dimension_in, lwe_dimension_out, base_log, level_count);
   check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus>
+void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
+                       uint32_t gpu_count, Torus *lwe_array_out,
+                       Torus *lwe_output_indexes, Torus *lwe_array_in,
+                       Torus *lwe_input_indexes, Torus *ksk,
+                       uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
+                       uint32_t base_log, uint32_t level_count,
+                       uint32_t num_samples, bool sync_streams = true) {
+
+  /// If the number of radix blocks is lower than the number of GPUs, not all
+  /// GPUs will be active and there will be 1 input per GPU
+  auto active_gpu_count = std::min(num_samples, gpu_count);
+  int num_samples_on_gpu_0 = get_num_inputs_on_gpu(num_samples, 0, gpu_count);
+  if (sync_streams)
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+#pragma omp parallel for num_threads(active_gpu_count)
+  for (uint i = 0; i < active_gpu_count; i++) {
+    int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
+    int in_lwe_start_index = i * num_samples_on_gpu_0 * (lwe_dimension_in + 1);
+    int out_lwe_start_index =
+        i * num_samples_on_gpu_0 * (lwe_dimension_out + 1);
+    auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(in_lwe_start_index);
+    auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(out_lwe_start_index);
+
+    // Compute Keyswitch-PBS
+    cuda_keyswitch_lwe_ciphertext_vector(
+        streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
+        d_lwe_ct_in, lwe_input_indexes, ksk, lwe_dimension_in,
+        lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
+  }
+
+  if (sync_streams)
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
 }
 
 #endif

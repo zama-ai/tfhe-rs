@@ -118,21 +118,20 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
 }
 
 template <typename Torus>
-void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
-                 uint32_t gpu_count, Torus *lwe_array_out,
-                 Torus *lwe_output_indexes, Torus *lut_vector,
-                 Torus *lut_vector_indexes, Torus *lwe_array_in,
-                 Torus *lwe_input_indexes, void *bootstrapping_key,
-                 std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
-                 uint32_t lwe_dimension, uint32_t polynomial_size,
-                 uint32_t base_log, uint32_t level_count,
-                 uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
-                 uint32_t num_luts, uint32_t lwe_idx,
-                 uint32_t max_shared_memory, PBS_TYPE pbs_type) {
+void execute_pbs(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
+    Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
+    void *bootstrapping_key, std::vector<int8_t *> pbs_buffer,
+    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count, uint32_t grouping_factor,
+    uint32_t input_lwe_ciphertext_count, uint32_t num_luts, uint32_t lwe_idx,
+    uint32_t max_shared_memory, PBS_TYPE pbs_type, bool sync_streams = true) {
   auto active_gpu_count = std::min(input_lwe_ciphertext_count, gpu_count);
   int num_lwe_inputs_on_gpu_0 =
       get_num_inputs_on_gpu(input_lwe_ciphertext_count, 0, gpu_count);
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+  if (sync_streams)
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits
@@ -159,11 +158,9 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
             lwe_idx, max_shared_memory);
       }
-      for (uint i = 0; i < active_gpu_count; i++) {
-        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-      }
       break;
     default:
+      PANIC("Error: unsupported cuda PBS type.")
       break;
     }
     break;
@@ -192,9 +189,6 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
             polynomial_size, grouping_factor, base_log, level_count,
             num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
       }
-      for (uint i = 0; i < active_gpu_count; i++) {
-        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-      }
       break;
     case CLASSICAL:
 #pragma omp parallel for num_threads(active_gpu_count)
@@ -216,9 +210,6 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
             lwe_idx, max_shared_memory);
       }
-      for (uint i = 0; i < active_gpu_count; i++) {
-        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-      }
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
@@ -228,6 +219,11 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     PANIC("Cuda error: unsupported modulus size: only 32 and 64 bit integer "
           "moduli are supported.")
   }
+
+  if (sync_streams)
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
 }
 
 template <typename Torus>

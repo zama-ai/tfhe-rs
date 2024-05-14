@@ -12,9 +12,15 @@
 extern "C" {
 
 #define check_cuda_error(ans)                                                  \
-  { cuda_error((ans), __FILE__, __LINE__); }
-inline void cuda_error(cudaError_t code, const char *file, int line) {
-  if (code != cudaSuccess) {
+  { cuda_error_ignore_specific((ans), __FILE__, __LINE__, cudaSuccess); }
+#define check_cuda_error_ignore_specific(ans, err_to_ignore)                   \
+  { cuda_error_ignore_specific((ans), __FILE__, __LINE__, err_to_ignore); }
+inline void cuda_error_ignore_specific(cudaError_t code, const char *file,
+                                       int line, cudaError_t err_to_ignore) {
+  if (code == err_to_ignore) {
+    // Clean errors
+    cudaGetLastError();
+  } else if (code != cudaSuccess) {
     std::fprintf(stderr, "Cuda error: %s %s %d\n", cudaGetErrorString(code),
                  file, line);
     std::abort();
