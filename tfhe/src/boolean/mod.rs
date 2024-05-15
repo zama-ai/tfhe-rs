@@ -98,6 +98,7 @@ pub(crate) fn random_integer() -> u32 {
     // generate a random u32
     rng.gen::<u32>()
 }
+ // A simple change
 
 /// Generate a couple of client and server keys with the default cryptographic parameters:
 /// `DEFAULT_PARAMETERS`.
