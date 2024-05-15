@@ -14,25 +14,70 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  workflow_call:
-    secrets:
-      SLAB_ACTION_TOKEN:
-        required: true
-      SLAB_BASE_URL:
-        required: true
-      JOB_SECRET:
-        required: true
-      SLACK_CHANNEL:
-        required: true
-      BOT_USERNAME:
-        required: true
-      SLACK_WEBHOOK:
-        required: true
+  pull_request:
+  schedule:
+    # Nightly tests @ 1AM after each work day
+    - cron: "0 1 * * MON-FRI"
 
 jobs:
+  file-change:
+    if: ${{ github.event_name == 'pull_request' }}  # FIXME tester le cas où on est en schedule pour le `needs.`
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      core_crypto_test: ${{ steps.changed-files.outputs.core_crypto_any_changed }}
+      boolean_test: ${{ steps.changed-files.outputs.boolean_any_changed }}
+      shortint_test: ${{ steps.changed-files.outputs.shortint_any_changed }}
+      c_api_test: ${{ steps.changed-files.outputs.c_api_any_changed }}
+      high_level_api_test: ${{ steps.changed-files.outputs.high_level_api_any_changed }}
+      examples_test: ${{ steps.changed-files.outputs.examples_any_changed }}
+      zk_pok_test: ${{ steps.changed-files.outputs.zk_pok_any_changed }}
+      csprng_test: ${{ steps.changed-files.outputs.csprng_any_changed }}
+      apps_test: ${{ steps.changed-files.outputs.apps_any_changed }}
+      user_docs_test: ${{ steps.changed-files.outputs.user_docs_any_changed }}
+      any_file_changed: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@5e85e31a0187e8df23b438284aa04f21b55f1510
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            core_crypto:
+              - tfhe/src/core_crypto/**
+            boolean:
+              - tfhe/src/boolean/**
+            shortint:
+              - tfhe/src/shortint/**
+            c_api:
+              - tfhe/src/c_api/**
+            high_level_api:
+              - tfhe/src/high_level_api/**
+            examples:
+              - tfhe/examples/**
+            zk_pok:
+              - tfhe-zk-pok/src/**
+            csprng:
+              - concrete-csprng/src/**
+            apps:
+              - apps/trivium/src/**
+            user_docs:
+              - tfhe/docs/**
+              - README.md
+
+    # TODO Ajouter une étape qui aggrège tous les résultats de "any_changed" en utilisant un any()
+
   setup-instance:
     name: Setup instance (cpu-tests)
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    #if: ${{ github.event_name == 'pull_request' && needs.file-change.outputs.any_file_changed == 'true' }}
+    ###############if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    needs: file-change
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -69,47 +114,60 @@ jobs:
           toolchain: stable
 
       - name: Run concrete-csprng tests
+        if: needs.file-change.outputs.csprng_test == 'true'
         run: |
           make test_concrete_csprng
 
       - name: Run tfhe-zk-pok tests
+        if: needs.file-change.outputs.zk_pok_test == 'true'
         run: |
           make test_zk_pok
 
       - name: Run core tests
+        if: needs.file-change.outputs.core_crypto_test == 'true'
         run: |
           AVX512_SUPPORT=ON make test_core_crypto
 
       - name: Run boolean tests
+        if: needs.file-change.outputs.boolean_test == 'true'
         run: |
           make test_boolean
 
       - name: Run C API tests
+        if: needs.file-change.outputs.c_api_test == 'true'
         run: |
           make test_c_api
 
       - name: Run user docs tests
+        if: needs.file-change.outputs.user_docs_test == 'true'
         run: |
           make test_user_doc
 
       - name: Gen Keys if required
+        if: (needs.file-change.outputs.core_crypto_test == 'true' ||
+          needs.file-change.outputs.shortint_test == 'true')
         run: |
           make gen_key_cache
 
       - name: Run shortint tests
+        if: (needs.file-change.outputs.core_crypto_test == 'true' ||
+          needs.file-change.outputs.shortint_test == 'true')
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
 
       - name: Run high-level API tests
+        if: needs.file-change.outputs.high_level_api_test == 'true'
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_high_level_api
 
       - name: Run example tests
+        if: needs.file-change.outputs.examples_test == 'true'
         run: |
           make test_examples
           make dark_market
 
       - name: Run apps tests
+        if: needs.file-change.outputs.apps_test == 'true'
         run: |
           make test_trivium
           make test_kreyvium
