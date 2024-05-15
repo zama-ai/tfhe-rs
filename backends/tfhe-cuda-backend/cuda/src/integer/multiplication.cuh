@@ -213,7 +213,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     uint64_t *ksk, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto new_blocks = mem_ptr->new_blocks;
   auto old_blocks = mem_ptr->old_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
@@ -257,6 +256,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     dim3 add_grid(ch_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
 
+    cudaSetDevice(gpu_indexes[0]);
     if (sm_size < max_shared_memory)
       tree_add_chunks<Torus, FULLSM><<<add_grid, 512, sm_size, streams[0]>>>(
           new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
@@ -325,6 +325,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           streams[0], gpu_indexes[0],
           luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
 
+    cudaSetDevice(gpu_indexes[0]);
     cuda_keyswitch_lwe_ciphertext_vector(
         streams[0], gpu_indexes[0], small_lwe_vector, lwe_indexes_in,
         new_blocks, lwe_indexes_in, ksk, polynomial_size * glwe_dimension,
@@ -354,6 +355,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     r = (new_blocks_created + rem_blocks) / num_blocks;
   }
 
+  cudaSetDevice(gpu_indexes[0]);
   host_addition(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
                 &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
                 num_blocks);
@@ -370,7 +372,6 @@ __host__ void host_integer_mult_radix_kb(
     uint64_t *radix_lwe_right, void *bsk, uint64_t *ksk,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto lwe_dimension = mem_ptr->params.small_lwe_dimension;
@@ -437,6 +438,7 @@ __host__ void host_integer_mult_radix_kb(
   dim3 grid(lsb_vector_block_count, 1, 1);
   dim3 thds(params::degree / params::opt, 1, 1);
 
+  cudaSetDevice(gpu_indexes[0]);
   all_shifted_lhs_rhs<Torus, params><<<grid, thds, 0, streams[0]>>>(
       radix_lwe_left, vector_result_lsb, vector_result_msb, radix_lwe_right,
       vector_lsb_rhs, vector_msb_rhs, num_blocks);
@@ -451,6 +453,7 @@ __host__ void host_integer_mult_radix_kb(
   vector_result_msb = &block_mul_res[lsb_vector_block_count *
                                      (polynomial_size * glwe_dimension + 1)];
 
+  cudaSetDevice(gpu_indexes[0]);
   fill_radix_from_lsb_msb<Torus, params>
       <<<num_blocks * num_blocks, params::degree / params::opt, 0,
          streams[0]>>>(vector_result_sb, vector_result_lsb, vector_result_msb,
