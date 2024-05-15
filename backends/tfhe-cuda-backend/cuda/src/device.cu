@@ -128,15 +128,13 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void *src, uint64_t size,
     PANIC("Cuda error: invalid src device pointer in copy from GPU to GPU.")
   }
   check_cuda_error(cudaSetDevice(gpu_index));
-  // if (attr_src.device == attr_dest.device) {
-  check_cuda_error(
-      cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
-  //} else {
-  //  printf("src device: %d, dest device: %d\n", attr_src.device,
-  //  attr_dest.device); check_cuda_error(cudaMemcpyPeerAsync(dest,
-  //  attr_dest.device, src,
-  //                                       attr_src.device, size, stream));
-  //}
+  if (attr_src.device == attr_dest.device) {
+    check_cuda_error(
+        cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToDevice, stream));
+  } else {
+    check_cuda_error(cudaMemcpyPeerAsync(dest, attr_dest.device, src,
+                                         attr_src.device, size, stream));
+  }
 }
 
 /// Synchronizes device
