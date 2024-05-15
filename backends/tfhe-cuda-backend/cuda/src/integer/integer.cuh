@@ -499,7 +499,6 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
                                       int_single_borrow_prop_memory<Torus> *mem,
                                       void *bsk, Torus *ksk,
                                       uint32_t num_blocks) {
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -583,6 +582,7 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
   for (int i = 0; i < num_blocks; i++) {
     auto cur_input_block = &input_blocks[i * big_lwe_size];
 
+    cudaSetDevice(gpu_indexes[0]);
     cuda_keyswitch_lwe_ciphertext_vector<Torus>(
         streams[0], gpu_indexes[0], mem_ptr->tmp_small_lwe_vector,
         mem_ptr->lwe_indexes, cur_input_block, mem_ptr->lwe_indexes, ksk,
