@@ -23,7 +23,11 @@ impl Default for CiphertextModulusInner {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(
+    try_from = "SerializableCiphertextModulus",
+    into = "SerializableCiphertextModulus"
+)]
 #[cfg_attr(bench, derive(Default))]
 /// Structure representing a [`CiphertextModulus`] often noted $q$.
 pub struct CiphertextModulus<Scalar: UnsignedInteger> {
@@ -39,61 +43,49 @@ pub enum CiphertextModulusKind {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct SerialiazableLweCiphertextModulus {
+/// Actual serialized modulus to be able to carry the UnsignedInteger bitwidth information
+struct SerializableCiphertextModulus {
     pub modulus: u128,
     pub scalar_bits: usize,
 }
 
-// Manual impl to be able to carry the UnsignedInteger bitwidth information
-impl<Scalar: UnsignedInteger> serde::Serialize for CiphertextModulus<Scalar> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let modulus = match self.inner {
+impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for SerializableCiphertextModulus {
+    fn from(value: CiphertextModulus<Scalar>) -> Self {
+        let modulus = match value.inner {
             CiphertextModulusInner::Native => 0,
             CiphertextModulusInner::Custom(modulus) => modulus.get(),
         };
 
-        SerialiazableLweCiphertextModulus {
+        Self {
             modulus,
             scalar_bits: Scalar::BITS,
         }
-        .serialize(serializer)
     }
 }
 
-impl<'de, Scalar: UnsignedInteger> serde::Deserialize<'de> for CiphertextModulus<Scalar> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let thing = SerialiazableLweCiphertextModulus::deserialize(deserializer)
-            .map_err(serde::de::Error::custom)?;
+impl<Scalar: UnsignedInteger> TryFrom<SerializableCiphertextModulus> for CiphertextModulus<Scalar> {
+    type Error = String;
 
-        if thing.scalar_bits != Scalar::BITS {
-            return Err(serde::de::Error::custom(format!(
+    fn try_from(value: SerializableCiphertextModulus) -> Result<Self, Self::Error> {
+        if value.scalar_bits != Scalar::BITS {
+            return Err(format!(
                 "Expected an unsigned integer with {} bits, \
             found {} bits during deserialization of CiphertextModulus, \
             have you mixed types during deserialization?",
                 Scalar::BITS,
-                thing.scalar_bits
-            )));
+                value.scalar_bits
+            ));
         }
 
-        let res = if thing.modulus == 0 {
+        let res = if value.modulus == 0 {
             Self {
                 inner: CiphertextModulusInner::Native,
                 _scalar: PhantomData,
             }
         } else {
             Self {
-                inner: CiphertextModulusInner::Custom(NonZeroU128::new(thing.modulus).ok_or_else(
-                    || {
-                        serde::de::Error::custom(
-                            "Got zero modulus for CiphertextModulusInner::Custom variant",
-                        )
-                    },
+                inner: CiphertextModulusInner::Custom(NonZeroU128::new(value.modulus).ok_or_else(
+                    || "Got zero modulus for CiphertextModulusInner::Custom variant".to_string(),
                 )?),
                 _scalar: PhantomData,
             }
