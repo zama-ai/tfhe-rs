@@ -36,15 +36,18 @@ template <typename Torus>
 __global__ void
 keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lwe_array_in,
           Torus *lwe_input_indexes, Torus *ksk, uint32_t lwe_dimension_in,
-          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
+          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count, int gpu_offset) {
   int tid = threadIdx.x;
   extern __shared__ int8_t sharedmem[];
   if (tid <= lwe_dimension_out) {
     Torus *local_lwe_array_out = (Torus *)sharedmem;
-    auto block_lwe_array_in = get_chunk(
-        lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
-    auto block_lwe_array_out = get_chunk(
-        lwe_array_out, lwe_output_indexes[blockIdx.x], lwe_dimension_out + 1);
+    auto block_lwe_array_in =
+        get_chunk(lwe_array_in, lwe_input_indexes[blockIdx.x + gpu_offset],
+                  lwe_dimension_in + 1);
+    auto block_lwe_array_out =
+        get_chunk(lwe_array_out, lwe_output_indexes[blockIdx.x + gpu_offset],
+                  lwe_dimension_out + 1);
+
     local_lwe_array_out[tid] = 0;
 
     if (tid == lwe_dimension_out) {
@@ -74,7 +77,8 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus *lwe_output_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     Torus *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t gpu_offset = 0) {
 
   cudaSetDevice(gpu_index);
   constexpr int ideal_threads = 1024;
@@ -89,7 +93,7 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
 
   keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
-      lwe_dimension_in, lwe_dimension_out, base_log, level_count);
+      lwe_dimension_in, lwe_dimension_out, base_log, level_count, gpu_offset);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -111,17 +115,13 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
     int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
-    int in_lwe_start_index = i * num_samples_on_gpu_0 * (lwe_dimension_in + 1);
-    int out_lwe_start_index =
-        i * num_samples_on_gpu_0 * (lwe_dimension_out + 1);
-    auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(in_lwe_start_index);
-    auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(out_lwe_start_index);
 
-    // Compute Keyswitch-PBS
+    // Compute Keyswitch
     cuda_keyswitch_lwe_ciphertext_vector(
-        streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
-        d_lwe_ct_in, lwe_input_indexes, ksk, lwe_dimension_in,
-        lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
+        streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
+        lwe_array_in, lwe_input_indexes, ksk, lwe_dimension_in,
+        lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
+        i * num_samples_on_gpu_0);
   }
 
   if (sync_streams)

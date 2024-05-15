@@ -40,7 +40,8 @@ __global__ void device_programmable_bootstrap_cg(
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     double2 *bootstrapping_key, double2 *join_buffer, uint32_t lwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    int8_t *device_mem, uint64_t device_memory_size_per_block) {
+    int8_t *device_mem, uint64_t device_memory_size_per_block,
+    uint32_t gpu_offset) {
 
   grid_group grid = this_grid();
 
@@ -74,7 +75,8 @@ __global__ void device_programmable_bootstrap_cg(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
+                    (lwe_dimension + 1)];
 
   Torus *block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.z] *
                                         params::degree * (glwe_dimension + 1)];
@@ -138,7 +140,7 @@ __global__ void device_programmable_bootstrap_cg(
   }
 
   auto block_lwe_array_out =
-      &lwe_array_out[lwe_output_indexes[blockIdx.z] *
+      &lwe_array_out[lwe_output_indexes[blockIdx.z + gpu_offset] *
                          (glwe_dimension * polynomial_size + 1) +
                      blockIdx.y * polynomial_size];
 
@@ -200,7 +202,7 @@ __host__ void host_programmable_bootstrap_cg(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_luts, uint32_t max_shared_memory) {
+    uint32_t num_luts, uint32_t max_shared_memory, uint32_t gpu_offset) {
   cudaSetDevice(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
@@ -222,7 +224,7 @@ __host__ void host_programmable_bootstrap_cg(
   int thds = polynomial_size / params::opt;
   dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
 
-  void *kernel_args[14];
+  void *kernel_args[15];
   kernel_args[0] = &lwe_array_out;
   kernel_args[1] = &lwe_output_indexes;
   kernel_args[2] = &lut_vector;
@@ -236,6 +238,7 @@ __host__ void host_programmable_bootstrap_cg(
   kernel_args[10] = &base_log;
   kernel_args[11] = &level_count;
   kernel_args[12] = &d_mem;
+  kernel_args[14] = &gpu_offset;
 
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;

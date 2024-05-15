@@ -26,7 +26,7 @@ __global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
     uint32_t base_log, uint32_t level_count, uint32_t grouping_factor,
     uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint32_t keybundle_size_per_input, int8_t *device_mem,
-    uint64_t device_memory_size_per_block) {
+    uint64_t device_memory_size_per_block, uint32_t gpu_offset) {
 
   grid_group grid = this_grid();
 
@@ -55,7 +55,8 @@ __global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
+                    (lwe_dimension + 1)];
 
   Torus *block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.z] *
                                         params::degree * (glwe_dimension + 1)];
@@ -116,7 +117,7 @@ __global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
     auto block_lwe_array_out =
-        &lwe_array_out[lwe_output_indexes[blockIdx.z] *
+        &lwe_array_out[lwe_output_indexes[blockIdx.z + gpu_offset] *
                            (glwe_dimension * polynomial_size + 1) +
                        blockIdx.y * polynomial_size];
 
@@ -257,7 +258,8 @@ __host__ void execute_cg_external_product_loop(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_chunk_size, uint32_t max_shared_memory, int lwe_offset) {
+    uint32_t lwe_chunk_size, uint32_t max_shared_memory, int lwe_offset,
+    uint32_t gpu_offset) {
 
   cudaSetDevice(gpu_index);
   uint64_t full_dm =
@@ -280,7 +282,7 @@ __host__ void execute_cg_external_product_loop(
   auto global_accumulator = buffer->global_accumulator;
   auto buffer_fft = buffer->global_accumulator_fft;
 
-  void *kernel_args[20];
+  void *kernel_args[21];
   kernel_args[0] = &lwe_array_out;
   kernel_args[1] = &lwe_output_indexes;
   kernel_args[2] = &lut_vector;
@@ -300,6 +302,7 @@ __host__ void execute_cg_external_product_loop(
   kernel_args[16] = &chunk_size;
   kernel_args[17] = &keybundle_size_per_input;
   kernel_args[18] = &d_mem;
+  kernel_args[20] = &gpu_offset;
 
   dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
   dim3 thds(polynomial_size / params::opt, 1, 1);
@@ -334,7 +337,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t lwe_chunk_size = 0) {
+    uint32_t gpu_offset = 0, uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(gpu_index);
 
   if (!lwe_chunk_size)
@@ -349,7 +352,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, max_shared_memory,
-        lwe_chunk_size, lwe_offset);
+        lwe_chunk_size, lwe_offset, gpu_offset);
 
     // Accumulate
     execute_cg_external_product_loop<Torus, params>(
@@ -357,7 +360,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, lwe_chunk_size,
-        max_shared_memory, lwe_offset);
+        max_shared_memory, lwe_offset, gpu_offset);
   }
 }
 
