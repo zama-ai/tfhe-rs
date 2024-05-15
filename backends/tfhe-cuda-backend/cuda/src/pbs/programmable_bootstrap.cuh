@@ -143,20 +143,14 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
-        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
-                                  (glwe_dimension * polynomial_size + 1);
-        int lwe_in_start_index =
-            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
-        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
-        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
-            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
-            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory);
+            lwe_idx, max_shared_memory, i * num_lwe_inputs_on_gpu_0);
       }
       break;
     default:
@@ -174,20 +168,15 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
-        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
-                                  (glwe_dimension * polynomial_size + 1);
-        int lwe_in_start_index =
-            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
-        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
-        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
-            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
+            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory,
+            i * num_lwe_inputs_on_gpu_0);
       }
       break;
     case CLASSICAL:
@@ -195,20 +184,14 @@ void execute_pbs(
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
-        int lwe_out_start_index = i * num_lwe_inputs_on_gpu_0 *
-                                  (glwe_dimension * polynomial_size + 1);
-        int lwe_in_start_index =
-            i * num_lwe_inputs_on_gpu_0 * (lwe_dimension + 1);
-        auto d_lwe_ct_in = lwe_array_in + (ptrdiff_t)(lwe_in_start_index);
-        auto d_lwe_ct_out = lwe_array_out + (ptrdiff_t)(lwe_out_start_index);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams[i], gpu_indexes[i], d_lwe_ct_out, lwe_output_indexes,
-            lut_vector, d_lut_vector_indexes, d_lwe_ct_in, lwe_input_indexes,
+            streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
+            lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
             bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory);
+            lwe_idx, max_shared_memory, i * num_lwe_inputs_on_gpu_0);
       }
       break;
     default:

@@ -1690,25 +1690,29 @@ template <typename Torus> struct int_zero_out_if_buffer {
 
   Torus *tmp;
 
-  cudaStream_t local_stream;
+  cudaStream_t *local_streams;
 
-  int_zero_out_if_buffer(cudaStream_t stream, uint32_t gpu_index,
-                         int_radix_params params, uint32_t num_radix_blocks,
-                         bool allocate_gpu_memory) {
+  int_zero_out_if_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
+                         uint32_t gpu_count, int_radix_params params,
+                         uint32_t num_radix_blocks, bool allocate_gpu_memory) {
     this->params = params;
 
     Torus big_size =
         (params.big_lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
     if (allocate_gpu_memory) {
-
-      tmp = (Torus *)cuda_malloc_async(big_size, stream, gpu_index);
+      tmp = (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
       // We may use a different stream to allow concurrent operation
-      local_stream = cuda_create_stream(gpu_index);
+      local_streams = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+      for (int i = 0; i < gpu_count; i++)
+        local_streams[i] = cuda_create_stream(gpu_indexes[i]);
     }
   }
-  void release(cudaStream_t stream, uint32_t gpu_index) {
-    cuda_drop_async(tmp, stream, gpu_index);
-    cuda_destroy_stream(local_stream, gpu_index);
+  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+               uint32_t gpu_count) {
+    cuda_drop_async(tmp, streams[0], gpu_indexes[0]);
+    for (int i = 0; i < gpu_count; i++)
+      cuda_destroy_stream(local_streams[i], i);
+    free(local_streams);
   }
 };
 
@@ -1743,10 +1747,10 @@ template <typename Torus> struct int_cmux_buffer {
           (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
 
       zero_if_true_buffer = new int_zero_out_if_buffer<Torus>(
-          streams[0], gpu_indexes[0], params, num_radix_blocks,
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
           allocate_gpu_memory);
       zero_if_false_buffer = new int_zero_out_if_buffer<Torus>(
-          streams[0], gpu_indexes[0], params, num_radix_blocks,
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
           allocate_gpu_memory);
 
       auto lut_f = [predicate_lut_f](Torus block, Torus condition) -> Torus {
@@ -1798,9 +1802,9 @@ template <typename Torus> struct int_cmux_buffer {
     message_extract_lut->release(streams, gpu_indexes, gpu_count);
     delete message_extract_lut;
 
-    zero_if_true_buffer->release(streams[0], gpu_indexes[0]);
+    zero_if_true_buffer->release(streams, gpu_indexes, gpu_count);
     delete zero_if_true_buffer;
-    zero_if_false_buffer->release(streams[0], gpu_indexes[0]);
+    zero_if_false_buffer->release(streams, gpu_indexes, gpu_count);
     delete zero_if_false_buffer;
 
     cuda_drop_async(tmp_true_ct, streams[0], gpu_indexes[0]);

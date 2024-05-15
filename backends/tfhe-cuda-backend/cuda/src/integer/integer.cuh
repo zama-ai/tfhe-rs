@@ -154,7 +154,6 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto grouping_factor = params.grouping_factor;
 
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
   /// Apply KS to go from a big LWE dimension to a small LWE dimension
   execute_keyswitch(streams, gpu_indexes, gpu_count, lut->tmp_lwe_after_ks,
                     lut->lwe_trivial_indexes, lwe_array_in, lut->lwe_indexes_in,

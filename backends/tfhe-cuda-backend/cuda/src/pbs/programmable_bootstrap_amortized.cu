@@ -158,7 +158,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_offset = 0) {
 
   if (base_log > 32)
     PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
@@ -172,7 +172,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 512:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<512>>(
@@ -181,7 +181,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 1024:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<1024>>(
@@ -190,7 +190,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 2048:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<2048>>(
@@ -199,7 +199,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 4096:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<4096>>(
@@ -208,7 +208,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 8192:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<8192>>(
@@ -217,7 +217,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 16384:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
@@ -226,7 +226,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
@@ -307,7 +307,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_offset) {
 
   if (base_log > 64)
     PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
@@ -321,7 +321,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 512:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<512>>(
@@ -330,7 +330,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 1024:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<1024>>(
@@ -339,7 +339,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 2048:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<2048>>(
@@ -348,7 +348,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 4096:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<4096>>(
@@ -357,7 +357,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 8192:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<8192>>(
@@ -366,7 +366,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   case 16384:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
@@ -375,7 +375,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "

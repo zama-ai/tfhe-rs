@@ -53,8 +53,8 @@ __host__ void host_integer_radix_cmux_kb(
   // Since our CPU threads will be working on different streams we shall assert
   // the work in the main stream is completed
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-  auto true_stream = mem_ptr->zero_if_true_buffer->local_stream;
-  auto false_stream = mem_ptr->zero_if_false_buffer->local_stream;
+  auto true_streams = mem_ptr->zero_if_true_buffer->local_streams;
+  auto false_streams = mem_ptr->zero_if_false_buffer->local_streams;
 
 #pragma omp parallel sections
   {
@@ -62,20 +62,20 @@ __host__ void host_integer_radix_cmux_kb(
 #pragma omp section
     {
       auto mem_true = mem_ptr->zero_if_true_buffer;
-      zero_out_if(&true_stream, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
+      zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
                   lwe_array_true, lwe_condition, mem_true,
                   mem_ptr->inverted_predicate_lut, bsk, ksk, num_radix_blocks);
     }
 #pragma omp section
     {
       auto mem_false = mem_ptr->zero_if_false_buffer;
-      zero_out_if(&false_stream, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
+      zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
                   lwe_array_false, lwe_condition, mem_false,
                   mem_ptr->predicate_lut, bsk, ksk, num_radix_blocks);
     }
   }
-  cuda_synchronize_stream(true_stream, gpu_indexes[0]);
-  cuda_synchronize_stream(false_stream, gpu_indexes[0]);
+  cuda_synchronize_stream(true_streams[0], gpu_indexes[0]);
+  cuda_synchronize_stream(false_streams[0], gpu_indexes[0]);
 
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will

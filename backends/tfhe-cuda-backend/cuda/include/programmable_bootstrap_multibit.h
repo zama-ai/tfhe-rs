@@ -29,7 +29,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset = 0,
+    uint32_t lwe_chunk_size = 0);
 
 void scratch_cuda_generic_multi_bit_programmable_bootstrap_64(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
@@ -45,7 +46,8 @@ void cuda_generic_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset = 0,
+    uint32_t lwe_chunk_size = 0);
 
 void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
                                                    uint32_t gpu_index,
