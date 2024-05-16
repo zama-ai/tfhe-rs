@@ -36,7 +36,7 @@ jobs:
       csprng_test: ${{ steps.changed-files.outputs.csprng_any_changed }}
       apps_test: ${{ steps.changed-files.outputs.apps_any_changed }}
       user_docs_test: ${{ steps.changed-files.outputs.user_docs_any_changed }}
-      any_file_changed: ${{ steps.changed-files.outputs.any_changed }}
+      any_file_changed: ${{ steps.aggregated-changes.outputs.any_changed }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
@@ -71,6 +71,13 @@ jobs:
               - tfhe/docs/**
               - README.md
 
+      - name: Aggregate file changes
+        id: aggregated-changes
+        if: ( steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
+          steps.changed-files.outputs.shortint_any_changed == 'true' )
+        run: |
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+
       - name: Echo results
         run: |
           echo "core_crypto_test: ${{ steps.changed-files.outputs.core_crypto_any_changed }}"
@@ -83,12 +90,12 @@ jobs:
           echo "csprng_test: ${{ steps.changed-files.outputs.csprng_any_changed }}"
           echo "apps_test: ${{ steps.changed-files.outputs.apps_any_changed }}"
           echo "user_docs_test: ${{ steps.changed-files.outputs.user_docs_any_changed }}"
-          echo "any_file_changed: ${{ steps.changed-files.outputs.any_changed }}"
+          echo "any_file_changed: ${{ steps.aggregated-changes.outputs.any_changed }}"
     # TODO Ajouter une étape qui aggrège tous les résultats de "any_changed" en utilisant un any()
 
   setup-instance:
     name: Setup instance (cpu-tests)
-    #if: ${{ github.event_name == 'pull_request' && needs.file-change.outputs.any_file_changed == 'true' }}
+    if: ${{ github.event_name == 'pull_request' && needs.file-change.outputs.any_file_changed == 'true' }}
     ###############if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
     needs: file-change
     runs-on: ubuntu-latest
