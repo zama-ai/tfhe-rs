@@ -130,19 +130,12 @@ pub fn generate_lwe_multi_bit_bootstrap_key<
         output.polynomial_size()
     );
 
+    let forking_configuration = output.encryption_fork_config(Uniform, noise_distribution);
+
     let gen_iter = generator
-        .fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-            output.grouping_factor(),
-        )
+        .try_fork_from_config(forking_configuration)
         .unwrap();
 
-    let output_decomposition_level_count = output.decomposition_level_count();
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let output_grouping_factor = output.grouping_factor();
     let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
@@ -155,13 +148,10 @@ pub fn generate_lwe_multi_bit_bootstrap_key<
         )
         .zip(gen_iter)
     {
+        let group_forking_config = ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
         let gen_iter = loop_generator
-            .fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
-                output_decomposition_level_count,
-                output_glwe_size,
-                output_polynomial_size,
-                output_grouping_factor,
-            )
+            .try_fork_from_config(group_forking_config)
             .unwrap();
         for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
             ggsw_group.iter_mut().enumerate().zip(gen_iter)
@@ -357,25 +347,17 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
         output.polynomial_size()
     );
 
+    let forking_configuration = output.encryption_fork_config(Uniform, noise_distribution);
+
     let gen_iter = generator
-        .par_fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-            output.grouping_factor(),
-        )
+        .par_try_fork_from_config(forking_configuration)
         .unwrap();
 
-    let output_decomposition_level_count = output.decomposition_level_count();
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let output_grouping_factor = output.grouping_factor();
     let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     output
-        .par_iter_mut()
-        .chunks(ggsw_per_multi_bit_element.0)
+        .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -384,31 +366,32 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
         .zip(gen_iter)
         .for_each(
             |((mut ggsw_group, input_key_elements), mut loop_generator)| {
+                let group_forking_config =
+                    ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
                 let gen_iter = loop_generator
-                    .par_fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
-                        output_decomposition_level_count,
-                        output_glwe_size,
-                        output_polynomial_size,
-                        output_grouping_factor,
-                    )
+                    .par_try_fork_from_config(group_forking_config)
                     .unwrap();
+
                 ggsw_group
                     .par_iter_mut()
                     .enumerate()
                     .zip(gen_iter)
-                    .for_each(|((bit_inversion_idx, ggsw), mut inner_loop_generator)| {
-                        // Use the index of the ggsw as a way to know which bit to invert
-                        let key_bits_plaintext =
-                            combine_key_bits(bit_inversion_idx, input_key_elements);
+                    .for_each(
+                        |((bit_inversion_idx, mut ggsw), mut inner_loop_generator)| {
+                            // Use the index of the ggsw as a way to know which bit to invert
+                            let key_bits_plaintext =
+                                combine_key_bits(bit_inversion_idx, input_key_elements);
 
-                        par_encrypt_constant_ggsw_ciphertext(
-                            output_glwe_secret_key,
-                            ggsw,
-                            Plaintext(key_bits_plaintext),
-                            noise_distribution,
-                            &mut inner_loop_generator,
-                        );
-                    });
+                            par_encrypt_constant_ggsw_ciphertext(
+                                output_glwe_secret_key,
+                                &mut ggsw,
+                                Plaintext(key_bits_plaintext),
+                                noise_distribution,
+                                &mut inner_loop_generator,
+                            );
+                        },
+                    );
             },
         );
 }
@@ -569,19 +552,12 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
         output.polynomial_size()
     );
 
+    let forking_configuration = output.encryption_fork_config(Uniform, noise_distribution);
+
     let gen_iter = generator
-        .fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-            output.grouping_factor(),
-        )
+        .try_fork_from_config(forking_configuration)
         .unwrap();
 
-    let output_decomposition_level_count = output.decomposition_level_count();
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let output_grouping_factor = output.grouping_factor();
     let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
@@ -594,14 +570,12 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
         )
         .zip(gen_iter)
     {
+        let group_forking_config = ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
         let gen_iter = loop_generator
-            .fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
-                output_decomposition_level_count,
-                output_glwe_size,
-                output_polynomial_size,
-                output_grouping_factor,
-            )
+            .try_fork_from_config(group_forking_config)
             .unwrap();
+
         for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
             ggsw_group.iter_mut().enumerate().zip(gen_iter)
         {
@@ -727,25 +701,17 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
         noise_seeder,
     );
 
+    let forking_configuration = output.encryption_fork_config(Uniform, noise_distribution);
+
     let gen_iter = generator
-        .par_fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-            output.grouping_factor(),
-        )
+        .par_try_fork_from_config(forking_configuration)
         .unwrap();
 
-    let output_decomposition_level_count = output.decomposition_level_count();
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let output_grouping_factor = output.grouping_factor();
     let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     output
-        .par_iter_mut()
-        .chunks(ggsw_per_multi_bit_element.0)
+        .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -754,31 +720,32 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
         .zip(gen_iter)
         .for_each(
             |((mut ggsw_group, input_key_elements), mut loop_generator)| {
+                let group_forking_config =
+                    ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
                 let gen_iter = loop_generator
-                    .par_fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
-                        output_decomposition_level_count,
-                        output_glwe_size,
-                        output_polynomial_size,
-                        output_grouping_factor,
-                    )
+                    .par_try_fork_from_config(group_forking_config)
                     .unwrap();
+
                 ggsw_group
                     .par_iter_mut()
                     .enumerate()
                     .zip(gen_iter)
-                    .for_each(|((bit_inversion_idx, ggsw), mut inner_loop_generator)| {
-                        // Use the index of the ggsw as a way to know which bit to invert
-                        let key_bits_plaintext =
-                            combine_key_bits(bit_inversion_idx, input_key_elements);
+                    .for_each(
+                        |((bit_inversion_idx, mut ggsw), mut inner_loop_generator)| {
+                            // Use the index of the ggsw as a way to know which bit to invert
+                            let key_bits_plaintext =
+                                combine_key_bits(bit_inversion_idx, input_key_elements);
 
-                        par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
-                            output_glwe_secret_key,
-                            ggsw,
-                            Plaintext(key_bits_plaintext),
-                            noise_distribution,
-                            &mut inner_loop_generator,
-                        );
-                    });
+                            par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+                                output_glwe_secret_key,
+                                &mut ggsw,
+                                Plaintext(key_bits_plaintext),
+                                noise_distribution,
+                                &mut inner_loop_generator,
+                            );
+                        },
+                    );
             },
         );
 }

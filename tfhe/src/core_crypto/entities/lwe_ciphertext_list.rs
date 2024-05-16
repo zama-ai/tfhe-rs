@@ -1,5 +1,7 @@
 //! Module containing the definition of the [`LweCiphertextList`].
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -26,6 +28,52 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphert
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
+}
+
+/// Return the number of mask samples used during encryption of an [`LweCiphertextList`] given an
+/// [`LweDimension`] and an [`LweCiphertextCount`].
+pub fn lwe_ciphertext_list_encryption_mask_sample_count(
+    lwe_dimension: LweDimension,
+    lwe_ciphertext_count: LweCiphertextCount,
+) -> EncryptionMaskSampleCount {
+    lwe_ciphertext_count.0 * lwe_ciphertext_encryption_mask_sample_count(lwe_dimension)
+}
+
+/// Return the number of noise samples required to encrypt an [`LweCiphertextList`] given an
+/// [`LweCiphertextCount`]`.
+pub fn lwe_ciphertext_list_encryption_noise_sample_count(
+    lwe_ciphertext_count: LweCiphertextCount,
+) -> EncryptionNoiseSampleCount {
+    lwe_ciphertext_count.0 * lwe_ciphertext_encryption_noise_sample_count()
+}
+
+pub fn lwe_ciphertext_list_encryption_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
+    lwe_ciphertext_count: LweCiphertextCount,
+    lwe_dimension: LweDimension,
+    mask_distribution: MaskDistribution,
+    noise_distribution: NoiseDistribution,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> EncryptionRandomGeneratorForkConfig
+where
+    Scalar: UnsignedInteger
+        + RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+        + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
+{
+    let lwe_mask_sample_count = lwe_ciphertext_encryption_mask_sample_count(lwe_dimension);
+    let lwe_noise_sample_count = lwe_ciphertext_encryption_noise_sample_count();
+
+    let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+    EncryptionRandomGeneratorForkConfig::new(
+        lwe_ciphertext_count.0,
+        lwe_mask_sample_count,
+        mask_distribution,
+        lwe_noise_sample_count,
+        noise_distribution,
+        modulus,
+    )
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<C> {
@@ -123,6 +171,26 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
     /// See [`LweCiphertextList::from_container`] for usage.
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        lwe_ciphertext_list_encryption_fork_config(
+            self.lwe_ciphertext_count(),
+            self.lwe_size().to_lwe_dimension(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
     }
 }
 

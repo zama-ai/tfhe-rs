@@ -62,6 +62,20 @@ macro_rules! implement_uniform_uint {
                     None => 1.0,
                 }
             }
+
+            fn single_sample_required_random_byte_count(
+                _distribution: Uniform,
+                modulus: Option<Self::CustomModulus>,
+            ) -> usize {
+                // The parameters of the distribution do not impact the amount of byte required
+                match modulus {
+                    Some(modulus) => {
+                        let modulus_bits = modulus.ceil_ilog2();
+                        modulus_bits.div_ceil(u8::BITS) as usize
+                    }
+                    None => std::mem::size_of::<$T>(),
+                }
+            }
         }
     };
 }
@@ -97,6 +111,17 @@ macro_rules! implement_uniform_int {
                 match modulus {
                     Some(_modulus) => panic!("Uniform generation for signed integers with CustomModulus is not supported."),
                     None => 1.0,
+                }
+            }
+
+            fn single_sample_required_random_byte_count(
+                _distribution: Uniform,
+                modulus: Option<Self::CustomModulus>,
+            ) -> usize {
+                // The parameters of the distribution do not impact the amount of byte required
+                match modulus {
+                    Some(_modulus) => panic!("Uniform generation for signed integers with CustomModulus is not supported."),
+                    None => std::mem::size_of::<$T>(),
                 }
             }
         }

@@ -261,3 +261,69 @@ pub enum PBSOrder {
 }
 
 pub use crate::core_crypto::commons::math::random::DynamicDistribution;
+
+/// A quantity representing a number of scalar used for mask samples generation.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EncryptionMaskSampleCount(pub usize);
+
+impl EncryptionMaskSampleCount {
+    pub(crate) fn to_mask_byte_count(
+        self,
+        mask_byte_per_scalar: EncryptionMaskByteCount,
+    ) -> EncryptionMaskByteCount {
+        EncryptionMaskByteCount(self.0 * mask_byte_per_scalar.0)
+    }
+}
+
+impl std::ops::Mul<usize> for EncryptionMaskSampleCount {
+    type Output = Self;
+
+    fn mul(self, rhs: usize) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
+impl std::ops::Mul<EncryptionMaskSampleCount> for usize {
+    type Output = EncryptionMaskSampleCount;
+
+    fn mul(self, rhs: EncryptionMaskSampleCount) -> Self::Output {
+        EncryptionMaskSampleCount(self * rhs.0)
+    }
+}
+
+/// A quantity representing a number of bytes used for mask generation during encryption.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EncryptionMaskByteCount(pub usize);
+
+/// A quantity representing a number of scalar used for noise samples generation.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EncryptionNoiseSampleCount(pub usize);
+
+impl EncryptionNoiseSampleCount {
+    pub(crate) fn to_noise_byte_count(
+        self,
+        noise_byte_per_scalar: EncryptionNoiseByteCount,
+    ) -> EncryptionNoiseByteCount {
+        EncryptionNoiseByteCount(self.0 * noise_byte_per_scalar.0)
+    }
+}
+
+impl std::ops::Mul<usize> for EncryptionNoiseSampleCount {
+    type Output = Self;
+
+    fn mul(self, rhs: usize) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
+impl std::ops::Mul<EncryptionNoiseSampleCount> for usize {
+    type Output = EncryptionNoiseSampleCount;
+
+    fn mul(self, rhs: EncryptionNoiseSampleCount) -> Self::Output {
+        EncryptionNoiseSampleCount(self * rhs.0)
+    }
+}
+
+/// A quantity representing a number of bytes used for noise generation during encryption.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct EncryptionNoiseByteCount(pub usize);

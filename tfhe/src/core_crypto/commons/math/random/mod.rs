@@ -99,6 +99,19 @@ where
         distribution: D,
         modulus: Option<Self::CustomModulus>,
     ) -> f64;
+
+    /// Return how many bytes coming from a CSPRNG are required to generate one sample even if that
+    /// generation can fail.
+    ///
+    /// If None is passed for modulus, then the native modulus of the type (e.g. $2^{64}$ for u64)
+    /// or no modulus for floating points values is used.
+    ///
+    /// Otherwise the given modulus is interpreted as being the one used for a call to
+    /// [`RandomGenerable::generate_one_custom_modulus`].
+    fn single_sample_required_random_byte_count(
+        distribution: D,
+        modulus: Option<Self::CustomModulus>,
+    ) -> usize;
 }
 
 /// A marker trait for types representing distributions.
@@ -308,6 +321,24 @@ impl<
             }
             DynamicDistribution::TUniform(t_uniform) => {
                 <Self as RandomGenerable<TUniform<T>>>::single_sample_success_probability(
+                    t_uniform, modulus,
+                )
+            }
+        }
+    }
+
+    fn single_sample_required_random_byte_count(
+        distribution: DynamicDistribution<T>,
+        modulus: Option<Self::CustomModulus>,
+    ) -> usize {
+        match distribution {
+            DynamicDistribution::Gaussian(gaussian) => {
+                <Self as RandomGenerable<Gaussian<f64>>>::single_sample_required_random_byte_count(
+                    gaussian, modulus,
+                )
+            }
+            DynamicDistribution::TUniform(t_uniform) => {
+                <Self as RandomGenerable<TUniform<T>>>::single_sample_required_random_byte_count(
                     t_uniform, modulus,
                 )
             }

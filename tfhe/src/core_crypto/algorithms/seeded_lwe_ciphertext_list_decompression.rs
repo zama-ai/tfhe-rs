@@ -3,6 +3,7 @@
 use crate::core_crypto::algorithms::slice_algorithms::slice_wrapping_scalar_mul_assign;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::core_crypto::commons::math::random::Uniform;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -38,10 +39,7 @@ pub fn decompress_seeded_lwe_ciphertext_list_with_existing_generator<
     // Generator forking and decompression computations must match the SeededLweCiphertextList
     // encryption algorithm
     let gen_iter = generator
-        .fork_lwe_list_to_lwe::<Scalar>(
-            input_seeded_list.lwe_ciphertext_count(),
-            input_seeded_list.lwe_size(),
-        )
+        .try_fork_from_config(input_seeded_list.decompression_fork_config(Uniform))
         .expect("Error while forking generator for SeededLweCiphertextList decompression.");
 
     for ((mut lwe_out, body_in), mut loop_generator) in output_list
@@ -129,10 +127,7 @@ pub fn par_decompress_seeded_lwe_ciphertext_list_with_existing_generator<
     // Generator forking and decompression computations must match the SeededLweCiphertextList
     // encryption algorithm
     let gen_iter = generator
-        .par_fork_lwe_list_to_lwe::<Scalar>(
-            input_seeded_list.lwe_ciphertext_count(),
-            input_seeded_list.lwe_size(),
-        )
+        .par_try_fork_from_config(input_seeded_list.decompression_fork_config(Uniform))
         .expect("Error while forking generator for SeededLweCiphertextList decompression.");
 
     output_list

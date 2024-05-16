@@ -2,7 +2,7 @@
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::parameters::LweDimension;
+use crate::core_crypto::commons::math::random::Uniform;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -24,21 +24,13 @@ pub fn decompress_seeded_ggsw_ciphertext_list_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let output_ciphertext_count = LweDimension(output_list.ggsw_ciphertext_count().0);
-    let output_decomp_level = output_list.decomposition_level_count();
-    let output_glwe_size = output_list.glwe_size();
-    let output_polynomial_size = output_list.polynomial_size();
+    let forking_configuration = input_seeded_list.decompression_fork_config(Uniform);
 
     // As we only generate ciphertext lists in the context of BSK generation we use the bsk forking
     // If we ever have GGSW list encryption then it's easy to have a generic forking for GGSW
     // ciphertext lists and adapt the bsk formula to forward to the GGSW primitive
     let gen_iter = generator
-        .fork_bsk_to_ggsw::<Scalar>(
-            output_ciphertext_count,
-            output_decomp_level,
-            output_glwe_size,
-            output_polynomial_size,
-        )
+        .try_fork_from_config(forking_configuration)
         .unwrap();
 
     for ((mut ggsw_out, ggsw_in), mut loop_generator) in output_list
@@ -89,21 +81,13 @@ pub fn par_decompress_seeded_ggsw_ciphertext_list_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
 {
-    let output_ciphertext_count = LweDimension(output_list.ggsw_ciphertext_count().0);
-    let output_decomp_level = output_list.decomposition_level_count();
-    let output_glwe_size = output_list.glwe_size();
-    let output_polynomial_size = output_list.polynomial_size();
+    let forking_configuration = input_seeded_list.decompression_fork_config(Uniform);
 
     // As we only generate ciphertext lists in the context of BSK generation we use the bsk forking
     // If we ever have GGSW list encryption then it's easy to have a generic forking for GGSW
     // ciphertext lists and adapt the bsk formula to forward to the GGSW primitive
     let gen_iter = generator
-        .par_fork_bsk_to_ggsw::<Scalar>(
-            output_ciphertext_count,
-            output_decomp_level,
-            output_glwe_size,
-            output_polynomial_size,
-        )
+        .par_try_fork_from_config(forking_configuration)
         .unwrap();
 
     output_list

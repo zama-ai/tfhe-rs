@@ -531,6 +531,19 @@ where
     }
 }
 
+/// Return the number of mask samples used during encryption of an [`LweCiphertext`] given an
+/// [`LweDimension`].
+pub fn lwe_ciphertext_encryption_mask_sample_count(
+    lwe_dimension: LweDimension,
+) -> EncryptionMaskSampleCount {
+    EncryptionMaskSampleCount(lwe_dimension.0)
+}
+
+/// Return the number of noise samples required to encrypt an [`LweCiphertext`].
+pub fn lwe_ciphertext_encryption_noise_sample_count() -> EncryptionNoiseSampleCount {
+    EncryptionNoiseSampleCount(1)
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// Create an [`LweCiphertext`] from an existing container.
     ///

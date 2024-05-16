@@ -1,5 +1,7 @@
 //! Module containing the definition of the LwePrivateFunctionalPackingKeyswitchKeyList.
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -272,6 +274,44 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        let lwe_pfpksk_count = self.lwe_pfpksk_count();
+        let lwe_pfpksk_mask_sample_count = lwe_pfpksk_encryption_mask_sample_count(
+            self.input_lwe_size(),
+            self.decomposition_level_count(),
+            self.output_glwe_size(),
+            self.output_polynomial_size(),
+        );
+        let lwe_pfpksk_noise_sample_count = lwe_pfpksk_encryption_noise_sample_count(
+            self.input_lwe_size(),
+            self.decomposition_level_count(),
+            self.output_polynomial_size(),
+        );
+
+        let modulus = self
+            .ciphertext_modulus()
+            .get_custom_modulus_as_optional_scalar();
+
+        EncryptionRandomGeneratorForkConfig::new(
+            lwe_pfpksk_count.0,
+            lwe_pfpksk_mask_sample_count,
+            mask_distribution,
+            lwe_pfpksk_noise_sample_count,
+            noise_distribution,
+            modulus,
+        )
     }
 }
 

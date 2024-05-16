@@ -104,6 +104,15 @@ macro_rules! implement_t_uniform_uint {
                 // The modulus and parameters of the distribution do not impact generation success
                 1.0
             }
+
+            fn single_sample_required_random_byte_count(
+                TUniform { bound_log2, .. }: TUniform<$T>,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> usize {
+                // The modulus does not impact the amount of byte required
+                let required_bits = bound_log2 + 2;
+                required_bits.div_ceil(u8::BITS) as usize
+            }
         }
     };
 }

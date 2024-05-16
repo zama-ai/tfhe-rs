@@ -120,12 +120,7 @@ pub fn generate_lwe_bootstrap_key<
     );
 
     let gen_iter = generator
-        .fork_bsk_to_ggsw::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     for ((mut ggsw, &input_key_element), mut generator) in output
@@ -298,12 +293,7 @@ pub fn par_generate_lwe_bootstrap_key<
     );
 
     let gen_iter = generator
-        .par_fork_bsk_to_ggsw::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     output
@@ -425,12 +415,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
     );
 
     let gen_iter = generator
-        .fork_bsk_to_ggsw::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     for ((mut ggsw, &input_key_element), mut generator) in output
@@ -553,12 +538,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
     );
 
     let gen_iter = generator
-        .par_fork_bsk_to_ggsw::<Scalar>(
-            output.input_lwe_dimension(),
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     output

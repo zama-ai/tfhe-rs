@@ -1,7 +1,12 @@
 //! Module containing the definition of the SeededLweBootstrapKey.
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::generators::{
+    EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
+};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -307,6 +312,55 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             self.compression_seed(),
             self.grouping_factor(),
             self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        lwe_multi_bit_bootstrap_key_fork_config(
+            self.input_lwe_dimension(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_level_count(),
+            self.grouping_factor(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let ggsw_group_mask_sample_count = self.grouping_factor().ggsw_per_multi_bit_element().0
+            * ggsw_ciphertext_encryption_mask_sample_count(
+                self.glwe_size(),
+                self.polynomial_size(),
+                self.decomposition_level_count(),
+            );
+
+        let ciphertext_modulus = self.ciphertext_modulus();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(
+            self.input_lwe_dimension().0,
+            ggsw_group_mask_sample_count,
+            mask_distribution,
+            modulus,
         )
     }
 }

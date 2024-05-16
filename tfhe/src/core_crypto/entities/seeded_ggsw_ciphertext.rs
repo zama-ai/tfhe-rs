@@ -1,7 +1,12 @@
 //! Module containing the definition of the SeededGgswCiphertext.
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::generators::{
+    EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
+};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -305,6 +310,52 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     pub fn into_container(self) -> C {
         self.data
     }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        ggsw_ciphertext_encryption_fork_config(
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_level_count(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let decomposition_level_count = self.decomposition_level_count();
+        let ggsw_level_matrix_mask_sample_count = ggsw_level_matrix_encryption_mask_sample_count(
+            self.glwe_size(),
+            self.polynomial_size(),
+        );
+
+        let ciphertext_modulus = self.ciphertext_modulus();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(
+            decomposition_level_count.0,
+            ggsw_level_matrix_mask_sample_count,
+            mask_distribution,
+            modulus,
+        )
+    }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGgswCiphertext<C> {
@@ -530,6 +581,51 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
             self.polynomial_size,
             self.compression_seed,
             self.ciphertext_modulus,
+        )
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        ggsw_level_matrix_encryption_fork_config(
+            self.glwe_size(),
+            self.polynomial_size(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let glwe_size = self.glwe_size();
+        let glwe_ciphertext_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
+            glwe_size.to_glwe_dimension(),
+            self.polynomial_size(),
+        );
+
+        let ciphertext_modulus = self.ciphertext_modulus();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(
+            glwe_size.0,
+            glwe_ciphertext_mask_sample_count,
+            mask_distribution,
+            modulus,
         )
     }
 }
