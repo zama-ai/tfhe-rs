@@ -277,11 +277,11 @@ fn criterion_bench(c: &mut Criterion) {
         PRECISION_4_CJP,
         PRECISION_5_CJP,
         PRECISION_6_CJP,
-        // PRECISION_7_CJP,
-        // PRECISION_8_CJP,
-        // PRECISION_9_CJP,
-        // PRECISION_10_CJP,
-        // PRECISION_11_CJP,
+        PRECISION_7_CJP,
+        PRECISION_8_CJP,
+        PRECISION_9_CJP,
+        PRECISION_10_CJP,
+        PRECISION_11_CJP,
     ];
 
     for params in param_vec {

@@ -304,11 +304,11 @@ fn criterion_bench(c: &mut Criterion) {
         PRECISION_4_FAST_KS,
         PRECISION_5_FAST_KS,
         PRECISION_6_FAST_KS,
-        // PRECISION_7_FAST_KS,
-        // PRECISION_8_FAST_KS,
-        // PRECISION_9_FAST_KS,
-        // PRECISION_10_FAST_KS,
-        // PRECISION_11_FAST_KS,
+        PRECISION_7_FAST_KS,
+        PRECISION_8_FAST_KS,
+        PRECISION_9_FAST_KS,
+        PRECISION_10_FAST_KS,
+        PRECISION_11_FAST_KS,
     ];
 
     for params in param_vec {

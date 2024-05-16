@@ -357,11 +357,11 @@ fn criterion_bench(c: &mut Criterion) {
         PRECISION_4_STAIR,
         PRECISION_5_STAIR,
         PRECISION_6_STAIR,
-        // PRECISION_7_STAIR
-        // PRECISION_8_STAIR,
-        // PRECISION_9_STAIR,
-        // PRECISION_10_STAIR,
-        // PRECISION_11_STAIR,
+        PRECISION_7_STAIR,
+        PRECISION_8_STAIR,
+        PRECISION_9_STAIR,
+        PRECISION_10_STAIR,
+        PRECISION_11_STAIR,
     ];
 
     for params in param_vec {
