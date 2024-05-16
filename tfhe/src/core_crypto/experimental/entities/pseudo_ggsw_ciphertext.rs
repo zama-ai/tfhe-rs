@@ -1,5 +1,7 @@
 //! Module containing the definition of the PseudoGgswCiphertext.
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -54,6 +56,132 @@ pub fn pseudo_ggsw_level_matrix_size(
     polynomial_size: PolynomialSize,
 ) -> usize {
     glwe_size_in.to_glwe_dimension().0 * glwe_size_out.0 * polynomial_size.0
+}
+
+/// Return the number of mask samples used during encryption of a [`PseudoGgswCiphertext`] given an
+/// input and output [`GlweSize`], [`PolynomialSize`] and [`DecompositionLevelCount`].
+pub fn pseudo_ggsw_ciphertext_encryption_mask_sample_count(
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> EncryptionMaskSampleCount {
+    decomp_level_count.0
+        * pseudo_ggsw_level_matrix_encryption_mask_sample_count(
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+        )
+}
+
+/// Return the number of mask samples used during encryption of a [`PseudoGgswLevelMatrix`] given an
+/// input and output [`GlweSize`], and [`PolynomialSize`].
+pub fn pseudo_ggsw_level_matrix_encryption_mask_sample_count(
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+) -> EncryptionMaskSampleCount {
+    input_glwe_size.0
+        * glwe_ciphertext_encryption_mask_sample_count(
+            output_glwe_size.to_glwe_dimension(),
+            polynomial_size,
+        )
+}
+
+/// Return the number of noise samples used during encryption of a [`PseudoGgswCiphertext`] given an
+/// input [`GlweSize`], [`PolynomialSize`] and [`DecompositionLevelCount`].
+pub fn pseudo_ggsw_ciphertext_encryption_noise_sample_count(
+    input_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> EncryptionNoiseSampleCount {
+    decomp_level_count.0
+        * pseudo_ggsw_level_matrix_encryption_noise_sample_count(input_glwe_size, polynomial_size)
+}
+
+/// Return the number of noise samples used during encryption of a [`PseudoGgswLevelMatrix`] given
+/// an input [`GlweSize`] and [`PolynomialSize`].
+pub fn pseudo_ggsw_level_matrix_encryption_noise_sample_count(
+    input_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+) -> EncryptionNoiseSampleCount {
+    input_glwe_size.to_glwe_dimension().0
+        * glwe_ciphertext_encryption_noise_sample_count(polynomial_size)
+}
+
+pub fn pseudo_ggsw_ciphertext_encryption_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomposition_level_count: DecompositionLevelCount,
+    mask_distribution: MaskDistribution,
+    noise_distribution: NoiseDistribution,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> EncryptionRandomGeneratorForkConfig
+where
+    Scalar: UnsignedInteger
+        + RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+        + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
+{
+    let pseudo_ggsw_level_matrix_mask_sample_count =
+        pseudo_ggsw_level_matrix_encryption_mask_sample_count(
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+        );
+    let pseudo_ggsw_level_matrix_noise_sample_count =
+        pseudo_ggsw_level_matrix_encryption_noise_sample_count(input_glwe_size, polynomial_size);
+
+    let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+    EncryptionRandomGeneratorForkConfig::new(
+        decomposition_level_count.0,
+        pseudo_ggsw_level_matrix_mask_sample_count,
+        mask_distribution,
+        pseudo_ggsw_level_matrix_noise_sample_count,
+        noise_distribution,
+        modulus,
+    )
+}
+
+pub fn pseudo_ggsw_level_matrix_encryption_fork_config<
+    Scalar,
+    MaskDistribution,
+    NoiseDistribution,
+>(
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    mask_distribution: MaskDistribution,
+    noise_distribution: NoiseDistribution,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> EncryptionRandomGeneratorForkConfig
+where
+    Scalar: UnsignedInteger
+        + RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+        + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
+{
+    let glwe_ciphertext_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
+        output_glwe_size.to_glwe_dimension(),
+        polynomial_size,
+    );
+    let glwe_ciphertext_noise_sample_count =
+        glwe_ciphertext_encryption_noise_sample_count(polynomial_size);
+
+    let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+    EncryptionRandomGeneratorForkConfig::new(
+        input_glwe_size.to_glwe_dimension().0,
+        glwe_ciphertext_mask_sample_count,
+        mask_distribution,
+        glwe_ciphertext_noise_sample_count,
+        noise_distribution,
+        modulus,
+    )
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCiphertext<C> {
@@ -249,6 +377,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// See [`PseudoGgswCiphertext::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        pseudo_ggsw_ciphertext_encryption_fork_config(
+            self.glwe_size_in(),
+            self.glwe_size_out(),
+            self.polynomial_size(),
+            self.decomposition_level_count(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
     }
 }
 
@@ -477,6 +627,27 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswLevelMat
             self.glwe_size_out,
             self.polynomial_size,
             self.ciphertext_modulus,
+        )
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        pseudo_ggsw_level_matrix_encryption_fork_config(
+            self.glwe_size_in(),
+            self.glwe_size_out(),
+            self.polynomial_size(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
         )
     }
 }

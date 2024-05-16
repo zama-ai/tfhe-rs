@@ -257,6 +257,13 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
+    pub fn get_custom_modulus_as_optional_scalar(&self) -> Option<Scalar> {
+        match self.inner {
+            CiphertextModulusInner::Native => None,
+            CiphertextModulusInner::Custom(modulus) => Some(modulus.get().cast_into()),
+        }
+    }
+
     pub const fn is_compatible_with_native_modulus(&self) -> bool {
         self.is_native_modulus() || self.is_power_of_two()
     }

@@ -1,7 +1,12 @@
 //! Module containing the definition of the [`SeededLweCiphertextList`].
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
+use crate::core_crypto::commons::generators::{
+    EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
+};
+use crate::core_crypto::commons::math::random::{
+    ActivatedRandomGenerator, CompressionSeed, Distribution, RandomGenerable,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -194,6 +199,49 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
 
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        lwe_ciphertext_list_encryption_fork_config(
+            self.lwe_ciphertext_count(),
+            self.lwe_size().to_lwe_dimension(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let lwe_count = self.lwe_ciphertext_count().0;
+        let lwe_mask_sample_count =
+            lwe_ciphertext_encryption_mask_sample_count(self.lwe_size().to_lwe_dimension());
+
+        let ciphertext_modulus = self.ciphertext_modulus();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(
+            lwe_count,
+            lwe_mask_sample_count,
+            mask_distribution,
+            modulus,
+        )
     }
 }
 

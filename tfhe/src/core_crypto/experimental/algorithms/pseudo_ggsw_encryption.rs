@@ -37,17 +37,9 @@ pub fn encrypt_pseudo_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Output
 
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .fork_pseudo_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size_in(),
-            output.glwe_size_out(),
-            output.polynomial_size(),
-        )
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .expect("Failed to split generator into pseudo ggsw levels");
 
-    let output_glwe_size_in = output.glwe_size_in();
-    let ouptut_glwe_size_out = output.glwe_size_out();
-    let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
@@ -65,11 +57,7 @@ pub fn encrypt_pseudo_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Output
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = generator
-            .fork_pseudo_ggsw_level_to_glwe::<Scalar>(
-                output_glwe_size_in,
-                ouptut_glwe_size_out,
-                output_polynomial_size,
-            )
+            .try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
             .expect("Failed to split generator into glwe");
 
         for ((row_index, mut row_as_glwe), mut generator) in level_matrix

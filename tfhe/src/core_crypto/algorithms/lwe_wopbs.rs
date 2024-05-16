@@ -116,15 +116,9 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
         output_cbs_pfpksk_list.ciphertext_modulus()
     );
 
-    let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
-
     let gen_iter = generator
-        .fork_cbs_pfpksk_to_pfpksk::<Scalar>(
-            decomp_level_count,
-            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
-            output_glwe_secret_key.polynomial_size(),
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            output_cbs_pfpksk_list.lwe_pfpksk_count(),
+        .try_fork_from_config(
+            output_cbs_pfpksk_list.encryption_fork_config(Uniform, noise_distribution),
         )
         .unwrap();
 
@@ -176,7 +170,7 @@ pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    noise_parameters: NoiseDistribution,
+    noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
@@ -209,7 +203,7 @@ where
         &mut cbs_pfpksk_list,
         input_lwe_secret_key,
         output_glwe_secret_key,
-        noise_parameters,
+        noise_distribution,
         generator,
     );
 
@@ -256,15 +250,9 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
         output_cbs_pfpksk_list.ciphertext_modulus()
     );
 
-    let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
-
     let gen_iter = generator
-        .par_fork_cbs_pfpksk_to_pfpksk::<Scalar>(
-            decomp_level_count,
-            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
-            output_glwe_secret_key.polynomial_size(),
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            output_cbs_pfpksk_list.lwe_pfpksk_count(),
+        .par_try_fork_from_config(
+            output_cbs_pfpksk_list.encryption_fork_config(Uniform, noise_distribution),
         )
         .unwrap();
 

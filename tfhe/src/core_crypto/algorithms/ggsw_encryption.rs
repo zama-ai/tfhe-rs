@@ -100,15 +100,9 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .fork_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .expect("Failed to split generator into ggsw levels");
 
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
@@ -128,7 +122,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = generator
-            .fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+            .try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
             .expect("Failed to split generator into glwe");
 
         let last_row_index = level_matrix.glwe_size().0 - 1;
@@ -242,15 +236,9 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
 
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .expect("Failed to split generator into ggsw levels");
 
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
@@ -270,7 +258,9 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
             // We iterate over the rows of the level matrix, the last row needs special
             // treatment
             let gen_iter = generator
-                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+                .par_try_fork_from_config(
+                    level_matrix.encryption_fork_config(Uniform, noise_distribution),
+                )
                 .expect("Failed to split generator into glwe");
 
             let last_row_index = level_matrix.glwe_size().0 - 1;
@@ -362,15 +352,9 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 {
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .fork_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .expect("Failed to split generator into ggsw levels");
 
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
@@ -390,7 +374,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = loop_generator
-            .fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+            .try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
             .expect("Failed to split generator into glwe");
 
         let last_row_index = level_matrix.glwe_size().0 - 1;
@@ -549,15 +533,9 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 {
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .expect("Failed to split generator into ggsw levels");
 
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
@@ -576,7 +554,9 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 
             // We iterate over the rows of the level matrix, the last row needs special treatment
             let gen_iter = generator
-                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+                .par_try_fork_from_config(
+                    level_matrix.encryption_fork_config(Uniform, noise_distribution),
+                )
                 .expect("Failed to split generator into glwe");
 
             let last_row_index = level_matrix.glwe_size().0 - 1;

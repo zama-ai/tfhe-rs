@@ -710,7 +710,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, NoiseDistribution, KeyCont, OutputCon
     );
 
     let gen_iter = generator
-        .fork_lwe_list_to_lwe::<Scalar>(output.lwe_ciphertext_count(), output.lwe_size())
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     for ((encoded_plaintext_ref, mut ciphertext), mut loop_generator) in
@@ -809,7 +809,7 @@ pub fn par_encrypt_lwe_ciphertext_list<
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output: &mut LweCiphertextList<OutputCont>,
     encoded: &PlaintextList<InputCont>,
-    noise_parameters: NoiseDistribution,
+    noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
     Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
@@ -828,7 +828,7 @@ pub fn par_encrypt_lwe_ciphertext_list<
     );
 
     let gen_iter = generator
-        .par_fork_lwe_list_to_lwe::<Scalar>(output.lwe_ciphertext_count(), output.lwe_size())
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     encoded
@@ -840,7 +840,7 @@ pub fn par_encrypt_lwe_ciphertext_list<
                 lwe_secret_key,
                 &mut ciphertext,
                 encoded_plaintext_ref.into(),
-                noise_parameters,
+                noise_distribution,
                 &mut generator,
             );
         });
@@ -1170,7 +1170,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     );
 
     let gen_iter = generator
-        .fork_lwe_list_to_lwe::<Scalar>(output.lwe_ciphertext_count(), output.lwe_size())
+        .try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     for ((mut output_body, plaintext), mut loop_generator) in
@@ -1335,7 +1335,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     );
 
     let gen_iter = generator
-        .par_fork_lwe_list_to_lwe::<Scalar>(output.lwe_ciphertext_count(), output.lwe_size())
+        .par_try_fork_from_config(output.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     let lwe_dimension = output.lwe_size().to_lwe_dimension();

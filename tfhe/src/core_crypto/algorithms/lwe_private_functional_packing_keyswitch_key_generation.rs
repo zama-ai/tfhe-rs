@@ -92,12 +92,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
         .chain(last_key_iter_bit.iter());
 
     let gen_iter = generator
-        .fork_pfpksk_to_pfpksk_chunks::<Scalar>(
-            decomp_level_count,
-            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
-            output_glwe_secret_key.polynomial_size(),
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-        )
+        .try_fork_from_config(lwe_pfpksk.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     // loop over the before key blocks
@@ -205,12 +200,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
         .chain(last_key_iter_bit.par_iter());
 
     let gen_iter = generator
-        .par_fork_pfpksk_to_pfpksk_chunks::<Scalar>(
-            decomp_level_count,
-            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
-            output_glwe_secret_key.polynomial_size(),
-            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-        )
+        .par_try_fork_from_config(lwe_pfpksk.encryption_fork_config(Uniform, noise_distribution))
         .unwrap();
 
     let plaintext_count = PlaintextCount(

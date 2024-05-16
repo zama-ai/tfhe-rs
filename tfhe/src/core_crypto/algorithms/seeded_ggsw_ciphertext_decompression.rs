@@ -2,6 +2,7 @@
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::core_crypto::commons::math::random::Uniform;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -23,17 +24,10 @@ pub fn decompress_seeded_ggsw_ciphertext_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    // Generator forking must match the encryption algorithm
-    let output_decomp_level_count = output_ggsw.decomposition_level_count();
-    let output_glwe_size = output_ggsw.glwe_size();
-    let output_polynomial_size = output_ggsw.polynomial_size();
+    let ggsw_forking_configuration = input_seeded_ggsw.decompression_fork_config(Uniform);
 
     let gen_iter = generator
-        .fork_ggsw_to_ggsw_levels::<Scalar>(
-            output_decomp_level_count,
-            output_glwe_size,
-            output_polynomial_size,
-        )
+        .try_fork_from_config(ggsw_forking_configuration)
         .expect("Failed to split generator into ggsw levels");
 
     for ((matrix_in, mut matrix_out), mut loop_generator) in input_seeded_ggsw
@@ -41,9 +35,11 @@ pub fn decompress_seeded_ggsw_ciphertext_with_existing_generator<
         .zip(output_ggsw.iter_mut())
         .zip(gen_iter)
     {
+        let ggsw_level_forking_configuration = matrix_in.decompression_fork_config(Uniform);
+
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = loop_generator
-            .fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+            .try_fork_from_config(ggsw_level_forking_configuration)
             .expect("Failed to split generator into glwe");
 
         for ((row_glwe_in, mut row_glwe_out), mut inner_loop_generator) in matrix_in
@@ -96,17 +92,10 @@ pub fn par_decompress_seeded_ggsw_ciphertext_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
 {
-    // Generator forking must match the encryption algorithm
-    let output_decomp_level_count = output_ggsw.decomposition_level_count();
-    let output_glwe_size = output_ggsw.glwe_size();
-    let output_polynomial_size = output_ggsw.polynomial_size();
+    let ggsw_forking_configuration = input_seeded_ggsw.decompression_fork_config(Uniform);
 
     let gen_iter = generator
-        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
-            output_decomp_level_count,
-            output_glwe_size,
-            output_polynomial_size,
-        )
+        .par_try_fork_from_config(ggsw_forking_configuration)
         .expect("Failed to split generator into ggsw levels");
 
     input_seeded_ggsw
@@ -114,9 +103,11 @@ pub fn par_decompress_seeded_ggsw_ciphertext_with_existing_generator<
         .zip(output_ggsw.par_iter_mut())
         .zip(gen_iter)
         .for_each(|((matrix_in, mut matrix_out), mut loop_generator)| {
+            let ggsw_level_forking_configuration = matrix_in.decompression_fork_config(Uniform);
+
             // We iterate over the rows of the level matrix, the last row needs special treatment
             let gen_iter = loop_generator
-                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+                .par_try_fork_from_config(ggsw_level_forking_configuration)
                 .expect("Failed to split generator into glwe");
 
             matrix_in

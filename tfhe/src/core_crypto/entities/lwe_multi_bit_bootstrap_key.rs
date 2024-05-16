@@ -1,5 +1,7 @@
 //! Module containing the definition of the [`LweMultiBitBootstrapKey`].
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -59,6 +61,50 @@ pub fn lwe_multi_bit_bootstrap_key_size(
         polynomial_size,
         decomp_level_count,
     ))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn lwe_multi_bit_bootstrap_key_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
+    input_lwe_dimension: LweDimension,
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomposition_level_count: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    mask_distribution: MaskDistribution,
+    noise_distribution: NoiseDistribution,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> EncryptionRandomGeneratorForkConfig
+where
+    Scalar: UnsignedInteger
+        + RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+        + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
+{
+    let ggsw_group_mask_sample_count = grouping_factor.ggsw_per_multi_bit_element().0
+        * ggsw_ciphertext_encryption_mask_sample_count(
+            glwe_size,
+            polynomial_size,
+            decomposition_level_count,
+        );
+
+    let ggsw_group_noise_sample_count = grouping_factor.ggsw_per_multi_bit_element().0
+        * ggsw_ciphertext_encryption_noise_sample_count(
+            glwe_size,
+            polynomial_size,
+            decomposition_level_count,
+        );
+
+    let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+    EncryptionRandomGeneratorForkConfig::new(
+        input_lwe_dimension.0,
+        ggsw_group_mask_sample_count,
+        mask_distribution,
+        ggsw_group_noise_sample_count,
+        noise_distribution,
+        modulus,
+    )
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstrapKey<C> {
@@ -236,6 +282,29 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
             self.decomposition_base_log(),
             self.decomposition_level_count(),
             self.grouping_factor(),
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        lwe_multi_bit_bootstrap_key_fork_config(
+            self.input_lwe_dimension(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_level_count(),
+            self.grouping_factor(),
+            mask_distribution,
+            noise_distribution,
             self.ciphertext_modulus(),
         )
     }

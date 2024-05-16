@@ -1,5 +1,7 @@
 //! Module containing the definition of the LwePrivateFunctionalPackingKeyswitchKey.
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -60,6 +62,60 @@ pub fn lwe_pfpksk_size(
             output_glwe_size,
             output_polynomial_size,
         )
+}
+
+/// Return the number of mask samples used during encryption of an
+/// [`LwePrivateFunctionalPackingKeyswitchKey`] chunk given a [`DecompositionLevelCount`],
+/// output [`GlweSize`] and [`PolynomialSize`].
+fn lwe_pfpksk_chunk_encryption_mask_sample_count(
+    decomp_level_count: DecompositionLevelCount,
+    output_glwe_size: GlweSize,
+    output_poly_size: PolynomialSize,
+) -> EncryptionMaskSampleCount {
+    decomp_level_count.0
+        * glwe_ciphertext_encryption_mask_sample_count(
+            output_glwe_size.to_glwe_dimension(),
+            output_poly_size,
+        )
+}
+
+/// Return the number of mask samples used during encryption of an
+/// [`LwePrivateFunctionalPackingKeyswitchKey`] given an input [`LweSize`] a
+/// [`DecompositionLevelCount`], output [`GlweSize`] and [`PolynomialSize`].
+pub fn lwe_pfpksk_encryption_mask_sample_count(
+    input_lwe_size: LweSize,
+    decomp_level_count: DecompositionLevelCount,
+    output_glwe_size: GlweSize,
+    output_polynomial_size: PolynomialSize,
+) -> EncryptionMaskSampleCount {
+    input_lwe_size.0
+        * lwe_pfpksk_chunk_encryption_mask_sample_count(
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+        )
+}
+
+/// Return the number of noise samples used during encryption of an
+/// [`LwePrivateFunctionalPackingKeyswitchKey`] chunk given a [`DecompositionLevelCount`],
+/// output [`PolynomialSize`].
+fn lwe_pfpksk_chunk_encryption_noise_sample_count(
+    decomp_level_count: DecompositionLevelCount,
+    output_polynomial_size: PolynomialSize,
+) -> EncryptionNoiseSampleCount {
+    decomp_level_count.0 * glwe_ciphertext_encryption_noise_sample_count(output_polynomial_size)
+}
+
+/// Return the number of noise samples used during encryption of an
+/// [`LwePrivateFunctionalPackingKeyswitchKey`] given an input [`LweSize`] a
+/// [`DecompositionLevelCount`] and output [`PolynomialSize`].
+pub fn lwe_pfpksk_encryption_noise_sample_count(
+    input_lwe_size: LweSize,
+    decomp_level_count: DecompositionLevelCount,
+    output_polynomial_size: PolynomialSize,
+) -> EncryptionNoiseSampleCount {
+    input_lwe_size.0
+        * lwe_pfpksk_chunk_encryption_noise_sample_count(decomp_level_count, output_polynomial_size)
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
@@ -258,6 +314,42 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// See [`LwePrivateFunctionalPackingKeyswitchKey::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        let input_lwe_size = self.input_key_lwe_dimension().to_lwe_size();
+        let lwe_pfpksk_chunk_mask_sample_count = lwe_pfpksk_chunk_encryption_mask_sample_count(
+            self.decomposition_level_count(),
+            self.output_glwe_size(),
+            self.output_polynomial_size(),
+        );
+        let lwe_pfpksk_chunk_noise_sample_count = lwe_pfpksk_chunk_encryption_noise_sample_count(
+            self.decomposition_level_count(),
+            self.output_polynomial_size(),
+        );
+
+        let modulus = self
+            .ciphertext_modulus()
+            .get_custom_modulus_as_optional_scalar();
+
+        EncryptionRandomGeneratorForkConfig::new(
+            input_lwe_size.0,
+            lwe_pfpksk_chunk_mask_sample_count,
+            mask_distribution,
+            lwe_pfpksk_chunk_noise_sample_count,
+            noise_distribution,
+            modulus,
+        )
     }
 }
 

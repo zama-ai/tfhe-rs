@@ -74,6 +74,15 @@ macro_rules! implement_gaussian {
                 // probability
                 std::f64::consts::PI / 4.0
             }
+
+            fn single_sample_required_random_byte_count(
+                _distribution: Gaussian<$T>,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> usize {
+                // The modulus and parameters of the distribution do not impact the amount of byte
+                // required
+                2 * std::mem::size_of::<$S>()
+            }
         }
     };
 }
@@ -114,8 +123,21 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> f64 {
-        // The modulus does not impact gaussian generation success
+        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
+            distribution,
+            None,
+        )
+    }
+
+    fn single_sample_required_random_byte_count(
+        distribution: Gaussian<f64>,
+        _modulus: Option<Self::CustomModulus>,
+    ) -> usize {
+        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // we cannot forward it, thankully the modulus does not impact gaussian generation success
+        <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_required_random_byte_count(
             distribution,
             None,
         )
@@ -149,8 +171,21 @@ where
         distribution: Gaussian<f64>,
         _modulus: Option<Self::CustomModulus>,
     ) -> f64 {
-        // The modulus does not impact gaussian generation success
+        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // we cannot forward it, thankully the modulus does not impact gaussian generation success
         <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_success_probability(
+            distribution,
+            None,
+        )
+    }
+
+    fn single_sample_required_random_byte_count(
+        distribution: Gaussian<f64>,
+        _modulus: Option<Self::CustomModulus>,
+    ) -> usize {
+        // Here the CustomModulus is a Torus and not f64 and is therefore not comaptible, so
+        // we cannot forward it, thankully the modulus does not impact gaussian generation success
+        <(f64, f64) as RandomGenerable<Gaussian<f64>>>::single_sample_required_random_byte_count(
             distribution,
             None,
         )

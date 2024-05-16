@@ -222,6 +222,23 @@ pub fn glwe_ciphertext_mask_size(
         .0
 }
 
+/// Return the number of mask samples used during encryption of a [`GlweCiphertext`] given a
+/// [`GlweDimension`] and [`PolynomialSize`].
+pub fn glwe_ciphertext_encryption_mask_sample_count(
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+) -> EncryptionMaskSampleCount {
+    EncryptionMaskSampleCount(glwe_ciphertext_mask_size(glwe_dimension, polynomial_size))
+}
+
+/// Return the number of noise samples required to encrypt a [`GlweCiphertext`] given a
+/// [`PolynomialSize`].
+pub fn glwe_ciphertext_encryption_noise_sample_count(
+    polynomial_size: PolynomialSize,
+) -> EncryptionNoiseSampleCount {
+    EncryptionNoiseSampleCount(polynomial_size.0)
+}
+
 /// A [`GLWE ciphertext`](`GlweCiphertext`).
 ///
 /// **Remark:** GLWE ciphertexts generalize LWE ciphertexts by definition, however in this library,

@@ -27,6 +27,15 @@ macro_rules! implement_uniform_binary {
                 // The modulus and parameters of the distribution do not impact generation success
                 1.0
             }
+
+            fn single_sample_required_random_byte_count(
+                _distribution: UniformBinary,
+                _modulus: Option<Self::CustomModulus>,
+            ) -> usize {
+                // The modulus and parameters of the distribution do not impact the amount of byte
+                // required
+                1
+            }
         }
     };
 }

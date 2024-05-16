@@ -1,5 +1,7 @@
 //! Module containing the definition of the GgswCiphertextList.
 
+use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -38,6 +40,45 @@ pub fn ggsw_ciphertext_list_size(
     decomp_level_count: DecompositionLevelCount,
 ) -> usize {
     ciphertext_count.0 * ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)
+}
+
+pub fn ggsw_ciphertext_list_encryption_fork_config<Scalar, MaskDistribution, NoiseDistribution>(
+    ggsw_ciphertext_count: GgswCiphertextCount,
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomposition_level_count: DecompositionLevelCount,
+    mask_distribution: MaskDistribution,
+    noise_distribution: NoiseDistribution,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> EncryptionRandomGeneratorForkConfig
+where
+    Scalar: UnsignedInteger
+        + RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+        + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    MaskDistribution: Distribution,
+    NoiseDistribution: Distribution,
+{
+    let ggsw_mask_sample_count = ggsw_ciphertext_encryption_mask_sample_count(
+        glwe_size,
+        polynomial_size,
+        decomposition_level_count,
+    );
+    let ggsw_noise_sample_count = ggsw_ciphertext_encryption_noise_sample_count(
+        glwe_size,
+        polynomial_size,
+        decomposition_level_count,
+    );
+
+    let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
+
+    EncryptionRandomGeneratorForkConfig::new(
+        ggsw_ciphertext_count.0,
+        ggsw_mask_sample_count,
+        mask_distribution,
+        ggsw_noise_sample_count,
+        noise_distribution,
+        modulus,
+    )
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList<C> {
@@ -193,6 +234,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList
 
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, Scalar> {
         PolynomialList::from_container(self.as_ref(), self.polynomial_size())
+    }
+
+    pub fn encryption_fork_config<MaskDistribution, NoiseDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+        noise_distribution: NoiseDistribution,
+    ) -> EncryptionRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        NoiseDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>
+            + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
+    {
+        ggsw_ciphertext_list_encryption_fork_config(
+            self.ggsw_ciphertext_count(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_level_count(),
+            mask_distribution,
+            noise_distribution,
+            self.ciphertext_modulus(),
+        )
     }
 }
 

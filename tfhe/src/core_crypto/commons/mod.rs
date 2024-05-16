@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Module containing common mathematical objects/cryptographic primitives like random generators or
 //! traits expected to be re-used in various algorithms and entities implementations.
 //!
