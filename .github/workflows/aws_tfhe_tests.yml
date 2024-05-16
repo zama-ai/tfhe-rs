@@ -108,7 +108,7 @@ jobs:
 
   cpu-tests:
     name: CPU tests
-    needs: setup-instance
+    needs: [ file-change, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: true

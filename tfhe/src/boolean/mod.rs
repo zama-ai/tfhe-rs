@@ -101,6 +101,7 @@ pub(crate) fn random_integer() -> u32 {
  // A simple change
 // A second simple change
 // Again a change
+// Blaaaaaaaaah
 
 /// Generate a couple of client and server keys with the default cryptographic parameters:
 /// `DEFAULT_PARAMETERS`.
