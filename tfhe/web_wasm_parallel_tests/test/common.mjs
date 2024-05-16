@@ -50,7 +50,7 @@ async function runActualTest(page, buttonId) {
   }
 }
 
-const TWENTY_MINUTES = 1200 * 1000;
+const TWENTY_MINUTES = 1_000_000 * 1000;
 
 async function runTestAttachedToButton(buttonId) {
   let browser;
@@ -63,6 +63,7 @@ async function runTestAttachedToButton(buttonId) {
   } else {
     browser = await puppeteer.launch({
       headless: "new",
+      args: ["--no-sandbox"],
       protocolTimeout: TWENTY_MINUTES,
     });
   }

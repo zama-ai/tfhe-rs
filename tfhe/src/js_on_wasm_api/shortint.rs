@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::shortint::parameters::bc::*;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
@@ -358,6 +359,19 @@ expose_predefined_parameters! {
     PARAM_SMALL_MESSAGE_2_CARRY_2,
     PARAM_SMALL_MESSAGE_3_CARRY_3,
     PARAM_SMALL_MESSAGE_4_CARRY_4,
+    // ZK_TESTS
+    PARAM_PKE_1_1_2048,
+    PARAM_PKE_2_2_2048,
+    PARAM_PKE_3_3_2048,
+    PARAM_PKE_4_4_2048,
+    PARAM_PKE_1_1_4096,
+    PARAM_PKE_2_2_4096,
+    PARAM_PKE_3_3_4096,
+    PARAM_PKE_4_4_4096,
+    PARAM_PKE_1_1_1024,
+    PARAM_PKE_2_2_1024,
+    PARAM_PKE_3_3_1024,
+    PARAM_PKE_4_4_1024,
 }
 
 #[wasm_bindgen]

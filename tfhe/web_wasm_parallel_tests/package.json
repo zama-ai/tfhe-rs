@@ -9,7 +9,7 @@
     "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/",
     "server": "serve --config ../serve.json dist/",
     "test-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand --testNamePattern=Test",
-    "bench-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand --testNamePattern=Bench",
+    "bench-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand --testNamePattern=ZeroKnowledgeBench",
     "test2": "mocha",
     "format": "prettier . --write",
     "check-format": "prettier . --check"

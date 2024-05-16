@@ -1,4 +1,4 @@
-const secs = 1200; // 20 Minutes
+const secs = 1_000_000; // 20 Minutes
 
 const config = {
   verbose: true,

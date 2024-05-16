@@ -648,53 +648,95 @@ async function compressedServerKeyBenchMessage2Carry2() {
 }
 
 async function compactPublicKeyZeroKnowledgeBench() {
-  let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
-  );
+  let params_to_bench = [
+    ShortintParametersName.PARAM_PKE_1_1_2048,
+    ShortintParametersName.PARAM_PKE_2_2_2048,
+    // ShortintParametersName.PARAM_PKE_3_3_2048,
+    // ShortintParametersName.PARAM_PKE_4_4_2048,
+    ShortintParametersName.PARAM_PKE_1_1_4096,
+    ShortintParametersName.PARAM_PKE_2_2_4096,
+    // ShortintParametersName.PARAM_PKE_3_3_4096,
+    // ShortintParametersName.PARAM_PKE_4_4_4096,
+    ShortintParametersName.PARAM_PKE_1_1_1024,
+    ShortintParametersName.PARAM_PKE_2_2_1024,
+    // ShortintParametersName.PARAM_PKE_3_3_1024,
+    // ShortintParametersName.PARAM_PKE_4_4_1024,
+  ];
 
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
+  // let block_params = new ShortintParameters(
+  //   ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
+  // );
 
-  let clientKey = TfheClientKey.generate(config);
-  let publicKey = TfheCompactPublicKey.new(clientKey);
-
-  console.log("Start CRS generation");
-  console.time("CRS generation");
-  let crs = CompactPkeCrs.from_config(config, 4 * 64);
-  console.timeEnd("CRS generation");
-  let public_params = crs.public_params();
-
-  const bench_loops = 4; // The computation is expensive
   let bench_results = {};
-  let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
-  const load_to_str = {
-    [ZkComputeLoad.Proof]: "compute_load_proof",
-    [ZkComputeLoad.Verify]: "compute_load_verify",
-  };
-  for (const loadChoice of load_choices) {
-    let timing = 0;
-    for (let i = 0; i < bench_loops; i++) {
-      let input = generateRandomBigInt(64);
 
-      const start = performance.now();
-      let _ = ProvenCompactFheUint64.encrypt_with_compact_public_key(
-        input,
-        public_params,
-        publicKey,
-        loadChoice,
-      );
-      const end = performance.now();
-      timing += end - start;
+  for (const block_params_name of params_to_bench) {
+    let block_params = new ShortintParameters(block_params_name);
+
+    let config = TfheConfigBuilder.default()
+      .use_custom_parameters(block_params)
+      .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let publicKey = TfheCompactPublicKey.new(clientKey);
+
+    const bench_loops = 5; // The computation is expensive
+    let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
+    const load_to_str = {
+      [ZkComputeLoad.Proof]: "costly_proof",
+      [ZkComputeLoad.Verify]: "cheap_proof",
+    };
+
+    const param_to_name = {
+      [ShortintParametersName.PARAM_PKE_1_1_2048]: "PARAM_PKE_1_1_2048",
+      [ShortintParametersName.PARAM_PKE_2_2_2048]: "PARAM_PKE_2_2_2048",
+      [ShortintParametersName.PARAM_PKE_3_3_2048]: "PARAM_PKE_3_3_2048",
+      [ShortintParametersName.PARAM_PKE_4_4_2048]: "PARAM_PKE_4_4_2048",
+      [ShortintParametersName.PARAM_PKE_1_1_4096]: "PARAM_PKE_1_1_4096",
+      [ShortintParametersName.PARAM_PKE_2_2_4096]: "PARAM_PKE_2_2_4096",
+      [ShortintParametersName.PARAM_PKE_3_3_4096]: "PARAM_PKE_3_3_4096",
+      [ShortintParametersName.PARAM_PKE_4_4_4096]: "PARAM_PKE_4_4_4096",
+      [ShortintParametersName.PARAM_PKE_1_1_1024]: "PARAM_PKE_1_1_1024",
+      [ShortintParametersName.PARAM_PKE_2_2_1024]: "PARAM_PKE_2_2_1024",
+      [ShortintParametersName.PARAM_PKE_3_3_1024]: "PARAM_PKE_3_3_1024",
+      [ShortintParametersName.PARAM_PKE_4_4_1024]: "PARAM_PKE_4_4_1024",
+    };
+
+    let encrypt_counts = [5, 10];
+
+    for (const encrypt_count of encrypt_counts) {
+      console.log("Start CRS generation");
+      console.time("CRS generation");
+      let crs = CompactPkeCrs.from_config(config, encrypt_count * 64);
+      console.timeEnd("CRS generation");
+
+      let public_params = crs.public_params();
+      let inputs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((e) => BigInt(e));
+      let input = inputs.slice(0, encrypt_count);
+      for (const loadChoice of load_choices) {
+        let timing = 0;
+        for (let i = 0; i < bench_loops; i++) {
+          console.time("Loop " + i);
+          const start = performance.now();
+          let _ = ProvenCompactFheUint64List.encrypt_with_compact_public_key(
+            input,
+            public_params,
+            publicKey,
+            loadChoice,
+          );
+          const end = performance.now();
+          console.timeEnd("Loop " + i);
+          timing += end - start;
+        }
+        const mean = timing / bench_loops;
+        // pke_zk__PARAM_PKE_1_1_1024_10_cheap_proof
+        const bench_str =
+          "pke_zk__" +
+          param_to_name[block_params_name] +
+          "_" + encrypt_count + "_" + load_to_str[loadChoice];
+        console.log(bench_str, ": ", mean, " ms");
+        bench_results[bench_str] = mean;
+      }
     }
-    const mean = timing / bench_loops;
-
-    const bench_str =
-      "compact_fhe_uint64_proven_encryption_" +
-      load_to_str[loadChoice] +
-      "_mean";
-    console.log(bench_str, ": ", mean, " ms");
-    bench_results["compact_fhe_uint64_proven_encryption_"] = mean;
   }
 
   return bench_results;
