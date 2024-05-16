@@ -64,11 +64,6 @@ workflow = "aws_tfhe_gpu_tests.yml"
 profile = "gpu-test"
 check_run_name = "GPU AWS Tests"
 
-[command.multi_gpu_test]
-workflow = "aws_tfhe_gpu_tests.yml"
-profile = "multi-gpu-test"
-check_run_name = "Multi GPU AWS Tests"
-
 [command.signed_integer_full_bench]
 workflow = "signed_integer_full_benchmark.yml"
 profile = "bench"
