@@ -9,7 +9,8 @@ use crate::N;
 use rayon::prelude::*;
 use std::cmp::Ordering;
 use tfhe::integer::bigint::static_unsigned::StaticUnsignedBigInt;
-use tfhe::integer::{BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey as FheServerKey};
+use tfhe::integer::prelude::*;
+use tfhe::integer::{BooleanBlock, RadixCiphertext, ServerKey as FheServerKey};
 
 /// Represents a server key to operate homomorphically on [`FheString`].
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

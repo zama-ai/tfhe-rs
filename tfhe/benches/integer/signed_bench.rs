@@ -8,6 +8,7 @@ use rand::prelude::*;
 use std::env;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
+use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
 #[cfg(feature = "gpu")]

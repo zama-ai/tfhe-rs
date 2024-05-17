@@ -1,4 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::prelude::*;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
@@ -26,7 +27,11 @@ fn integer_default_if_then_else<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::if_then_else_parallelized);
+    let func =
+        |sks: &ServerKey, cond: &BooleanBlock, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
+            sks.if_then_else_parallelized(cond, lhs, rhs)
+        };
+    let executor = CpuFunctionExecutor::new(&func);
     default_if_then_else_test(param, executor);
 }
 pub(crate) fn smart_if_then_else_test<P, T>(param: P, mut executor: T)
