@@ -3,6 +3,7 @@ use crate::server_key::pattern::IsMatch;
 use crate::server_key::{CharIter, FheStringLen, ServerKey};
 use rayon::prelude::*;
 use std::ops::Range;
+use tfhe::integer::prelude::*;
 use tfhe::integer::BooleanBlock;
 
 impl ServerKey {

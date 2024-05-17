@@ -10,6 +10,7 @@ use crate::high_level_api::traits::{FheEq, IfThenElse};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
@@ -214,6 +215,25 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
         });
 
         FheInt::new(new_ct)
+    }
+}
+
+impl IfThenElse<Self> for FheBool {
+    fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self {
+        let ct_condition = self;
+        let new_ct = global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => key.pbs_key().if_then_else_parallelized(
+                &ct_condition.ciphertext.on_cpu(),
+                &*ct_then.ciphertext.on_cpu(),
+                &*ct_else.ciphertext.on_cpu(),
+            ),
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support signed integers")
+            }
+        });
+
+        Self::new(new_ct)
     }
 }
 

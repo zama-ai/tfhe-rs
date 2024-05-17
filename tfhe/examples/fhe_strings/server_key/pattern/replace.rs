@@ -1,6 +1,7 @@
 use crate::ciphertext::{FheString, GenericPattern, UIntArg};
 use crate::server_key::pattern::IsMatch;
 use crate::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
+use tfhe::integer::prelude::*;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl ServerKey {

@@ -3,6 +3,187 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
+pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
+    type Output;
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: TrueCt,
+        false_ct: FalseCt,
+    ) -> Self::Output;
+
+    fn cmux_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: TrueCt,
+        false_ct: FalseCt,
+    ) -> Self::Output {
+        self.if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+}
+
+impl<T> ServerKeyDefaultCMux<&T, &T> for ServerKey
+where
+    T: IntegerRadixCiphertext,
+{
+    type Output = T;
+
+    /// FHE "if then else" selection.
+    ///
+    /// Returns a new ciphertext that encrypts the same value
+    /// as either true_ct or false_ct depending on the value of condition:
+    ///
+    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
+    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_ct.
+    ///
+    /// To ensure correct results, condition must encrypt either 0 or 1
+    /// (e.g result from a comparison).
+    ///
+    /// Note that while the returned ciphertext encrypts the same value as
+    /// either true_ct or false_ct, it won't exactly be true_ct or false_ct.
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::prelude::*;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    ///
+    /// let a = 128u8;
+    /// let b = 55u8;
+    ///
+    /// let ct_a = cks.encrypt(a);
+    /// let ct_b = cks.encrypt(b);
+    ///
+    /// let condition = sks.scalar_ge_parallelized(&ct_a, 66);
+    ///
+    /// let ct_res = sks.if_then_else_parallelized(&condition, &ct_a, &ct_b);
+    ///
+    /// // Decrypt:
+    /// let dec: u8 = cks.decrypt(&ct_res);
+    /// assert_eq!(if a >= 66 { a } else { b }, dec);
+    /// assert_ne!(ct_a, ct_res);
+    /// assert_ne!(ct_b, ct_res);
+    /// ```
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
+    ) -> Self::Output {
+        let mut ct_clones = [None, None];
+        let mut ct_refs = [true_ct, false_ct];
+
+        ct_refs
+            .par_iter_mut()
+            .zip(ct_clones.par_iter_mut())
+            .for_each(|(ct_ref, ct_clone)| {
+                if !ct_ref.block_carries_are_empty() {
+                    let mut cloned = ct_ref.clone();
+                    self.full_propagate_parallelized(&mut cloned);
+                    *ct_ref = ct_clone.insert(cloned);
+                }
+            });
+
+        let [true_ct, false_ct] = ct_refs;
+        self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+}
+
+impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
+    type Output = BooleanBlock;
+
+    /// FHE "if then else" selection.
+    ///
+    /// Returns a new ciphertext that encrypts the same value
+    /// as either true_ct or false_ct depending on the value of condition:
+    ///
+    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
+    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_ct.
+    ///
+    /// To ensure correct results, condition must encrypt either 0 or 1
+    /// (e.g result from a comparison).
+    ///
+    /// Note that while the returned ciphertext encrypts the same value as
+    /// either true_ct or false_ct, it won't exactly be true_ct or false_ct.
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::prelude::*;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
+    ///
+    /// for cond in [true, false] {
+    ///     for a in [true, false] {
+    ///         for b in [true, false] {
+    ///             let condition = cks.encrypt_bool(cond);
+    ///             let ct_a = cks.encrypt_bool(a);
+    ///             let ct_b = cks.encrypt_bool(b);
+    ///
+    ///             let ct_res = sks.if_then_else_parallelized(&condition, &ct_a, &ct_b);
+    ///
+    ///             // Decrypt:
+    ///             let dec = cks.decrypt_bool(&ct_res);
+    ///             assert_eq!(if cond { a } else { b }, dec);
+    ///             assert_ne!(ct_a, ct_res);
+    ///             assert_ne!(ct_b, ct_res);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &BooleanBlock,
+        false_ct: &BooleanBlock,
+    ) -> Self::Output {
+        let total_nb_bits = (self.message_modulus().0 * self.carry_modulus().0).ilog2();
+        assert!(
+            total_nb_bits >= 2,
+            "At least 2 bits of plaintext are required"
+        );
+
+        let zero_lut = self.key.generate_lookup_table(|x| {
+            let cond = (x >> 1) & 1 == 1;
+            let value = x & 1;
+
+            if cond {
+                value
+            } else {
+                0
+            }
+        });
+
+        let negated_cond = self.boolean_bitnot(condition);
+
+        let (mut lhs, rhs) = rayon::join(
+            || {
+                let mut block = self.key.scalar_mul(&condition.0, 2);
+                self.key.unchecked_add_assign(&mut block, &true_ct.0);
+                self.key.apply_lookup_table_assign(&mut block, &zero_lut);
+                block
+            },
+            || {
+                let mut block = self.key.scalar_mul(&negated_cond.0, 2);
+                self.key.unchecked_add_assign(&mut block, &false_ct.0);
+                self.key.apply_lookup_table_assign(&mut block, &zero_lut);
+                block
+            },
+        );
+
+        self.key.unchecked_add_assign(&mut lhs, &rhs);
+        let clean_lut = self.key.generate_lookup_table(|x| x % 2);
+        self.key.apply_lookup_table_assign(&mut lhs, &clean_lut);
+
+        BooleanBlock::new_unchecked(lhs)
+    }
+}
+
 impl ServerKey {
     pub fn unchecked_if_then_else_parallelized<T>(
         &self,
@@ -28,71 +209,6 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
-    }
-
-    /// FHE "if then else" selection.
-    ///
-    /// Returns a new ciphertext that encrypts the same value
-    /// as either true_ct or false_ct depending on the value of condition:
-    ///
-    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
-    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_ct.
-    ///
-    /// To ensure correct results, condition must encrypt either 0 or 1
-    /// (e.g result from a comparison).
-    ///
-    /// Note that while the returned ciphertext encrypts the same value as
-    /// either true_ct or false_ct, it won't exactly be true_ct or false_ct.
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
-    ///
-    /// let a = 128u8;
-    /// let b = 55u8;
-    ///
-    /// let ct_a = cks.encrypt(a);
-    /// let ct_b = cks.encrypt(b);
-    ///
-    /// let condition = sks.scalar_ge_parallelized(&ct_a, 66);
-    ///
-    /// let ct_res = sks.if_then_else_parallelized(&condition, &ct_a, &ct_b);
-    ///
-    /// // Decrypt:
-    /// let dec: u8 = cks.decrypt(&ct_res);
-    /// assert_eq!(if a >= 66 { a } else { b }, dec);
-    /// assert_ne!(ct_a, ct_res);
-    /// assert_ne!(ct_b, ct_res);
-    /// ```
-    pub fn if_then_else_parallelized<T>(
-        &self,
-        condition: &BooleanBlock,
-        true_ct: &T,
-        false_ct: &T,
-    ) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let mut ct_clones = [None, None];
-        let mut ct_refs = [true_ct, false_ct];
-
-        ct_refs
-            .par_iter_mut()
-            .zip(ct_clones.par_iter_mut())
-            .for_each(|(ct_ref, ct_clone)| {
-                if !ct_ref.block_carries_are_empty() {
-                    let mut cloned = ct_ref.clone();
-                    self.full_propagate_parallelized(&mut cloned);
-                    *ct_ref = ct_clone.insert(cloned);
-                }
-            });
-
-        let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 

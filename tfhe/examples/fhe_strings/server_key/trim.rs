@@ -1,6 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheString};
 use crate::server_key::{FheStringIsEmpty, FheStringIterator, FheStringLen, ServerKey};
 use rayon::prelude::*;
+use tfhe::integer::prelude::*;
 use tfhe::integer::BooleanBlock;
 
 pub struct SplitAsciiWhitespace {
