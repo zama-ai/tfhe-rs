@@ -26,3 +26,4 @@ features = ["aarch64-unix"]
 
 [features]
 nightly-avx512 = ["tfhe/nightly-avx512"]
+gpu = ["tfhe/gpu"]

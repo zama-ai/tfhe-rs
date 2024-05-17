@@ -23,6 +23,7 @@ pub const MULTI_BIT_EXT_PROD_ALGO: &str = "multi-bit-ext-prod";
 pub const STD_MULTI_BIT_EXT_PROD_ALGO: &str = "std-multi-bit-ext-prod";
 pub const EXT_PROD_U128_SPLIT_ALGO: &str = "ext-prod-u128-split";
 pub const EXT_PROD_U128_ALGO: &str = "ext-prod-u128";
+pub const MULTI_BIT_BOOTSTRAP_GPU: &str = "multi-bit-bootstrap-gpu";
 
 #[derive(Debug)]
 pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: UnsignedInteger> {
@@ -63,7 +64,8 @@ struct Args {
         MULTI_BIT_EXT_PROD_ALGO,
         STD_MULTI_BIT_EXT_PROD_ALGO,
         EXT_PROD_U128_SPLIT_ALGO,
-        EXT_PROD_U128_ALGO
+        EXT_PROD_U128_ALGO,
+        MULTI_BIT_BOOTSTRAP_GPU
     ], default_value = "")]
     algorithm: String,
     multi_bit_grouping_factor: Option<usize>,
@@ -313,6 +315,12 @@ fn main() {
     };
 
     if timing_only {
+        match algo.as_str() {
+            MULTI_BIT_BOOTSTRAP_GPU => {
+                return ks_pbs_timing::timing_experiment_gpu(&algo, preserved_mantissa, modulus);
+            }
+            _ => {}
+        }
         return ks_pbs_timing::timing_experiment(&algo, preserved_mantissa, modulus);
     }
 
@@ -324,20 +332,20 @@ fn main() {
     // Parameter Grid
     let polynomial_sizes = vec![
         PolynomialSize(1 << 8),
-        PolynomialSize(1 << 9),
+       /* PolynomialSize(1 << 9),
         PolynomialSize(1 << 10),
         PolynomialSize(1 << 11),
         PolynomialSize(1 << 12),
         PolynomialSize(1 << 13),
-        PolynomialSize(1 << 14),
+        PolynomialSize(1 << 14),*/
     ];
     let max_polynomial_size = polynomial_sizes.iter().copied().max().unwrap();
     let glwe_dimensions = vec![
         GlweDimension(1),
-        GlweDimension(2),
+        /*GlweDimension(2),
         GlweDimension(3),
         GlweDimension(4),
-        GlweDimension(5),
+        GlweDimension(5),*/
     ];
 
     let base_logs: Vec<_> = (1..=max_base_log_inclusive).collect();

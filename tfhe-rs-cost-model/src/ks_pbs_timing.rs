@@ -8,7 +8,13 @@ use itertools::Itertools;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
-
+//#[cfg(feature = "gpu")]  <-might need something like this
+use tfhe::core_crypto::algorithms::misc::*;
+use tfhe::core_crypto::gpu::*;
+use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use tfhe::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
+use tfhe::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
+use tfhe::core_crypto::gpu::vec::CudaVec;
 pub const SECURITY_LEVEL: u64 = 128;
 // Variance of uniform distribution over [0; 1)
 pub const UNIFORM_NOISE_VARIANCE: f64 = 1. / 12.;
@@ -163,7 +169,7 @@ fn write_results_to_file(
     let out_file_name = PathBuf::from(format!("{exp_name}.csv"));
 
     let out_path = out_dir.join(out_file_name);
-
+    println!("generated file {out_path:?}");
     if out_path.exists() {
         std::fs::remove_file(&out_path).unwrap();
     }
@@ -440,8 +446,222 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
     }
 }
 
-pub const CHUNK_SIZE: [usize; 5] = [1, 32, 64, 128, 192];
-pub const BATCH_COUNT: usize = 100;
+// Probably this can be moved somewhere or reuse some of the already existant code
+pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus: u128) {
+    assert_eq!(algorithm, MULTI_BIT_BOOTSTRAP_GPU);
+
+    let out_dir = Path::new("gpu_exp");
+    if !out_dir.exists() {
+        std::fs::create_dir(out_dir).unwrap();
+    }
+
+    let ciphertext_modulus: CiphertextModulus<u64> = match modulus {
+        0 => CiphertextModulus::new_native(),
+        _ => CiphertextModulus::try_new(modulus).unwrap(),
+    };
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
+    let lwe_dimension_search_space = (512..=1024).step_by(64).map(LweDimension);
+    let glwe_dimension_search_space = (1..=5).map(GlweDimension);
+    let polynomial_size_search_space = (8..=14).map(|poly_log2| PolynomialSize(1 << poly_log2));
+
+    let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
+        64usize
+    } else {
+        ciphertext_modulus.get_custom_modulus().ilog2() as usize
+    };
+
+    // TODO: as discussed with Sam, limit to 40
+    let max_base_level_product = 40;
+
+    let preserved_mantissa = preserved_mantissa.min(modulus_log2);
+
+    let (potential_base_logs, potential_levels) = (
+        (1..=modulus_log2).collect::<Vec<_>>(),
+        (1..=modulus_log2).collect::<Vec<_>>(),
+    );
+
+    let max_base_log_level_prod = preserved_mantissa
+        .min(modulus_log2)
+        .min(max_base_level_product);
+
+    // let base_log_level_pbs = filter_b_l(
+    //     &potential_base_logs,
+    //     &potential_levels,
+    //     max_base_log_level_prod,
+    // );
+
+    let base_log_level_pbs = filter_b_l_limited(
+        &potential_base_logs,
+        &potential_levels,
+        max_base_log_level_prod,
+    );
+    // Same for KS
+    let base_log_level_ks = base_log_level_pbs.clone();
+
+    let hypercube = iproduct!(
+        lwe_dimension_search_space,
+        glwe_dimension_search_space,
+        polynomial_size_search_space,
+        base_log_level_pbs,
+        base_log_level_ks
+    );
+
+    let hypercube: Vec<_> = hypercube
+        .map(
+            |(
+                lwe_dimension,
+                glwe_dimension,
+                polynomial_size,
+                pbs_base_log_level,
+                ks_base_log_level,
+            )| {
+                let params = Params {
+                    lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    pbs_base_log: pbs_base_log_level.base,
+                    pbs_level: pbs_base_log_level.level,
+                    ks_base_log: ks_base_log_level.base,
+                    ks_level: ks_base_log_level.level,
+                };
+                let variances = lwe_glwe_noise_ap_estimate(
+                    params,
+                    modulus_log2.try_into().unwrap(),
+                    preserved_mantissa,
+                );
+                (params, variances)
+            },
+        )
+        .filter(|(_params, variances)| {
+            // let noise_ok = variances.all_noises_are_not_uniformly_random();
+            // let base_logs_not_too_small = params.pbs_base_log.0 != 1 && params.ks_base_log.0 != 1;
+
+            // noise_ok && base_logs_not_too_small
+
+            // let glwe_poly_not_too_big = params.polynomial_size.0 < 2048
+            //     || (params.polynomial_size.0 >= 2048 && params.glwe_dimension.0 == 1);
+
+            // noise_ok && glwe_poly_not_too_big
+
+            // noise_ok
+
+            variances.all_noises_are_not_uniformly_random()
+        })
+        .collect();
+
+    println!("candidates {}", hypercube.len());
+
+    let mut hypercube: Vec<_> = hypercube
+        .into_iter()
+        .unique_by(|x| ParamsHash::from(x.0))
+        .collect();
+
+    println!("candidates {}", hypercube.len());
+
+    // hypercube.sort_by(|a, b| {
+    //     let a = a.0;
+    //     let b = b.0;
+    //     let cost_a = ks_cost(
+    //         a.lwe_dimension,
+    //         a.glwe_dimension
+    //             .to_equivalent_lwe_dimension(a.polynomial_size),
+    //         a.ks_level,
+    //     ) + pbs_cost(
+    //         a.lwe_dimension,
+    //         a.glwe_dimension,
+    //         a.pbs_level,
+    //         a.polynomial_size,
+    //     );
+    //     let cost_b = ks_cost(
+    //         b.lwe_dimension,
+    //         b.glwe_dimension
+    //             .to_equivalent_lwe_dimension(b.polynomial_size),
+    //         b.ks_level,
+    //     ) + pbs_cost(
+    //         b.lwe_dimension,
+    //         b.glwe_dimension,
+    //         b.pbs_level,
+    //         b.polynomial_size,
+    //     );
+
+    //     cost_a.cmp(&cost_b)
+    // });
+
+    let seed = [0u8; 8 * 4];
+    let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
+    hypercube.shuffle(&mut rng);
+
+    // // After the shuffle make the small levels pop first
+    // hypercube.sort_by(|a, b| {
+    //     let a = a.0;
+    //     let b = b.0;
+
+    //     let a_level_prod = a.ks_level.0 * a.pbs_level.0;
+    //     let b_level_prod = b.ks_level.0 * b.pbs_level.0;
+
+    //     a_level_prod.cmp(&b_level_prod)
+
+    //     // let a_size = a
+    //     //     .glwe_dimension
+    //     //     .to_equivalent_lwe_dimension(a.polynomial_size)
+    //     //     .0
+    //     //     * a.ks_level.0
+    //     //     * a.lwe_dimension.to_lwe_size().0
+    //     //     + a.lwe_dimension.0
+    //     //         * (a.glwe_dimension.to_glwe_size().0.pow(2))
+    //     //         * a.pbs_level.0
+    //     //         * a.polynomial_size.0;
+
+    //     // let b_size = b
+    //     //     .glwe_dimension
+    //     //     .to_equivalent_lwe_dimension(b.polynomial_size)
+    //     //     .0
+    //     //     * b.ks_level.0
+    //     //     * b.lwe_dimension.to_lwe_size().0
+    //     //     + b.lwe_dimension.0
+    //     //         * (b.glwe_dimension.to_glwe_size().0.pow(2))
+    //     //         * b.pbs_level.0
+    //     //         * b.polynomial_size.0;
+
+    //     // a_size.cmp(&b_size)
+    // });
+
+    // {
+    //     let mut out = std::fs::File::options()
+    //         .create(true)
+    //         .truncate(true)
+    //         .write(true)
+    //         .open(&out_dir.join(&"params.log"))
+    //         .unwrap();
+
+    //     for (param, _) in &hypercube {
+    //         writeln!(&mut out, "{param:?}").unwrap();
+    //     }
+    //     panic!("lol");
+    // }
+
+    let start_time = std::time::Instant::now();
+
+    for (idx, (params, variances)) in hypercube.into_iter().enumerate() {
+        let loop_start = std::time::Instant::now();
+        println!("#{idx} start");
+        println!("{params:#?}");
+        let perf_metrics = run_timing_measurements_gpu(params, variances, ciphertext_modulus);
+        println!("{perf_metrics:#?}");
+        write_results_to_file(params, &perf_metrics, out_dir);
+        let loop_elapsed = loop_start.elapsed();
+        println!("#{idx} done in {loop_elapsed:?}");
+        println!("overall runtime {:?}", start_time.elapsed());
+    }
+}
+
+//pub const CHUNK_SIZE: [usize; 5] = [1, 32, 64, 128, 192];
+//pub const BATCH_COUNT: usize = 100;
+
+pub const CHUNK_SIZE: [usize; 1] = [1]; //, 32, 64, 128, 192];
+pub const BATCH_COUNT: usize = 1;
 
 #[derive(Clone, Copy, Debug)]
 struct PerfMetrics {
@@ -685,6 +905,304 @@ fn run_timing_measurements(
             ));
         }
     }
+
+    timings
+}
+
+
+fn run_timing_measurements_gpu(
+    params: Params,
+    variances: NoiseVariances,
+    ciphertext_modulus: CiphertextModulus<u64>,
+) -> Vec<(usize, ThreadCount, usize, PerfMetrics)> {
+    // let params = Params {
+    //     lwe_dimension: LweDimension(742),
+    //     glwe_dimension: GlweDimension(1),
+    //     polynomial_size: PolynomialSize(2048),
+    //     pbs_base_log: DecompositionBaseLog(23),
+    //     pbs_level: DecompositionLevelCount(1),
+    //     ks_base_log: DecompositionBaseLog(3),
+    //     ks_level: DecompositionLevelCount(5),
+    // };
+
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut secret_random_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut encryption_random_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+
+    let lwe_noise_distribution =
+        Gaussian::from_dispersion_parameter(variances.lwe_noise_variance, 0.0);
+    let glwe_noise_distribution =
+        Gaussian::from_dispersion_parameter(variances.glwe_noise_variance, 0.0);
+
+    let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        params.lwe_dimension,
+        &mut secret_random_generator,
+    );
+
+    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        params.glwe_dimension,
+        params.polynomial_size,
+        &mut secret_random_generator,
+    );
+
+    let output_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
+    let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
+    
+    // This should be 3 or 4
+    let grouping_factor =  LweBskGroupingFactor(2);
+    
+    let mut bsk = LweMultiBitBootstrapKey::new(
+        u64::ZERO,   //Scalar::ZERO,
+        params.glwe_dimension.to_glwe_size(),
+        params.polynomial_size,
+        params.pbs_base_log,
+        params.pbs_level,
+        params.lwe_dimension,
+        grouping_factor,
+        ciphertext_modulus,
+    );
+
+    par_generate_lwe_multi_bit_bootstrap_key(
+        &lwe_secret_key,
+        &glwe_secret_key,
+        &mut bsk,
+        glwe_noise_distribution,
+        &mut encryption_random_generator,
+    );
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
+
+    let gpu_index = 0;
+    let stream = CudaStreams::new_single_gpu(gpu_index);
+
+    let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &stream);
+
+    // let ksk = allocate_and_generate_new_lwe_keyswitch_key(
+    //     &glwe_secret_key.as_lwe_secret_key(),
+    //     &lwe_secret_key,
+    //     params.ks_base_log,
+    //     params.ks_level,
+    //     lwe_noise_distribution,
+    //     ciphertext_modulus,
+    //     &mut encryption_random_generator,
+    // );
+
+    // let fbsk = {
+    //     let bsk = allocate_and_generate_new_lwe_bootstrap_key(
+    //         &lwe_secret_key,
+    //         &glwe_secret_key,
+    //         params.pbs_base_log,
+    //         params.pbs_level,
+    //         glwe_noise_distribution,
+    //         ciphertext_modulus,
+    //         &mut encryption_random_generator,
+    //     );
+
+    //     let mut fbsk = FourierLweBootstrapKey::new(
+    //         bsk.input_lwe_dimension(),
+    //         bsk.glwe_size(),
+    //         bsk.polynomial_size(),
+    //         bsk.decomposition_base_log(),
+    //         bsk.decomposition_level_count(),
+    //     );
+
+    //     par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+
+    //     fbsk
+    // };
+
+    let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+        &lwe_secret_key,
+        Plaintext(0),
+        lwe_noise_distribution,
+        ciphertext_modulus,
+        &mut encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &lwe_ciphertext_in,
+        ciphertext_modulus
+    ));
+
+    let d_lwe_ciphertext_in =
+    CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
+
+    // let inputs: Vec<_> = (0..BATCH_COUNT * CHUNK_SIZE.last().unwrap())
+    //     .map(|_| {
+    //         allocate_and_encrypt_new_lwe_ciphertext(
+    //             &glwe_secret_key.as_lwe_secret_key(),
+    //             Plaintext(0),
+    //             glwe_noise_distribution,
+    //             ciphertext_modulus,
+    //             &mut encryption_random_generator,
+    //         )
+    //     })
+    //     .collect();
+
+    let mut d_out_pbs_ct = CudaLweCiphertextList::new(
+        output_lwe_dimension,
+        LweCiphertextCount(1),
+        ciphertext_modulus,
+        &stream,
+    );
+
+
+
+    //let mut output = inputs.clone();
+
+    //let fft = Fft::new(fbsk.polynomial_size());
+    //let fft = fft.as_view();
+/* 
+    let mut buffers: Vec<_> = (0..*CHUNK_SIZE.last().unwrap())
+        .map(|_| {
+            let buffer_after_ks =
+                LweCiphertext::new(0u64, ksk.output_lwe_size(), ciphertext_modulus);
+
+            let mut computations_buffers = ComputationBuffers::new();
+            computations_buffers.resize(
+                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                    fbsk.glwe_size(),
+                    fbsk.polynomial_size(),
+                    fft,
+                )
+                .unwrap()
+                .try_unaligned_bytes_required()
+                .unwrap(),
+            );
+
+            (buffer_after_ks, computations_buffers)
+        })
+        .collect();
+    */
+/* 
+    let msg_modulus = usize::ONE.shl(ciphertext_modulus.0);//Scalar::ONE.shl(message_modulus_log.0);
+    
+    let f = |x: Scalar| {
+        x.wrapping_mul(Scalar::TWO)
+            .wrapping_sub(Scalar::ONE)
+            .wrapping_rem(msg_modulus)
+    };
+
+    let delta: Scalar = encoding_with_padding / msg_modulus;
+
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
+        params.polynomial_size,
+        params.glwe_dimension.to_glwe_size(),
+        msg_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );*/
+    let mut accumulator = GlweCiphertext::new(
+        0u64,
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        ciphertext_modulus,
+    );
+    let mut rng = thread_rng();
+
+    // Random values in the lut
+    accumulator.as_mut().fill_with(|| rng.gen::<u64>());
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
+
+    let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+
+    let mut timings = vec![];
+
+    //let current_thread_count = rayon::current_num_threads();
+
+    //for chunk_size in CHUNK_SIZE { // CHUNK_SIZE = 1
+    let chunk_size = CHUNK_SIZE[0];
+    let effective_thread_count = ThreadCount(1); // ThreadCount(chunk_size.min(current_thread_count));
+
+    //let ciphertext_to_process_count = chunk_size * BATCH_COUNT;
+
+
+    //assert_eq!(ciphertext_to_process_count, BATCH_COUNT);
+
+    //let (after_ks_buffer, fft_buffer) = &mut buffers[0];
+
+    let start = std::time::Instant::now();
+    let number_of_messages = 1;
+    let mut test_vector_indexes: Vec<u64> = vec![u64::ZERO; number_of_messages];
+    for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
+        *ind = <usize as CastInto<u64>>::cast_into(i);
+    }
+
+    let mut d_test_vector_indexes =
+        unsafe { CudaVec::<u64>::new_async(number_of_messages, &stream) };
+    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream) };
+
+    let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&stream).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
+    
+    let lwe_indexes_usize: Vec<usize> = (0..num_blocks.0).collect_vec();
+    let lwe_indexes = lwe_indexes_usize
+        .iter()
+        .map(|&x| <usize as CastInto<u64>>::cast_into(x))
+        .collect_vec();
+    
+    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &stream) };
+    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &stream) };
+    unsafe {
+        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
+        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
+    }
+
+    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
+        &d_lwe_ciphertext_in,
+        &mut d_out_pbs_ct,
+        &d_accumulator,
+        &d_test_vector_indexes,
+        &d_output_indexes,
+        &d_input_indexes,
+        &d_bsk,
+        &stream,
+    );
+    let out_pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
+    assert!(check_encrypted_content_respects_mod(
+        &out_pbs_ct,
+        ciphertext_modulus
+    ));
+
+
+    /* 
+    for (input_lwe, output_lwe) in inputs[..ciphertext_to_process_count]
+        .iter()
+        .zip(output[..ciphertext_to_process_count].iter_mut())
+    {
+        keyswitch_lwe_ciphertext(&ksk, input_lwe, after_ks_buffer);
+
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+            after_ks_buffer,
+            output_lwe,
+            &accumulator,
+            &fbsk,
+            fft,
+            fft_buffer.stack(),
+        );
+    }*/
+
+    let elapsed = start.elapsed();
+
+    let perf_metrics =
+        compute_perf_metrics(elapsed, BATCH_COUNT, chunk_size, effective_thread_count.0);
+
+    timings.push((
+        chunk_size,
+        effective_thread_count,
+        BATCH_COUNT,
+        perf_metrics,
+    ));
+    //}
 
     timings
 }
