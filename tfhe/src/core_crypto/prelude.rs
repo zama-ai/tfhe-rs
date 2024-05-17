@@ -3,6 +3,7 @@
 //! The TFHE-rs preludes include convenient imports.
 //! Having `tfhe::core_crypto::prelude::*;` should be enough to start using the lib.
 
+pub use super::algorithms::misc::divide_round;
 pub use super::algorithms::*;
 pub use super::commons::computation_buffers::ComputationBuffers;
 pub use super::commons::dispersion::*;
