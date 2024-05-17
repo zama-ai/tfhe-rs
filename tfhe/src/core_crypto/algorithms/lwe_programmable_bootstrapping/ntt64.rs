@@ -8,10 +8,11 @@ use crate::core_crypto::algorithms::polynomial_algorithms::{
     polynomial_wrapping_monic_monomial_div_assign_custom_mod,
     polynomial_wrapping_monic_monomial_mul_assign_custom_mod,
 };
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposerNonNative, TensorSignedDecompositionLendingIterNonNative,
 };
-use crate::core_crypto::commons::math::ntt::ntt64::Ntt64View;
+use crate::core_crypto::commons::math::ntt::ntt64::{Ntt64, Ntt64View};
 use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, PolynomialSize};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
@@ -19,6 +20,190 @@ use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
+/// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
+/// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
+/// key`](`LweBootstrapKey`) in the NTT domain see [`NTT LWE bootstrap
+/// key`](`NttLweBootstrapKey`).
+///
+/// If you want to manage the computation memory manually you can use
+/// [`blind_rotate_ntt64_assign_mem_optimized`].
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // This example recreates a PBS by combining a blind rotate and a sample extract.
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define the parameters for a 4 bits message able to hold the doubled 2 bits message
+/// let small_lwe_dimension = LweDimension(742);
+/// let glwe_dimension = GlweDimension(1);
+/// let polynomial_size = PolynomialSize(2048);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+/// let pbs_base_log = DecompositionBaseLog(23);
+/// let pbs_level = DecompositionLevelCount(1);
+/// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+///
+/// // Request the best seeder possible, starting with hardware entropy sources and falling back to
+/// // /dev/random on Unix systems if enabled via cargo features
+/// let mut boxed_seeder = new_seeder();
+/// // Get a mutable reference to the seeder as a trait object from the Box returned by new_seeder
+/// let seeder = boxed_seeder.as_mut();
+///
+/// // Create a generator which uses a CSPRNG to generate secret keys
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
+/// // noise
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///
+/// println!("Generating keys...");
+///
+/// // Generate an LweSecretKey with binary coefficients
+/// let small_lwe_sk =
+///     LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
+///
+/// // Generate a GlweSecretKey with binary coefficients
+/// let glwe_sk =
+///     GlweSecretKey::generate_new_binary(glwe_dimension, polynomial_size, &mut secret_generator);
+///
+/// // Create a copy of the GlweSecretKey re-interpreted as an LweSecretKey
+/// let big_lwe_sk = glwe_sk.clone().into_lwe_secret_key();
+///
+/// // Generate the bootstrapping key to show, we use the parallel variant for performance reason
+/// let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
+///     &small_lwe_sk,
+///     &glwe_sk,
+///     pbs_base_log,
+///     pbs_level,
+///     glwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// // Create the empty bootstrapping key in the Fourier domain
+/// let mut ntt_bsk = NttLweBootstrapKey::new(
+///     0u64,
+///     std_bootstrapping_key.input_lwe_dimension(),
+///     std_bootstrapping_key.glwe_size(),
+///     std_bootstrapping_key.polynomial_size(),
+///     std_bootstrapping_key.decomposition_base_log(),
+///     std_bootstrapping_key.decomposition_level_count(),
+///     std_bootstrapping_key.ciphertext_modulus(),
+/// );
+///
+/// // Use the conversion function (a memory optimized version also exists but is more complicated
+/// // to use) to convert the standard bootstrapping key to the Fourier domain
+/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // We don't need the standard bootstrapping key anymore
+/// drop(std_bootstrapping_key);
+///
+/// // Our 4 bits message space
+/// let message_modulus = 1u64 << 4;
+///
+/// // Our input message
+/// let input_message = 3u64;
+///
+/// // Delta used to encode 4 bits of message + a bit of padding on u64
+/// let delta = (1_u64 << 63) / message_modulus;
+///
+/// // Apply our encoding
+/// let plaintext = Plaintext(input_message * delta);
+///
+/// // Allocate a new LweCiphertext and encrypt our plaintext
+/// let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
+///     &small_lwe_sk,
+///     plaintext,
+///     lwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// // Now we will use a PBS to compute a multiplication by 2, it is NOT the recommended way of
+/// // doing this operation in terms of performance as it's much more costly than a multiplication
+/// // with a cleartext, however it resets the noise in a ciphertext to a nominal level and allows
+/// // to evaluate arbitrary functions so depending on your use case it can be a better fit.
+///
+/// // Generate the accumulator for our multiplication by 2 using a simple closure
+/// let mut accumulator: GlweCiphertextOwned<u64> = generate_programmable_bootstrap_glwe_lut(
+///     polynomial_size,
+///     glwe_dimension.to_glwe_size(),
+///     message_modulus as usize,
+///     ciphertext_modulus,
+///     delta,
+///     |x: u64| 2 * x,
+/// );
+///
+/// // Allocate the LweCiphertext to store the result of the PBS
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
+/// println!("Performing blind rotation...");
+/// blind_rotate_ntt64_assign(&lwe_ciphertext_in, &mut accumulator, &ntt_bsk);
+/// println!("Performing sample extraction...");
+/// extract_lwe_sample_from_glwe_ciphertext(
+///     &accumulator,
+///     &mut pbs_multiplication_ct,
+///     MonomialDegree(0),
+/// );
+///
+/// // Decrypt the PBS multiplication result
+/// let pbs_multiplication_plaintext: Plaintext<u64> =
+///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
+///
+/// // Round and remove our encoding
+/// let pbs_multiplication_result: u64 = divide_round(pbs_multiplication_plaintext.0, delta);
+///
+/// println!("Checking result...");
+/// assert_eq!(6, pbs_multiplication_result);
+/// println!(
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+/// );
+/// ```
+pub fn blind_rotate_ntt64_assign<InputCont, OutputCont, KeyCont>(
+    input: &LweCiphertext<InputCont>,
+    lut: &mut GlweCiphertext<OutputCont>,
+    bsk: &NttLweBootstrapKey<KeyCont>,
+) where
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
+    KeyCont: Container<Element = u64>,
+{
+    assert_eq!(lut.ciphertext_modulus(), bsk.ciphertext_modulus());
+
+    let mut buffers = ComputationBuffers::new();
+
+    let ntt = Ntt64::new(bsk.ciphertext_modulus(), bsk.polynomial_size());
+    let ntt = ntt.as_view();
+
+    buffers.resize(
+        blind_rotate_ntt64_assign_mem_optimized_requirement(
+            bsk.glwe_size(),
+            bsk.polynomial_size(),
+            ntt,
+        )
+        .unwrap()
+        .unaligned_bytes_required(),
+    );
+
+    let stack = buffers.stack();
+
+    blind_rotate_ntt64_assign_mem_optimized(input, lut, bsk, ntt, stack);
+}
+
+/// Memory optimized version of [`blind_rotate_ntt64_assign`], the caller must provide
+/// a properly configured [`Ntt64View`] object and a `PodStack` used as a memory buffer having a
+/// capacity at least as large as the result of
+/// [`blind_rotate_ntt64_assign_mem_optimized_requirement`].
 pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
@@ -93,6 +278,197 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         }
     }
     implementation(bsk.as_view(), lut.as_mut_view(), input.as_ref(), ntt, stack);
+}
+
+/// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
+/// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
+/// key`](`LweBootstrapKey`) in the NTT domain see [`NTT LWE bootstrap
+/// key`](`NttLweBootstrapKey`). The result is written in the provided output
+/// [`LWE ciphertext`](`LweCiphertext`).
+///
+/// If you want to manage the computation memory manually you can use
+/// [`programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized`].
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define the parameters for a 4 bits message able to hold the doubled 2 bits message
+/// let small_lwe_dimension = LweDimension(742);
+/// let glwe_dimension = GlweDimension(1);
+/// let polynomial_size = PolynomialSize(2048);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
+/// let glwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+/// let pbs_base_log = DecompositionBaseLog(23);
+/// let pbs_level = DecompositionLevelCount(1);
+/// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+///
+/// // Request the best seeder possible, starting with hardware entropy sources and falling back to
+/// // /dev/random on Unix systems if enabled via cargo features
+/// let mut boxed_seeder = new_seeder();
+/// // Get a mutable reference to the seeder as a trait object from the Box returned by new_seeder
+/// let seeder = boxed_seeder.as_mut();
+///
+/// // Create a generator which uses a CSPRNG to generate secret keys
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
+/// // noise
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///
+/// println!("Generating keys...");
+///
+/// // Generate an LweSecretKey with binary coefficients
+/// let small_lwe_sk =
+///     LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
+///
+/// // Generate a GlweSecretKey with binary coefficients
+/// let glwe_sk =
+///     GlweSecretKey::generate_new_binary(glwe_dimension, polynomial_size, &mut secret_generator);
+///
+/// // Create a copy of the GlweSecretKey re-interpreted as an LweSecretKey
+/// let big_lwe_sk = glwe_sk.clone().into_lwe_secret_key();
+///
+/// // Generate the bootstrapping key, we use the parallel variant for performance reason
+/// let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
+///     &small_lwe_sk,
+///     &glwe_sk,
+///     pbs_base_log,
+///     pbs_level,
+///     glwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// // Create the empty bootstrapping key in the Fourier domain
+/// let mut ntt_bsk = NttLweBootstrapKey::new(
+///     0u64,
+///     std_bootstrapping_key.input_lwe_dimension(),
+///     std_bootstrapping_key.glwe_size(),
+///     std_bootstrapping_key.polynomial_size(),
+///     std_bootstrapping_key.decomposition_base_log(),
+///     std_bootstrapping_key.decomposition_level_count(),
+///     std_bootstrapping_key.ciphertext_modulus(),
+/// );
+///
+/// // Use the conversion function (a memory optimized version also exists but is more complicated
+/// // to use) to convert the standard bootstrapping key to the Fourier domain
+/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // We don't need the standard bootstrapping key anymore
+/// drop(std_bootstrapping_key);
+///
+/// // Our 4 bits message space
+/// let message_modulus = 1u64 << 4;
+///
+/// // Our input message
+/// let input_message = 3u64;
+///
+/// // Delta used to encode 4 bits of message + a bit of padding on u64
+/// let delta = (1_u64 << 63) / message_modulus;
+///
+/// // Apply our encoding
+/// let plaintext = Plaintext(input_message * delta);
+///
+/// // Allocate a new LweCiphertext and encrypt our plaintext
+/// let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
+///     &small_lwe_sk,
+///     plaintext,
+///     lwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// // Now we will use a PBS to compute a multiplication by 2, it is NOT the recommended way of
+/// // doing this operation in terms of performance as it's much more costly than a multiplication
+/// // with a cleartext, however it resets the noise in a ciphertext to a nominal level and allows
+/// // to evaluate arbitrary functions so depending on your use case it can be a better fit.
+///
+/// // Generate the accumulator for our multiplication by 2 using a simple closure
+/// let accumulator: GlweCiphertextOwned<u64> = generate_programmable_bootstrap_glwe_lut(
+///     polynomial_size,
+///     glwe_dimension.to_glwe_size(),
+///     message_modulus as usize,
+///     ciphertext_modulus,
+///     delta,
+///     |x: u64| 2 * x,
+/// );
+///
+/// // Allocate the LweCiphertext to store the result of the PBS
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
+/// println!("Computing PBS...");
+/// programmable_bootstrap_ntt64_lwe_ciphertext(
+///     &lwe_ciphertext_in,
+///     &mut pbs_multiplication_ct,
+///     &accumulator,
+///     &ntt_bsk,
+/// );
+///
+/// // Decrypt the PBS multiplication result
+/// let pbs_multiplication_plaintext: Plaintext<u64> =
+///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
+///
+/// // Round and remove our encoding
+/// let pbs_multiplication_result: u64 = divide_round(pbs_multiplication_plaintext.0, delta);
+///
+/// println!("Checking result...");
+/// assert_eq!(6, pbs_multiplication_result);
+/// println!(
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+/// );
+/// ```
+pub fn programmable_bootstrap_ntt64_lwe_ciphertext<InputCont, OutputCont, AccCont, KeyCont>(
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    bsk: &NttLweBootstrapKey<KeyCont>,
+) where
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
+    AccCont: Container<Element = u64>,
+    KeyCont: Container<Element = u64>,
+{
+    assert_eq!(
+        output.ciphertext_modulus(),
+        accumulator.ciphertext_modulus()
+    );
+    assert_eq!(accumulator.ciphertext_modulus(), bsk.ciphertext_modulus());
+
+    let mut buffers = ComputationBuffers::new();
+
+    let ntt = Ntt64::new(bsk.ciphertext_modulus(), bsk.polynomial_size());
+    let ntt = ntt.as_view();
+
+    buffers.resize(
+        programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+            bsk.glwe_size(),
+            bsk.polynomial_size(),
+            ntt,
+        )
+        .unwrap()
+        .unaligned_bytes_required(),
+    );
+
+    let stack = buffers.stack();
+
+    programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
+        input,
+        output,
+        accumulator,
+        bsk,
+        ntt,
+        stack,
+    );
 }
 
 pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized<
@@ -249,7 +625,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 
                 update_with_fmadd_ntt64(
                     output_fft_buffer,
-                    ggsw_row.data(),
+                    ggsw_row.as_ref(),
                     &ntt_poly,
                     is_output_uninit,
                     poly_size,
