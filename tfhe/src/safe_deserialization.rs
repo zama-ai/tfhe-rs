@@ -156,7 +156,7 @@ mod test_shortint {
 mod test_integer {
     use crate::conformance::ListSizeConstraint;
     use crate::high_level_api::{generate_keys, ConfigBuilder};
-    use crate::prelude::{FheDecrypt, FheTryEncrypt};
+    use crate::prelude::*;
     use crate::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
     use crate::shortint::parameters::{
         PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -167,7 +167,7 @@ mod test_integer {
         CompactPublicKey, FheUint8ConformanceParams,
     };
     #[test]
-    fn safe_desererialization_ct() {
+    fn safe_deserialization_ct() {
         let (client_key, server_key) = generate_keys(ConfigBuilder::default().build());
 
         let public_key = CompactPublicKey::new(&client_key);
@@ -198,7 +198,7 @@ mod test_integer {
     }
 
     #[test]
-    fn safe_desererialization_ct_list() {
+    fn safe_deserialization_ct_list() {
         let (client_key, server_key) = generate_keys(ConfigBuilder::default().build());
 
         let public_key = CompactPublicKey::new(&client_key);
