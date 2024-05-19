@@ -53,7 +53,7 @@ jobs:
           echo "Fork git sha: ${{ inputs.fork_git_sha }}"
 
       - name: Checkout tfhe-rs
-        uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
         with:
           repository: ${{ inputs.fork_repo }}
           ref: ${{ inputs.fork_git_sha }}
