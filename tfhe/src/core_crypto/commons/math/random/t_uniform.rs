@@ -1,10 +1,14 @@
+use crate::backward_compatibility::core_crypto::commons::math::random::TUniformVersions;
+
 use super::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// The distribution $TUniform(1, -2^b, 2^b)$ is defined as follows, any value in the interval
 /// $\left[-2^b, 2^b\right]$ is selected with probability $\frac{1}{2^{b+1}}$, with the two end
 /// points $-2^b$ and $2^b$ being selected with probability $\frac{1}{2^{b+2}}$.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
+#[versionize(TUniformVersions)]
 pub struct TUniform<T: UnsignedInteger> {
     bound_log2: u32,
     _phantom: std::marker::PhantomData<T>,

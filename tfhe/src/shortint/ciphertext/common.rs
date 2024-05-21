@@ -1,5 +1,5 @@
 use super::super::CheckError;
-use crate::backward_compatibility::shortint::ciphertext::{DegreeVersions, NoiseLevelVersions};
+use crate::backward_compatibility::shortint::ciphertext::*;
 pub use crate::core_crypto::commons::parameters::PBSOrder;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,8 @@ impl std::error::Error for NotTrivialCiphertextError {}
 
 /// This tracks the maximal amount of noise of a [super::Ciphertext]
 /// that guarantees the target p-error when doing a PBS on it
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(MaxNoiseLevelVersions)]
 pub struct MaxNoiseLevel(usize);
 
 impl MaxNoiseLevel {
@@ -111,7 +112,8 @@ impl std::ops::Mul<usize> for NoiseLevel {
 }
 
 /// Maximum value that the degree can reach.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(MaxDegreeVersions)]
 pub struct MaxDegree(usize);
 
 impl MaxDegree {

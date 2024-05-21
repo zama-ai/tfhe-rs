@@ -13,6 +13,7 @@
 //! implementations of this trait, for different distributions. Note, though, that instead of
 //! using the [`RandomGenerable`] methods, you should use the various methods exposed by
 //! [`RandomGenerator`] instead.
+use crate::backward_compatibility::core_crypto::commons::math::random::DynamicDistributionVersions;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev, Variance};
 use crate::core_crypto::commons::numeric::{FloatingPoint, UnsignedInteger};
 use std::ops::Bound;
@@ -23,6 +24,7 @@ pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
 pub use generator::*;
 pub use t_uniform::*;
+use tfhe_versionable::Versionize;
 pub use uniform::*;
 pub use uniform_binary::*;
 pub use uniform_ternary::*;
@@ -209,7 +211,8 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Versionize)]
+#[versionize(DynamicDistributionVersions)]
 pub enum DynamicDistribution<T: UnsignedInteger> {
     Gaussian(Gaussian<f64>),
     TUniform(TUniform<T>),

@@ -7,54 +7,68 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
-use crate::backward_compatibility::core_crypto::commons::parameters::PBSOrderVersions;
+use crate::backward_compatibility::core_crypto::commons::parameters::*;
 
 /// The number plaintexts in a plaintext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(PlaintextCountVersions)]
 pub struct PlaintextCount(pub usize);
 
 /// The number messages in a messages list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CleartextCountVersions)]
 pub struct CleartextCount(pub usize);
 
 /// The number of ciphertexts in a ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CiphertextCountVersions)]
 pub struct CiphertextCount(pub usize);
 
 /// The number of ciphertexts in an lwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(LweCiphertextCountVersions)]
 pub struct LweCiphertextCount(pub usize);
 
 /// The index of a ciphertext in an lwe ciphertext list.
 #[cfg(feature = "gpu")]
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(LweCiphertextIndexVersions)]
 pub struct LweCiphertextIndex(pub usize);
 
 /// The number of ciphertexts in a glwe ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(GlweCiphertextCountVersions)]
 pub struct GlweCiphertextCount(pub usize);
 
 /// The number of ciphertexts in a gsw ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(GswCiphertextCountVersions)]
 pub struct GswCiphertextCount(pub usize);
 
 /// The number of ciphertexts in a ggsw ciphertext list.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(GgswCiphertextCountVersions)]
 pub struct GgswCiphertextCount(pub usize);
 
 /// The number of scalars in an LWE ciphertext, i.e. the number of scalar in an LWE mask plus one.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
+)]
+#[versionize(LweSizeVersions)]
 pub struct LweSize(pub usize);
 
 impl LweSize {
-    /// Return the associated [`LweDimension`].
+    /// Return the associated [`LweDimension`, Versionize].
     pub fn to_lwe_dimension(&self) -> LweDimension {
         LweDimension(self.0 - 1)
     }
 }
 
 /// The number of scalar in an LWE mask, or the length of an LWE secret key.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+)]
+#[versionize(LweDimensionVersions)]
 pub struct LweDimension(pub usize);
 
 impl LweDimension {
@@ -64,21 +78,27 @@ impl LweDimension {
     }
 }
 
-/// The number of LWE encryptions of 0 in an LWE public key.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+/// The number of LWE encryptions of 0 in an LWE public ke, Versionize, Versionizey.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(LwePublicKeyZeroEncryptionCountVersions)]
 pub struct LwePublicKeyZeroEncryptionCount(pub usize);
 
 /// The number of masks in a collection of LWE masks.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(LweMaskCountVersions)]
 pub struct LweMaskCount(pub usize);
 
 /// The number of bodues in a collection of LWE bodies.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(LweBodyCountVersions)]
 pub struct LweBodyCount(pub usize);
 
 /// The number of polynomials in a GLWE ciphertext, i.e. the number of polynomials in a GLWE mask
 /// plus one.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
+)]
+#[versionize(GlweSizeVersions)]
 pub struct GlweSize(pub usize);
 
 impl GlweSize {
@@ -89,7 +109,10 @@ impl GlweSize {
 }
 
 /// The number of polynomials of a GLWE mask, or the size of a GLWE secret key.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+)]
+#[versionize(GlweDimensionVersions)]
 pub struct GlweDimension(pub usize);
 
 impl GlweDimension {
@@ -106,7 +129,10 @@ impl GlweDimension {
 /// The number of coefficients of a polynomial.
 ///
 /// Assuming a polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this new-type contains $N$.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Versionize,
+)]
+#[versionize(PolynomialSizeVersions)]
 pub struct PolynomialSize(pub usize);
 
 impl PolynomialSize {
@@ -136,7 +162,10 @@ impl PolynomialSize {
 ///
 /// Assuming a standard polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this new-type contains
 /// $\frac{N}{2}$.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Versionize,
+)]
+#[versionize(FourierPolynomialSizeVersions)]
 pub struct FourierPolynomialSize(pub usize);
 
 impl FourierPolynomialSize {
@@ -148,7 +177,10 @@ impl FourierPolynomialSize {
 /// The logarithm of the number of coefficients of a polynomial.
 ///
 /// Assuming a polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this returns $\log\_2(N)$.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Versionize,
+)]
+#[versionize(PolynomialSizeLogVersions)]
 pub struct PolynomialSizeLog(pub usize);
 
 impl PolynomialSizeLog {
@@ -161,66 +193,79 @@ impl PolynomialSizeLog {
 /// The number of polynomials in a polynomial list.
 ///
 /// Assuming a polynomial list, this return the number of polynomials.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(PolynomialCountVersions)]
 pub struct PolynomialCount(pub usize);
 
 /// The degree of a monomial.
 ///
 /// Assuming a monomial $aX^N$, this returns the $N$ value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(MonomialDegreeVersions)]
 pub struct MonomialDegree(pub usize);
 
 /// The logarithm of the base used in a decomposition.
 ///
 /// When decomposing an integer over powers of the $2^B$ basis, this type represents the $B$ value.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(DecompositionBaseLogVersions)]
 pub struct DecompositionBaseLog(pub usize);
 
 /// The number of levels used in a decomposition.
 ///
 /// When decomposing an integer over the $l$ largest powers of the basis, this type represents
 /// the $l$ value.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(DecompositionLevelCountVersions)]
 pub struct DecompositionLevelCount(pub usize);
 
 /// The logarithm of the number of LUT evaluated in a PBS.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(LutCountLogVersions)]
 pub struct LutCountLog(pub usize);
 
 /// The number of MSB shifted in a Modulus Switch.
 ///
 /// When performing a Modulus Switch, this type represents the number of MSB that will be
 /// discarded.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ModulusSwitchOffsetVersions)]
 pub struct ModulusSwitchOffset(pub usize);
 
 /// The base 2 logarithm of the scaling factor (generally written $\Delta$) used to store the
 /// message in the MSB of ciphertexts.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(DeltaLogVersions)]
 pub struct DeltaLog(pub usize);
 
 /// The number of bits to extract in a bit extraction.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ExtractedBitsCountVersions)]
 pub struct ExtractedBitsCount(pub usize);
 
 /// The number of functional packing keyswitch key in a functional packing keyswitch key list.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(FunctionalPackingKeyswitchKeyCountVersions)]
 pub struct FunctionalPackingKeyswitchKeyCount(pub usize);
 
 /// The number of bits used for the mask coefficients and the body of a ciphertext
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CiphertextModulusLogVersions)]
 pub struct CiphertextModulusLog(pub usize);
 
 /// The number of bits that can be represented in a message
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(MessageModulusLogVersions)]
 pub struct MessageModulusLog(pub usize);
 
 /// The number of cpu execution thread to use
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ThreadCountVersions)]
 pub struct ThreadCount(pub usize);
 
 /// The number of key bits grouped together in the multi_bit PBS
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(LweBskGroupingFactorVersions)]
 pub struct LweBskGroupingFactor(pub usize);
 
 impl LweBskGroupingFactor {
@@ -230,10 +275,12 @@ impl LweBskGroupingFactor {
 }
 
 /// The number of GGSW ciphertexts required per multi_bit BSK element
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(GgswPerLweMultiBitBskElementVersions)]
 pub struct GgswPerLweMultiBitBskElement(pub usize);
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(EncryptionKeyChoiceVersions)]
 pub enum EncryptionKeyChoice {
     Big,
     Small,
