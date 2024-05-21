@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`LweCiphertext`].
 
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::core_crypto::entities::lwe_ciphertext::LweCiphertextVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -497,7 +500,8 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 ///
 /// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
 /// rounding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweCiphertextVersions)]
 pub struct LweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,
