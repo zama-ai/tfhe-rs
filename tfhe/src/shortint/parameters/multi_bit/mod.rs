@@ -5,7 +5,7 @@ pub mod p_fail_2_minus_40;
 pub mod p_fail_2_minus_64;
 pub mod p_fail_2_minus_80;
 
-use super::CiphertextConformanceParams;
+use super::{CiphertextConformanceParams, MultiBitPBSParametersVersions};
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -20,11 +20,13 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation. This structure contains information to run the so-called multi-bit PBS with improved
 /// latency provided enough threads are available on the machine performing the FHE computations
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(MultiBitPBSParametersVersions)]
 pub struct MultiBitPBSParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
