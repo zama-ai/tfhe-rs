@@ -1,5 +1,8 @@
 //! Module containing the definition of the GlweSecretKey.
 
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::core_crypto::entities::glwe_secret_key::GlweSecretKeyVersions;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
@@ -18,7 +21,8 @@ use crate::core_crypto::entities::*;
 /// The $k$ polynomials composing $\vec{S}$ contain each $N$ integers coefficients that have been
 /// sampled from some distribution which is either uniformly binary, uniformly ternary, gaussian or
 /// even uniform.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GlweSecretKeyVersions)]
 pub struct GlweSecretKey<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
