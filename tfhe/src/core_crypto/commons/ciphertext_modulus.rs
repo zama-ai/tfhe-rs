@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`CiphertextModulus`].
 
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::core_crypto::commons::ciphertext_modulus::SerializableCiphertextModulusVersions;
 use crate::core_crypto::commons::traits::UnsignedInteger;
 use crate::core_crypto::prelude::CastInto;
 use core::num::NonZeroU128;
@@ -23,8 +26,13 @@ impl Default for CiphertextModulusInner {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(
+    try_from = "SerializableCiphertextModulus",
+    into = "SerializableCiphertextModulus"
+)]
+#[versionize(
+    SerializableCiphertextModulusVersions,
     try_from = "SerializableCiphertextModulus",
     into = "SerializableCiphertextModulus"
 )]
@@ -42,9 +50,10 @@ pub enum CiphertextModulusKind {
     Other,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SerializableCiphertextModulusVersions)]
 /// Actual serialized modulus to be able to carry the UnsignedInteger bitwidth information
-struct SerializableCiphertextModulus {
+pub struct SerializableCiphertextModulus {
     pub modulus: u128,
     pub scalar_bits: usize,
 }
