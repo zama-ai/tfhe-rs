@@ -5,6 +5,9 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
+use crate::backward_compatibility::shortint::parameters::{
+    CarryModulusVersions, MessageModulusVersions,
+};
 use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
@@ -16,6 +19,7 @@ use crate::core_crypto::prelude::{
     LweCiphertextParameters, MsDecompressionType,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 pub mod classic;
 pub mod compact_public_key_only;
@@ -53,7 +57,8 @@ pub use parameters_wopbs::*;
 /// # Note
 ///
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(MessageModulusVersions)]
 pub struct MessageModulus(pub usize);
 
 impl MessageModulus {
@@ -69,7 +74,8 @@ impl MessageModulus {
 /// # Note
 ///
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CarryModulusVersions)]
 pub struct CarryModulus(pub usize);
 
 /// Determines in what ring computations are made
