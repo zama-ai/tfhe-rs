@@ -5,9 +5,7 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
-use crate::backward_compatibility::shortint::parameters::{
-    CarryModulusVersions, MessageModulusVersions,
-};
+use crate::backward_compatibility::shortint::parameters::*;
 use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
@@ -19,6 +17,7 @@ use crate::core_crypto::prelude::{
     LweCiphertextParameters, MsDecompressionType,
 };
 use serde::{Deserialize, Serialize};
+
 use tfhe_versionable::Versionize;
 
 pub mod classic;
@@ -98,7 +97,8 @@ pub type CiphertextModulus = CoreCiphertextModulus<u64>;
 ///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
 ///   first followed by a keyswitch, the PBS goes from the small key to the large key and the
 ///   keyswitch goes from the large key to the small key.
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(ClassicPBSParametersVersions)]
 pub struct ClassicPBSParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
@@ -195,7 +195,8 @@ impl ClassicPBSParameters {
     }
 }
 
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(PBSParametersVersions)]
 pub enum PBSParameters {
     PBS(ClassicPBSParameters),
     MultiBitPBS(MultiBitPBSParameters),
@@ -382,8 +383,9 @@ impl PBSParameters {
     }
 }
 
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
-enum ShortintParameterSetInner {
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(ShortintParameterSetInnerVersions)]
+pub(crate) enum ShortintParameterSetInner {
     PBSOnly(PBSParameters),
     WopbsOnly(WopbsParameters),
     PBSAndWopbs(PBSParameters, WopbsParameters),
@@ -403,7 +405,8 @@ impl ShortintParameterSetInner {
     }
 }
 
-#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(ShortintParameterSetVersions)]
 pub struct ShortintParameterSet {
     inner: ShortintParameterSetInner,
 }

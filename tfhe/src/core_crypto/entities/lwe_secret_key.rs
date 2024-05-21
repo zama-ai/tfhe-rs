@@ -1,5 +1,8 @@
 //! Module containing the definition of the LweSecretKey.
 
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::core_crypto::entities::lwe_secret_key::LweSecretKeyVersions;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
@@ -16,7 +19,8 @@ use crate::core_crypto::commons::traits::*;
 /// $$\vec{s} \in \mathbb{Z}^n$$
 /// This vector contains $n$ integers that have been sampled for some distribution which is either
 /// uniformly binary, uniformly ternary, gaussian or even uniform.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweSecretKeyVersions)]
 pub struct LweSecretKey<C: Container> {
     data: C,
 }

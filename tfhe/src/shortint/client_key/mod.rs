@@ -1,8 +1,10 @@
 //! Module with the definition of the ClientKey.
 
 pub(crate) mod secret_encryption_key;
+use tfhe_versionable::Versionize;
 
 use super::PBSOrder;
+use crate::backward_compatibility::shortint::client_key::ClientKeyVersions;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
@@ -23,7 +25,8 @@ use std::fmt::Debug;
 /// * `glwe_secret_key` - a GLWE secret key, used to generate the bootstrapping keys and key
 /// switching keys.
 /// * `parameters` - the cryptographic parameter set.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(ClientKeyVersions)]
 pub struct ClientKey {
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
