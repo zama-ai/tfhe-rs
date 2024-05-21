@@ -4,8 +4,10 @@
 //! These types have 0 overhead compared to the type being wrapped.
 
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
+use crate::backward_compatibility::core_crypto::commons::parameters::PBSOrderVersions;
 
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
@@ -246,7 +248,8 @@ impl From<EncryptionKeyChoice> for PBSOrder {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
+#[versionize(PBSOrderVersions)]
 pub enum PBSOrder {
     /// Ciphertext is encrypted using the big LWE secret key corresponding to the GLWE secret key.
     ///

@@ -1,9 +1,11 @@
 use super::super::CheckError;
+use crate::backward_compatibility::shortint::ciphertext::{DegreeVersions, NoiseLevelVersions};
 pub use crate::core_crypto::commons::parameters::PBSOrder;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 
 /// Error for when a non trivial ciphertext was used when a trivial was expected
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -55,7 +57,10 @@ impl MaxNoiseLevel {
 }
 
 /// This tracks the amount of noise in a ciphertext.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
+)]
+#[versionize(NoiseLevelVersions)]
 pub struct NoiseLevel(usize);
 
 impl NoiseLevel {
@@ -137,7 +142,10 @@ impl MaxDegree {
 }
 
 /// This tracks the number of operations that has been done.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize, Versionize,
+)]
+#[versionize(DegreeVersions)]
 pub struct Degree(pub(super) usize);
 
 impl Degree {
