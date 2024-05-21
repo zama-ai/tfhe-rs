@@ -1,12 +1,16 @@
 use super::*;
+use crate::backward_compatibility::core_crypto::commons::math::random::GaussianVersions;
 use crate::core_crypto::commons::math::torus::FromTorus;
+
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 // Clippy false positive, does not repro with smaller code
 #[allow(clippy::derive_partial_eq_without_eq)]
 /// A distribution type representing random sampling of floating point numbers, following a
 /// gaussian distribution.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Versionize)]
+#[versionize(GaussianVersions)]
 pub struct Gaussian<T: FloatingPoint> {
     /// The standard deviation of the distribution.
     pub std: T,
