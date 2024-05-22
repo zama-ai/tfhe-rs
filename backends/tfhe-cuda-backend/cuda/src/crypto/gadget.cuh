@@ -20,9 +20,7 @@ private:
   uint32_t level_count;
   uint32_t base_log;
   uint32_t mask;
-  uint32_t halfbg;
   uint32_t num_poly;
-  T offset;
   int current_level;
   T mask_mod_b;
   T *state;
@@ -82,69 +80,9 @@ public:
     synchronize_threads_in_block();
   }
 
-  // Decomposes a single polynomial
-  __device__ void
-  decompose_and_compress_next_polynomial_elements(double2 *result, int j) {
-    if (j == 0)
-      current_level -= 1;
-
-    int tid = threadIdx.x;
-    auto state_slice = state + j * params::degree;
-    for (int i = 0; i < params::opt / 2; i++) {
-      T res_re = state_slice[tid] & mask_mod_b;
-      T res_im = state_slice[tid + params::degree / 2] & mask_mod_b;
-      state_slice[tid] >>= base_log;
-      state_slice[tid + params::degree / 2] >>= base_log;
-      T carry_re = ((res_re - 1ll) | state_slice[tid]) & res_re;
-      T carry_im =
-          ((res_im - 1ll) | state_slice[tid + params::degree / 2]) & res_im;
-      carry_re >>= (base_log - 1);
-      carry_im >>= (base_log - 1);
-      state_slice[tid] += carry_re;
-      state_slice[tid + params::degree / 2] += carry_im;
-      res_re -= carry_re << base_log;
-      res_im -= carry_im << base_log;
-
-      result[i].x = (int32_t)res_re;
-      result[i].y = (int32_t)res_im;
-
-      tid += params::degree / params::opt;
-    }
-    synchronize_threads_in_block();
-  }
-
   __device__ void decompose_and_compress_level(double2 *result, int level) {
     for (int i = 0; i < level_count - level; i++)
       decompose_and_compress_next(result);
-  }
-};
-
-template <typename T> class GadgetMatrixSingle {
-private:
-  uint32_t level_count;
-  uint32_t base_log;
-  uint32_t mask;
-  uint32_t halfbg;
-  T offset;
-
-public:
-  __device__ GadgetMatrixSingle(uint32_t base_log, uint32_t level_count)
-      : base_log(base_log), level_count(level_count) {
-    uint32_t bg = 1 << base_log;
-    this->halfbg = bg / 2;
-    this->mask = bg - 1;
-    T temp = 0;
-    for (int i = 0; i < this->level_count; i++) {
-      temp += 1ULL << (sizeof(T) * 8 - (i + 1) * this->base_log);
-    }
-    this->offset = temp * this->halfbg;
-  }
-
-  __device__ T decompose_one_level_single(T element, uint32_t level) {
-    T s = element + this->offset;
-    uint32_t decal = (sizeof(T) * 8 - (level + 1) * this->base_log);
-    T temp1 = (s >> decal) & this->mask;
-    return (T)(temp1 - this->halfbg);
   }
 };
 

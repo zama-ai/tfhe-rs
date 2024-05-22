@@ -132,22 +132,22 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
         // n, k*N, noise_distribution, ks_base_log, ks_level,
         // message_modulus, carry_modulus, number_of_inputs
         (KeyswitchTestParams){
-            567, 1280, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            1280, 567, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
             3, 3, 2, 1, 10},
         (KeyswitchTestParams){
-            694, 1536, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            1536, 694, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
             4, 3, 2, 1, 10},
         (KeyswitchTestParams){
-            769, 2048, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            2048, 769, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
             4, 3, 2, 1, 10},
         (KeyswitchTestParams){
-            754, 2048, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            2048, 754, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
             3, 5, 2, 1, 10},
-        (KeyswitchTestParams){742, 2048,
+        (KeyswitchTestParams){2048, 742,
                               new_gaussian_from_std_dev(sqrt(4.9982771e-11)), 3,
                               5, 4, 1, 10},
         (KeyswitchTestParams){
-            847, 4096, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
+            4096, 847, new_gaussian_from_std_dev(sqrt(2.9802322387695312e-18)),
             4, 4, 2, 1, 10});
 
 std::string printParamName(::testing::TestParamInfo<KeyswitchTestParams> p) {
