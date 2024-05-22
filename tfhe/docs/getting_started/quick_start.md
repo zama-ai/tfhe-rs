@@ -44,7 +44,7 @@ fn main() {
 
 The default configuration for x86 Unix machines:
 ```toml
-tfhe = { version = "0.5.4", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.5.5", features = ["integer", "x86_64-unix"]}
 ```
 
 Configuration options for different platforms can be found [here](../getting_started/installation.md). Other rust and homomorphic types features can be found [here](../how_to/rust_configuration.md).
