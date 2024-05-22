@@ -35,63 +35,35 @@ template <typename Torus>
 __global__ void
 keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lwe_array_in,
           Torus *lwe_input_indexes, Torus *ksk, uint32_t lwe_dimension_in,
-          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-          int lwe_lower, int lwe_upper, int cutoff) {
+          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
   int tid = threadIdx.x;
-
   extern __shared__ int8_t sharedmem[];
+  if (tid <= lwe_dimension_out) {
+    Torus *local_lwe_array_out = (Torus *)sharedmem;
+    auto block_lwe_array_in = get_chunk(
+        lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
+    auto block_lwe_array_out = get_chunk(
+        lwe_array_out, lwe_output_indexes[blockIdx.x], lwe_dimension_out + 1);
+    local_lwe_array_out[tid] = 0;
 
-  Torus *local_lwe_array_out = (Torus *)sharedmem;
+    if (tid == lwe_dimension_out) {
+      local_lwe_array_out[lwe_dimension_out] =
+          block_lwe_array_in[lwe_dimension_in];
+    }
 
-  auto block_lwe_array_in = get_chunk(
-      lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
-  auto block_lwe_array_out = get_chunk(
-      lwe_array_out, lwe_output_indexes[blockIdx.x], lwe_dimension_out + 1);
-
-  auto gadget = GadgetMatrixSingle<Torus>(base_log, level_count);
-
-  int lwe_part_per_thd;
-  if (tid < cutoff) {
-    lwe_part_per_thd = lwe_upper;
-  } else {
-    lwe_part_per_thd = lwe_lower;
-  }
-  __syncthreads();
-
-  for (int k = 0; k < lwe_part_per_thd; k++) {
-    int idx = tid + k * blockDim.x;
-    local_lwe_array_out[idx] = 0;
-  }
-  __syncthreads();
-
-  if (tid == 0) {
-    local_lwe_array_out[lwe_dimension_out] =
-        block_lwe_array_in[lwe_dimension_in];
-  }
-
-  for (int i = 0; i < lwe_dimension_in; i++) {
-
-    __syncthreads();
-
-    Torus a_i =
-        round_to_closest_multiple(block_lwe_array_in[i], base_log, level_count);
-
-    Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
-    Torus mask_mod_b = (1ll << base_log) - 1ll;
-
-    for (int j = 0; j < level_count; j++) {
-      auto ksk_block = get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
-      Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
-      for (int k = 0; k < lwe_part_per_thd; k++) {
-        int idx = tid + k * blockDim.x;
-        local_lwe_array_out[idx] -= (Torus)ksk_block[idx] * decomposed;
+    for (int i = 0; i < lwe_dimension_in; i++) {
+      Torus a_i = round_to_closest_multiple(block_lwe_array_in[i], base_log,
+                                            level_count);
+      Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
+      Torus mask_mod_b = (1ll << base_log) - 1ll;
+      for (int j = 0; j < level_count; j++) {
+        auto ksk_block =
+            get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
+        Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
+        local_lwe_array_out[tid] -= (Torus)ksk_block[tid] * decomposed;
       }
     }
-  }
-
-  for (int k = 0; k < lwe_part_per_thd; k++) {
-    int idx = tid + k * blockDim.x;
-    block_lwe_array_out[idx] = local_lwe_array_out[idx];
+    block_lwe_array_out[tid] = local_lwe_array_out[tid];
   }
 }
 
@@ -104,37 +76,19 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
   cudaSetDevice(gpu_index);
-  constexpr int ideal_threads = 128;
+  constexpr int ideal_threads = 1024;
+  if (lwe_dimension_out + 1 > ideal_threads)
+    PANIC("Cuda error (keyswitch): lwe dimension size out should be greater "
+          "or equal to the number of threads per block")
 
   int lwe_size = lwe_dimension_out + 1;
-  int lwe_lower, lwe_upper, cutoff;
-  if (lwe_size % ideal_threads == 0) {
-    lwe_lower = lwe_size / ideal_threads;
-    lwe_upper = lwe_size / ideal_threads;
-    cutoff = 0;
-  } else {
-    int y = ceil((double)lwe_size / (double)ideal_threads) * ideal_threads -
-            lwe_size;
-    cutoff = ideal_threads - y;
-    lwe_lower = lwe_size / ideal_threads;
-    lwe_upper = (int)ceil((double)lwe_size / (double)ideal_threads);
-  }
-
-  int lwe_size_after = lwe_size * num_samples;
-
   int shared_mem = sizeof(Torus) * lwe_size;
-
-  cuda_memset_async(lwe_array_out, 0, sizeof(Torus) * lwe_size_after, stream,
-                    gpu_index);
-  check_cuda_error(cudaGetLastError());
-
   dim3 grid(num_samples, 1, 1);
   dim3 threads(ideal_threads, 1, 1);
 
   keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
-      lwe_dimension_in, lwe_dimension_out, base_log, level_count, lwe_lower,
-      lwe_upper, cutoff);
+      lwe_dimension_in, lwe_dimension_out, base_log, level_count);
   check_cuda_error(cudaGetLastError());
 }
 
