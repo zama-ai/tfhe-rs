@@ -23,6 +23,7 @@ jobs:
   setup-instance:
     name: Setup instance (cuda-integer-multi-bit-benchmarks)
     runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
