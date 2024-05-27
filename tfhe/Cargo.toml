@@ -67,6 +67,7 @@ aligned-vec = { version = "0.5", features = ["serde"] }
 dyn-stack = { version = "0.9" }
 paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
+sha3 = "0.10"
 # While we wait for repeat_n in rust standard library
 itertools = "0.11.0"
 rand_core = { version = "0.6.4", features = ["std"] }

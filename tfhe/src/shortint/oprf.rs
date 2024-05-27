@@ -1,8 +1,7 @@
 use super::Ciphertext;
-use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::prelude::{
-    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, ActivatedRandomGenerator,
-    LweCiphertext, LweSize, Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, LweCiphertext, LweSize,
+    Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
@@ -10,6 +9,24 @@ use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
 use crate::shortint::{PBSOrder, ServerKey};
 use concrete_csprng::seeders::Seed;
+
+pub fn sha3_hash(values: &mut [u64], seed: Seed) {
+    use sha3::digest::{ExtendableOutput, Update, XofReader};
+
+    let mut hasher = sha3::Shake256::default();
+
+    let bytes = seed.0.to_le_bytes();
+
+    hasher.update(bytes.as_slice());
+
+    let mut reader = hasher.finalize_xof();
+
+    for value in values {
+        let mut bytes = [0u8; 8];
+        reader.read(&mut bytes);
+        *value = u64::from_le_bytes(bytes);
+    }
+}
 
 impl ServerKey {
     pub(crate) fn create_random_from_seed(
@@ -19,11 +36,7 @@ impl ServerKey {
     ) -> LweCiphertext<Vec<u64>> {
         let mut ct = LweCiphertext::new(0, lwe_size, self.ciphertext_modulus);
 
-        let mut generator = RandomGenerator::<ActivatedRandomGenerator>::new(seed);
-
-        for mask_e in ct.get_mut_mask().as_mut() {
-            *mask_e = generator.random_uniform::<u64>();
-        }
+        sha3_hash(ct.get_mut_mask().as_mut(), seed);
 
         ct
     }
