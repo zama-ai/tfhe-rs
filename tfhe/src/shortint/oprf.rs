@@ -1,20 +1,27 @@
 use super::Ciphertext;
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::prelude::{
-    lwe_ciphertext_plaintext_add_assign, ActivatedRandomGenerator, Plaintext,
+    keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, ActivatedRandomGenerator,
+    LweCiphertext, LweSize, Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::ServerKey;
+use crate::shortint::engine::ShortintEngine;
+use crate::shortint::parameters::NoiseLevel;
+use crate::shortint::server_key::{apply_programmable_bootstrap, LookupTableOwned};
+use crate::shortint::{PBSOrder, ServerKey};
 use concrete_csprng::seeders::Seed;
 
 impl ServerKey {
-    pub(crate) fn create_random_from_seed(&self, seed: Seed) -> Ciphertext {
-        let mut ct = self.create_trivial(0);
+    pub(crate) fn create_random_from_seed(
+        &self,
+        seed: Seed,
+        lwe_size: LweSize,
+    ) -> LweCiphertext<Vec<u64>> {
+        let mut ct = LweCiphertext::new(0, lwe_size, self.ciphertext_modulus);
 
         let mut generator = RandomGenerator::<ActivatedRandomGenerator>::new(seed);
 
-        for mask_e in ct.ct.get_mut_mask().as_mut() {
+        for mask_e in ct.get_mut_mask().as_mut() {
             *mask_e = generator.random_uniform::<u64>();
         }
 
@@ -85,7 +92,9 @@ impl ServerKey {
             "The number of random bits asked for (={random_bits_count}) is bigger than full_bits_count (={full_bits_count})"
         );
 
-        let ct = self.create_random_from_seed(seed);
+        let in_lwe_size = self.bootstrapping_key.input_lwe_dimension().to_lwe_size();
+
+        let seeded = self.create_random_from_seed(seed, in_lwe_size);
 
         let p = 1 << random_bits_count;
 
@@ -96,20 +105,46 @@ impl ServerKey {
         let acc: LookupTableOwned =
             self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
 
-        let mut ct = self.apply_lookup_table(&ct, &acc);
+        let out_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
 
-        lwe_ciphertext_plaintext_add_assign(&mut ct.ct, Plaintext((p - 1) * delta / 2));
+        let mut ct = LweCiphertext::new(0, out_lwe_size, self.ciphertext_modulus);
 
-        ct.degree = Degree::new(p as usize - 1);
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let (_, buffers) = engine.get_buffers(self);
 
-        ct
+            apply_programmable_bootstrap(&self.bootstrapping_key, &seeded, &mut ct, &acc, buffers);
+        });
+
+        lwe_ciphertext_plaintext_add_assign(&mut ct, Plaintext((p - 1) * delta / 2));
+
+        let ct = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => ct,
+            PBSOrder::BootstrapKeyswitch => {
+                let mut ct_ksed = LweCiphertext::new(0, in_lwe_size, self.ciphertext_modulus);
+
+                keyswitch_lwe_ciphertext(&self.key_switching_key, &ct, &mut ct_ksed);
+
+                ct_ksed
+            }
+        };
+
+        Ciphertext {
+            ct,
+            degree: Degree::new(p as usize - 1),
+            noise_level: NoiseLevel::NOMINAL,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            pbs_order: self.pbs_order,
+        }
     }
 }
 
 #[cfg(test)]
 pub(crate) mod test {
     use crate::core_crypto::commons::generators::DeterministicSeeder;
-    use crate::core_crypto::prelude::{ActivatedRandomGenerator, GlweSecretKey, LweSecretKey};
+    use crate::core_crypto::prelude::{
+        decrypt_lwe_ciphertext, ActivatedRandomGenerator, GlweSecretKey, LweSecretKey,
+    };
     use crate::shortint::engine::ShortintEngine;
     use crate::shortint::{ClientKey, ServerKey};
     use concrete_csprng::seeders::Seed;
@@ -172,8 +207,14 @@ pub(crate) mod test {
 
         let img = sk.generate_oblivious_pseudo_random(seed, random_bits_count);
 
-        let plain_prf_input = ck
-            .decrypt_no_decode(&sk.create_random_from_seed(seed))
+        let lwe_size = sk.bootstrapping_key.input_lwe_dimension().to_lwe_size();
+
+        let ct = sk.create_random_from_seed(seed, lwe_size);
+
+        let sk = ck.small_lwe_secret_key();
+
+        let plain_prf_input = decrypt_lwe_ciphertext(&sk, &ct)
+            .0
             .wrapping_add(1 << (64 - log_input_p - 1))
             >> (64 - log_input_p);
 
