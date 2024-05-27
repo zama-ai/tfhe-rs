@@ -474,10 +474,10 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-    let lwe_dimension_search_space = (512..=1024).step_by(64).map(LweDimension);
+    let lwe_dimension_search_space = (513..=1026).step_by(63).map(LweDimension);
     let glwe_dimension_search_space = (1..=3).map(GlweDimension);
     let polynomial_size_search_space = (8..=12).map(|poly_log2| PolynomialSize(1 << poly_log2));
-    let grouping_factor_search_space = (3..=4).map(LweBskGroupingFactor);
+    let grouping_factor_search_space = (3..=3).map(LweBskGroupingFactor);
 
     let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
         64usize
