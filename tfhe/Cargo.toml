@@ -207,6 +207,14 @@ path = "benches/shortint/oprf.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
+
+[[bench]]
+name = "glwe_packing_compression-shortint-bench"
+path = "benches/shortint/glwe_packing_compression.rs"
+harness = false
+required-features = ["shortint", "internal-keycache"]
+
+
 [[bench]]
 name = "integer-bench"
 path = "benches/integer/bench.rs"
