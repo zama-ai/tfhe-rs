@@ -23,7 +23,6 @@ pub const MULTI_BIT_EXT_PROD_ALGO: &str = "multi-bit-ext-prod";
 pub const STD_MULTI_BIT_EXT_PROD_ALGO: &str = "std-multi-bit-ext-prod";
 pub const EXT_PROD_U128_SPLIT_ALGO: &str = "ext-prod-u128-split";
 pub const EXT_PROD_U128_ALGO: &str = "ext-prod-u128";
-pub const MULTI_BIT_BOOTSTRAP_GPU: &str = "multi-bit-bootstrap-gpu";
 
 #[derive(Debug)]
 pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: UnsignedInteger> {
@@ -65,7 +64,6 @@ struct Args {
         STD_MULTI_BIT_EXT_PROD_ALGO,
         EXT_PROD_U128_SPLIT_ALGO,
         EXT_PROD_U128_ALGO,
-        MULTI_BIT_BOOTSTRAP_GPU
     ], default_value = "")]
     algorithm: String,
     multi_bit_grouping_factor: Option<usize>,
@@ -315,12 +313,9 @@ fn main() {
     };
 
     if timing_only {
-        match algo.as_str() {
-            MULTI_BIT_BOOTSTRAP_GPU => {
-                return ks_pbs_timing::timing_experiment_gpu(&algo, preserved_mantissa, modulus);
-            }
-            _ => {}
-        }
+        #[cfg(feature = "gpu")]
+        return ks_pbs_timing::timing_experiment_gpu(&algo, preserved_mantissa, modulus);
+        #[cfg(not(feature = "gpu"))]
         return ks_pbs_timing::timing_experiment(&algo, preserved_mantissa, modulus);
     }
 

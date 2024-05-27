@@ -8,13 +8,18 @@ use itertools::Itertools;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
-//#[cfg(feature = "gpu")]  <-might need something like this
 use tfhe::core_crypto::algorithms::misc::*;
-use tfhe::core_crypto::gpu::*;
+#[cfg(feature = "gpu")]
+use tfhe::core_crypto::gpu::{cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+#[cfg(feature = "gpu")]
+use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+#[cfg(feature = "gpu")]
+use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+#[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-use tfhe::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
-use tfhe::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
+#[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::vec::CudaVec;
+
 pub const SECURITY_LEVEL: u64 = 128;
 // Variance of uniform distribution over [0; 1)
 pub const UNIFORM_NOISE_VARIANCE: f64 = 1. / 12.;
@@ -447,8 +452,9 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
 }
 
 // Probably this can be moved somewhere or reuse some of the already existant code
+#[cfg(feature = "gpu")]
 pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus: u128) {
-    assert_eq!(algorithm, MULTI_BIT_BOOTSTRAP_GPU);
+    assert_eq!(algorithm, EXT_PROD_ALGO);
 
     let out_dir = Path::new("gpu_exp");
     if !out_dir.exists() {
@@ -910,6 +916,7 @@ fn run_timing_measurements(
 }
 
 
+#[cfg(feature = "gpu")]
 fn run_timing_measurements_gpu(
     params: Params,
     variances: NoiseVariances,
@@ -978,9 +985,9 @@ fn run_timing_measurements_gpu(
     ));
 
     let gpu_index = 0;
-    let stream = CudaStreams::new_single_gpu(gpu_index);
+    let streams = CudaStreams::new_single_gpu(gpu_index);
 
-    let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &stream);
+    let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &streams);
 
     // let ksk = allocate_and_generate_new_lwe_keyswitch_key(
     //     &glwe_secret_key.as_lwe_secret_key(),
@@ -1030,7 +1037,7 @@ fn run_timing_measurements_gpu(
     ));
 
     let d_lwe_ciphertext_in =
-    CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
+    CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &streams);
 
     // let inputs: Vec<_> = (0..BATCH_COUNT * CHUNK_SIZE.last().unwrap())
     //     .map(|_| {
@@ -1048,7 +1055,7 @@ fn run_timing_measurements_gpu(
         output_lwe_dimension,
         LweCiphertextCount(1),
         ciphertext_modulus,
-        &stream,
+        &streams,
     );
 
 
@@ -1114,7 +1121,7 @@ fn run_timing_measurements_gpu(
         ciphertext_modulus
     ));
 
-    let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+    let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &streams);
 
     let mut timings = vec![];
 
@@ -1139,10 +1146,10 @@ fn run_timing_measurements_gpu(
     }
 
     let mut d_test_vector_indexes =
-        unsafe { CudaVec::<u64>::new_async(number_of_messages, &stream) };
-    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream) };
+        unsafe { CudaVec::<u64>::new_async(number_of_messages, &streams) };
+    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &streams) };
 
-    let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&stream).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
+    let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&streams).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
     
     let lwe_indexes_usize: Vec<usize> = (0..num_blocks.0).collect_vec();
     let lwe_indexes = lwe_indexes_usize
@@ -1150,11 +1157,11 @@ fn run_timing_measurements_gpu(
         .map(|&x| <usize as CastInto<u64>>::cast_into(x))
         .collect_vec();
     
-    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &stream) };
-    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &stream) };
+    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
+    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
     unsafe {
-        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
-        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream);
+        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
+        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
     }
 
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -1165,9 +1172,9 @@ fn run_timing_measurements_gpu(
         &d_output_indexes,
         &d_input_indexes,
         &d_bsk,
-        &stream,
+        &streams,
     );
-    let out_pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
+    let out_pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&streams);
     assert!(check_encrypted_content_respects_mod(
         &out_pbs_ct,
         ciphertext_modulus
