@@ -1980,6 +1980,9 @@ where
 
         clear = (clear_0 + clear_1) % modulus;
 
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear, dec_res);
+
         // Add multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&ct_res, clear_1));
