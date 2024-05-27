@@ -22,6 +22,7 @@ pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
+pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 
 #[cfg(test)]
 pub(crate) mod tests;

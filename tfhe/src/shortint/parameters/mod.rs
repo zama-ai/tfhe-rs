@@ -12,7 +12,8 @@ pub use crate::core_crypto::commons::parameters::{
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::prelude::{
-    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
+    GlweCiphertextConformanceParameters, LweCiphertextCount, LweCiphertextListParameters,
+    LweCiphertextParameters, MsDecompressionType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,7 @@ pub mod compact_public_key_only;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;
 pub mod key_switching;
+pub mod list_compression;
 pub mod multi_bit;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
@@ -199,6 +201,20 @@ pub enum PBSParameters {
 #[derive(Copy, Clone)]
 pub struct CiphertextConformanceParams {
     pub ct_params: LweCiphertextParameters<u64>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub degree: Degree,
+    pub noise_level: NoiseLevel,
+    pub pbs_order: PBSOrder,
+}
+
+/// Structure to store the expected properties of a compressed ciphertext
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+#[derive(Copy, Clone)]
+pub struct CompressedCiphertextConformanceParams {
+    pub ct_params: GlweCiphertextConformanceParameters<u64>,
+    pub lwe_per_glwe: LweCiphertextCount,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,

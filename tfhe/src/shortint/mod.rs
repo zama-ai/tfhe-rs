@@ -53,6 +53,7 @@ pub mod engine;
 pub mod key_switching_key;
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
+pub mod list_compression;
 pub mod oprf;
 pub mod parameters;
 pub mod prelude;
