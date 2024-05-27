@@ -29,6 +29,7 @@ struct Params {
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
+    grouping_factor: LweBskGroupingFactor,
     pbs_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     ks_base_log: DecompositionBaseLog,
@@ -92,6 +93,7 @@ fn lwe_glwe_noise_ap_estimate(
         lwe_dimension,
         glwe_dimension,
         polynomial_size,
+        grouping_factor: _grouping_factor,
         pbs_base_log,
         pbs_level,
         ks_base_log,
@@ -259,6 +261,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
     let lwe_dimension_search_space = (512..=1024).step_by(64).map(LweDimension);
     let glwe_dimension_search_space = (1..=5).map(GlweDimension);
     let polynomial_size_search_space = (8..=14).map(|poly_log2| PolynomialSize(1 << poly_log2));
+    let grouping_factor_search_space = (0..1).map(LweBskGroupingFactor);
 
     let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
         64usize
@@ -298,6 +301,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
         lwe_dimension_search_space,
         glwe_dimension_search_space,
         polynomial_size_search_space,
+        grouping_factor_search_space,
         base_log_level_pbs,
         base_log_level_ks
     );
@@ -308,6 +312,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
                 lwe_dimension,
                 glwe_dimension,
                 polynomial_size,
+                grouping_factor,
                 pbs_base_log_level,
                 ks_base_log_level,
             )| {
@@ -315,6 +320,7 @@ pub fn timing_experiment(algorithm: &str, preserved_mantissa: usize, modulus: u1
                     lwe_dimension,
                     glwe_dimension,
                     polynomial_size,
+                    grouping_factor,
                     pbs_base_log: pbs_base_log_level.base,
                     pbs_level: pbs_base_log_level.level,
                     ks_base_log: ks_base_log_level.base,
@@ -471,6 +477,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
     let lwe_dimension_search_space = (512..=1024).step_by(64).map(LweDimension);
     let glwe_dimension_search_space = (1..=5).map(GlweDimension);
     let polynomial_size_search_space = (8..=14).map(|poly_log2| PolynomialSize(1 << poly_log2));
+    let grouping_factor_search_space = (2..=4).map(LweBskGroupingFactor);
 
     let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
         64usize
@@ -510,6 +517,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
         lwe_dimension_search_space,
         glwe_dimension_search_space,
         polynomial_size_search_space,
+        grouping_factor_search_space,
         base_log_level_pbs,
         base_log_level_ks
     );
@@ -520,6 +528,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
                 lwe_dimension,
                 glwe_dimension,
                 polynomial_size,
+                grouping_factor,
                 pbs_base_log_level,
                 ks_base_log_level,
             )| {
@@ -527,6 +536,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
                     lwe_dimension,
                     glwe_dimension,
                     polynomial_size,
+                    grouping_factor,
                     pbs_base_log: pbs_base_log_level.base,
                     pbs_level: pbs_base_log_level.level,
                     ks_base_log: ks_base_log_level.base,
@@ -958,9 +968,6 @@ fn run_timing_measurements_gpu(
     let output_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
     let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
     
-    // This should be 3 or 4
-    let grouping_factor =  LweBskGroupingFactor(2);
-    
     let mut bsk = LweMultiBitBootstrapKey::new(
         u64::ZERO,   //Scalar::ZERO,
         params.glwe_dimension.to_glwe_size(),
@@ -968,7 +975,7 @@ fn run_timing_measurements_gpu(
         params.pbs_base_log,
         params.pbs_level,
         params.lwe_dimension,
-        grouping_factor,
+        params.grouping_factor,
         ciphertext_modulus,
     );
 
