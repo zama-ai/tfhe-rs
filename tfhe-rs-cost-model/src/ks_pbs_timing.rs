@@ -224,14 +224,14 @@ fn filter_b_l_limited(
     let mut bases_levels = vec![];
     for (b, l) in iproduct!(bases, levels) {
         if b * l <= preserved_mantissa {
-            if *b == 1 {
+            if *b == 1 && *l <= 10 {
                 if (b * l) % 5 == 0 {
                     bases_levels.push(BaseLevel {
                         base: DecompositionBaseLog(*b),
                         level: DecompositionLevelCount(*l),
                     });
                 }
-            } else {
+            } else if *l <= 10 {
                 bases_levels.push(BaseLevel {
                     base: DecompositionBaseLog(*b),
                     level: DecompositionLevelCount(*l),
