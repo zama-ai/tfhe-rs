@@ -224,14 +224,14 @@ fn filter_b_l_limited(
     let mut bases_levels = vec![];
     for (b, l) in iproduct!(bases, levels) {
         if b * l <= preserved_mantissa {
-            if *b == 1 && *l <= 5 {
+            if *b == 1 && *l <= 8 {
                 if (b * l) % 5 == 0 {
                     bases_levels.push(BaseLevel {
                         base: DecompositionBaseLog(*b),
                         level: DecompositionLevelCount(*l),
                     });
                 }
-            } else if *l <= 5 {
+            } else if *l <= 8 {
                 bases_levels.push(BaseLevel {
                     base: DecompositionBaseLog(*b),
                     level: DecompositionLevelCount(*l),
@@ -475,7 +475,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     let lwe_dimension_search_space = (513..=1026).step_by(63).map(LweDimension);
-    let glwe_dimension_search_space = (1..=3).map(GlweDimension);
+    let glwe_dimension_search_space = (1..=5).map(GlweDimension);
     let polynomial_size_search_space = (8..=12).map(|poly_log2| PolynomialSize(1 << poly_log2));
     let grouping_factor_search_space = (3..=3).map(LweBskGroupingFactor);
 
@@ -661,15 +661,17 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
     let start_time = std::time::Instant::now();
 
     for (idx, (params, variances)) in hypercube.into_iter().enumerate() {
-        let loop_start = std::time::Instant::now();
-        println!("#{idx} start");
-        println!("{params:#?}");
-        let perf_metrics = run_timing_measurements_gpu(params, variances, ciphertext_modulus);
-        println!("{perf_metrics:#?}");
-        write_results_to_file(params, &perf_metrics, out_dir);
-        let loop_elapsed = loop_start.elapsed();
-        println!("#{idx} done in {loop_elapsed:?}");
-        println!("overall runtime {:?}", start_time.elapsed());
+        if params.pbs_level.0 * (params.glwe_dimension.0 + 1) <= 16 {
+            let loop_start = std::time::Instant::now();
+            println!("#{idx} start");
+            println!("{params:#?}");
+            let perf_metrics = run_timing_measurements_gpu(params, variances, ciphertext_modulus);
+            println!("{perf_metrics:#?}");
+            write_results_to_file(params, &perf_metrics, out_dir);
+            let loop_elapsed = loop_start.elapsed();
+            println!("#{idx} done in {loop_elapsed:?}");
+            println!("overall runtime {:?}", start_time.elapsed());
+        }
     }
 }
 
