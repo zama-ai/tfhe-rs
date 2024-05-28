@@ -57,7 +57,7 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(
                                        polynomial_size, level_count,
                                        max_shared_memory);
   default:
-    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+    PANIC("Cuda error (classical PBS): unsupported polynomial size. Supported "
           "N's are powers of two"
           " in the interval [256..16384].")
   }

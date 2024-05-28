@@ -439,12 +439,17 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
   config.blockDim = thds;
   config.numAttrs = 0;
 
+  /* Despite the documentation stating that we could have cluster sizes up to 16
+   * on H100s if we enable non-portable cluster sizes, this doesn't seem the
+   * case and it will fail if we try. Thus, since level_count *
+   * (glwe_dimension+1) is usually smaller than 8 at this moment, we will
+   * disable cudaFuncAttributeNonPortableClusterSizeAllowed */
   if (max_shared_memory <
       partial_sm_tbc_accumulate + minimum_sm_tbc_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                NOSM>,
-        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+        cudaFuncAttributeNonPortableClusterSizeAllowed, false));
     check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
         &cluster_size,
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
@@ -455,7 +460,7 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                PARTIALSM>,
-        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+        cudaFuncAttributeNonPortableClusterSizeAllowed, false));
     check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
         &cluster_size,
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
@@ -465,7 +470,7 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
                                                                FULLSM>,
-        cudaFuncAttributeNonPortableClusterSizeAllowed, true));
+        cudaFuncAttributeNonPortableClusterSizeAllowed, false));
     check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
         &cluster_size,
         device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
