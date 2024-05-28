@@ -99,6 +99,15 @@ impl FheBool {
         self.ciphertext.move_to_device(device)
     }
 
+    pub fn into_raw_parts(mut self) -> crate::shortint::Ciphertext {
+        self.ciphertext.move_to_device(Device::Cpu);
+        match self.ciphertext {
+            InnerBoolean::Cpu(ct) => ct.into_raw_parts(),
+            #[cfg(feature = "gpu")]
+            InnerBoolean::Cuda(_) => unreachable!(),
+        }
+    }
+
     /// Tries to decrypt a trivial ciphertext
     ///
     /// Trivial ciphertexts are ciphertexts which are not encrypted

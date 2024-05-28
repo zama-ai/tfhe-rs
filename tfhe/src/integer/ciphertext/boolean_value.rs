@@ -112,6 +112,11 @@ impl BooleanBlock {
         self.0
     }
 
+    /// Alias of [`into_inner`](`Self::into_inner`).
+    pub fn into_raw_parts(self) -> Ciphertext {
+        self.0
+    }
+
     /// Consumes and converts the BooleanBlock to a [RadixCiphertext] / [SignedRadixCiphertext]
     /// with the given number of blocks.
     ///
