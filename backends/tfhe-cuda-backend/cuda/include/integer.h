@@ -50,7 +50,8 @@ void scratch_cuda_apply_univariate_lut_kb_64(
 void cuda_apply_univariate_lut_kb_64(void **streams, uint32_t *gpu_indexes,
                                      uint32_t gpu_count, void *output_radix_lwe,
                                      void *input_radix_lwe, int8_t *mem_ptr,
-                                     void *ksk, void *bsk, uint32_t num_blocks);
+                                     void **ksks, void **bsks,
+                                     uint32_t num_blocks);
 
 void cleanup_cuda_apply_univariate_lut_kb_64(void **streams,
                                              uint32_t *gpu_indexes,
@@ -66,7 +67,7 @@ void scratch_cuda_full_propagation_64(
 
 void cuda_full_propagation_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *input_blocks, int8_t *mem_ptr, void *ksk, void *bsk,
+    void *input_blocks, int8_t *mem_ptr, void **ksks, void **bsks,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t ks_base_log, uint32_t ks_level, uint32_t pbs_base_log,
     uint32_t pbs_level, uint32_t grouping_factor, uint32_t num_blocks);
@@ -84,8 +85,9 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
 
 void cuda_integer_mult_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void *radix_lwe_left, void *radix_lwe_right, void *bsk,
-    void *ksk, int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks);
+    void *radix_lwe_out, void *radix_lwe_left, void *radix_lwe_right,
+    void **bsks, void **ksks, int8_t *mem_ptr, uint32_t polynomial_size,
+    uint32_t num_blocks);
 
 void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
                                uint32_t gpu_count, int8_t **mem_ptr_void);
@@ -111,7 +113,8 @@ void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
 
 void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks);
+    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
+    uint32_t num_blocks);
 
 void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
@@ -124,7 +127,8 @@ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
 
 void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks);
+    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
+    uint32_t num_blocks);
 
 void cleanup_cuda_integer_radix_logical_scalar_shift(void **streams,
                                                      uint32_t *gpu_indexes,
@@ -147,7 +151,7 @@ void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
 
 void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    void *lwe_shift, int8_t *mem_ptr, void *bsk, void *ksk,
+    void *lwe_shift, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t num_blocks);
 
 void cleanup_cuda_integer_radix_shift_and_rotate(void **streams,
@@ -167,12 +171,12 @@ void scratch_cuda_integer_radix_comparison_kb_64(
 void cuda_comparison_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
-    void *bsk, void *ksk, uint32_t lwe_ciphertext_count);
+    void **bsks, void **ksks, uint32_t lwe_ciphertext_count);
 
 void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_in, void *scalar_blocks,
-    int8_t *mem_ptr, void *bsk, void *ksk, uint32_t lwe_ciphertext_count,
+    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_ciphertext_count,
     uint32_t num_scalar_blocks);
 
 void cleanup_cuda_integer_comparison(void **streams, uint32_t *gpu_indexes,
@@ -190,17 +194,17 @@ void scratch_cuda_integer_radix_bitop_kb_64(
 void cuda_bitop_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
-    void *bsk, void *ksk, uint32_t lwe_ciphertext_count);
+    void **bsks, void **ksks, uint32_t lwe_ciphertext_count);
 
 void cuda_bitnot_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_in, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t lwe_ciphertext_count);
+    void *lwe_array_out, void *lwe_array_in, int8_t *mem_ptr, void **bsks,
+    void **ksks, uint32_t lwe_ciphertext_count);
 
 void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_input, void *clear_blocks,
-    uint32_t num_clear_blocks, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t num_clear_blocks, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t lwe_ciphertext_count, BITOP_TYPE op);
 
 void cleanup_cuda_integer_bitop(void **streams, uint32_t *gpu_indexes,
@@ -218,7 +222,7 @@ void scratch_cuda_integer_radix_cmux_kb_64(
 void cuda_cmux_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_condition, void *lwe_array_true,
-    void *lwe_array_false, int8_t *mem_ptr, void *bsk, void *ksk,
+    void *lwe_array_false, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t lwe_ciphertext_count);
 
 void cleanup_cuda_integer_radix_cmux(void **streams, uint32_t *gpu_indexes,
@@ -235,7 +239,7 @@ void scratch_cuda_integer_radix_scalar_rotate_kb_64(
 
 void cuda_integer_radix_scalar_rotate_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t n, int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks);
+    uint32_t n, int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks);
 
 void cleanup_cuda_integer_radix_scalar_rotate(void **streams,
                                               uint32_t *gpu_indexes,
@@ -254,8 +258,8 @@ void cuda_propagate_single_carry_kb_64_inplace(void **streams,
                                                uint32_t *gpu_indexes,
                                                uint32_t gpu_count,
                                                void *lwe_array, void *carry_out,
-                                               int8_t *mem_ptr, void *bsk,
-                                               void *ksk, uint32_t num_blocks);
+                                               int8_t *mem_ptr, void **bsks,
+                                               void **ksks, uint32_t num_blocks);
 
 void cleanup_cuda_propagate_single_carry(void **streams, uint32_t *gpu_indexes,
                                          uint32_t gpu_count,
@@ -273,7 +277,7 @@ void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
 void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_vec, uint32_t num_radix_in_vec,
-    int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks_in_radix);
+    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks_in_radix);
 
 void cleanup_cuda_integer_radix_sum_ciphertexts_vec(void **streams,
                                                     uint32_t *gpu_indexes,
@@ -291,7 +295,7 @@ void scratch_cuda_integer_radix_overflowing_sub_kb_64(
 void cuda_integer_radix_overflowing_sub_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_overflowed, void *radix_lwe_left,
-    void *radix_lwe_right, int8_t *mem_ptr, void *bsk, void *ksk,
+    void *radix_lwe_right, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t num_blocks_in_radix);
 
 void cleanup_cuda_integer_radix_overflowing_sub(void **streams,
@@ -310,7 +314,7 @@ void scratch_cuda_integer_scalar_mul_kb_64(
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
     uint64_t *decomposed_scalar, uint64_t *has_at_least_one_set,
-    int8_t *mem_ptr, void *bsk, void *ksk, uint32_t lwe_dimension,
+    int8_t *mem_ptr, void **bsks, void **ksks, uint32_t lwe_dimension,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t num_blocks,
     uint32_t num_scalars);
 
@@ -329,8 +333,8 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *quotient,
-    void *remainder, void *numerator, void *divisor, int8_t *mem_ptr, void *bsk,
-    void *ksk, uint32_t num_blocks_in_radix);
+    void *remainder, void *numerator, void *divisor, int8_t *mem_ptr,
+    void **bsks, void **ksks, uint32_t num_blocks_in_radix);
 
 void cleanup_cuda_integer_div_rem(void **streams, uint32_t *gpu_indexes,
                                   uint32_t gpu_count, int8_t **mem_ptr_void);

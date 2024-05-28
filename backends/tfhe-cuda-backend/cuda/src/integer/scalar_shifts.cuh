@@ -28,7 +28,7 @@ template <typename Torus>
 __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array, uint32_t shift,
-    int_logical_scalar_shift_buffer<Torus> *mem, void *bsk, Torus *ksk,
+    int_logical_scalar_shift_buffer<Torus> *mem, void **bsks, Torus **ksks,
     uint32_t num_blocks) {
 
   cudaSetDevice(gpu_indexes[0]);
@@ -86,7 +86,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
-        partial_current_blocks, partial_previous_blocks, bsk, ksk,
+        partial_current_blocks, partial_previous_blocks, bsks, ksks,
         partial_block_count, lut_bivariate,
         lut_bivariate->params.message_modulus);
 
@@ -116,7 +116,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
-        partial_current_blocks, partial_next_blocks, bsk, ksk,
+        partial_current_blocks, partial_next_blocks, bsks, ksks,
         partial_block_count, lut_bivariate,
         lut_bivariate->params.message_modulus);
   }
@@ -138,7 +138,7 @@ template <typename Torus>
 __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array, uint32_t shift,
-    int_arithmetic_scalar_shift_buffer<Torus> *mem, void *bsk, Torus *ksk,
+    int_arithmetic_scalar_shift_buffer<Torus> *mem, void **bsks, Torus **ksks,
     uint32_t num_blocks) {
 
   cudaSetDevice(gpu_indexes[0]);
@@ -213,7 +213,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     if (shift_within_block != 0 && rotations != num_blocks) {
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, partial_current_blocks,
-          partial_current_blocks, partial_next_blocks, bsk, ksk,
+          partial_current_blocks, partial_next_blocks, bsks, ksks,
           partial_block_count, lut_bivariate,
           lut_bivariate->params.message_modulus);
     }
@@ -227,7 +227,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       {
         integer_radix_apply_univariate_lookup_table_kb(
             &mem->local_stream_1, &gpu_indexes[0], 1, padding_block,
-            last_block_copy, bsk, ksk, 1, lut_univariate_padding_block);
+            last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
         // Replace blocks 'pulled' from the left with the correct padding block
         for (uint i = 0; i < rotations; i++) {
           cuda_memcpy_async_gpu_to_gpu(
@@ -241,7 +241,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         if (shift_within_block != 0 && rotations != num_blocks) {
           integer_radix_apply_univariate_lookup_table_kb(
               &mem->local_stream_2, &gpu_indexes[0], 1, last_block,
-              last_block_copy, bsk, ksk, 1, lut_univariate_shift_last_block);
+              last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
         }
       }
     }

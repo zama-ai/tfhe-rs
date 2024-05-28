@@ -209,8 +209,8 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
 template <typename Torus, class params>
 __host__ void host_integer_sum_ciphertexts_vec_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *radix_lwe_out, Torus *terms, int *terms_degree, void *bsk,
-    uint64_t *ksk, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    Torus *radix_lwe_out, Torus *terms, int *terms_degree, void **bsks,
+    uint64_t **ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec) {
 
   auto new_blocks = mem_ptr->new_blocks;
@@ -328,14 +328,14 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     cudaSetDevice(gpu_indexes[0]);
     cuda_keyswitch_lwe_ciphertext_vector(
         streams[0], gpu_indexes[0], small_lwe_vector, lwe_indexes_in,
-        new_blocks, lwe_indexes_in, ksk, polynomial_size * glwe_dimension,
+        new_blocks, lwe_indexes_in, ksks[0], polynomial_size * glwe_dimension,
         lwe_dimension, mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
         message_count);
 
     execute_pbs<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
                        lwe_indexes_out, luts_message_carry->lut,
                        luts_message_carry->lut_indexes, small_lwe_vector,
-                       lwe_indexes_in, bsk, luts_message_carry->buffer,
+                       lwe_indexes_in, bsks, luts_message_carry->buffer,
                        glwe_dimension, lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, total_count, 2, 0,
@@ -362,14 +362,14 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
   host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
                                      radix_lwe_out, nullptr, mem_ptr->scp_mem,
-                                     bsk, ksk, num_blocks);
+                                     bsks, ksks, num_blocks);
 }
 
 template <typename Torus, typename STorus, class params>
 __host__ void host_integer_mult_radix_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     uint64_t *radix_lwe_out, uint64_t *radix_lwe_left,
-    uint64_t *radix_lwe_right, void *bsk, uint64_t *ksk,
+    uint64_t *radix_lwe_right, void **bsks, uint64_t **ksks,
     int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
@@ -446,7 +446,7 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, block_mul_res, block_mul_res,
-      vector_result_sb, bsk, ksk, total_block_count, luts_array,
+      vector_result_sb, bsks, ksks, total_block_count, luts_array,
       luts_array->params.message_modulus);
 
   vector_result_lsb = &block_mul_res[0];
@@ -476,7 +476,7 @@ __host__ void host_integer_mult_radix_kb(
 
   host_integer_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb,
-      terms_degree, bsk, ksk, mem_ptr->sum_ciphertexts_mem, num_blocks,
+      terms_degree, bsks, ksks, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks);
 }
 

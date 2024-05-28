@@ -27,7 +27,7 @@ template <typename Torus>
 __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array, Torus *lwe_shift, int_shift_and_rotate_buffer<Torus> *mem,
-    void *bsk, Torus *ksk, uint32_t num_radix_blocks) {
+    void **bsks, Torus **ksks, uint32_t num_radix_blocks) {
   uint32_t bits_per_block = std::log2(mem->params.message_modulus);
   uint32_t total_nb_bits = bits_per_block * num_radix_blocks;
   if (total_nb_bits == 0)
@@ -41,8 +41,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
   // Extract all bits
   auto bits = mem->tmp_bits;
-  extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, bits, lwe_array, bsk,
-                        ksk, num_radix_blocks, bits_per_block,
+  extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, bits, lwe_array, bsks,
+                        ksks, num_radix_blocks, bits_per_block,
                         mem->bit_extract_luts);
 
   // Extract shift bits
@@ -63,7 +63,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // so that it is already aligned to the correct position of the cmux input
   // and we reduce noise growth
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, shift_bits, lwe_shift,
-                        bsk, ksk, 1, max_num_bits_that_tell_shift,
+                        bsks, ksks, 1, max_num_bits_that_tell_shift,
                         mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
@@ -153,7 +153,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // we have
     // control_bit|b|a
     integer_radix_apply_univariate_lookup_table_kb(
-        streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsk, ksk,
+        streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsks, ksks,
         total_nb_bits, mux_lut);
   }
 
@@ -191,7 +191,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // To give back a clean ciphertext
     auto cleaning_lut = mem->cleaning_lut;
     integer_radix_apply_univariate_lookup_table_kb(
-        streams, gpu_indexes, gpu_count, lwe_last_out, lwe_last_out, bsk, ksk,
+        streams, gpu_indexes, gpu_count, lwe_last_out, lwe_last_out, bsks, ksks,
         num_radix_blocks, cleaning_lut);
   }
 }

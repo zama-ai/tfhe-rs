@@ -39,7 +39,7 @@ impl CudaLweBootstrapKey {
         let glwe_dimension = bsk.glwe_size().to_glwe_dimension();
 
         // Allocate memory
-        let mut d_vec = CudaVec::<f64>::new(
+        let mut d_vec = CudaVec::<f64>::new_multi_gpu(
             lwe_bootstrap_key_size(
                 input_lwe_dimension,
                 glwe_dimension.to_glwe_size(),

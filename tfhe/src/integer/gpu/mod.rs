@@ -166,20 +166,20 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        lwe_array.gpu_index(),
+        lwe_array.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        scalar_input.gpu_index(),
+        scalar_input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(),
-        scalar_input.as_c_ptr(),
+        lwe_array.as_mut_c_ptr(0),
+        scalar_input.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
         message_modulus,
@@ -215,17 +215,17 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        lwe_array.gpu_index(),
+        lwe_array.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -253,12 +253,12 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(),
+        lwe_array.as_mut_c_ptr(0),
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         (glwe_dimension.0 * polynomial_size.0) as u32,
         polynomial_size.0 as u32,
         message_modulus.0 as u32,
@@ -288,20 +288,20 @@ pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(),
+        radix_lwe_right.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_lwe_left.as_c_ptr(),
-        radix_lwe_right.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
+        radix_lwe_right.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_blocks,
     );
@@ -333,22 +333,22 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(),
+        radix_lwe_right.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -376,11 +376,11 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_lwe_left.as_c_ptr(),
-        radix_lwe_right.as_c_ptr(),
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
+        radix_lwe_right.as_c_ptr(0),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         mem_ptr,
         polynomial_size.0 as u32,
         num_blocks,
@@ -421,22 +421,22 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(),
+        radix_lwe_right.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -465,12 +465,12 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_lwe_left.as_c_ptr(),
-        radix_lwe_right.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
+        radix_lwe_right.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
@@ -507,17 +507,17 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -546,11 +546,11 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_lwe_left.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
@@ -592,22 +592,22 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe.gpu_index(),
+        radix_lwe.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        clear_blocks.gpu_index(),
+        clear_blocks.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -636,13 +636,13 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe.as_mut_c_ptr(),
-        radix_lwe.as_mut_c_ptr(),
-        clear_blocks.as_c_ptr(),
-        min(clear_blocks.len() as u32, num_blocks),
+        radix_lwe.as_mut_c_ptr(0),
+        radix_lwe.as_mut_c_ptr(0),
+        clear_blocks.as_c_ptr(0),
+        min(clear_blocks.len(0) as u32, num_blocks),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
         op as u32,
     );
@@ -684,27 +684,27 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(),
+        radix_lwe_out.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_right.gpu_index(),
+        radix_lwe_right.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -735,12 +735,12 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(),
-        radix_lwe_left.as_c_ptr(),
-        radix_lwe_right.as_c_ptr(),
+        radix_lwe_out.as_mut_c_ptr(0),
+        radix_lwe_left.as_c_ptr(0),
+        radix_lwe_right.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
 
@@ -783,27 +783,27 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(),
+        radix_lwe_out.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_in.gpu_index(),
+        radix_lwe_in.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        scalar_blocks.gpu_index(),
+        scalar_blocks.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -834,12 +834,12 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(),
-        radix_lwe_in.as_c_ptr(),
-        scalar_blocks.as_c_ptr(),
+        radix_lwe_out.as_mut_c_ptr(0),
+        radix_lwe_in.as_c_ptr(0),
+        scalar_blocks.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
         num_scalar_blocks,
     );
@@ -877,17 +877,17 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(),
+        radix_lwe_input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -910,10 +910,10 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_input.as_mut_c_ptr(),
+        radix_lwe_input.as_mut_c_ptr(0),
         mem_ptr,
-        keyswitch_key.as_c_ptr(),
-        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -957,17 +957,17 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(),
+        radix_lwe_input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -996,11 +996,11 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_input.as_mut_c_ptr(),
-        carry_out.as_mut_c_ptr(),
+        radix_lwe_input.as_mut_c_ptr(0),
+        carry_out.as_mut_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_propagate_single_carry(
@@ -1041,17 +1041,17 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1080,11 +1080,11 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
@@ -1125,17 +1125,17 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1164,11 +1164,11 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
@@ -1209,17 +1209,17 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1248,11 +1248,11 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_arithmetic_scalar_shift(
@@ -1294,22 +1294,22 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(),
+        radix_shift.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1339,11 +1339,11 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_shift.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1382,22 +1382,22 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(),
+        radix_shift.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1427,11 +1427,11 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_shift.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1473,22 +1473,22 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(),
+        radix_shift.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1518,11 +1518,11 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_shift.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1564,22 +1564,22 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.gpu_index(),
+        radix_shift.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1609,11 +1609,11 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
-        radix_shift.as_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
+        radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1653,32 +1653,32 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_out.gpu_index(),
+        radix_lwe_out.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_condition.gpu_index(),
+        radix_lwe_condition.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_true.gpu_index(),
+        radix_lwe_true.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_false.gpu_index(),
+        radix_lwe_false.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1706,13 +1706,13 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_out.as_mut_c_ptr(),
-        radix_lwe_condition.as_c_ptr(),
-        radix_lwe_true.as_c_ptr(),
-        radix_lwe_false.as_c_ptr(),
+        radix_lwe_out.as_mut_c_ptr(0),
+        radix_lwe_condition.as_c_ptr(0),
+        radix_lwe_true.as_c_ptr(0),
+        radix_lwe_false.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_cmux(
@@ -1753,17 +1753,17 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1792,11 +1792,11 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
         n,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
@@ -1837,17 +1837,17 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(),
+        radix_lwe_left.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1876,11 +1876,11 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(),
+        radix_lwe_left.as_mut_c_ptr(0),
         n,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
@@ -1921,22 +1921,22 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        result.gpu_index(),
+        result.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_list.gpu_index(),
+        radix_list.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -1964,12 +1964,12 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        result.as_mut_c_ptr(),
-        radix_list.as_mut_c_ptr(),
+        result.as_mut_c_ptr(0),
+        radix_list.as_mut_c_ptr(0),
         num_radixes,
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_sum_ciphertexts_vec(
@@ -2012,32 +2012,32 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        ct_res.gpu_index(),
+        ct_res.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        ct_overflowed.gpu_index(),
+        ct_overflowed.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        lhs.gpu_index(),
+        lhs.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        rhs.gpu_index(),
+        rhs.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -2065,13 +2065,13 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        ct_res.as_mut_c_ptr(),
-        ct_overflowed.as_mut_c_ptr(),
-        lhs.as_c_ptr(),
-        rhs.as_c_ptr(),
+        ct_res.as_mut_c_ptr(0),
+        ct_overflowed.as_mut_c_ptr(0),
+        lhs.as_c_ptr(0),
+        rhs.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_overflowing_sub(
@@ -2109,22 +2109,22 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(),
+        radix_lwe_input.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_output.gpu_index(),
+        radix_lwe_output.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(),
+        bootstrapping_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(),
+        keyswitch_key.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -2152,11 +2152,11 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        radix_lwe_output.as_mut_c_ptr(),
-        radix_lwe_input.as_c_ptr(),
+        radix_lwe_output.as_mut_c_ptr(0),
+        radix_lwe_input.as_c_ptr(0),
         mem_ptr,
-        keyswitch_key.as_c_ptr(),
-        bootstrapping_key.as_c_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
@@ -2222,13 +2222,13 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        quotient.as_mut_c_ptr(),
-        remainder.as_mut_c_ptr(),
-        numerator.as_c_ptr(),
-        divisor.as_c_ptr(),
+        quotient.as_mut_c_ptr(0),
+        remainder.as_mut_c_ptr(0),
+        numerator.as_c_ptr(0),
+        divisor.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptrs.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_div_rem(

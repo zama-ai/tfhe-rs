@@ -526,8 +526,8 @@ extern "C" {
         radix_lwe_out: *mut c_void,
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         mem_ptr: *mut i8,
         polynomial_size: u32,
         num_blocks: u32,
@@ -580,8 +580,8 @@ extern "C" {
         decomposed_scalar: *const u64,
         has_at_least_one_set: *const u64,
         mem: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         lwe_dimension: u32,
         polynomial_size: u32,
         message_modulus: u32,
@@ -626,8 +626,8 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -638,8 +638,8 @@ extern "C" {
         radix_lwe_out: *mut c_void,
         radix_lwe_in: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -652,8 +652,8 @@ extern "C" {
         clear_blocks: *const c_void,
         num_clear_blocks: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
         op_type: u32,
     );
@@ -696,8 +696,8 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -716,8 +716,8 @@ extern "C" {
         radix_lwe_in: *const c_void,
         scalar_blocks: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
         num_scalar_blocks: u32,
     );
@@ -744,8 +744,8 @@ extern "C" {
         gpu_count: u32,
         radix_lwe_right: *mut c_void,
         mem_ptr: *mut i8,
-        ksk: *const c_void,
-        bsk: *const c_void,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
         lwe_dimension: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
@@ -791,8 +791,8 @@ extern "C" {
         output_radix_lwe: *mut c_void,
         input_radix_lwe: *const c_void,
         mem_ptr: *mut i8,
-        ksk: *const c_void,
-        bsk: *const c_void,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -832,8 +832,8 @@ extern "C" {
         radix_lwe: *mut c_void,
         shift: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -866,8 +866,8 @@ extern "C" {
         radix_lwe: *mut c_void,
         shift: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -915,8 +915,8 @@ extern "C" {
         radix_lwe: *mut c_void,
         radix_shift: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -957,8 +957,8 @@ extern "C" {
         lwe_array_true: *const c_void,
         lwe_array_false: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -998,8 +998,8 @@ extern "C" {
         radix_lwe: *mut c_void,
         n: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -1038,8 +1038,8 @@ extern "C" {
         radix_lwe: *mut c_void,
         carry_out: *mut c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -1079,8 +1079,8 @@ extern "C" {
         radix_lwe_vec: *mut c_void,
         num_radix_in_vec: u32,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks_in_radix: u32,
     );
 
@@ -1121,8 +1121,8 @@ extern "C" {
         radix_lwe_left: *const c_void,
         radix_lwe_right: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
@@ -1163,8 +1163,8 @@ extern "C" {
         numerator: *const c_void,
         divisor: *const c_void,
         mem_ptr: *mut i8,
-        bsk: *const c_void,
-        ksk: *const c_void,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
         num_blocks: u32,
     );
 
