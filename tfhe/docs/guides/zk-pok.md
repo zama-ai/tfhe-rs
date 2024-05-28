@@ -19,14 +19,13 @@ use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
-    let max_num_message = 32;
-
     let params =
         tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
+    let config = tfhe::ConfigBuilder::with_custom_parameters(params, None);
 
-    let client_key = tfhe::ClientKey::generate(tfhe::ConfigBuilder::with_custom_parameters(params, None));
+    let client_key = tfhe::ClientKey::generate(config.clone());
     // This is done in an offline phase and the CRS is shared to all clients and the server
-    let crs = CompactPkeCrs::from_shortint_params(params, max_num_message).unwrap();
+    let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
     let public_zk_params = crs.public_params();
     let server_key = tfhe::ServerKey::new(&client_key);
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
