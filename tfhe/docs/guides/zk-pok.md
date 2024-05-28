@@ -13,16 +13,15 @@ Using this feature is straightforward: during encryption, the client generates t
 ```rust
 use rand::prelude::*;
 use tfhe::prelude::FheDecrypt;
-use tfhe::shortint::parameters::DynamicDistribution;
 use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
-    let max_num_message = 1;
+    let max_num_message = 32;
 
-    let mut params =
+    let params =
         tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
 
     let client_key = tfhe::ClientKey::generate(tfhe::ConfigBuilder::with_custom_parameters(params, None));
@@ -67,7 +66,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-In terms of performance:
+In terms of performance one can expect the following numbers:
 
 * Encrypting and proving a `CompactFheUint64` takes **6.9 s** on a `Dell XPS 15 9500` (simulating a client machine).
 * Verification takes **123 ms** on an `hpc7a.96xlarge` AWS instances.
+
+Performance can be improved by setting `lto="fat"` in `Cargo.toml`
+```toml
+[profile.release]
+lto = "fat"
+```
+and by building the code for the native CPU architecture and in release mode, e.g. by calling `RUSTFLAGS="-C target-cpu=native" cargo run --release`.
