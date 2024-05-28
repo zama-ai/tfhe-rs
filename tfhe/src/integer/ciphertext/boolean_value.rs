@@ -108,7 +108,7 @@ impl BooleanBlock {
     }
 
     /// Consumes the BooleanBlock to return its inner ciphertext
-    pub fn into_inner(self) -> Ciphertext {
+    pub fn into_raw_parts(self) -> Ciphertext {
         self.0
     }
 
