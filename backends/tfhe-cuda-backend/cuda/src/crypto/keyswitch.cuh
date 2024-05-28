@@ -3,8 +3,10 @@
 
 #include "device.h"
 #include "gadget.cuh"
+#include "polynomial/functions.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "torus.cuh"
+#include "utils/kernel_dimensions.cuh"
 #include <thread>
 #include <vector>
 
@@ -31,43 +33,67 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
  * scaling factor) under key s2 instead of s1, with an increased noise
  *
  */
+// Each thread in x are used to calculate one output.
+// threads in y are used to paralelize the lwe_dimension_in loop.
+// shared memory is used to store intermediate results of the reduction.
 template <typename Torus>
 __global__ void
 keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lwe_array_in,
           Torus *lwe_input_indexes, Torus *ksk, uint32_t lwe_dimension_in,
           uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count) {
-  int tid = threadIdx.x;
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  const int shmem_index = threadIdx.x + threadIdx.y * blockDim.x;
+
   extern __shared__ int8_t sharedmem[];
+  Torus *lwe_acc_out = (Torus *)sharedmem;
+  auto block_lwe_array_out = get_chunk(
+      lwe_array_out, lwe_output_indexes[blockIdx.y], lwe_dimension_out + 1);
+
   if (tid <= lwe_dimension_out) {
-    Torus *local_lwe_array_out = (Torus *)sharedmem;
+
+    Torus local_lwe_out = 0;
     auto block_lwe_array_in = get_chunk(
-        lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
-    auto block_lwe_array_out = get_chunk(
-        lwe_array_out, lwe_output_indexes[blockIdx.x], lwe_dimension_out + 1);
-    local_lwe_array_out[tid] = 0;
+        lwe_array_in, lwe_input_indexes[blockIdx.y], lwe_dimension_in + 1);
 
-    if (tid == lwe_dimension_out) {
-      local_lwe_array_out[lwe_dimension_out] =
-          block_lwe_array_in[lwe_dimension_in];
+    if (tid == lwe_dimension_out && threadIdx.y == 0) {
+      local_lwe_out = block_lwe_array_in[lwe_dimension_in];
     }
+    const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
-    for (int i = 0; i < lwe_dimension_in; i++) {
+    const int pack_size = (lwe_dimension_in + blockDim.y - 1) / blockDim.y;
+    const int start_i = pack_size * threadIdx.y;
+    const int end_i = SEL(lwe_dimension_in, pack_size * (threadIdx.y + 1),
+                          pack_size * (threadIdx.y + 1) <= lwe_dimension_in);
+
+    // This loop distribution seems to benefit the global mem reads
+    for (int i = start_i; i < end_i; i++) {
       Torus a_i = round_to_closest_multiple(block_lwe_array_in[i], base_log,
                                             level_count);
       Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
-      Torus mask_mod_b = (1ll << base_log) - 1ll;
+
       for (int j = 0; j < level_count; j++) {
         auto ksk_block =
             get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
         Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
-        local_lwe_array_out[tid] -= (Torus)ksk_block[tid] * decomposed;
+        local_lwe_out -= (Torus)ksk_block[tid] * decomposed;
       }
     }
-    block_lwe_array_out[tid] = local_lwe_array_out[tid];
+
+    lwe_acc_out[shmem_index] = local_lwe_out;
+  }
+
+  if (tid <= lwe_dimension_out) {
+    for (int offset = blockDim.y / 2; offset > 0 && threadIdx.y < offset;
+         offset /= 2) {
+      __syncthreads();
+      lwe_acc_out[shmem_index] +=
+          lwe_acc_out[shmem_index + offset * blockDim.x];
+    }
+    if (threadIdx.y == 0)
+      block_lwe_array_out[tid] = lwe_acc_out[shmem_index];
   }
 }
 
-/// assume lwe_array_in in the gpu
 template <typename Torus>
 __host__ void cuda_keyswitch_lwe_ciphertext_vector(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
@@ -76,15 +102,16 @@ __host__ void cuda_keyswitch_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
   cudaSetDevice(gpu_index);
-  constexpr int ideal_threads = 1024;
-  if (lwe_dimension_out + 1 > ideal_threads)
-    PANIC("Cuda error (keyswitch): lwe dimension size out should be greater "
-          "or equal to the number of threads per block")
 
-  int lwe_size = lwe_dimension_out + 1;
-  int shared_mem = sizeof(Torus) * lwe_size;
-  dim3 grid(num_samples, 1, 1);
-  dim3 threads(ideal_threads, 1, 1);
+  constexpr int num_threads_y = 32;
+  int num_blocks, num_threads_x;
+
+  getNumBlocksAndThreads2D(lwe_dimension_out + 1, 512, num_threads_y,
+                           num_blocks, num_threads_x);
+
+  int shared_mem = sizeof(Torus) * num_threads_y * num_threads_x;
+  dim3 grid(num_blocks, num_samples, 1);
+  dim3 threads(num_threads_x, num_threads_y, 1);
 
   keyswitch<Torus><<<grid, threads, shared_mem, stream>>>(
       lwe_array_out, lwe_output_indexes, lwe_array_in, lwe_input_indexes, ksk,
