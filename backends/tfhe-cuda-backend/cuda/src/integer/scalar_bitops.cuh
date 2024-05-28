@@ -8,8 +8,8 @@ template <typename Torus>
 __host__ void host_integer_radix_scalar_bitop_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array_out, Torus *lwe_array_input, Torus *clear_blocks,
-    uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr, void *bsk,
-    Torus *ksk, uint32_t num_radix_blocks, BITOP_TYPE op) {
+    uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr, void **bsks,
+    Torus **ksks, uint32_t num_radix_blocks, BITOP_TYPE op) {
 
   cudaSetDevice(gpu_indexes[0]);
   auto lut = mem_ptr->lut;
@@ -36,8 +36,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
                                  gpu_indexes[0]);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_input, bsk,
-        ksk, num_clear_blocks, lut);
+        streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_input, bsks,
+        ksks, num_clear_blocks, lut);
 
     if (op == SCALAR_BITAND && num_clear_blocks < num_radix_blocks) {
       auto lwe_array_out_block = lwe_array_out + num_clear_blocks * lwe_size;

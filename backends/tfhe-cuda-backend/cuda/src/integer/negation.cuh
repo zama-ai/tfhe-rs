@@ -102,7 +102,7 @@ template <typename Torus, class params>
 __host__ void host_integer_overflowing_sub_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *radix_lwe_out, Torus *radix_lwe_overflowed, Torus *radix_lwe_left,
-    Torus *radix_lwe_right, void *bsk, uint64_t *ksk,
+    Torus *radix_lwe_right, void **bsks, uint64_t **ksks,
     int_overflowing_sub_memory<uint64_t> *mem_ptr, uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;
@@ -115,7 +115,7 @@ __host__ void host_integer_overflowing_sub_kb(
 
   host_propagate_single_sub_borrow<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_overflowed, radix_lwe_out,
-      mem_ptr->borrow_prop_mem, bsk, ksk, num_blocks);
+      mem_ptr->borrow_prop_mem, bsks, ksks, num_blocks);
 }
 
 #endif

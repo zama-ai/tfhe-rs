@@ -54,6 +54,15 @@ impl CudaStreams {
             }
         }
     }
+    /// Synchronize one cuda streams in the `CudaStreams` structure
+    pub fn synchronize_one(&self, gpu_index: u32) {
+        unsafe {
+            cuda_synchronize_stream(
+                self.ptr[gpu_index as usize],
+                self.gpu_indexes[gpu_index as usize],
+            );
+        }
+    }
     /// Return the number of GPU indexes, which is the same as the number of Cuda streams
     pub fn len(&self) -> usize {
         self.gpu_indexes.len()
@@ -76,14 +85,6 @@ impl Drop for CudaStreams {
         }
     }
 }
-/// This structure allows to distinguish between a constant raw pointer that points the
-/// CPU memory vs GPU Memory.
-#[derive(Debug, Copy, Clone)]
-pub struct CudaPtr(pub(crate) *const c_void);
-/// This structure allows to distinguish between a mutable raw pointer that points the
-/// CPU memory vs GPU Memory.
-#[derive(Debug, Copy, Clone)]
-pub struct CudaPtrMut(pub(crate) *mut c_void);
 
 /// Discarding bootstrap on a vector of LWE ciphertexts
 ///
@@ -124,13 +125,13 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_out_indexes.as_c_ptr(),
-        test_vector.as_c_ptr(),
-        test_vector_indexes.as_c_ptr(),
-        lwe_array_in.as_c_ptr(),
-        lwe_in_indexes.as_c_ptr(),
-        bootstrapping_key.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_out_indexes.as_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        test_vector_indexes.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        lwe_in_indexes.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
         pbs_buffer,
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
@@ -193,13 +194,13 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        output_indexes.as_c_ptr(),
-        test_vector.as_c_ptr(),
-        test_vector_indexes.as_c_ptr(),
-        lwe_array_in.as_c_ptr(),
-        input_indexes.as_c_ptr(),
-        bootstrapping_key.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        output_indexes.as_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        test_vector_indexes.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        input_indexes.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
         pbs_buffer,
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
@@ -244,11 +245,11 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
     cuda_keyswitch_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_out_indexes.as_c_ptr(),
-        lwe_array_in.as_c_ptr(),
-        lwe_in_indexes.as_c_ptr(),
-        keyswitch_key.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_out_indexes.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        lwe_in_indexes.as_c_ptr(0),
+        keyswitch_key.as_c_ptr(0),
         input_lwe_dimension.0 as u32,
         output_lwe_dimension.0 as u32,
         base_log.0 as u32,
@@ -270,7 +271,7 @@ pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
     dest: &mut CudaVec<T>,
     src: &[T],
 ) {
-    dest.copy_from_cpu_async(src, streams);
+    dest.copy_from_cpu_multi_gpu_async(src, streams);
 }
 
 /// Convert programmable bootstrap key
@@ -290,18 +291,19 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
-    assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-
-    cuda_convert_lwe_programmable_bootstrap_key_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
-        dest.as_mut_c_ptr(),
-        src.as_ptr().cast(),
-        input_lwe_dim.0 as u32,
-        glwe_dim.0 as u32,
-        l_gadget.0 as u32,
-        polynomial_size.0 as u32,
-    );
+    for &gpu_index in streams.gpu_indexes.iter() {
+        assert_eq!(dest.len(gpu_index) * std::mem::size_of::<T>(), size);
+        cuda_convert_lwe_programmable_bootstrap_key_64(
+            streams.ptr[gpu_index as usize],
+            streams.gpu_indexes[gpu_index as usize],
+            dest.as_mut_c_ptr(gpu_index),
+            src.as_ptr().cast(),
+            input_lwe_dim.0 as u32,
+            glwe_dim.0 as u32,
+            l_gadget.0 as u32,
+            polynomial_size.0 as u32,
+        );
+    }
 }
 
 /// Convert multi-bit programmable bootstrap key
@@ -322,18 +324,20 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
     grouping_factor: LweBskGroupingFactor,
 ) {
     let size = std::mem::size_of_val(src);
-    assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-    cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
-        dest.as_mut_c_ptr(),
-        src.as_ptr().cast(),
-        input_lwe_dim.0 as u32,
-        glwe_dim.0 as u32,
-        l_gadget.0 as u32,
-        polynomial_size.0 as u32,
-        grouping_factor.0 as u32,
-    )
+    for &gpu_index in streams.gpu_indexes.iter() {
+        assert_eq!(dest.len(gpu_index) * std::mem::size_of::<T>(), size);
+        cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+            streams.ptr[gpu_index as usize],
+            streams.gpu_indexes[gpu_index as usize],
+            dest.as_mut_c_ptr(gpu_index),
+            src.as_ptr().cast(),
+            input_lwe_dim.0 as u32,
+            glwe_dim.0 as u32,
+            l_gadget.0 as u32,
+            polynomial_size.0 as u32,
+            grouping_factor.0 as u32,
+        );
+    }
 }
 
 /// Discarding addition of a vector of LWE ciphertexts
@@ -353,9 +357,9 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_in_1.as_c_ptr(),
-        lwe_array_in_2.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in_1.as_c_ptr(0),
+        lwe_array_in_2.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -377,9 +381,9 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_out.as_c_ptr(),
-        lwe_array_in.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_out.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -402,9 +406,9 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
     cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_in.as_c_ptr(),
-        plaintext_in.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        plaintext_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -426,9 +430,9 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
     cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_out.as_c_ptr(),
-        plaintext_in.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_out.as_c_ptr(0),
+        plaintext_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -450,8 +454,8 @@ pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     cuda_negate_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_in.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -472,8 +476,8 @@ pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     cuda_negate_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_out.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_out.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -498,7 +502,7 @@ pub unsafe fn negate_integer_radix_assign_async<T: UnsignedInteger>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(),
+        lwe_array.as_mut_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
         message_modulus,
@@ -522,9 +526,9 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector_assign_async<T: Unsign
     cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array.as_mut_c_ptr(),
-        lwe_array.as_c_ptr(),
-        cleartext_array_in.as_c_ptr(),
+        lwe_array.as_mut_c_ptr(0),
+        lwe_array.as_c_ptr(0),
+        cleartext_array_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -547,9 +551,9 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
     cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0],
-        lwe_array_out.as_mut_c_ptr(),
-        lwe_array_in.as_c_ptr(),
-        cleartext_array_in.as_c_ptr(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        cleartext_array_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
     );
@@ -623,10 +627,10 @@ mod tests {
         let vec = vec![1_u64, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let stream = CudaStreams::new_single_gpu(0);
         unsafe {
-            let mut d_vec: CudaVec<u64> = CudaVec::<u64>::new_async(vec.len(), &stream);
-            d_vec.copy_from_cpu_async(&vec, &stream);
+            let mut d_vec: CudaVec<u64> = CudaVec::<u64>::new_async(vec.len(), &stream, 0);
+            d_vec.copy_from_cpu_async(&vec, &stream, 0);
             let mut empty = vec![0_u64; vec.len()];
-            d_vec.copy_to_cpu_async(&mut empty, &stream);
+            d_vec.copy_to_cpu_async(&mut empty, &stream, 0);
             stream.synchronize();
             assert_eq!(vec, empty);
         }

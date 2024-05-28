@@ -122,7 +122,7 @@ void execute_pbs(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
-    void *bootstrapping_key, std::vector<int8_t *> pbs_buffer,
+    void **bootstrapping_keys, std::vector<int8_t *> pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t grouping_factor,
     uint32_t input_lwe_ciphertext_count, uint32_t num_luts, uint32_t lwe_idx,
@@ -148,7 +148,7 @@ void execute_pbs(
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
             streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
             lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
             lwe_idx, max_shared_memory, i * num_lwe_inputs_on_gpu_0);
       }
@@ -173,7 +173,7 @@ void execute_pbs(
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
             lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, grouping_factor, base_log, level_count,
             num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory,
             i * num_lwe_inputs_on_gpu_0);
@@ -189,7 +189,7 @@ void execute_pbs(
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
             lut_vector, d_lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, pbs_buffer[i], lwe_dimension, glwe_dimension,
+            bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
             lwe_idx, max_shared_memory, i * num_lwe_inputs_on_gpu_0);
       }

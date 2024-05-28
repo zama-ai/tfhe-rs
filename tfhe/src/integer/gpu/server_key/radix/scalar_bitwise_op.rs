@@ -31,7 +31,7 @@ impl CudaServerKey {
             .map(|x| x as u64)
             .collect::<Vec<_>>();
 
-        let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, stream);
+        let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, stream, 0);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {

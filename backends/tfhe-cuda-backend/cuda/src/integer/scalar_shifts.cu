@@ -26,14 +26,14 @@ void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
 /// rotations - 1 The remaining blocks are padded with zeros
 void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t num_blocks) {
 
   host_integer_radix_logical_scalar_shift_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(lwe_array), shift,
-      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsk,
-      static_cast<uint64_t *>(ksk), num_blocks);
+      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), num_blocks);
 }
 
 void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
@@ -65,14 +65,14 @@ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
 /// zeros as would be done in the logical shift.
 void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t shift, int8_t *mem_ptr, void *bsk, void *ksk,
+    uint32_t shift, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t num_blocks) {
 
   host_integer_radix_arithmetic_scalar_shift_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(lwe_array), shift,
-      (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsk,
-      static_cast<uint64_t *>(ksk), num_blocks);
+      (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), num_blocks);
 }
 
 void cleanup_cuda_integer_radix_logical_scalar_shift(void **streams,

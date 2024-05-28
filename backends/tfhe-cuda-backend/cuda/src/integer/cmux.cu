@@ -26,7 +26,7 @@ void scratch_cuda_integer_radix_cmux_kb_64(
 void cuda_cmux_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_condition, void *lwe_array_true,
-    void *lwe_array_false, int8_t *mem_ptr, void *bsk, void *ksk,
+    void *lwe_array_false, int8_t *mem_ptr, void **bsks, void **ksks,
     uint32_t lwe_ciphertext_count) {
 
   host_integer_radix_cmux_kb<uint64_t>(
@@ -35,7 +35,7 @@ void cuda_cmux_integer_radix_ciphertext_kb_64(
       static_cast<uint64_t *>(lwe_condition),
       static_cast<uint64_t *>(lwe_array_true),
       static_cast<uint64_t *>(lwe_array_false),
-      (int_cmux_buffer<uint64_t> *)mem_ptr, bsk, static_cast<uint64_t *>(ksk),
+      (int_cmux_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
 
       lwe_ciphertext_count);
 }

@@ -33,10 +33,11 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
  *
  */
 template <typename Torus>
-__global__ void
-keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lwe_array_in,
-          Torus *lwe_input_indexes, Torus *ksk, uint32_t lwe_dimension_in,
-          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count, int gpu_offset) {
+__global__ void keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes,
+                          Torus *lwe_array_in, Torus *lwe_input_indexes,
+                          Torus *ksk, uint32_t lwe_dimension_in,
+                          uint32_t lwe_dimension_out, uint32_t base_log,
+                          uint32_t level_count, int gpu_offset) {
   int tid = threadIdx.x;
   extern __shared__ int8_t sharedmem[];
   if (tid <= lwe_dimension_out) {
@@ -101,7 +102,7 @@ template <typename Torus>
 void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
                        uint32_t gpu_count, Torus *lwe_array_out,
                        Torus *lwe_output_indexes, Torus *lwe_array_in,
-                       Torus *lwe_input_indexes, Torus *ksk,
+                       Torus *lwe_input_indexes, Torus **ksks,
                        uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
                        uint32_t base_log, uint32_t level_count,
                        uint32_t num_samples, bool sync_streams = true) {
@@ -119,7 +120,7 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
     // Compute Keyswitch
     cuda_keyswitch_lwe_ciphertext_vector(
         streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
-        lwe_array_in, lwe_input_indexes, ksk, lwe_dimension_in,
+        lwe_array_in, lwe_input_indexes, ksks[i], lwe_dimension_in,
         lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
         i * num_samples_on_gpu_0);
   }

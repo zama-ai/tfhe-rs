@@ -177,8 +177,8 @@ template <typename Torus, class params>
 __host__ void
 host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                         uint32_t gpu_count, Torus *quotient, Torus *remainder,
-                        Torus *numerator, Torus *divisor, void *bsk,
-                        uint64_t *ksk, int_div_rem_memory<uint64_t> *mem_ptr,
+                        Torus *numerator, Torus *divisor, void **bsks,
+                        uint64_t **ksks, int_div_rem_memory<uint64_t> *mem_ptr,
                         uint32_t num_blocks) {
 
   auto radix_params = mem_ptr->params;
@@ -289,7 +289,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
           integer_radix_apply_univariate_lookup_table_kb(
               streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
-              interesting_divisor.last_block(), bsk, ksk, 1,
+              interesting_divisor.last_block(), bsks, ksks, 1,
               mem_ptr->masking_luts_1[shifted_mask]);
         }; // trim_last_interesting_divisor_bits
 
@@ -317,7 +317,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
           integer_radix_apply_univariate_lookup_table_kb(
               streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
-              divisor_ms_blocks.first_block(), bsk, ksk, 1,
+              divisor_ms_blocks.first_block(), bsks, ksks, 1,
               mem_ptr->masking_luts_2[shifted_mask]);
         }; // trim_first_divisor_ms_bits
 
@@ -341,7 +341,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
           host_integer_radix_logical_scalar_shift_kb_inplace(
               streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
-              mem_ptr->shift_mem_1, bsk, ksk, interesting_remainder1.len);
+              mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
 
           tmp_radix.clone_from(interesting_remainder1, 0,
                                interesting_remainder1.len - 1, streams[0],
@@ -370,7 +370,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
           host_integer_radix_logical_scalar_shift_kb_inplace(
               streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
-              mem_ptr->shift_mem_2, bsk, ksk, interesting_remainder2.len);
+              mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
         }; // left_shift_interesting_remainder2
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -437,7 +437,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       host_integer_overflowing_sub_kb<Torus, params>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
           subtraction_overflowed.data, merged_interesting_remainder.data,
-          interesting_divisor.data, bsk, ksk, mem_ptr->overflow_sub_mem,
+          interesting_divisor.data, bsks, ksks, mem_ptr->overflow_sub_mem,
           merged_interesting_remainder.len);
     };
 
@@ -457,7 +457,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         // So we can skip some stuff
         host_compare_with_zero_equality(
             streams, gpu_indexes, gpu_count, tmp_1.data, trivial_blocks.data,
-            mem_ptr->comparison_buffer, bsk, ksk, trivial_blocks.len,
+            mem_ptr->comparison_buffer, bsks, ksks, trivial_blocks.len,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
 
         tmp_1.len =
@@ -466,7 +466,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         is_at_least_one_comparisons_block_true(
             streams, gpu_indexes, gpu_count,
             at_least_one_upper_block_is_non_zero.data, tmp_1.data,
-            mem_ptr->comparison_buffer, bsk, ksk, tmp_1.len);
+            mem_ptr->comparison_buffer, bsks, ksks, tmp_1.len);
       }
     };
 
@@ -479,7 +479,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           integer_radix_apply_univariate_lookup_table_kb(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
-              cleaned_merged_interesting_remainder.data, bsk, ksk,
+              cleaned_merged_interesting_remainder.data, bsks, ksks,
               cleaned_merged_interesting_remainder.len,
               mem_ptr->message_extract_lut_1);
         };
@@ -527,7 +527,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data,
-              overflow_sum_radix.data, bsk, ksk,
+              overflow_sum_radix.data, bsks, ksks,
               cleaned_merged_interesting_remainder.len,
               mem_ptr->zero_out_if_overflow_did_not_happen[factor_lut_id],
               factor);
@@ -537,7 +537,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
           integer_radix_apply_bivariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, new_remainder.data,
-              new_remainder.data, overflow_sum_radix.data, bsk, ksk,
+              new_remainder.data, overflow_sum_radix.data, bsks, ksks,
               new_remainder.len,
               mem_ptr->zero_out_if_overflow_happened[factor_lut_id], factor);
         };
@@ -547,7 +547,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, did_not_overflow.data,
           subtraction_overflowed.data,
-          at_least_one_upper_block_is_non_zero.data, bsk, ksk, 1,
+          at_least_one_upper_block_is_non_zero.data, bsks, ksks, 1,
           mem_ptr->merge_overflow_flags_luts[pos_in_block],
           mem_ptr->merge_overflow_flags_luts[pos_in_block]
               ->params.message_modulus);
@@ -606,14 +606,14 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          &mem_ptr->sub_stream_1, &gpu_indexes[0], 1, remainder, remainder, bsk,
-          ksk, num_blocks, mem_ptr->message_extract_lut_1);
+          &mem_ptr->sub_stream_1, &gpu_indexes[0], 1, remainder, remainder,
+          bsks, ksks, num_blocks, mem_ptr->message_extract_lut_1);
     }
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          &mem_ptr->sub_stream_2, &gpu_indexes[0], 1, quotient, quotient, bsk,
-          ksk, num_blocks, mem_ptr->message_extract_lut_2);
+          &mem_ptr->sub_stream_2, &gpu_indexes[0], 1, quotient, quotient, bsks,
+          ksks, num_blocks, mem_ptr->message_extract_lut_2);
     }
   }
   cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);

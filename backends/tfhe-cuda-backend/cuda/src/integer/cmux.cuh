@@ -9,8 +9,8 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
                           uint32_t gpu_count, Torus *lwe_array_out,
                           Torus *lwe_array_input, Torus *lwe_condition,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
-                          int_radix_lut<Torus> *predicate, void *bsk,
-                          Torus *ksk, uint32_t num_radix_blocks) {
+                          int_radix_lut<Torus> *predicate, void **bsks,
+                          Torus **ksks, uint32_t num_radix_blocks) {
   cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
@@ -36,16 +36,16 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsk,
-      ksk, num_radix_blocks, predicate);
+      streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
+      ksks, num_radix_blocks, predicate);
 }
 
 template <typename Torus>
 __host__ void host_integer_radix_cmux_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lwe_array_out, Torus *lwe_condition, Torus *lwe_array_true,
-    Torus *lwe_array_false, int_cmux_buffer<Torus> *mem_ptr, void *bsk,
-    Torus *ksk, uint32_t num_radix_blocks) {
+    Torus *lwe_array_false, int_cmux_buffer<Torus> *mem_ptr, void **bsks,
+    Torus **ksks, uint32_t num_radix_blocks) {
 
   cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
@@ -64,14 +64,15 @@ __host__ void host_integer_radix_cmux_kb(
       auto mem_true = mem_ptr->zero_if_true_buffer;
       zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
                   lwe_array_true, lwe_condition, mem_true,
-                  mem_ptr->inverted_predicate_lut, bsk, ksk, num_radix_blocks);
+                  mem_ptr->inverted_predicate_lut, bsks, ksks,
+                  num_radix_blocks);
     }
 #pragma omp section
     {
       auto mem_false = mem_ptr->zero_if_false_buffer;
       zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
                   lwe_array_false, lwe_condition, mem_false,
-                  mem_ptr->predicate_lut, bsk, ksk, num_radix_blocks);
+                  mem_ptr->predicate_lut, bsks, ksks, num_radix_blocks);
     }
   }
   cuda_synchronize_stream(true_streams[0], gpu_indexes[0]);
@@ -86,7 +87,7 @@ __host__ void host_integer_radix_cmux_kb(
                 num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsk, ksk,
+      streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
       num_radix_blocks, mem_ptr->message_extract_lut);
 }
 

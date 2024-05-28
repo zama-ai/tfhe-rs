@@ -708,13 +708,13 @@ mod cuda {
                 CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
             let h_indexes = &[Scalar::ZERO];
             stream.synchronize();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
-            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
 
@@ -835,13 +835,13 @@ mod cuda {
                 CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
             let h_indexes = &[Scalar::ZERO];
             stream.synchronize();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
-            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
 
@@ -968,20 +968,20 @@ mod cuda {
             let mut out_pbs_ct_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext_list(&output_lwe_list, &stream);
             let mut h_indexes: [Scalar; NUM_CTS] = [Scalar::ZERO; NUM_CTS];
-            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
             unsafe {
-                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
             for (i, index) in h_indexes.iter_mut().enumerate() {
                 *index = Scalar::cast_from(i);
             }
             stream.synchronize();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
 
@@ -1113,20 +1113,20 @@ mod cuda {
             let mut out_pbs_ct_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext_list(&output_lwe_list, &stream);
             let mut h_indexes: [Scalar; NUM_CTS] = [Scalar::ZERO; NUM_CTS];
-            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
             unsafe {
-                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
             for (i, index) in h_indexes.iter_mut().enumerate() {
                 *index = Scalar::cast_from(i);
             }
             stream.synchronize();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
             unsafe {
-                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
-                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream);
+                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
+                d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
 

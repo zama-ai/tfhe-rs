@@ -22,13 +22,14 @@ void scratch_cuda_integer_radix_scalar_rotate_kb_64(
 
 void cuda_integer_radix_scalar_rotate_kb_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t n, int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks) {
+    uint32_t n, int8_t *mem_ptr, void **bsks, void **ksks,
+    uint32_t num_blocks) {
 
   host_integer_radix_scalar_rotate_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(lwe_array), n,
-      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsk,
-      static_cast<uint64_t *>(ksk), num_blocks);
+      (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), num_blocks);
 }
 
 void cleanup_cuda_integer_radix_scalar_rotate(void **streams,

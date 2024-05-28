@@ -58,7 +58,7 @@ template <typename T, class params>
 __host__ void host_integer_scalar_mul_radix(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     T *lwe_array, T *decomposed_scalar, T *has_at_least_one_set,
-    int_scalar_mul_buffer<T> *mem, void *bsk, T *ksk,
+    int_scalar_mul_buffer<T> *mem, void **bsks, T **ksks,
     uint32_t input_lwe_dimension, uint32_t message_modulus,
     uint32_t num_radix_blocks, uint32_t num_scalars) {
 
@@ -84,7 +84,7 @@ __host__ void host_integer_scalar_mul_radix(
                                    streams[0], gpu_indexes[0]);
       host_integer_radix_logical_scalar_shift_kb_inplace(
           streams, gpu_indexes, gpu_count, ptr, shift_amount,
-          mem->logical_scalar_shift_buffer, bsk, ksk, num_radix_blocks);
+          mem->logical_scalar_shift_buffer, bsks, ksks, num_radix_blocks);
     } else {
       // create trivial assign for value = 0
       cuda_memset_async(ptr, 0, num_radix_blocks * lwe_size_bytes, streams[0],
@@ -120,8 +120,8 @@ __host__ void host_integer_scalar_mul_radix(
     }
     host_integer_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer,
-        terms_degree, bsk, ksk, mem->sum_ciphertexts_vec_mem, num_radix_blocks,
-        j);
+        terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
+        num_radix_blocks, j);
   }
 }
 

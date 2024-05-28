@@ -45,7 +45,7 @@ impl CudaBooleanBlock {
             ct.d_blocks.0.lwe_ciphertext_count.0
         );
         assert_eq!(
-            ct.d_blocks.0.d_vec.len(),
+            ct.d_blocks.0.d_vec.len(0),
             ct.d_blocks.0.lwe_dimension.0 + 1,
             "CudaBooleanBlock needs to have a length of LWE size, got {}",
             ct.d_blocks.0.lwe_dimension.0 + 1
@@ -82,12 +82,11 @@ impl CudaBooleanBlock {
 
     pub fn copy_from_boolean_block(&mut self, boolean_block: &BooleanBlock, streams: &CudaStreams) {
         unsafe {
-            self.0
-                .ciphertext
-                .d_blocks
-                .0
-                .d_vec
-                .copy_from_cpu_async(boolean_block.0.ct.as_ref(), streams);
+            self.0.ciphertext.d_blocks.0.d_vec.copy_from_cpu_async(
+                boolean_block.0.ct.as_ref(),
+                streams,
+                0,
+            );
         }
         streams.synchronize();
 
@@ -154,8 +153,8 @@ impl CudaBooleanBlock {
         let lwe_ciphertext_count = self.0.ciphertext.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.0.ciphertext.d_blocks.ciphertext_modulus();
 
-        let mut d_ct = CudaVec::new_async(self.0.ciphertext.d_blocks.0.d_vec.len(), streams);
-        d_ct.copy_from_gpu_async(&self.0.ciphertext.d_blocks.0.d_vec, streams);
+        let mut d_ct = CudaVec::new_async(self.0.ciphertext.d_blocks.0.d_vec.len(0), streams, 0);
+        d_ct.copy_from_gpu_async(&self.0.ciphertext.d_blocks.0.d_vec, streams, 0);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);

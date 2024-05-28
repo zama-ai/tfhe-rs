@@ -230,12 +230,11 @@ impl CudaServerKey {
             return;
         }
 
-        result
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .copy_from_gpu_async(&ciphertexts[0].as_ref().d_blocks.0.d_vec, streams);
+        result.as_mut().d_blocks.0.d_vec.copy_from_gpu_async(
+            &ciphertexts[0].as_ref().d_blocks.0.d_vec,
+            streams,
+            0,
+        );
         if ciphertexts.len() == 1 {
             return;
         }
