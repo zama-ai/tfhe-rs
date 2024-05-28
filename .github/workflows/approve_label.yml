@@ -1,8 +1,9 @@
-# Manage approved label in pull request
-name: PR approved label manager
+# Add labels in pull request
+name: PR label manager
 
 on:
   pull_request:
+  pull_request_target:
   pull_request_review:
     types: [submitted]
 
@@ -17,7 +18,8 @@ jobs:
 
       # Remove label if a push is performed after an approval
       - name: Remove approved label
-        if: ${{ github.event_name == 'pull_request' && contains(fromJSON(env.LABELS), 'approved') }}
+        if: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target')
+          && contains(fromJSON(env.LABELS), 'approved') }}
         uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
           # We use a PAT to have the same user (zama-bot) for label deletion as for creation.
@@ -27,8 +29,19 @@ jobs:
       # Add label only if the review is approved and if the label doesn't already exist
       - name: Add approved label
         uses: actions-ecosystem/action-add-labels@18f1af5e3544586314bbe15c0273249c770b2daf
-        if: ${{ github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && !contains(fromJSON(env.LABELS), 'approved') }}
+        if: ${{ github.event_name == 'pull_request_review' 
+          && github.event.review.state == 'approved'
+          && !contains(fromJSON(env.LABELS), 'approved') }}
         with:
           # We need to use a PAT to be able to trigger `labeled` event for the other workflow.
           github_token: ${{ secrets.FHE_ACTIONS_TOKEN }}
           labels: approved
+
+      # Add label only if the pull request is from a forked repository
+      - name: Add external contribution label
+        uses: actions-ecosystem/action-add-labels@18f1af5e3544586314bbe15c0273249c770b2daf
+        if: ${{ github.event_name == 'pull_request_target' 
+          && !contains(fromJSON(env.LABELS), 'external-contribution') }}
+        with:
+          github_token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+          labels: external-contribution

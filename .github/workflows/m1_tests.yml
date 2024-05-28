@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
+  pull_request_target:
+    types: [ labeled ]
   # Have a nightly build for M1 tests
   schedule:
     # * is a special character in YAML so you have to quote this string
@@ -32,6 +34,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          persist-credentials: 'false'
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@d8352f6b1d2e870bc5716e7a6d9b65c4cc244a1a
@@ -136,7 +140,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
         with:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}

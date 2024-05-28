@@ -16,6 +16,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+  pull_request_target:
 
 jobs:
   setup-instance:
@@ -56,6 +57,8 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          persist-credentials: 'false'
 
       - name: Set up home
         run: |
@@ -122,6 +125,8 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          persist-credentials: 'false'
 
       - name: Set up home
         run: |
