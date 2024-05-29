@@ -14,6 +14,7 @@ pub use entities::*;
 use std::ffi::c_void;
 pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 
+#[derive(Debug)]
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<u32>,
@@ -140,6 +141,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         num_samples,
         lwe_idx.0 as u32,
         get_max_shared_memory(streams.gpu_indexes[0]) as u32,
+        0,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],
@@ -210,6 +212,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         lwe_idx.0 as u32,
         get_max_shared_memory(0) as u32,
         0u32,
+        0,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(
         streams.ptr[0],
@@ -251,6 +254,7 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
         base_log.0 as u32,
         l_gadget.0 as u32,
         num_samples,
+        0,
     );
 }
 
