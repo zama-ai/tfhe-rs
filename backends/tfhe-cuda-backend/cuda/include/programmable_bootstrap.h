@@ -354,7 +354,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset = 0);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_lwe_ciphertext_vector(
@@ -364,7 +364,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset = 0);
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>
@@ -375,7 +375,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset = 0);
 
 template <typename Torus, typename STorus>
 void scratch_cuda_programmable_bootstrap_tbc(
