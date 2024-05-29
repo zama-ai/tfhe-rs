@@ -9,7 +9,7 @@ use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
+    DynamicDistribution, GlweDimension, LweDimension, MultiBitGroupingFactor, PolynomialSize,
 };
 use crate::core_crypto::prelude::{
     LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
@@ -320,10 +320,10 @@ impl PBSParameters {
             Self::MultiBitPBS(params) => params.encryption_key_choice,
         }
     }
-    pub const fn grouping_factor(&self) -> LweBskGroupingFactor {
+    pub const fn grouping_factor(&self) -> MultiBitGroupingFactor {
         match self {
             Self::PBS(_) => {
-                panic!("PBSParameters::PBS does not have an LweBskGroupingFactor")
+                panic!("PBSParameters::PBS does not have an MultiBitGroupingFactor")
             }
             Self::MultiBitPBS(params) => params.grouping_factor,
         }

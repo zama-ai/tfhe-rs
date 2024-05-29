@@ -104,8 +104,11 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
     }
 }
 
-fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
-) -> Vec<(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)> {
+fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>() -> Vec<(
+    String,
+    CryptoParametersRecord<Scalar>,
+    MultiBitGroupingFactor,
+)> {
     if Scalar::BITS == 64 {
         let parameters = if cfg!(feature = "gpu") {
             vec![

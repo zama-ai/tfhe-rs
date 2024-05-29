@@ -25,7 +25,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     deterministic_execution: false,
 };
 
@@ -50,7 +50,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     deterministic_execution: false,
 };
 
@@ -75,7 +75,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(2),
+    grouping_factor: MultiBitGroupingFactor(2),
     deterministic_execution: false,
 };
 
@@ -101,7 +101,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     deterministic_execution: false,
 };
 
@@ -126,7 +126,7 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     deterministic_execution: false,
 };
 
@@ -151,6 +151,6 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40:
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(3),
+    grouping_factor: MultiBitGroupingFactor(3),
     deterministic_execution: false,
 };

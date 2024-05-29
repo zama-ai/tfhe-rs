@@ -35,15 +35,15 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
 
     // Forking logic must match multi bit BSK generation
     let output_grouping_factor = output_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     let forking_config = input_bsk.decompression_fork_config(Uniform);
 
     let gen_iter = generator.try_fork_from_config(forking_config).unwrap();
 
     for ((mut output_ggsw_group, input_ggsw_group), mut loop_generator) in output_bsk
-        .chunks_exact_mut(ggsw_per_multi_bit_element.0)
-        .zip(input_bsk.chunks_exact(ggsw_per_multi_bit_element.0))
+        .chunks_exact_mut(multi_bit_power_set_size.0)
+        .zip(input_bsk.chunks_exact(multi_bit_power_set_size.0))
         .zip(gen_iter)
     {
         let group_forking_config = input_ggsw_group.decompression_fork_config(Uniform);
@@ -121,15 +121,15 @@ pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator
 
     // Forking logic must match multi bit BSK generation
     let output_grouping_factor = output_bsk.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     let forking_config = input_bsk.decompression_fork_config(Uniform);
 
     let gen_iter = generator.par_try_fork_from_config(forking_config).unwrap();
 
     output_bsk
-        .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
-        .zip(input_bsk.par_chunks_exact(ggsw_per_multi_bit_element.0))
+        .par_chunks_exact_mut(multi_bit_power_set_size.0)
+        .zip(input_bsk.par_chunks_exact(multi_bit_power_set_size.0))
         .zip(gen_iter)
         .for_each(
             |((mut output_ggsw_group, input_ggsw_group), mut loop_generator)| {

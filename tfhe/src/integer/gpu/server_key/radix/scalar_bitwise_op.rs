@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::core_crypto::prelude::MultiBitGroupingFactor;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
@@ -58,7 +58,7 @@ impl CudaServerKey {
                     op,
                     lwe_ciphertext_count.0 as u32,
                     PBSType::Classical,
-                    LweBskGroupingFactor(0),
+                    MultiBitGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

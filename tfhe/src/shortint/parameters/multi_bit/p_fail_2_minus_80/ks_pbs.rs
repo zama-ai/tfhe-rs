@@ -20,7 +20,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.098,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.117, algorithmic cost ~ 49, 2-norm = 3
@@ -45,7 +45,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.117,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.205, algorithmic cost ~ 67, 2-norm = 7
@@ -70,7 +70,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.205,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.068, algorithmic cost ~ 128, 2-norm = 15
@@ -95,7 +95,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.068,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.023, algorithmic cost ~ 370, 2-norm = 31
@@ -120,7 +120,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.023,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.928, algorithmic cost ~ 1282, 2-norm = 63
@@ -145,7 +145,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.928,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.631, algorithmic cost ~ 3817, 2-norm = 127
@@ -170,7 +170,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.631,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.351, algorithmic cost ~ 12869, 2-norm = 255
@@ -195,7 +195,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.351,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.116, algorithmic cost ~ 46, 2-norm = 1
@@ -220,7 +220,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.116,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.268, algorithmic cost ~ 67, 2-norm = 2
@@ -245,7 +245,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.268,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.124, algorithmic cost ~ 87, 2-norm = 5
@@ -270,7 +270,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.124,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.089, algorithmic cost ~ 370, 2-norm = 10
@@ -295,7 +295,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.089,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.395, algorithmic cost ~ 1273, 2-norm = 21
@@ -320,7 +320,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.395,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.101, algorithmic cost ~ 3802, 2-norm = 42
@@ -345,7 +345,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.101,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.148, algorithmic cost ~ 10813, 2-norm = 85
@@ -370,7 +370,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.148,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.303, algorithmic cost ~ 67, 2-norm = 1
@@ -395,7 +395,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.303,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.01, algorithmic cost ~ 84, 2-norm = 2
@@ -420,7 +420,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.01,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.095, algorithmic cost ~ 370, 2-norm = 4
@@ -445,7 +445,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.095,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.288, algorithmic cost ~ 1273, 2-norm = 9
@@ -470,7 +470,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.288,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.758, algorithmic cost ~ 2835, 2-norm = 18
@@ -495,7 +495,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.758,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.051, algorithmic cost ~ 8774, 2-norm = 36
@@ -520,7 +520,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.051,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.002, algorithmic cost ~ 83, 2-norm = 1
@@ -545,7 +545,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.002,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.965, algorithmic cost ~ 365, 2-norm = 2
@@ -570,7 +570,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.965,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.452, algorithmic cost ~ 1273, 2-norm = 4
@@ -595,7 +595,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.452,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.947, algorithmic cost ~ 2819, 2-norm = 8
@@ -620,7 +620,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.947,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.241, algorithmic cost ~ 8692, 2-norm = 17
@@ -645,7 +645,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.241,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.824, algorithmic cost ~ 363, 2-norm = 1
@@ -670,7 +670,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.824,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.482, algorithmic cost ~ 1273, 2-norm = 2
@@ -695,7 +695,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.482,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.518, algorithmic cost ~ 2819, 2-norm = 4
@@ -720,7 +720,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.518,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.495, algorithmic cost ~ 8093, 2-norm = 8
@@ -745,7 +745,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.495,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.792, algorithmic cost ~ 847, 2-norm = 1
@@ -770,7 +770,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.792,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.92, algorithmic cost ~ 2819, 2-norm = 2
@@ -795,7 +795,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.92,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.141, algorithmic cost ~ 6701, 2-norm = 4
@@ -820,7 +820,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.141,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.022, algorithmic cost ~ 2819, 2-norm = 1
@@ -845,7 +845,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.022,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.607, algorithmic cost ~ 6620, 2-norm = 2
@@ -870,7 +870,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.607,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.936, algorithmic cost ~ 6620, 2-norm = 1
@@ -895,7 +895,7 @@ pub const PARAM_MULTI_BIT_GROUP_2_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.936,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(2),
+        grouping_factor: MultiBitGroupingFactor(2),
         deterministic_execution: false,
     };
 pub const ALL_MULTI_BIT_PARAMETER_2_VEC: [MultiBitPBSParameters; 36] = [
@@ -957,7 +957,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -85.386,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.148, algorithmic cost ~ 53, 2-norm = 3
@@ -982,7 +982,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.148,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.45, algorithmic cost ~ 68, 2-norm = 7
@@ -1007,7 +1007,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.45,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.071, algorithmic cost ~ 128, 2-norm = 15
@@ -1032,7 +1032,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.071,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.029, algorithmic cost ~ 366, 2-norm = 31
@@ -1057,7 +1057,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.029,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.415, algorithmic cost ~ 1238, 2-norm = 63
@@ -1082,7 +1082,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.415,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.894, algorithmic cost ~ 3711, 2-norm = 127
@@ -1107,7 +1107,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.894,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.42, algorithmic cost ~ 12591, 2-norm = 255
@@ -1132,7 +1132,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.42,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.18, algorithmic cost ~ 50, 2-norm = 1
@@ -1157,7 +1157,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.18,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.372, algorithmic cost ~ 68, 2-norm = 2
@@ -1182,7 +1182,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.372,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.11, algorithmic cost ~ 83, 2-norm = 5
@@ -1207,7 +1207,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.11,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.022, algorithmic cost ~ 366, 2-norm = 10
@@ -1232,7 +1232,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.022,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.297, algorithmic cost ~ 1230, 2-norm = 21
@@ -1257,7 +1257,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.297,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.023, algorithmic cost ~ 3689, 2-norm = 42
@@ -1282,7 +1282,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.023,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.073, algorithmic cost ~ 10515, 2-norm = 85
@@ -1307,7 +1307,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.073,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.422, algorithmic cost ~ 68, 2-norm = 1
@@ -1332,7 +1332,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.422,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.088, algorithmic cost ~ 80, 2-norm = 2
@@ -1357,7 +1357,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.088,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.265, algorithmic cost ~ 357, 2-norm = 4
@@ -1382,7 +1382,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.265,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.242, algorithmic cost ~ 1230, 2-norm = 9
@@ -1407,7 +1407,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.242,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.532, algorithmic cost ~ 2709, 2-norm = 18
@@ -1432,7 +1432,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.532,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.458, algorithmic cost ~ 8464, 2-norm = 36
@@ -1457,7 +1457,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.458,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.001, algorithmic cost ~ 80, 2-norm = 1
@@ -1482,7 +1482,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.001,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.421, algorithmic cost ~ 341, 2-norm = 2
@@ -1507,7 +1507,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.421,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.415, algorithmic cost ~ 1230, 2-norm = 4
@@ -1532,7 +1532,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.415,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.502, algorithmic cost ~ 2693, 2-norm = 8
@@ -1557,7 +1557,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.502,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.569, algorithmic cost ~ 8439, 2-norm = 17
@@ -1582,7 +1582,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.569,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.759, algorithmic cost ~ 338, 2-norm = 1
@@ -1607,7 +1607,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.759,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.447, algorithmic cost ~ 1230, 2-norm = 2
@@ -1632,7 +1632,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.447,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.501, algorithmic cost ~ 2685, 2-norm = 4
@@ -1657,7 +1657,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.501,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-85.096, algorithmic cost ~ 8439, 2-norm = 8
@@ -1682,7 +1682,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -85.096,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.455, algorithmic cost ~ 779, 2-norm = 1
@@ -1707,7 +1707,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.455,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-80.928, algorithmic cost ~ 2685, 2-norm = 2
@@ -1732,7 +1732,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -80.928,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-82.14, algorithmic cost ~ 6382, 2-norm = 4
@@ -1757,7 +1757,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -82.14,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-81.036, algorithmic cost ~ 2685, 2-norm = 1
@@ -1782,7 +1782,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -81.036,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-83.255, algorithmic cost ~ 6363, 2-norm = 2
@@ -1807,7 +1807,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -83.255,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 // p-fail = 2^-84.958, algorithmic cost ~ 6363, 2-norm = 1
@@ -1832,7 +1832,7 @@ pub const PARAM_MULTI_BIT_GROUP_3_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M80: MultiB
         log2_p_fail: -84.958,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        grouping_factor: LweBskGroupingFactor(3),
+        grouping_factor: MultiBitGroupingFactor(3),
         deterministic_execution: false,
     };
 pub const ALL_MULTI_BIT_PARAMETER_3_VEC: [MultiBitPBSParameters; 36] = [

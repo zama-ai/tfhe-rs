@@ -726,7 +726,7 @@ pub struct LweCiphertextParameters<T: UnsignedInteger> {
 #[derive(Copy, Clone)]
 pub enum MsDecompressionType {
     ClassicPbs,
-    MultiBitPbs(LweBskGroupingFactor),
+    MultiBitPbs(MultiBitGroupingFactor),
 }
 
 impl<C: Container> ParameterSetConformant for LweCiphertext<C>

@@ -25,7 +25,7 @@ use rayon::prelude::*;
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
-/// let grouping_factor = LweBskGroupingFactor(2);
+/// let grouping_factor = MultiBitGroupingFactor(2);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -64,9 +64,9 @@ use rayon::prelude::*;
 ///     &mut encryption_generator,
 /// );
 ///
-/// let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+/// let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 ///
-/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
+/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(multi_bit_power_set_size.0).zip(
 ///     input_lwe_secret_key
 ///         .as_ref()
 ///         .chunks_exact(grouping_factor.0),
@@ -137,10 +137,10 @@ pub fn generate_lwe_multi_bit_bootstrap_key<
         .unwrap();
 
     let output_grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
-        .chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .chunks_exact_mut(multi_bit_power_set_size.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -182,7 +182,7 @@ pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -232,7 +232,7 @@ where
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_noise_distribution =
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
-/// let grouping_factor = LweBskGroupingFactor(2);
+/// let grouping_factor = MultiBitGroupingFactor(2);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
@@ -282,9 +282,9 @@ where
 ///
 /// par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
 ///
-/// let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+/// let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
 ///
-/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
+/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(multi_bit_power_set_size.0).zip(
 ///     input_lwe_secret_key
 ///         .as_ref()
 ///         .chunks_exact(grouping_factor.0),
@@ -354,10 +354,10 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
         .unwrap();
 
     let output_grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     output
-        .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .par_chunks_exact_mut(multi_bit_power_set_size.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -436,7 +436,7 @@ pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     noise_distribution: NoiseDistribution,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -559,10 +559,10 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
         .unwrap();
 
     let output_grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
-        .chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .chunks_exact_mut(multi_bit_power_set_size.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -612,7 +612,7 @@ pub fn allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
@@ -708,10 +708,10 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
         .unwrap();
 
     let output_grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+    let multi_bit_power_set_size = output_grouping_factor.multi_bit_power_set_size();
 
     output
-        .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .par_chunks_exact_mut(multi_bit_power_set_size.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
@@ -766,7 +766,7 @@ pub fn par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
     ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>

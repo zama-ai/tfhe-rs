@@ -6,8 +6,8 @@ use crate::core_crypto::commons::math::random::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
-    LweBskGroupingFactor, LweDimension, PolynomialSize,
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
+    MultiBitGroupingFactor, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools::new_secret_random_generator;
 use crate::core_crypto::entities::*;
@@ -36,7 +36,7 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
         let base_log = DecompositionBaseLog(
             crate::core_crypto::commons::test_tools::random_usize_between(2..5),
         );
-        let grouping_factor = LweBskGroupingFactor(
+        let grouping_factor = MultiBitGroupingFactor(
             crate::core_crypto::commons::test_tools::random_usize_between(2..4),
         );
         let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);

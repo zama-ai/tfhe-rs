@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
-    ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
+    ContiguousEntityContainerMut, LweCiphertextCount, MultiBitGroupingFactor,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -187,7 +187,7 @@ impl CudaServerKey {
                     ciphertext.info.blocks.first().unwrap().message_modulus,
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::Classical,
-                    LweBskGroupingFactor(0),
+                    MultiBitGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -246,7 +246,7 @@ impl CudaServerKey {
                     ciphertext.info.blocks.first().unwrap().message_modulus,
                     ciphertext.info.blocks.first().unwrap().carry_modulus,
                     PBSType::Classical,
-                    LweBskGroupingFactor(0),
+                    MultiBitGroupingFactor(0),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -640,7 +640,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         PBSType::Classical,
-                        LweBskGroupingFactor(0),
+                        MultiBitGroupingFactor(0),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

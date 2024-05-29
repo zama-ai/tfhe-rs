@@ -19,12 +19,12 @@
 
 template <typename Torus, class params>
 __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
-                                            uint32_t ggsw_idx,
+                                            uint32_t power_set_index,
                                             uint32_t grouping_factor) {
   Torus x = 0;
   for (int i = 0; i < grouping_factor; i++) {
     uint32_t mask_position = grouping_factor - (i + 1);
-    int selection_bit = (ggsw_idx >> mask_position) & 1;
+    int selection_bit = (power_set_index >> mask_position) & 1;
     x += selection_bit * lwe_array_group[i];
   }
 

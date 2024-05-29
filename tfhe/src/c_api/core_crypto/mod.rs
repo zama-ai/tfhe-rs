@@ -330,7 +330,7 @@ pub unsafe extern "C" fn core_crypto_lwe_multi_bit_bootstrapping_key_element_siz
         let output_glwe_sk_poly_size = PolynomialSize(output_glwe_sk_poly_size);
 
         let lwe_multi_bit_level_count = DecompositionLevelCount(lwe_multi_bit_level_count);
-        let lwe_multi_bit_grouping_factor = LweBskGroupingFactor(lwe_multi_bit_grouping_factor);
+        let lwe_multi_bit_grouping_factor = MultiBitGroupingFactor(lwe_multi_bit_grouping_factor);
 
         *result = lwe_multi_bit_bootstrap_key_size(
             input_lwe_sk_dim,
@@ -472,7 +472,7 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
 
         let lwe_multi_bit_base_log = DecompositionBaseLog(lwe_multi_bit_base_log);
         let lwe_multi_bit_level_count = DecompositionLevelCount(lwe_multi_bit_level_count);
-        let lwe_multi_bit_grouping_factor = LweBskGroupingFactor(lwe_multi_bit_grouping_factor);
+        let lwe_multi_bit_grouping_factor = MultiBitGroupingFactor(lwe_multi_bit_grouping_factor);
 
         let lwe_multi_bit_slice_len = {
             let bsk = LweMultiBitBootstrapKeyOwned::new(

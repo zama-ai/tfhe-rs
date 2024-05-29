@@ -24,7 +24,7 @@ fn get_bench_params<Scalar: Numeric>() -> (
     DecompositionLevelCount,
     GlweDimension,
     PolynomialSize,
-    LweBskGroupingFactor,
+    MultiBitGroupingFactor,
     ThreadCount,
 ) {
     if Scalar::BITS == 64 {
@@ -35,7 +35,7 @@ fn get_bench_params<Scalar: Numeric>() -> (
             DecompositionLevelCount(5),
             GlweDimension(1),
             PolynomialSize(1024),
-            LweBskGroupingFactor(2),
+            MultiBitGroupingFactor(2),
             ThreadCount(5),
         )
     } else if Scalar::BITS == 32 {
@@ -46,7 +46,7 @@ fn get_bench_params<Scalar: Numeric>() -> (
             DecompositionLevelCount(1),
             GlweDimension(3),
             PolynomialSize(512),
-            LweBskGroupingFactor(2),
+            MultiBitGroupingFactor(2),
             ThreadCount(5),
         )
     } else {

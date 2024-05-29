@@ -26,7 +26,7 @@ where
     // GgswCiphertextList and use Deref to have access to all the primitives of the
     // SeededGgswCiphertextList easily
     ggsw_list: SeededGgswCiphertextList<C>,
-    grouping_factor: LweBskGroupingFactor,
+    grouping_factor: MultiBitGroupingFactor,
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref
@@ -72,7 +72,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
     /// let input_lwe_dimension = LweDimension(600);
-    /// let grouping_factor = LweBskGroupingFactor(2);
+    /// let grouping_factor = MultiBitGroupingFactor(2);
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Get a seeder
@@ -177,7 +177,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         compression_seed: CompressionSeed,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
@@ -213,9 +213,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// See [`SeededLweMultiBitBootstrapKey::from_container`] for usage.
     pub fn input_lwe_dimension(&self) -> LweDimension {
         let grouping_factor = self.grouping_factor;
-        let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+        let multi_bit_power_set_size = grouping_factor.multi_bit_power_set_size();
         LweDimension(
-            self.ggsw_ciphertext_count().0 * grouping_factor.0 / ggsw_per_multi_bit_element.0,
+            self.ggsw_ciphertext_count().0 * grouping_factor.0 / multi_bit_power_set_size.0,
         )
     }
 
@@ -236,10 +236,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
             .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
-    /// Return the [`LweBskGroupingFactor`] of the current [`LweMultiBitBootstrapKey`].
+    /// Return the [`MultiBitGroupingFactor`] of the current [`LweMultiBitBootstrapKey`].
     ///
     /// See [`SeededLweMultiBitBootstrapKey::from_container`] for usage.
-    pub fn grouping_factor(&self) -> LweBskGroupingFactor {
+    pub fn grouping_factor(&self) -> MultiBitGroupingFactor {
         self.grouping_factor
     }
 
@@ -346,7 +346,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let ggsw_group_mask_sample_count = self.grouping_factor().ggsw_per_multi_bit_element().0
+        let ggsw_group_mask_sample_count = self.grouping_factor().multi_bit_power_set_size().0
             * ggsw_ciphertext_encryption_mask_sample_count(
                 self.glwe_size(),
                 self.polynomial_size(),
@@ -412,7 +412,7 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         input_lwe_dimension: LweDimension,
-        grouping_factor: LweBskGroupingFactor,
+        grouping_factor: MultiBitGroupingFactor,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
@@ -432,7 +432,7 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
                 decomp_base_log,
                 decomp_level_count,
                 GgswCiphertextCount(
-                    equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0,
+                    equivalent_multi_bit_dimension * grouping_factor.multi_bit_power_set_size().0,
                 ),
                 compression_seed,
                 ciphertext_modulus,

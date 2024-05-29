@@ -16,7 +16,7 @@ use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::p_fail_2_minus_40::ks_pbs::*;
 use crate::shortint::parameters::p_fail_2_minus_40::ks_pbs_gpu::*;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus, MultiBitGroupingFactor,
 };
 use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ pub struct MultiBitPBSParameters {
     pub log2_p_fail: f64,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
-    pub grouping_factor: LweBskGroupingFactor,
+    pub grouping_factor: MultiBitGroupingFactor,
     pub deterministic_execution: bool,
 }
 
