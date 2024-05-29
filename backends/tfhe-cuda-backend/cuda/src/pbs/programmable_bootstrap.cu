@@ -20,7 +20,7 @@ get_join_buffer_element(int level_id, int glwe_id, grid_group &group,
 template <>
 __device__ int get_this_block_rank(cluster_group &cluster, bool support_dsm) {
   if (support_dsm)
-    return cluster.block_rank();
+    return cluster.block_index().y;
   else
     return blockIdx.y;
 }
