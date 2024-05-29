@@ -230,6 +230,7 @@ extern "C" {
         num_lut_vectors: u32,
         lwe_idx: u32,
         max_shared_memory: u32,
+        gpu_offset: u32,
     );
 
     /// This cleanup function frees the data for the low latency PBS on GPU
@@ -318,6 +319,7 @@ extern "C" {
         lwe_idx: u32,
         max_shared_memory: u32,
         lwe_chunk_size: u32,
+        gpu_offset: u32,
     );
 
     /// This cleanup function frees the data for the multi-bit PBS on GPU
@@ -358,6 +360,7 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        gpu_offset: u32,
     );
 
     /// Perform the negation of a u64 input LWE ciphertext vector.
