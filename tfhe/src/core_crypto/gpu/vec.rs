@@ -23,7 +23,7 @@ use tfhe_cuda_backend::cuda_bind::{
 /// memory, it is pretty close to a `Vec`. That being said, it only present a very very limited api.
 #[derive(Debug)]
 pub struct CudaVec<T: Numeric> {
-    pub ptrs: Vec<*mut c_void>,
+    pub ptr: Vec<*mut c_void>,
     pub lengths: Vec<usize>,
     pub gpu_indexes: Vec<u32>,
     _phantom: PhantomData<T>,
@@ -54,9 +54,9 @@ impl<T: Numeric> CudaVec<T> {
         );
 
         Self {
-            ptrs: vec![ptr],
-            lengths: vec![len],
-            gpu_indexes: vec![streams.gpu_indexes[gpu_index as usize]],
+            ptr: vec![ptr; 1],
+            lengths: vec![len; 1],
+            gpu_indexes: vec![streams.gpu_indexes[gpu_index as usize]; 1],
             _phantom: PhantomData,
         }
     }
@@ -86,8 +86,8 @@ impl<T: Numeric> CudaVec<T> {
         }
 
         Self {
-            ptrs,
-            lengths: vec![len, streams.len()],
+            ptr: ptrs,
+            lengths: vec![len; streams.len()],
             gpu_indexes: streams.gpu_indexes.clone(),
             _phantom: PhantomData,
         }
@@ -342,11 +342,11 @@ impl<T: Numeric> CudaVec<T> {
     }
 
     pub(crate) fn as_mut_c_ptr(&mut self, gpu_index: u32) -> *mut c_void {
-        self.ptrs[gpu_index as usize]
+        self.ptr[gpu_index as usize]
     }
 
     pub(crate) fn as_c_ptr(&self, gpu_index: u32) -> *const c_void {
-        self.ptrs[gpu_index as usize].cast_const()
+        self.ptr[gpu_index as usize].cast_const()
     }
 
     pub(crate) fn as_slice<R>(&self, range: R, gpu_index: u32) -> Option<CudaSlice<T>>
@@ -362,7 +362,7 @@ impl<T: Numeric> CudaVec<T> {
         } else {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
-                self.ptrs[gpu_index as usize]
+                self.ptr[gpu_index as usize]
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()
@@ -389,7 +389,7 @@ impl<T: Numeric> CudaVec<T> {
         } else {
             // Shift ptr
             let shifted_ptr: *mut c_void = unsafe {
-                self.ptrs[gpu_index as usize]
+                self.ptr[gpu_index as usize]
                     .cast::<u8>()
                     .add(start * std::mem::size_of::<T>())
                     .cast()

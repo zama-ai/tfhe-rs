@@ -527,8 +527,8 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
     int cur_total_blocks = num_blocks - space;
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        &streams[0], &gpu_indexes[0], 1, cur_blocks, cur_blocks, prev_blocks,
-        &bsks[0], &ksks[0], cur_total_blocks, luts_carry_propagation_sum,
+        streams, gpu_indexes, gpu_count, cur_blocks, cur_blocks, prev_blocks,
+        bsks, ksks, cur_total_blocks, luts_carry_propagation_sum,
         luts_carry_propagation_sum->params.message_modulus);
 
     cuda_memcpy_async_gpu_to_gpu(

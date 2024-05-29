@@ -2322,10 +2322,10 @@ template <typename Torus> struct int_div_rem_memory {
   int_radix_lut<Torus> **merge_overflow_flags_luts;
 
   // sub streams
-  cudaStream_t sub_stream_1;
-  cudaStream_t sub_stream_2;
-  cudaStream_t sub_stream_3;
-  cudaStream_t sub_stream_4;
+  cudaStream_t *sub_stream_1;
+  cudaStream_t *sub_stream_2;
+  cudaStream_t *sub_stream_3;
+  cudaStream_t *sub_stream_4;
 
   // temporary device buffers
   Torus *remainder1;
@@ -2541,10 +2541,16 @@ template <typename Torus> struct int_div_rem_memory {
     init_lookup_tables(streams, gpu_indexes, gpu_count, num_blocks);
     init_temporary_buffers(streams, gpu_indexes, gpu_count, num_blocks);
 
-    sub_stream_1 = cuda_create_stream(gpu_indexes[0]);
-    sub_stream_2 = cuda_create_stream(gpu_indexes[0]);
-    sub_stream_3 = cuda_create_stream(gpu_indexes[0]);
-    sub_stream_4 = cuda_create_stream(gpu_indexes[0]);
+    sub_stream_1 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    sub_stream_2 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    sub_stream_3 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    sub_stream_4 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    for (uint i = 0; i < gpu_count; i++) {
+      sub_stream_1[i] = cuda_create_stream(gpu_indexes[i]);
+      sub_stream_2[i] = cuda_create_stream(gpu_indexes[i]);
+      sub_stream_3[i] = cuda_create_stream(gpu_indexes[i]);
+      sub_stream_4[i] = cuda_create_stream(gpu_indexes[i]);
+    }
   }
 
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
@@ -2610,10 +2616,16 @@ template <typename Torus> struct int_div_rem_memory {
     delete[] merge_overflow_flags_luts;
 
     // release sub streams
-    cuda_destroy_stream(sub_stream_1, gpu_indexes[0]);
-    cuda_destroy_stream(sub_stream_2, gpu_indexes[0]);
-    cuda_destroy_stream(sub_stream_3, gpu_indexes[0]);
-    cuda_destroy_stream(sub_stream_4, gpu_indexes[0]);
+    for (uint i = 0; i < gpu_count; i++) {
+      cuda_destroy_stream(sub_stream_1[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_stream_2[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_stream_3[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_stream_4[i], gpu_indexes[i]);
+    }
+    free(sub_stream_1);
+    free(sub_stream_2);
+    free(sub_stream_3);
+    free(sub_stream_4);
 
     // drop temporary buffers
     cuda_drop_async(remainder1, streams[0], gpu_indexes[0]);

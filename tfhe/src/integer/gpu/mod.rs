@@ -257,8 +257,8 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         (glwe_dimension.0 * polynomial_size.0) as u32,
         polynomial_size.0 as u32,
         message_modulus.0 as u32,
@@ -379,8 +379,8 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         radix_lwe_left.as_mut_c_ptr(0),
         radix_lwe_left.as_c_ptr(0),
         radix_lwe_right.as_c_ptr(0),
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         mem_ptr,
         polynomial_size.0 as u32,
         num_blocks,
@@ -469,8 +469,8 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         radix_lwe_left.as_c_ptr(0),
         radix_lwe_right.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
@@ -549,8 +549,8 @@ pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger,
         radix_lwe_left.as_mut_c_ptr(0),
         radix_lwe_left.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_bitop(
@@ -641,8 +641,8 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         clear_blocks.as_c_ptr(0),
         min(clear_blocks.len(0) as u32, num_blocks),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
         op as u32,
     );
@@ -739,8 +739,8 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         radix_lwe_left.as_c_ptr(0),
         radix_lwe_right.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
 
@@ -838,8 +838,8 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         radix_lwe_in.as_c_ptr(0),
         scalar_blocks.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
         num_scalar_blocks,
     );
@@ -912,8 +912,8 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(0),
         mem_ptr,
-        keyswitch_key.ptrs.as_ptr(),
-        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
@@ -999,8 +999,8 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
         radix_lwe_input.as_mut_c_ptr(0),
         carry_out.as_mut_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_propagate_single_carry(
@@ -1083,8 +1083,8 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
@@ -1167,8 +1167,8 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
@@ -1251,8 +1251,8 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         radix_lwe_left.as_mut_c_ptr(0),
         shift,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_arithmetic_scalar_shift(
@@ -1342,8 +1342,8 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1430,8 +1430,8 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1521,8 +1521,8 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1612,8 +1612,8 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         radix_shift.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
@@ -1711,8 +1711,8 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         radix_lwe_true.as_c_ptr(0),
         radix_lwe_false.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_cmux(
@@ -1795,8 +1795,8 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         n,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
@@ -1879,8 +1879,8 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         radix_lwe_left.as_mut_c_ptr(0),
         n,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
@@ -1968,8 +1968,8 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
         radix_list.as_mut_c_ptr(0),
         num_radixes,
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_sum_ciphertexts_vec(
@@ -2070,8 +2070,8 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
         lhs.as_c_ptr(0),
         rhs.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_radix_overflowing_sub(
@@ -2155,8 +2155,8 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         radix_lwe_output.as_mut_c_ptr(0),
         radix_lwe_input.as_c_ptr(0),
         mem_ptr,
-        keyswitch_key.ptrs.as_ptr(),
-        bootstrapping_key.ptrs.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
@@ -2227,8 +2227,8 @@ pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
         numerator.as_c_ptr(0),
         divisor.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptrs.as_ptr(),
-        keyswitch_key.ptrs.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
         num_blocks,
     );
     cleanup_cuda_integer_div_rem(

@@ -379,32 +379,35 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp section
       {
         // interesting_divisor
-        trim_last_interesting_divisor_bits(&mem_ptr->sub_stream_1,
-                                           &gpu_indexes[0], 1);
+        trim_last_interesting_divisor_bits(mem_ptr->sub_stream_1, gpu_indexes,
+                                           gpu_count);
       }
 #pragma omp section
       {
         // divisor_ms_blocks
-        trim_first_divisor_ms_bits(&mem_ptr->sub_stream_2, &gpu_indexes[0], 1);
+        trim_first_divisor_ms_bits(mem_ptr->sub_stream_2, gpu_indexes,
+                                   gpu_count);
       }
 #pragma omp section
       {
         // interesting_remainder1
         // numerator_block_stack
-        left_shift_interesting_remainder1(&mem_ptr->sub_stream_3,
-                                          &gpu_indexes[0], 1);
+        left_shift_interesting_remainder1(mem_ptr->sub_stream_3, gpu_indexes,
+                                          gpu_count);
       }
 #pragma omp section
       {
         // interesting_remainder2
-        left_shift_interesting_remainder2(&mem_ptr->sub_stream_4,
-                                          &gpu_indexes[0], 1);
+        left_shift_interesting_remainder2(mem_ptr->sub_stream_4, gpu_indexes,
+                                          gpu_count);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_4, gpu_indexes[0]);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(mem_ptr->sub_stream_1[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_2[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_3[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_4[j], gpu_indexes[j]);
+    }
 
     // if interesting_remainder1 != 0 -> interesting_remainder2 == 0
     // if interesting_remainder1 == 0 -> interesting_remainder2 != 0
@@ -492,23 +495,26 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       {
         // new_remainder
         // subtraction_overflowed
-        do_overflowing_sub(&mem_ptr->sub_stream_1, &gpu_indexes[0], 1);
+        do_overflowing_sub(mem_ptr->sub_stream_1, gpu_indexes, gpu_count);
       }
 #pragma omp section
       {
         // at_least_one_upper_block_is_non_zero
-        check_divisor_upper_blocks(&mem_ptr->sub_stream_2, &gpu_indexes[0], 1);
+        check_divisor_upper_blocks(mem_ptr->sub_stream_2, gpu_indexes,
+                                   gpu_count);
       }
 #pragma omp section
       {
         // cleaned_merged_interesting_remainder
-        create_clean_version_of_merged_remainder(&mem_ptr->sub_stream_3,
-                                                 &gpu_indexes[0], 1);
+        create_clean_version_of_merged_remainder(mem_ptr->sub_stream_3,
+                                                 gpu_indexes, gpu_count);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(mem_ptr->sub_stream_1[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_2[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_3[j], gpu_indexes[j]);
+    }
 
     host_addition(streams[0], gpu_indexes[0], overflow_sum.data,
                   subtraction_overflowed.data,
@@ -565,23 +571,25 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       {
         // cleaned_merged_interesting_remainder
         conditionally_zero_out_merged_interesting_remainder(
-            &mem_ptr->sub_stream_1, &gpu_indexes[0], 1);
+            mem_ptr->sub_stream_1, gpu_indexes, gpu_count);
       }
 #pragma omp section
       {
         // new_remainder
-        conditionally_zero_out_merged_new_remainder(&mem_ptr->sub_stream_2,
-                                                    &gpu_indexes[0], 1);
+        conditionally_zero_out_merged_new_remainder(mem_ptr->sub_stream_2,
+                                                    gpu_indexes, gpu_count);
       }
 #pragma omp section
       {
         // quotient
-        set_quotient_bit(&mem_ptr->sub_stream_3, &gpu_indexes[0], 1);
+        set_quotient_bit(mem_ptr->sub_stream_3, gpu_indexes, gpu_count);
       }
     }
-    cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
-    cuda_synchronize_stream(mem_ptr->sub_stream_3, gpu_indexes[0]);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(mem_ptr->sub_stream_1[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_2[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem_ptr->sub_stream_3[j], gpu_indexes[j]);
+    }
 
     assert(first_trivial_block - 1 == cleaned_merged_interesting_remainder.len);
     assert(first_trivial_block - 1 == new_remainder.len);
@@ -606,18 +614,20 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          &mem_ptr->sub_stream_1, &gpu_indexes[0], 1, remainder, remainder,
+          mem_ptr->sub_stream_1, gpu_indexes, gpu_count, remainder, remainder,
           bsks, ksks, num_blocks, mem_ptr->message_extract_lut_1);
     }
 #pragma omp section
     {
       integer_radix_apply_univariate_lookup_table_kb(
-          &mem_ptr->sub_stream_2, &gpu_indexes[0], 1, quotient, quotient, bsks,
-          ksks, num_blocks, mem_ptr->message_extract_lut_2);
+          mem_ptr->sub_stream_2, gpu_indexes, gpu_count, quotient, quotient,
+          bsks, ksks, num_blocks, mem_ptr->message_extract_lut_2);
     }
   }
-  cuda_synchronize_stream(mem_ptr->sub_stream_1, gpu_indexes[0]);
-  cuda_synchronize_stream(mem_ptr->sub_stream_2, gpu_indexes[0]);
+  for (uint j = 0; j < gpu_count; j++) {
+    cuda_synchronize_stream(mem_ptr->sub_stream_1[j], gpu_indexes[j]);
+    cuda_synchronize_stream(mem_ptr->sub_stream_2[j], gpu_indexes[j]);
+  }
 }
 
 #endif // TFHE_RS_DIV_REM_CUH

@@ -33,9 +33,9 @@ where
     /// the cuda side.
     pub(crate) unsafe fn new(ptr: *const c_void, len: usize, gpu_index: u32) -> Self {
         Self {
-            ptrs: vec![ptr],
-            _lengths: vec![len],
-            gpu_indexes: vec![gpu_index],
+            ptrs: vec![ptr; 1],
+            _lengths: vec![len; 1],
+            gpu_indexes: vec![gpu_index; 1],
             _phantom_1: PhantomData,
             _phantom_2: PhantomData,
         }
@@ -63,9 +63,9 @@ where
     /// the cuda side.
     pub(crate) unsafe fn new(ptr: *mut c_void, len: usize, gpu_index: u32) -> Self {
         Self {
-            ptrs: vec![ptr],
-            lengths: vec![len],
-            gpu_indexes: vec![gpu_index],
+            ptrs: vec![ptr; 1],
+            lengths: vec![len; 1],
+            gpu_indexes: vec![gpu_index; 1],
             _phantom_1: PhantomData,
             _phantom_2: PhantomData,
         }

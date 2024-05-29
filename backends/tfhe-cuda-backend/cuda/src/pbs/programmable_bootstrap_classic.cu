@@ -132,7 +132,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory) {
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset) {
 
   switch (polynomial_size) {
   case 256:
@@ -141,7 +141,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 512:
     host_programmable_bootstrap_tbc<Torus, Degree<512>>(
@@ -149,7 +149,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 1024:
     host_programmable_bootstrap_tbc<Torus, Degree<1024>>(
@@ -157,7 +157,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 2048:
     host_programmable_bootstrap_tbc<Torus, AmortizedDegree<2048>>(
@@ -165,7 +165,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 4096:
     host_programmable_bootstrap_tbc<Torus, AmortizedDegree<4096>>(
@@ -173,7 +173,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 8192:
     host_programmable_bootstrap_tbc<Torus, AmortizedDegree<8192>>(
@@ -181,7 +181,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   case 16384:
     host_programmable_bootstrap_tbc<Torus, AmortizedDegree<16384>>(
@@ -189,7 +189,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
         lwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, max_shared_memory);
+        num_luts, max_shared_memory, gpu_offset);
     break;
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
@@ -582,7 +582,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
         static_cast<double2 *>(bootstrapping_key),
         (pbs_buffer<uint32_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, lwe_idx, max_shared_memory);
+        num_luts, lwe_idx, max_shared_memory, gpu_offset);
 #else
     PANIC("Cuda error (PBS): TBC pbs is not supported.")
 #endif
@@ -718,7 +718,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<double2 *>(bootstrapping_key),
         (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_luts, lwe_idx, max_shared_memory);
+        num_luts, lwe_idx, max_shared_memory, gpu_offset);
 #else
     PANIC("Cuda error (PBS): TBC pbs is not supported.")
 #endif
@@ -851,7 +851,7 @@ template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t>(
     pbs_buffer<uint32_t, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset);
 template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t *lwe_output_indexes, uint64_t *lut_vector,
@@ -860,7 +860,7 @@ template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
     pbs_buffer<uint64_t, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory);
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset);
 template void scratch_cuda_programmable_bootstrap_tbc<uint32_t, int32_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint32_t, CLASSICAL> **pbs_buffer, uint32_t glwe_dimension,
