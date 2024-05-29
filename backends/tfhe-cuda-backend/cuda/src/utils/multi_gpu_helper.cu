@@ -29,7 +29,6 @@ int cuda_setup_multi_gpu() {
 
         num_used_gpus += 1;
       } else {
-        printf("Number of GPUs with p2p access used: %d\n", num_used_gpus);
         break;
       }
     }
