@@ -109,7 +109,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t lwe_chunk_size = 0);
+    uint32_t lwe_chunk_size = 0, uint32_t gpu_offset = 0);
 
 template <typename Torus, typename STorus>
 void scratch_cuda_multi_bit_programmable_bootstrap(
@@ -128,7 +128,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t lwe_chunk_size = 0);
+    uint32_t lwe_chunk_size = 0, uint32_t gpu_offset = 0);
 
 template <typename Torus>
 __host__ __device__ uint64_t
