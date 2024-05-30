@@ -64,21 +64,42 @@ void cuda_cleanup_multi_gpu() {
   }
 }
 
+int get_active_gpu_count(int num_inputs, int gpu_count) {
+  int active_gpu_count = gpu_count;
+  if (gpu_count > num_inputs) {
+    active_gpu_count = num_inputs;
+  }
+  return active_gpu_count;
+}
+
 int get_num_inputs_on_gpu(int total_num_inputs, int gpu_index, int gpu_count) {
 
   int num_inputs = 0;
-  // If there are fewer inputs than GPUs, not all GPUs are active and each
-  // active GPU handles 1 input
+  // If there are fewer inputs than GPUs, not all GPUs are active and GPU 0
+  // handles everything
   if (gpu_count > total_num_inputs) {
-    if (gpu_index <= total_num_inputs - 1)
+    if (gpu_index < total_num_inputs) {
       num_inputs = 1;
+    }
   } else {
     // If there are more inputs than GPUs, all GPUs are active and compute over
-    // a chunk of the total inputs. The chunk size is smaller on the last GPU.
-    num_inputs =
-        total_num_inputs / gpu_count + (total_num_inputs % gpu_count != 0);
-    if (gpu_index == gpu_count - 1)
-      num_inputs = total_num_inputs - (gpu_count - 1) * num_inputs;
+    // a chunk of the total inputs. The chunk size is smaller on the last GPUs.
+    int small_input_num, large_input_num, cutoff;
+    if (total_num_inputs % gpu_count == 0) {
+      small_input_num = total_num_inputs / gpu_count;
+      large_input_num = small_input_num;
+      cutoff = 0;
+    } else {
+      int y = ceil((double)total_num_inputs / (double)gpu_count) * gpu_count -
+              total_num_inputs;
+      cutoff = gpu_count - y;
+      small_input_num = total_num_inputs / gpu_count;
+      large_input_num = (int)ceil((double)total_num_inputs / (double)gpu_count);
+    }
+    if (gpu_index < cutoff)
+      num_inputs = large_input_num;
+    else
+      num_inputs = small_input_num;
   }
   return num_inputs;
 }

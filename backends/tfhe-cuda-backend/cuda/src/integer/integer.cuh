@@ -171,7 +171,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
 
   /// Synchronize all GPUs
-  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   for (uint i = 0; i < active_gpu_count; i++) {
     cuda_synchronize_stream(streams[i], gpu_indexes[i]);
   }
@@ -224,7 +224,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
       cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
 
   /// Synchronize all GPUs
-  auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
+  auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   for (uint i = 0; i < active_gpu_count; i++) {
     cuda_synchronize_stream(streams[i], gpu_indexes[i]);
   }

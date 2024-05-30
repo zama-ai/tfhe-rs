@@ -135,20 +135,22 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   /// If the number of radix blocks is lower than the number of GPUs, not all
   /// GPUs will be active and there will be 1 input per GPU
-  auto active_gpu_count = std::min(num_samples, gpu_count);
-  int num_samples_on_gpu_0 = get_num_inputs_on_gpu(num_samples, 0, active_gpu_count);
+  auto active_gpu_count = get_active_gpu_count(num_samples, gpu_count);
+  int num_samples_on_gpu_0 = get_num_inputs_on_gpu(num_samples, 0, gpu_count);
   if (sync_streams)
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
-    int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, active_gpu_count);
+    int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
+    int gpu_offset =
+        i >= 1 ? num_samples_on_gpu_0 + (i - 1) * num_samples_on_gpu : 0;
 
     // Compute Keyswitch
     cuda_keyswitch_lwe_ciphertext_vector(
         streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
         lwe_array_in, lwe_input_indexes, ksks[i], lwe_dimension_in,
         lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
-        i * num_samples_on_gpu_0);
+        gpu_offset);
   }
 
   if (sync_streams)
