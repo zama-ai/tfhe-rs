@@ -277,7 +277,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(bootstrapping_key),
         (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
+        lwe_chunk_size);
 #else
     PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
 #endif

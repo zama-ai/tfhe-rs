@@ -318,8 +318,8 @@ extern "C" {
         num_lut_vectors: u32,
         lwe_idx: u32,
         max_shared_memory: u32,
-        lwe_chunk_size: u32,
         gpu_offset: u32,
+        lwe_chunk_size: u32,
     );
 
     /// This cleanup function frees the data for the multi-bit PBS on GPU
