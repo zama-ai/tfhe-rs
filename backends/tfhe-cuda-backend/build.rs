@@ -9,6 +9,11 @@ fn main() {
     }
 
     println!("Build tfhe-cuda-backend");
+    println!("cargo::rerun-if-changed=cuda/include");
+    println!("cargo::rerun-if-changed=cuda/src");
+    println!("cargo::rerun-if-changed=cuda/tests_and_benchmarks");
+    println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
+    println!("cargo::rerun-if-changed=src");
     if env::consts::OS == "linux" {
         let output = Command::new("./get_os_name.sh").output().unwrap();
         let distribution = String::from_utf8(output.stdout).unwrap();
