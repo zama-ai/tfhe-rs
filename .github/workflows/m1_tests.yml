@@ -3,8 +3,6 @@ name: Tests on M1 CPU
 on:
   workflow_dispatch:
   pull_request:
-    types: [labeled]
-  pull_request_target:
     types: [ labeled ]
   # Have a nightly build for M1 tests
   schedule:
@@ -140,7 +138,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}
