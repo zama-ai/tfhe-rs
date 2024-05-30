@@ -129,7 +129,7 @@ void execute_pbs(
     uint32_t max_shared_memory, PBS_TYPE pbs_type, bool sync_streams = true) {
   auto active_gpu_count = std::min(input_lwe_ciphertext_count, gpu_count);
   int num_lwe_inputs_on_gpu_0 =
-      get_num_inputs_on_gpu(input_lwe_ciphertext_count, 0, gpu_count);
+      get_num_inputs_on_gpu(input_lwe_ciphertext_count, 0, active_gpu_count);
   if (sync_streams)
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   switch (sizeof(Torus)) {
@@ -142,7 +142,7 @@ void execute_pbs(
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
@@ -167,7 +167,7 @@ void execute_pbs(
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -183,7 +183,7 @@ void execute_pbs(
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
         int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(i * num_lwe_inputs_on_gpu_0);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
