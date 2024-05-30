@@ -54,7 +54,7 @@ jobs:
       - name: Build web package
         if: ${{ inputs.push_web_package }}
         run: |
-          make build_web_js_api
+          make build_web_js_api_parallel
 
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
