@@ -20,9 +20,14 @@ on:
         description: "Push node js package"
         type: boolean
         default: true
+      npm_latest_tag:
+        description: "Set NPM tag as latest"
+        type: boolean
+        default: false
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  NPM_TAG: ""
 
 jobs:
   publish_release:
@@ -33,6 +38,10 @@ jobs:
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
         with:
           fetch-depth: 0
+
+      - name: Create NPM version tag
+        run: |
+          echo "NPM_TAG=$(sed -n -e '1,/^version/p' tfhe/Cargo.toml | grep '^version[[:space:]]*=' | cut -d '=' -f 2 | tr -d ' ')" >> "${GITHUB_ENV}"
 
       - name: Publish crate.io package
         if: ${{ inputs.push_to_crates }}
@@ -54,6 +63,15 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
+          tag: ${{ env.NPM_TAG }}
+
+      - name: Publish web package as latest
+        if: ${{ inputs.push_web_package && inputs.npm_latest_tag }}
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
 
       - name: Build Node package
         if: ${{ inputs.push_node_package }}
@@ -65,6 +83,15 @@ jobs:
 
       - name: Publish Node package
         if: ${{ inputs.push_node_package }}
+        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
+          tag: ${{ env.NPM_TAG }}
+
+      - name: Publish Node package as latest
+        if: ${{ inputs.push_node_package && inputs.npm_latest_tag }}
         uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
         with:
           token: ${{ secrets.NPM_TOKEN }}
