@@ -17,8 +17,6 @@ on:
   workflow_dispatch:
   pull_request:
     types: [ labeled ]
-  pull_request_target:
-    types: [ labeled ]
   schedule:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
@@ -120,9 +118,8 @@ jobs:
 
   setup-instance:
     name: Setup instance (cpu-tests)
-    if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') ||
-      ((github.event_name == 'pull_request' || github.event_name != 'pull_request_target') && 
-      needs.should-run.outputs.any_file_changed == 'true')
+    if: github.event_name != 'pull_request' ||
+      (github.event_name == 'pull_request' && needs.should-run.outputs.any_file_changed == 'true')
     needs: should-run
     runs-on: ubuntu-latest
     outputs:
@@ -141,9 +138,8 @@ jobs:
 
   cpu-tests:
     name: CPU tests
-    if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') ||
-      ((github.event_name == 'pull_request' || github.event_name != 'pull_request_target') &&
-      needs.setup-instance.result != 'skipped')
+    if: github.event_name != 'pull_request' ||
+      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     needs: [ should-run, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}

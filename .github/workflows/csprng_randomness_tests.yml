@@ -16,8 +16,6 @@ on:
   workflow_dispatch:
   pull_request:
     types: [ labeled ]
-  pull_request_target:
-    types: [labeled]
 
 jobs:
   setup-instance:
