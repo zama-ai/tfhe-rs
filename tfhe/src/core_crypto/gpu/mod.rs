@@ -11,6 +11,7 @@ use crate::core_crypto::prelude::{
 };
 pub use algorithms::*;
 pub use entities::*;
+use rayon::prelude::*;
 use std::ffi::c_void;
 pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 
@@ -19,6 +20,10 @@ pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<u32>,
 }
+
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for CudaStreams {}
+unsafe impl Sync for CudaStreams {}
 
 impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine,
@@ -291,19 +296,19 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
-    for &gpu_index in streams.gpu_indexes.iter() {
+    streams.gpu_indexes.par_iter().for_each(|&gpu_index| {
         assert_eq!(dest.len(gpu_index) * std::mem::size_of::<T>(), size);
         cuda_convert_lwe_programmable_bootstrap_key_64(
             streams.ptr[gpu_index as usize],
             streams.gpu_indexes[gpu_index as usize],
-            dest.as_mut_c_ptr(gpu_index),
+            dest.get_mut_c_ptr(gpu_index),
             src.as_ptr().cast(),
             input_lwe_dim.0 as u32,
             glwe_dim.0 as u32,
             l_gadget.0 as u32,
             polynomial_size.0 as u32,
         );
-    }
+    });
 }
 
 /// Convert multi-bit programmable bootstrap key

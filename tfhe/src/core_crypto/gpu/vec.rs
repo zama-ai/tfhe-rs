@@ -1,6 +1,7 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
+use rayon::prelude::*;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -199,7 +200,7 @@ impl<T: Numeric> CudaVec<T> {
     where
         T: Numeric,
     {
-        for &gpu_index in self.gpu_indexes.clone().iter() {
+        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
             assert!(self.len(gpu_index) >= src.len());
             let size = std::mem::size_of_val(src);
 
@@ -207,14 +208,14 @@ impl<T: Numeric> CudaVec<T> {
             // invalid pointer being passed to copy_to_gpu_async
             if size > 0 {
                 cuda_memcpy_async_to_gpu(
-                    self.as_mut_c_ptr(gpu_index),
+                    self.get_mut_c_ptr(gpu_index),
                     src.as_ptr().cast(),
                     size as u64,
                     streams.ptr[gpu_index as usize],
                     streams.gpu_indexes[gpu_index as usize],
                 );
             }
-        }
+        });
     }
 
     /// Copies data between two `CudaVec`
@@ -345,6 +346,10 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr[gpu_index as usize]
     }
 
+    pub(crate) fn get_mut_c_ptr(&self, gpu_index: u32) -> *mut c_void {
+        self.ptr[gpu_index as usize]
+    }
+
     pub(crate) fn as_c_ptr(&self, gpu_index: u32) -> *const c_void {
         self.ptr[gpu_index as usize].cast_const()
     }
@@ -436,11 +441,11 @@ unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
-        for &gpu_index in self.gpu_indexes.clone().iter() {
+        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
             // Synchronizes the device to be sure no stream is still using this pointer
             synchronize_device(gpu_index);
-            unsafe { cuda_drop(self.as_mut_c_ptr(gpu_index), gpu_index) };
-        }
+            unsafe { cuda_drop(self.get_mut_c_ptr(gpu_index), gpu_index) };
+        });
     }
 }
 
