@@ -1,0 +1,184 @@
+# Run all integer benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
+name: Integer multi GPU full benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  setup-instance:
+    name: Setup instance (cuda-integer-full-multi-gpu-benchmarks)
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: multi-gpu-test
+
+  cuda-integer-full-multi-gpu-benchmarks:
+    name: Execute multi GPU integer benchmarks for all operations flavor
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440 # 24 hours
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        command: [integer, integer_multi_bit]
+        op_flavor: [default, unchecked]
+        # explicit include-based build matrix, of known valid options
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 9
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+    
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          fetch-depth: 0
+
+      - name: Get benchmark details
+        run: |
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+
+      - name: Set up home
+        # "Install rust" step require root user to have a HOME directory which is not set.
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@d8352f6b1d2e870bc5716e7a6d9b65c4cc244a1a
+        with:
+          toolchain: nightly
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CUDA_PATH=$CUDA_PATH";
+            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
+            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+          } >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+          } >> "${GITHUB_ENV}"
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Run benchmarks with AVX512
+        run: |
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --database tfhe_rs \
+          --hardware "p3.8xlarge" \
+          --backend gpu \
+          --project-version "${{ env.COMMIT_HASH }}" \
+          --branch ${{ github.ref_name }} \
+          --commit-date "${{ env.COMMIT_DATE }}" \
+          --bench-date "${{ env.BENCH_DATE }}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --throughput
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          echo "Computing HMac on results file"
+          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
+          echo "Sending results to Slab..."
+          curl -v -k \
+          -H "Content-Type: application/json" \
+          -H "X-Slab-Repository: ${{ github.repository }}" \
+          -H "X-Slab-Command: store_data_v2" \
+          -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
+          -d @${{ env.RESULTS_FILENAME }} \
+          ${{ secrets.SLAB_URL }}
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-integer-full-multi-gpu-benchmarks ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    if: ${{ !success() && !cancelled() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ needs.cuda-integer-full-multi-gpu-benchmarks.result }}
+          SLACK_MESSAGE: "Integer GPU full benchmarks finished with status: ${{ needs.cuda-integer-full-multi-gpu-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (cuda-integer-full-multi-gpu-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, cuda-integer-full-multi-gpu-benchmarks, slack-notify ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cuda-integer-full-multi-gpu-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
