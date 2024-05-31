@@ -12,6 +12,15 @@ pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
         false_ct: FalseCt,
     ) -> Self::Output;
 
+    fn select_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        ct_when_true: TrueCt,
+        ct_when_false: FalseCt,
+    ) -> Self::Output {
+        self.if_then_else_parallelized(condition, ct_when_true, ct_when_false)
+    }
+
     fn cmux_parallelized(
         &self,
         condition: &BooleanBlock,

@@ -30,30 +30,30 @@ Similar to Rust integers, you need to specify the bit size of data when declarin
 
 **TFHE-rs** supports various operations on encrypted integers (`Enc`) of any size between 1 and 256 bits. These operations can also work between encrypted integers and clear integers (`Int`).
 
-| name                  | symbol         | `Enc`/`Enc`          | `Enc`/ `Int`               |
-| --------------------- | -------------- | -------------------- | -------------------------- |
-| Neg                   | `-`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Add                   | `+`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Sub                   | `-`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Mul                   | `*`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Div                   | `/`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Rem                   | `%`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Not                   | `!`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| BitAnd                | `&`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| BitOr                 | `\|`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| BitXor                | `^`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Shr                   | `>>`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Shl                   | `<<`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Min                   | `min`          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Max                   | `max`          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Greater than          | `gt`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Greater or equal than | `ge`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Less than             | `lt`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Less or equal than    | `le`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Equal                 | `eq`           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Cast (into dest type) | `cast_into`    | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Cast (from src type)  | `cast_from`    | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Ternary operator      | `if_then_else` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| name                  | symbol      | `Enc`/`Enc`          | `Enc`/ `Int`               |
+| --------------------- |-------------| -------------------- | -------------------------- |
+| Neg                   | `-`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Add                   | `+`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Sub                   | `-`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Mul                   | `*`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Div                   | `/`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Rem                   | `%`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Not                   | `!`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitAnd                | `&`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitOr                 | `\|`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitXor                | `^`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shr                   | `>>`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shl                   | `<<`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Min                   | `min`       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Max                   | `max`       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater than          | `gt`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater or equal than | `ge`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Less than             | `lt`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Less or equal than    | `le`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Equal                 | `eq`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Cast (into dest type) | `cast_into` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Cast (from src type)  | `cast_from` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Ternary operator      | `select`    | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
 
 ### Arithmetic operations
 
@@ -259,13 +259,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Ternary conditional operations
 
-The ternary conditional operator execute conditional instructions in the form `if cond { choice_if } else { choice_else }`.
+The ternary conditional operator execute conditional instructions in the form `if cond { choice_if_true } else { choice_if_false }`.
 
-| name             | symbol         | type    |
-| ---------------- | -------------- | ------- |
-| Ternary operator | `if_then_else` | Ternary |
+| name             | symbol   | type    |
+| ---------------- |----------| ------- |
+| Ternary operator | `select` | Ternary |
 
-The syntax is `encrypted_condition.if_then_else(encrypted_choice_if, encrypted_choice_else)`. The valid `encrypted_condition` must be an encryption of 0 or 1.
+The syntax is `encrypted_condition.select(encrypted_choice_if_true, encrypted_choice_if_false)`. The valid `encrypted_condition` must be an encryption of 0 or 1.
 
 The following example shows how to perform ternary conditional operations:
 
@@ -298,10 +298,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	
 	// `encrypted_comp` is a FheBool, thus it encrypts a boolean value.
     // This acts as a condition on which the
-	// `if_then_else` function can be applied on.
+	// `select` function can be applied on.
 	// Clear equivalent computations:
 	// if 32 > -45 {result = 32} else {result = -45}
-	let encrypted_res = &encrypted_comp.if_then_else(&encrypted_a, &encrypted_b);
+	let encrypted_res = &encrypted_comp.select(&encrypted_a, &encrypted_b);
 	
 	let clear_res: i32 = encrypted_res.decrypt(&client_key);
 	assert_eq!(clear_res, clear_a);

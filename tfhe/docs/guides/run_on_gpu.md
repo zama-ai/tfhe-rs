@@ -177,7 +177,7 @@ fn main() {
 The GPU backend includes the following operations:
 
 | name                  | symbol         | `Enc`/`Enc`                | `Enc`/ `Int`               |
-| --------------------- | -------------- | -------------------------- | -------------------------- |
+| --------------------- |----------------| -------------------------- | -------------------------- |
 | Neg                   | `-`            | :heavy\_check\_mark:       | N/A                        |
 | Add                   | `+`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
 | Sub                   | `-`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
@@ -201,7 +201,7 @@ The GPU backend includes the following operations:
 | Equal                 | `eq`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
 | Cast (into dest type) | `cast_into`    | :heavy\_multiplication\_x: | N/A                        |
 | Cast (from src type)  | `cast_from`    | :heavy\_multiplication\_x: | N/A                        |
-| Ternary operator      | `if_then_else` | :heavy\_check\_mark:       | :heavy\_multiplication\_x: |
+| Ternary operator      | `select`       | :heavy\_check\_mark:       | :heavy\_multiplication\_x: |
 
 The equivalent signed operations are also available.
 
