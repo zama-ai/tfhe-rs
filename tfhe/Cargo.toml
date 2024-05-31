@@ -67,7 +67,8 @@ aligned-vec = { version = "0.5", features = ["serde"] }
 dyn-stack = { version = "0.9" }
 paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
-sha3 = "0.10"
+# Used for OPRF in shortint
+sha3 = { version = "0.10", optional = true }
 # While we wait for repeat_n in rust standard library
 itertools = "0.11.0"
 rand_core = { version = "0.6.4", features = ["std"] }
@@ -86,7 +87,7 @@ bytemuck = "1.14.3"
 
 [features]
 boolean = []
-shortint = []
+shortint = ["dep:sha3"]
 integer = ["shortint"]
 internal-keycache = ["dep:lazy_static", "dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend"]
