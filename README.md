@@ -50,7 +50,7 @@ production-ready library for all the advanced features of TFHE.
 <br></br>
 
 ## Table of Contents
-- **[Getting Started](#getting-started)**
+- **[Getting started](#getting-started)**
    - [Cargo.toml configuration](#cargotoml-configuration)
    - [A simple example](#a-simple-example)
 - **[Resources](#resources)**
@@ -65,7 +65,7 @@ production-ready library for all the advanced features of TFHE.
 - **[Support](#support)**
 <br></br>
 
-## Getting Started
+## Getting started
 
 ### Cargo.toml configuration
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
@@ -198,7 +198,7 @@ Full, comprehensive documentation is available here: [https://docs.zama.ai/tfhe-
 
 ### Disclaimers
 
-#### Security Estimation
+#### Security estimation
 
 Security estimations are done using the
 [Lattice Estimator](https://github.com/malb/lattice-estimator)
@@ -206,13 +206,13 @@ with `red_cost_model = reduction.RC.BDGL16`.
 
 When a new update is published in the Lattice Estimator, we update parameters accordingly.
 
-### Security Model
+### Security model
 
 The default parameters for the TFHE-rs library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error = $2^{-40}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [1]. 
 
 [1] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
 
-#### Side-Channel Attacks
+#### Side-channel attacks
 
 Mitigation for side-channel attacks has not yet been implemented in TFHE-rs,
 and will be released in upcoming versions.
@@ -241,7 +241,23 @@ Becoming an approved contributor involves signing our Contributor License Agreem
 <br></br>
 
 ### License
-This software is distributed under the **BSD-3-Clause-Clear** license. If you have any questions, please contact us at hello@zama.ai.
+This software is distributed under the **BSD-3-Clause-Clear** license. Read [this](LICENSE) for more details.
+
+#### FAQ
+**Is Zama’s technology free to use?**
+>Zama’s libraries are free to use under the BSD 3-Clause Clear license only for development, research, prototyping, and experimentation purposes. However, for any commercial use of Zama's open source code, companies must purchase Zama’s commercial patent license.
+>
+>Everything we do is open source and we are very transparent on what it means for our users, you can read more about how we monetize our open source products at Zama in [this blogpost](https://www.zama.ai/post/open-source).
+
+**What do I need to do if I want to use Zama’s technology for commercial purposes?**
+>To commercially use Zama’s technology you need to be granted Zama’s patent license. Please contact us hello@zama.ai for more information.
+
+**Do you file IP on your technology?**
+>Yes, all Zama’s technologies are patented.
+
+**Can you customize a solution for my specific use case?**
+>We are open to collaborating and advancing the FHE space with our partners. If you have specific needs, please email us at hello@zama.ai.
+
 <p align="right">
   <a href="#about" > ↑ Back to top </a> 
 </p>
