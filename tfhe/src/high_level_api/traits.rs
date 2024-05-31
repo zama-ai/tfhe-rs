@@ -157,6 +157,9 @@ pub trait DivRem<Rhs = Self> {
 
 pub trait IfThenElse<Ciphertext> {
     fn if_then_else(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> Ciphertext;
+    fn select(&self, ct_when_true: &Ciphertext, ct_when_false: &Ciphertext) -> Ciphertext {
+        self.if_then_else(ct_when_true, ct_when_false)
+    }
     fn cmux(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> Ciphertext {
         self.if_then_else(ct_then, ct_else)
     }
