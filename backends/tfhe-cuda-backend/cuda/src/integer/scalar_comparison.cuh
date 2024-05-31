@@ -58,9 +58,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], lut->lut, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_last_leaf_lut_f);
+    generate_device_accumulator<Torus>(streams[0], gpu_indexes[0],
+                                       lut->lut_array[0], glwe_dimension,
+                                       polynomial_size, message_modulus,
+                                       carry_modulus, scalar_last_leaf_lut_f);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
@@ -149,8 +151,10 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], lut->lut, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
+        streams[0], gpu_indexes[0], lut->lut_array[0], glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        scalar_bivariate_last_leaf_lut_f);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_bivariate_lookup_table_kb(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_lsb_out,
@@ -280,9 +284,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
     generate_device_accumulator_bivariate<Torus>(
-        streams[0], gpu_indexes[0], lut->lut, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
-
+        streams[0], gpu_indexes[0], lut->lut_array[0], glwe_dimension,
+        polynomial_size, message_modulus, carry_modulus,
+        scalar_bivariate_last_leaf_lut_f);
+    lut->broadcast_lut(streams, gpu_indexes, 0);
     integer_radix_apply_bivariate_lookup_table_kb(
         streams, gpu_indexes, gpu_count, lwe_array_out, are_all_msb_zeros,
         sign_block, bsks, ksks, 1, lut, lut->params.message_modulus);
@@ -378,9 +383,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
         auto signed_msb_lut = mem_ptr->signed_msb_lut;
         generate_device_accumulator_bivariate<Torus>(
-            msb_streams[0], gpu_indexes[0], signed_msb_lut->lut,
+            msb_streams[0], gpu_indexes[0], signed_msb_lut->lut_array[0],
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, lut_f);
+        signed_msb_lut->broadcast_lut(streams, gpu_indexes, 0);
 
         Torus *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
         integer_radix_apply_bivariate_lookup_table_kb(
@@ -693,10 +699,11 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
         pack_blocks(lsb_streams[0], gpu_indexes[0], packed_scalar,
                     scalar_blocks, 0, num_scalar_blocks, message_modulus);
 
-        cuda_memcpy_async_gpu_to_gpu(scalar_comparison_luts->lut_indexes,
-                                     packed_scalar,
-                                     num_halved_scalar_blocks * sizeof(Torus),
-                                     lsb_streams[0], gpu_indexes[0]);
+        for (int i = 0; i < scalar_comparison_luts->active_gpu_count; i++)
+          cuda_memcpy_async_gpu_to_gpu(
+              scalar_comparison_luts->lut_indexes_array[i], packed_scalar,
+              num_halved_scalar_blocks * sizeof(Torus), lsb_streams[0],
+              gpu_indexes[0]);
 
         integer_radix_apply_univariate_lookup_table_kb(
             lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out,

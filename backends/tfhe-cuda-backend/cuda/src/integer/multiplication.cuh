@@ -282,8 +282,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     auto luts_message_carry = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, mem_ptr->params, 2, total_count, true);
 
-    auto message_acc = luts_message_carry->get_lut(0);
-    auto carry_acc = luts_message_carry->get_lut(1);
+    auto message_acc = luts_message_carry->get_lut(0, 0);
+    auto carry_acc = luts_message_carry->get_lut(0, 1);
 
     // define functions for each accumulator
     auto lut_f_message = [message_modulus](Torus x) -> Torus {
@@ -323,7 +323,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     if (carry_count > 0)
       cuda_set_value_async<Torus>(
           streams[0], gpu_indexes[0],
-          luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
+          luts_message_carry->get_lut_indexes(0, message_count), 1,
+          carry_count);
 
     auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
     for (uint i = 0; i < active_gpu_count; i++) {
@@ -344,8 +345,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
     execute_pbs<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
-                       lwe_indexes_out, luts_message_carry->lut,
-                       luts_message_carry->lut_indexes, small_lwe_vector,
+                       lwe_indexes_out, luts_message_carry->lut_array,
+                       luts_message_carry->lut_indexes_array, small_lwe_vector,
                        lwe_indexes_in, bsks, luts_message_carry->buffer,
                        glwe_dimension, lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,

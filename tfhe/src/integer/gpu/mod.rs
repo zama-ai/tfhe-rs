@@ -892,13 +892,17 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_full_propagation_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
         pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
         num_blocks,
         message_modulus.0 as u32,
@@ -914,19 +918,12 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        ks_base_log.0 as u32,
-        ks_level.0 as u32,
-        pbs_base_log.0 as u32,
-        pbs_level.0 as u32,
-        grouping_factor.0 as u32,
         num_blocks,
     );
     cleanup_cuda_full_propagation(
-        streams.ptr[0],
-        streams.gpu_indexes[0],
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
 }

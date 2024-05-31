@@ -69,7 +69,7 @@ add_compile_definitions(CUDA_ARCH=${CUDA_ARCH})
 
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
 set(CMAKE_CUDA_FLAGS
-    "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} -O3 \
+    "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} -O0 -G -g \
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
   --use_fast_math -Xcompiler -fPIC")
 

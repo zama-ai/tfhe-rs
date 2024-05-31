@@ -118,15 +118,19 @@ __device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
 }
 
 template <typename Torus>
-void execute_pbs(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
-    Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
-    void **bootstrapping_keys, std::vector<int8_t *> pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, PBS_TYPE pbs_type, bool sync_streams = true) {
+void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
+                 uint32_t gpu_count, Torus *lwe_array_out,
+                 Torus *lwe_output_indexes,
+                 std::vector<Torus *> lut_vector_array,
+                 std::vector<Torus *> lut_vector_indexes_array,
+                 Torus *lwe_array_in, Torus *lwe_input_indexes,
+                 void **bootstrapping_keys, std::vector<int8_t *> pbs_buffer,
+                 uint32_t glwe_dimension, uint32_t lwe_dimension,
+                 uint32_t polynomial_size, uint32_t base_log,
+                 uint32_t level_count, uint32_t grouping_factor,
+                 uint32_t input_lwe_ciphertext_count, uint32_t num_luts,
+                 uint32_t lwe_idx, uint32_t max_shared_memory,
+                 PBS_TYPE pbs_type, bool sync_streams = true) {
   auto active_gpu_count =
       get_active_gpu_count(input_lwe_ciphertext_count, gpu_count);
   int num_lwe_inputs_on_gpu_0 =
@@ -146,6 +150,10 @@ void execute_pbs(
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+
+        auto lut_vector = lut_vector_array[i];
+        auto lut_vector_indexes = lut_vector_indexes_array[i];
+
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
@@ -173,6 +181,10 @@ void execute_pbs(
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+
+        auto lut_vector = lut_vector_array[i];
+        auto lut_vector_indexes = lut_vector_indexes_array[i];
+
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -191,6 +203,10 @@ void execute_pbs(
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
             get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+
+        auto lut_vector = lut_vector_array[i];
+        auto lut_vector_indexes = lut_vector_indexes_array[i];
+
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
