@@ -72,7 +72,7 @@ host_radix_blocks_rotate_right(cudaStream_t *streams, uint32_t *gpu_indexes,
           "pointers should be different");
   }
   cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_right<<<blocks_count, 256, 0, streams[0]>>>(
+  radix_blocks_rotate_right<<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
 }
 
@@ -89,7 +89,7 @@ host_radix_blocks_rotate_left(cudaStream_t *streams, uint32_t *gpu_indexes,
           "pointers should be different");
   }
   cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_left<<<blocks_count, 256, 0, streams[0]>>>(
+  radix_blocks_rotate_left<<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
 }
 
@@ -740,7 +740,7 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
 
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
   device_pack_blocks<<<num_blocks, num_threads, 0, stream>>>(
       lwe_array_out, lwe_array_in, lwe_dimension, num_radix_blocks, factor);
 }

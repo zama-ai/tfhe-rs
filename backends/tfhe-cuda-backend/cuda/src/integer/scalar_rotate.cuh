@@ -60,6 +60,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   // block_count blocks will be used in the grid
   // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
+    // rotate right as the blocks are from LSB to MSB
     host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
                                    rotated_buffer, lwe_array, rotations,
                                    num_blocks, big_lwe_size);
@@ -84,7 +85,7 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
         lut_bivariate->params.message_modulus);
 
   } else {
-    // left shift
+    // rotate left as the blocks are from LSB to MSB
     host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
                                   rotated_buffer, lwe_array, rotations,
                                   num_blocks, big_lwe_size);
