@@ -1,32 +1,14 @@
-# Run WASM client benchmarks on an AWS instance and return parsed results to Slab CI bot.
+# Run WASM client benchmarks on an instance and return parsed results to Slab CI bot.
 name: WASM client benchmarks
 
 on:
   workflow_dispatch:
-    inputs:
-      instance_id:
-        description: "Instance ID"
-        type: string
-      instance_image_id:
-        description: "Instance AMI ID"
-        type: string
-      instance_type:
-        description: "Instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: "Slab request ID"
-        type: string
-      # This input is not used in this workflow but still mandatory since a calling workflow could
-      # use it. If a triggering command include a user_inputs field, then the triggered workflow
-      # must include this very input, otherwise the workflow won't be called.
-      # See start_full_benchmarks.yml as example.
-      user_inputs:
-        description: "Type of benchmarks to run"
-        type: string
-        default: "weekly_benchmarks"
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
 
 env:
   CARGO_TERM_COLOR: always
@@ -34,28 +16,78 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
-  run-wasm-client-benchmarks:
-    name: Execute WASM client benchmarks in EC2
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !cancelled() }}
+  should-run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:
-      - name: Instance configuration used
-        run: |
-          echo "IDs: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b
+        with:
+          fetch-depth: 0
 
-      - name: Get benchmark date
-        run: |
-          echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@03334d095e2739fa9ac4034ec16f66d5d01e9eba
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            wasm_bench:
+              - tfhe/Cargo.toml
+              - concrete-csprng/**
+              - tfhe-zk-pok/**
+              - tfhe/src/**
+              - '!tfhe/src/c_api/**'
+              - tfhe/web_wasm_parallel_tests/**
+              - .github/workflows/wasm_client_benchmark.yml
 
+  setup-instance:
+    name: Setup instance (wasm-client-benchmarks)
+    if: github.event_name != 'push' ||
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.wasm_bench)
+    needs: should-run
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-small
+
+  wasm-client-benchmarks:
+    name: Execute WASM client benchmarks
+    needs: [ should-run, setup-instance ]
+    if: github.event_name != 'push' ||
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.wasm_bench)
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
         with:
           fetch-depth: 0
+
+      - name: Get benchmark details
+        run: |
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
 
       - name: Set up home
         # "Install rust" step require root user to have a HOME directory which is not set.
@@ -75,15 +107,12 @@ jobs:
       - name: Parse results
         run: |
           make parse_wasm_benchmarks
-
-          COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
-          COMMIT_HASH="$(git describe --tags --dirty)"
           python3 ./ci/benchmark_parser.py tfhe/wasm_pk_gen.csv ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware ${{ inputs.instance_type }} \
-          --project-version "${COMMIT_HASH}" \
+          --hardware "m6i.4xlarge" \
+          --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
-          --commit-date "${COMMIT_DATE}" \
+          --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --key-gen
 
@@ -130,8 +159,28 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "WASM benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-instance:
+    name: Teardown instance (wasm-client-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, wasm-client-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (wasm-client-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
