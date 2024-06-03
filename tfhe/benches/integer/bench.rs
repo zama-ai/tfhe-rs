@@ -1552,6 +1552,11 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_unsigned_overflowing_add,
+        display_name: overflowing_add
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_eq,
         display_name: equal
     );
@@ -1711,6 +1716,11 @@ mod cuda {
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unsigned_overflowing_sub,
         display_name: overflowing_sub
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unsigned_overflowing_add,
+        display_name: overflowing_add
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
@@ -1904,6 +1914,7 @@ mod cuda {
         cuda_unchecked_div_rem,
         cuda_unchecked_sub,
         cuda_unchecked_unsigned_overflowing_sub,
+        cuda_unchecked_unsigned_overflowing_add,
         cuda_unchecked_add,
         cuda_unchecked_eq,
         cuda_unchecked_ne,
@@ -1940,6 +1951,7 @@ mod cuda {
         cuda_neg,
         cuda_sub,
         cuda_unsigned_overflowing_sub,
+        cuda_unsigned_overflowing_add,
         cuda_add,
         cuda_mul,
         cuda_div_rem,
