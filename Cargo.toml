@@ -10,6 +10,9 @@ members = [
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive"
 ]
+exclude = [
+    "tfhe/backward_compatibility_tests"
+]
 
 [profile.bench]
 lto = "fat"
