@@ -925,6 +925,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaVec<T>,
+    carry_out: &mut CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -981,6 +982,7 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
         radix_lwe_input.as_mut_c_ptr(),
+        carry_out.as_mut_c_ptr(),
         mem_ptr,
         bootstrapping_key.as_c_ptr(),
         keyswitch_key.as_c_ptr(),

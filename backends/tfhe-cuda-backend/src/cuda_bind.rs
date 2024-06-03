@@ -1002,6 +1002,7 @@ extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         radix_lwe: *mut c_void,
+        carry_out: *mut c_void,
         mem_ptr: *mut i8,
         bsk: *const c_void,
         ksk: *const c_void,

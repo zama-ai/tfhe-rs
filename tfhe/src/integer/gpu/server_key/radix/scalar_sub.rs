@@ -150,7 +150,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_scalar_sub_assign_async(ct, scalar, stream);
-        self.propagate_single_carry_assign_async(ct, stream);
+        let _carry = self.propagate_single_carry_assign_async(ct, stream);
     }
 
     pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStreams)

@@ -360,8 +360,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
                 num_blocks);
 
   host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
-                                     radix_lwe_out, mem_ptr->scp_mem, bsk, ksk,
-                                     num_blocks);
+                                     radix_lwe_out, nullptr, mem_ptr->scp_mem,
+                                     bsk, ksk, num_blocks);
 }
 
 template <typename Torus, typename STorus, class params>

@@ -167,7 +167,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_neg_assign_async(ct, stream);
-        self.propagate_single_carry_assign_async(ct, stream);
+        let _carry = self.propagate_single_carry_assign_async(ct, stream);
     }
 
     pub fn neg_assign<T: CudaIntegerRadixCiphertext>(&self, ctxt: &mut T, stream: &CudaStreams) {

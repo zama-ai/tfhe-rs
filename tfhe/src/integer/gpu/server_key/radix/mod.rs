@@ -164,9 +164,11 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         streams: &CudaStreams,
-    ) where
+    ) -> T
+    where
         T: CudaIntegerRadixCiphertext,
     {
+        let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
         let ciphertext = ct.as_mut();
         let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
         match &self.bootstrapping_key {
@@ -174,6 +176,7 @@ impl CudaServerKey {
                 propagate_single_carry_assign_async(
                     streams,
                     &mut ciphertext.d_blocks.0.d_vec,
+                    &mut carry_out.as_mut().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_bsk.input_lwe_dimension(),
@@ -194,6 +197,7 @@ impl CudaServerKey {
                 propagate_single_carry_assign_async(
                     streams,
                     &mut ciphertext.d_blocks.0.d_vec,
+                    &mut carry_out.as_mut().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     d_multibit_bsk.input_lwe_dimension(),
@@ -215,6 +219,11 @@ impl CudaServerKey {
             b.degree = Degree::new(b.message_modulus.0 - 1);
             b.noise_level = NoiseLevel::NOMINAL;
         });
+        carry_out.as_mut().info.blocks.iter_mut().for_each(|b| {
+            b.degree = Degree::new(1);
+            b.noise_level = NoiseLevel::NOMINAL;
+        });
+        carry_out
     }
 
     /// # Safety
