@@ -90,6 +90,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     auto rotations = 1 << d;
     switch (mem->shift_type) {
     case LEFT_SHIFT:
+      // rotate right as the blocks are from LSB to MSB
       host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
                                      rotated_input, input_bits_b, rotations,
                                      total_nb_bits, big_lwe_size);
@@ -104,6 +105,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                           streams[0], gpu_indexes[0]);
       break;
     case RIGHT_SHIFT:
+      // rotate left as the blocks are from LSB to MSB
       host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
                                     rotated_input, input_bits_b, rotations,
                                     total_nb_bits, big_lwe_size);
@@ -119,11 +121,13 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
             rotations * big_lwe_size_bytes, streams[0], gpu_indexes[0]);
       break;
     case LEFT_ROTATE:
+      // rotate right as the blocks are from LSB to MSB
       host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
                                      rotated_input, input_bits_b, rotations,
                                      total_nb_bits, big_lwe_size);
       break;
     case RIGHT_ROTATE:
+      // rotate left as the blocks are from LSB to MSB
       host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
                                     rotated_input, input_bits_b, rotations,
                                     total_nb_bits, big_lwe_size);

@@ -316,7 +316,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     cuda_memcpy_async_to_gpu(d_smart_copy_out, h_smart_copy_out, copy_size,
                              streams[0], gpu_indexes[0]);
 
-    smart_copy<<<sm_copy_count, 256, 0, streams[0]>>>(
+    smart_copy<<<sm_copy_count, 1024, 0, streams[0]>>>(
         new_blocks, new_blocks, d_smart_copy_out, d_smart_copy_in,
         big_lwe_size);
     check_cuda_error(cudaGetLastError());
