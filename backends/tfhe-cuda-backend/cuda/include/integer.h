@@ -465,7 +465,7 @@ template <typename Torus> struct int_radix_lut {
     auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cudaSetDevice(i);
+      cudaSetDevice(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, gpu_count);
@@ -486,16 +486,18 @@ template <typename Torus> struct int_radix_lut {
       // this constructor
       for (uint i = 0; i < active_gpu_count; i++) {
         auto lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size,
-                                              streams[0], gpu_indexes[0]);
+                                              streams[i], gpu_indexes[i]);
         auto lut_indexes = (Torus *)cuda_malloc_async(
-            lut_indexes_size, streams[0], gpu_indexes[0]);
+            lut_indexes_size, streams[i], gpu_indexes[i]);
         // lut_indexes is initialized to 0 by default
         // if a different behavior is wanted, it should be rewritten later
-        cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[0],
-                          gpu_indexes[0]);
+        cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[i],
+                          gpu_indexes[i]);
 
         lut_array.push_back(lut);
         lut_indexes_array.push_back(lut_indexes);
+
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
 
       // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
@@ -563,16 +565,18 @@ template <typename Torus> struct int_radix_lut {
     active_gpu_count = std::min(num_radix_blocks, gpu_count);
     for (uint i = 0; i < active_gpu_count; i++) {
       auto lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size,
-                                            streams[0], gpu_indexes[0]);
+                                            streams[i], gpu_indexes[i]);
       auto lut_indexes = (Torus *)cuda_malloc_async(lut_indexes_size,
-                                                    streams[0], gpu_indexes[0]);
+                                                    streams[i], gpu_indexes[i]);
       // lut_indexes is initialized to 0 by default
       // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[0],
-                        gpu_indexes[0]);
+      cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[i],
+                        gpu_indexes[i]);
 
       lut_array.push_back(lut);
       lut_indexes_array.push_back(lut_indexes);
+
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
@@ -613,29 +617,30 @@ template <typename Torus> struct int_radix_lut {
   // Return a pointer to idx-ith lut indexes at gpu_index's global memory
   Torus *get_lut_indexes(uint32_t gpu_index, size_t ind) {
     auto lut_indexes = lut_indexes_array[gpu_index];
-    return &lut_indexes[ind];
+    return lut_indexes[ind];
   }
 
   // Broadcast luts from gpu src_gpu_idx to all active gpus
   void broadcast_lut(cudaStream_t *streams, uint32_t *gpu_indexes,
                      uint32_t src_gpu_idx) {
-    Torus lut_buffer_size =
-        (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
+    Torus lut_size =
+        (params.glwe_dimension + 1) * params.polynomial_size;
 
     auto src_lut = lut_array[src_gpu_idx];
     auto src_lut_indexes = lut_indexes_array[src_gpu_idx];
 
-#pragma omp parallel for num_threads(active_gpu_count)
+//#pragma omp parallel for num_threads(active_gpu_count)
     for (uint i = 0; i < active_gpu_count; i++) {
       if (i != src_gpu_idx) {
         auto dst_lut = lut_array[i];
         auto dst_lut_indexes = lut_indexes_array[i];
         cuda_memcpy_async_gpu_to_gpu(dst_lut, src_lut,
-                                     num_luts * lut_buffer_size, streams[i],
+                                     num_luts * lut_size * sizeof(Torus), streams[i],
                                      gpu_indexes[i]);
         cuda_memcpy_async_gpu_to_gpu(dst_lut_indexes, src_lut_indexes,
                                      num_blocks * sizeof(Torus), streams[i],
                                      gpu_indexes[i]);
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
     }
   }
@@ -643,9 +648,12 @@ template <typename Torus> struct int_radix_lut {
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
                uint32_t gpu_count) {
     for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_drop_async(lut_indexes_array[i], streams[i], gpu_indexes[i]);
       cuda_drop_async(lut_array[i], streams[i], gpu_indexes[i]);
+      cuda_drop_async(lut_indexes_array[i], streams[i], gpu_indexes[i]);
     }
+    lut_array.clear();
+    lut_indexes_array.clear();
+
     cuda_drop_async(lwe_indexes_in, streams[0], gpu_indexes[0]);
     cuda_drop_async(lwe_indexes_out, streams[0], gpu_indexes[0]);
     cuda_drop_async(lwe_trivial_indexes, streams[0], gpu_indexes[0]);

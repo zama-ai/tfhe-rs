@@ -448,7 +448,6 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
       ksks, num_blocks, luts_array);
 
   // compute prefix sum with hillis&steele
-
   int num_steps = ceil(log2((double)num_blocks));
   int space = 1;
   cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
