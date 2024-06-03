@@ -37,8 +37,8 @@ pub enum PBSType {
 pub enum ShiftRotateType {
     LeftShift = 0,
     RightShift = 1,
-    LeftRotate = 2,
-    RightRotate = 3,
+    RotateLeft = 2,
+    RotateRight = 3,
 }
 
 #[repr(u32)]
@@ -1481,7 +1481,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
-        ShiftRotateType::RightRotate as u32,
+        ShiftRotateType::RotateRight as u32,
         is_signed,
         true,
     );
@@ -1570,7 +1570,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
-        ShiftRotateType::LeftRotate as u32,
+        ShiftRotateType::RotateLeft as u32,
         is_signed,
         true,
     );
@@ -1750,7 +1750,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
-        ShiftRotateType::LeftShift as u32,
+        ShiftRotateType::RotateLeft as u32,
         true,
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(
@@ -1832,7 +1832,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
-        ShiftRotateType::RightShift as u32,
+        ShiftRotateType::RotateRight as u32,
         true,
     );
     cuda_integer_radix_scalar_rotate_kb_64_inplace(

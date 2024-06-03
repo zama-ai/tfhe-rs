@@ -59,7 +59,31 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   // 256 threads are used in every block
   // block_count blocks will be used in the grid
   // one block is responsible to process single lwe ciphertext
-  if (mem->shift_type == LEFT_SHIFT) {
+  if (mem->shift_type == ROTATE_LEFT) {
+    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
+                                  rotated_buffer, lwe_array, rotations,
+                                  num_blocks, big_lwe_size);
+
+    cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
+                                 num_blocks * big_lwe_size_bytes, streams[0],
+                                 gpu_indexes[0]);
+
+    if (shift_within_block == 0) {
+      return;
+    }
+
+    auto receiver_blocks = lwe_array;
+    auto giver_blocks = rotated_buffer;
+    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count, giver_blocks,
+                                  lwe_array, 1, num_blocks, big_lwe_size);
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
+        giver_blocks, bsk, ksk, num_blocks, lut_bivariate,
+        lut_bivariate->params.message_modulus);
+
+  } else {
+    // left rotate
     host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
                                    rotated_buffer, lwe_array, rotations,
                                    num_blocks, big_lwe_size);
@@ -77,30 +101,6 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
     host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
                                    giver_blocks, lwe_array, 1, num_blocks,
                                    big_lwe_size);
-
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
-        giver_blocks, bsk, ksk, num_blocks, lut_bivariate,
-        lut_bivariate->params.message_modulus);
-
-  } else {
-    // left shift
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                  rotated_buffer, lwe_array, rotations,
-                                  num_blocks, big_lwe_size);
-
-    cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
-                                 num_blocks * big_lwe_size_bytes, streams[0],
-                                 gpu_indexes[0]);
-
-    if (shift_within_block == 0) {
-      return;
-    }
-
-    auto receiver_blocks = lwe_array;
-    auto giver_blocks = rotated_buffer;
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count, giver_blocks,
-                                  lwe_array, 1, num_blocks, big_lwe_size);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,

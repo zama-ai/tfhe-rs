@@ -12,8 +12,8 @@ enum OUTPUT_CARRY { NONE = 0, GENERATED = 1, PROPAGATED = 2 };
 enum SHIFT_OR_ROTATE_TYPE {
   LEFT_SHIFT = 0,
   RIGHT_SHIFT = 1,
-  LEFT_ROTATE = 2,
-  RIGHT_ROTATE = 3
+  ROTATE_LEFT = 2,
+  ROTATE_RIGHT = 3
 };
 enum LUT_TYPE { OPERATOR = 0, MAXVALUE = 1, ISNONZERO = 2, BLOCKSLEN = 3 };
 enum BITOP_TYPE {
@@ -1309,7 +1309,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
         std::function<Torus(Torus, Torus)> shift_lut_f;
 
-        if (shift_type == LEFT_SHIFT) {
+        if (shift_type == LEFT_SHIFT || shift_type == ROTATE_LEFT) {
           shift_lut_f = [shift_within_block,
                          params](Torus current_block,
                                  Torus previous_block) -> Torus {
@@ -1395,7 +1395,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
         std::function<Torus(Torus, Torus)> shift_lut_f;
 
-        if (shift_type == LEFT_SHIFT) {
+        if (shift_type == LEFT_SHIFT || shift_type == ROTATE_LEFT) {
           shift_lut_f = [shift_within_block,
                          params](Torus current_block,
                                  Torus previous_block) -> Torus {

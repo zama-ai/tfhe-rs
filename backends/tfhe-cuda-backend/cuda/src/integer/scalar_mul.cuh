@@ -99,9 +99,9 @@ __host__ void host_integer_scalar_mul_radix(
           preshifted_buffer + (i % msg_bits) * num_radix_blocks * lwe_size;
       T *block_shift_buffer =
           all_shifted_buffer + j * num_radix_blocks * lwe_size;
-      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                     block_shift_buffer, preshifted_radix_ct,
-                                     i / msg_bits, num_radix_blocks, lwe_size);
+      host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
+                                    block_shift_buffer, preshifted_radix_ct,
+                                    i / msg_bits, num_radix_blocks, lwe_size);
       // create trivial assign for value = 0
       cuda_memset_async(block_shift_buffer, 0, (i / msg_bits) * lwe_size_bytes,
                         streams[0], gpu_indexes[0]);

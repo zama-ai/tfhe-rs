@@ -348,7 +348,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                interesting_remainder1.len - 1, streams[0],
                                gpu_indexes[0]);
 
-          host_radix_blocks_rotate_left(
+          host_radix_blocks_rotate_right(
               streams, gpu_indexes, gpu_count, interesting_remainder1.data,
               tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
 
