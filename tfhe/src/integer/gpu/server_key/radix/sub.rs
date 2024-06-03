@@ -270,7 +270,7 @@ impl CudaServerKey {
         };
 
         self.unchecked_sub_assign_async(lhs, rhs, streams);
-        self.propagate_single_carry_assign_async(lhs, streams);
+        let _carry = self.propagate_single_carry_assign_async(lhs, streams);
     }
 
     pub fn unsigned_overflowing_sub(

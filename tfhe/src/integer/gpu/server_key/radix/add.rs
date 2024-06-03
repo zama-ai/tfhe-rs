@@ -104,7 +104,7 @@ impl CudaServerKey {
             }
         };
         self.unchecked_add_assign_async(lhs, rhs, streams);
-        self.propagate_single_carry_assign_async(lhs, streams);
+        let _carry = self.propagate_single_carry_assign_async(lhs, streams);
     }
 
     pub fn add_assign<T: CudaIntegerRadixCiphertext>(

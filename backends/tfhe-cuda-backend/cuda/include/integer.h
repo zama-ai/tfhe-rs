@@ -242,9 +242,12 @@ void scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
-void cuda_propagate_single_carry_kb_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    int8_t *mem_ptr, void *bsk, void *ksk, uint32_t num_blocks);
+void cuda_propagate_single_carry_kb_64_inplace(void **streams,
+                                               uint32_t *gpu_indexes,
+                                               uint32_t gpu_count,
+                                               void *lwe_array, void *carry_out,
+                                               int8_t *mem_ptr, void *bsk,
+                                               void *ksk, uint32_t num_blocks);
 
 void cleanup_cuda_propagate_single_carry(void *stream, uint32_t gpu_index,
                                          int8_t **mem_ptr_void);
