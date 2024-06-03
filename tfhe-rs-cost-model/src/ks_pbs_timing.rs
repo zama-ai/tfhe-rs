@@ -224,14 +224,14 @@ fn filter_b_l_limited(
     let mut bases_levels = vec![];
     for (b, l) in iproduct!(bases, levels) {
         if b * l <= preserved_mantissa {
-            if *b == 1 && *l <= 8 {
-                if (b * l) % 5 == 0 {
+            if *b == 1 {
+                if (b * l) % 5 == 0 && *l < 10 {
                     bases_levels.push(BaseLevel {
                         base: DecompositionBaseLog(*b),
                         level: DecompositionLevelCount(*l),
                     });
                 }
-            } else if *l <= 8 {
+            } else if *l < 10 {
                 bases_levels.push(BaseLevel {
                     base: DecompositionBaseLog(*b),
                     level: DecompositionLevelCount(*l),
@@ -678,7 +678,7 @@ pub fn timing_experiment_gpu(algorithm: &str, preserved_mantissa: usize, modulus
 //pub const CHUNK_SIZE: [usize; 5] = [1, 32, 64, 128, 192];
 //pub const BATCH_COUNT: usize = 100;
 
-pub const CHUNK_SIZE: [usize; 1] = [1]; //, 32, 64, 128, 192];
+pub const CHUNK_SIZE: [usize; 5] = [1, 32, 64, 128, 256];
 pub const BATCH_COUNT: usize = 1;
 
 #[derive(Clone, Copy, Debug)]
@@ -886,6 +886,7 @@ fn run_timing_measurements(
                 .chunks_exact(chunk_size)
                 .zip(output[..ciphertext_to_process_count].chunks_exact_mut(chunk_size))
             {
+                
                 measurement_count += 1;
                 assert_eq!(input_lwe_chunk.len(), chunk_size);
                 assert_eq!(output_lwe_chunk.len(), chunk_size);
@@ -959,17 +960,17 @@ fn run_timing_measurements_gpu(
     let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
         params.lwe_dimension,
         &mut secret_random_generator,
-    );
+        );
 
     let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         params.glwe_dimension,
         params.polynomial_size,
         &mut secret_random_generator,
-    );
+        );
 
     let output_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
     let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
-    
+
     let mut bsk = LweMultiBitBootstrapKey::new(
         u64::ZERO,   //Scalar::ZERO,
         params.glwe_dimension.to_glwe_size(),
@@ -979,7 +980,7 @@ fn run_timing_measurements_gpu(
         params.lwe_dimension,
         params.grouping_factor,
         ciphertext_modulus,
-    );
+        );
 
     par_generate_lwe_multi_bit_bootstrap_key(
         &lwe_secret_key,
@@ -987,148 +988,32 @@ fn run_timing_measurements_gpu(
         &mut bsk,
         glwe_noise_distribution,
         &mut encryption_random_generator,
-    );
+        );
     assert!(check_encrypted_content_respects_mod(
-        &*bsk,
-        ciphertext_modulus
-    ));
+            &*bsk,
+            ciphertext_modulus
+            ));
 
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(gpu_index);
 
     let d_bsk = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(&bsk, &streams);
 
-    // let ksk = allocate_and_generate_new_lwe_keyswitch_key(
-    //     &glwe_secret_key.as_lwe_secret_key(),
-    //     &lwe_secret_key,
-    //     params.ks_base_log,
-    //     params.ks_level,
-    //     lwe_noise_distribution,
-    //     ciphertext_modulus,
-    //     &mut encryption_random_generator,
-    // );
-
-    // let fbsk = {
-    //     let bsk = allocate_and_generate_new_lwe_bootstrap_key(
-    //         &lwe_secret_key,
-    //         &glwe_secret_key,
-    //         params.pbs_base_log,
-    //         params.pbs_level,
-    //         glwe_noise_distribution,
-    //         ciphertext_modulus,
-    //         &mut encryption_random_generator,
-    //     );
-
-    //     let mut fbsk = FourierLweBootstrapKey::new(
-    //         bsk.input_lwe_dimension(),
-    //         bsk.glwe_size(),
-    //         bsk.polynomial_size(),
-    //         bsk.decomposition_base_log(),
-    //         bsk.decomposition_level_count(),
-    //     );
-
-    //     par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
-
-    //     fbsk
-    // };
-
-    let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-        &lwe_secret_key,
-        Plaintext(0),
-        lwe_noise_distribution,
-        ciphertext_modulus,
-        &mut encryption_random_generator,
-    );
-
-    assert!(check_encrypted_content_respects_mod(
-        &lwe_ciphertext_in,
-        ciphertext_modulus
-    ));
-
-    let d_lwe_ciphertext_in =
-    CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &streams);
-
-    // let inputs: Vec<_> = (0..BATCH_COUNT * CHUNK_SIZE.last().unwrap())
-    //     .map(|_| {
-    //         allocate_and_encrypt_new_lwe_ciphertext(
-    //             &glwe_secret_key.as_lwe_secret_key(),
-    //             Plaintext(0),
-    //             glwe_noise_distribution,
-    //             ciphertext_modulus,
-    //             &mut encryption_random_generator,
-    //         )
-    //     })
-    //     .collect();
-
-    let mut d_out_pbs_ct = CudaLweCiphertextList::new(
-        output_lwe_dimension,
-        LweCiphertextCount(1),
-        ciphertext_modulus,
-        &streams,
-    );
-
-
-
-    //let mut output = inputs.clone();
-
-    //let fft = Fft::new(fbsk.polynomial_size());
-    //let fft = fft.as_view();
-/* 
-    let mut buffers: Vec<_> = (0..*CHUNK_SIZE.last().unwrap())
-        .map(|_| {
-            let buffer_after_ks =
-                LweCiphertext::new(0u64, ksk.output_lwe_size(), ciphertext_modulus);
-
-            let mut computations_buffers = ComputationBuffers::new();
-            computations_buffers.resize(
-                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                    fbsk.glwe_size(),
-                    fbsk.polynomial_size(),
-                    fft,
-                )
-                .unwrap()
-                .try_unaligned_bytes_required()
-                .unwrap(),
-            );
-
-            (buffer_after_ks, computations_buffers)
-        })
-        .collect();
-    */
-/* 
-    let msg_modulus = usize::ONE.shl(ciphertext_modulus.0);//Scalar::ONE.shl(message_modulus_log.0);
-    
-    let f = |x: Scalar| {
-        x.wrapping_mul(Scalar::TWO)
-            .wrapping_sub(Scalar::ONE)
-            .wrapping_rem(msg_modulus)
-    };
-
-    let delta: Scalar = encoding_with_padding / msg_modulus;
-
-    let accumulator = generate_programmable_bootstrap_glwe_lut(
-        params.polynomial_size,
-        params.glwe_dimension.to_glwe_size(),
-        msg_modulus.cast_into(),
-        ciphertext_modulus,
-        delta,
-        f,
-    );*/
     let mut accumulator = GlweCiphertext::new(
         0u64,
         bsk.glwe_size(),
         bsk.polynomial_size(),
         ciphertext_modulus,
-    );
+        );
     let mut rng = thread_rng();
 
     // Random values in the lut
     accumulator.as_mut().fill_with(|| rng.gen::<u64>());
 
     assert!(check_encrypted_content_respects_mod(
-        &accumulator,
-        ciphertext_modulus
-    ));
+            &accumulator,
+            ciphertext_modulus
+            ));
 
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &streams);
 
@@ -1136,89 +1021,102 @@ fn run_timing_measurements_gpu(
 
     //let current_thread_count = rayon::current_num_threads();
 
-    //for chunk_size in CHUNK_SIZE { // CHUNK_SIZE = 1
-    let chunk_size = CHUNK_SIZE[0];
-    let effective_thread_count = ThreadCount(1); // ThreadCount(chunk_size.min(current_thread_count));
-
-    //let ciphertext_to_process_count = chunk_size * BATCH_COUNT;
+    for chunk_size in CHUNK_SIZE {
 
 
-    //assert_eq!(ciphertext_to_process_count, BATCH_COUNT);
+        let plaintext_list = PlaintextList::new(u64::ZERO, PlaintextCount(chunk_size));
+        //let lwe_noise_distribution =
+        //    DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
 
-    //let (after_ks_buffer, fft_buffer) = &mut buffers[0];
+        let mut lwe_list = LweCiphertextList::new(
+            u64::ZERO,
+            params.lwe_dimension.to_lwe_size(),
+            LweCiphertextCount(chunk_size),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+        encrypt_lwe_ciphertext_list(
+            &lwe_secret_key,
+            //&lwe_secret_key.as_lwe_secret_key(), //input_lwe_secret_key,
+            &mut lwe_list,
+            &plaintext_list,
+            lwe_noise_distribution,
+            &mut encryption_random_generator,
+            );
+        let underlying_container: Vec<u64> = lwe_list.into_container();
 
-    let start = std::time::Instant::now();
-    let number_of_messages = 1;
-    let mut test_vector_indexes: Vec<u64> = vec![u64::ZERO; number_of_messages];
-    for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
-        *ind = <usize as CastInto<u64>>::cast_into(i);
+        let input_lwe_list = LweCiphertextList::from_container(
+            underlying_container,
+            params.lwe_dimension.to_lwe_size(),
+            ciphertext_modulus,
+            );
+
+        let d_lwe_ciphertext_in =
+            CudaLweCiphertextList::from_lwe_ciphertext_list(&input_lwe_list, &streams);                               
+
+        let mut d_out_pbs_ct = CudaLweCiphertextList::new(
+            output_lwe_dimension,
+            LweCiphertextCount(chunk_size),
+            ciphertext_modulus,
+            &streams,
+            );
+
+
+        let effective_thread_count = ThreadCount(1); // ThreadCount(chunk_size.min(current_thread_count));
+
+        let start = std::time::Instant::now();
+        let number_of_messages = chunk_size;
+        let mut test_vector_indexes: Vec<u64> = vec![u64::ZERO; number_of_messages];
+
+        for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
+            *ind = <usize as CastInto<u64>>::cast_into(i);
+        }
+
+        let mut d_test_vector_indexes =
+            unsafe { CudaVec::<u64>::new_async(number_of_messages, &streams) };
+        unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &streams) };
+
+        let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&streams).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
+
+        let lwe_indexes_usize: Vec<usize> = (0..num_blocks.0).collect_vec();
+        let lwe_indexes = lwe_indexes_usize
+            .iter()
+            .map(|&x| <usize as CastInto<u64>>::cast_into(x))
+            .collect_vec();
+
+        let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0 , &streams) };
+        let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
+        unsafe {
+            d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
+            d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
+        }
+
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
+            &d_lwe_ciphertext_in,
+            &mut d_out_pbs_ct,
+            &d_accumulator,
+            &d_test_vector_indexes,
+            &d_output_indexes,
+            &d_input_indexes,
+            &d_bsk,
+            &streams,
+            );
+        println!("After cuda multi-bit size {:?}", chunk_size);
+        let out_pbs_ct = d_out_pbs_ct.to_lwe_ciphertext_list(&streams);
+
+
+        let elapsed = start.elapsed();
+
+        let perf_metrics =
+            compute_perf_metrics(elapsed, BATCH_COUNT, chunk_size, effective_thread_count.0);
+
+        timings.push((
+                chunk_size,
+                effective_thread_count,
+                BATCH_COUNT,
+                perf_metrics,
+                ));
+
     }
-
-    let mut d_test_vector_indexes =
-        unsafe { CudaVec::<u64>::new_async(number_of_messages, &streams) };
-    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &streams) };
-
-    let num_blocks = d_lwe_ciphertext_in.to_lwe_ciphertext_list(&streams).lwe_ciphertext_count();//.0.lwe_ciphertext_count.0;
-    
-    let lwe_indexes_usize: Vec<usize> = (0..num_blocks.0).collect_vec();
-    let lwe_indexes = lwe_indexes_usize
-        .iter()
-        .map(|&x| <usize as CastInto<u64>>::cast_into(x))
-        .collect_vec();
-    
-    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
-    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks.0, &streams) };
-    unsafe {
-        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
-        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &streams);
-    }
-
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
-        &d_lwe_ciphertext_in,
-        &mut d_out_pbs_ct,
-        &d_accumulator,
-        &d_test_vector_indexes,
-        &d_output_indexes,
-        &d_input_indexes,
-        &d_bsk,
-        &streams,
-    );
-    let out_pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&streams);
-    assert!(check_encrypted_content_respects_mod(
-        &out_pbs_ct,
-        ciphertext_modulus
-    ));
-
-
-    /* 
-    for (input_lwe, output_lwe) in inputs[..ciphertext_to_process_count]
-        .iter()
-        .zip(output[..ciphertext_to_process_count].iter_mut())
-    {
-        keyswitch_lwe_ciphertext(&ksk, input_lwe, after_ks_buffer);
-
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            after_ks_buffer,
-            output_lwe,
-            &accumulator,
-            &fbsk,
-            fft,
-            fft_buffer.stack(),
-        );
-    }*/
-
-    let elapsed = start.elapsed();
-
-    let perf_metrics =
-        compute_perf_metrics(elapsed, BATCH_COUNT, chunk_size, effective_thread_count.0);
-
-    timings.push((
-        chunk_size,
-        effective_thread_count,
-        BATCH_COUNT,
-        perf_metrics,
-    ));
-    //}
 
     timings
 }
