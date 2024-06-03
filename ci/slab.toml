@@ -31,31 +31,6 @@ environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
 flavor_name = "n3-H100x1"
 
-[command.cpu_test]
-workflow = "aws_tfhe_tests.yml"
-profile = "cpu-big"
-check_run_name = "CPU AWS Tests"
-
-[command.cpu_unsigned_integer_test]
-workflow = "aws_tfhe_integer_tests.yml"
-profile = "cpu-big"
-check_run_name = "CPU Unsigned Integer AWS Tests"
-
-[command.cpu_signed_integer_test]
-workflow = "aws_tfhe_signed_integer_tests.yml"
-profile = "cpu-big"
-check_run_name = "CPU Signed Integer AWS Tests"
-
-[command.cpu_wasm_test]
-workflow = "aws_tfhe_wasm_tests.yml"
-profile = "cpu-small"
-check_run_name = "CPU AWS WASM Tests"
-
-[command.gpu_test]
-workflow = "aws_tfhe_gpu_tests.yml"
-profile = "gpu-test"
-check_run_name = "GPU AWS Tests"
-
 [command.signed_integer_full_bench]
 workflow = "signed_integer_full_benchmark.yml"
 profile = "bench"
@@ -66,20 +41,10 @@ workflow = "integer_full_benchmark.yml"
 profile = "bench"
 check_run_name = "Integer CPU AWS Benchmarks Full Suite"
 
-[command.integer_gpu_full_bench]
-workflow = "integer_gpu_full_benchmark.yml"
-profile = "gpu-test" # p3.2xlarge is the baseline for GPU benchmarks
-check_run_name = "Integer GPU AWS Benchmarks Full Suite"
-
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
 profile = "bench"
 check_run_name = "Integer CPU AWS Benchmarks"
-
-[command.integer_gpu_bench]
-workflow = "integer_gpu_benchmark.yml"
-profile = "gpu-test"
-check_run_name = "Integer GPU AWS Benchmarks"
 
 [command.integer_multi_bit_bench]
 workflow = "integer_multi_bit_benchmark.yml"
@@ -95,11 +60,6 @@ check_run_name = "Signed integer CPU AWS Benchmarks"
 workflow = "signed_integer_multi_bit_benchmark.yml"
 profile = "bench"
 check_run_name = "Signed integer multi bit CPU AWS Benchmarks"
-
-[command.integer_multi_bit_gpu_bench]
-workflow = "integer_multi_bit_gpu_benchmark.yml"
-profile = "gpu-test"
-check_run_name = "Integer multi bit GPU AWS Benchmarks"
 
 [command.shortint_full_bench]
 workflow = "shortint_full_benchmark.yml"
@@ -120,23 +80,3 @@ check_run_name = "Boolean CPU AWS Benchmarks"
 workflow = "core_crypto_benchmark.yml"
 profile = "bench"
 check_run_name = "Core crypto CPU AWS Benchmarks"
-
-[command.core_crypto_gpu_bench]
-workflow = "core_crypto_gpu_benchmark.yml"
-profile = "gpu-test"
-check_run_name = "Core crypto GPU AWS Benchmarks"
-
-[command.wasm_client_bench]
-workflow = "wasm_client_benchmark.yml"
-profile = "cpu-small"
-check_run_name = "WASM Client AWS Benchmarks"
-
-[command.csprng_randomness_testing]
-workflow = "csprng_randomness_testing.yml"
-profile = "cpu-small"
-check_run_name = "CSPRNG randomness testing"
-
-[command.code_coverage]
-workflow = "code_coverage.yml"
-profile = "cpu-small"
-check_run_name = "Code coverage"
