@@ -36,10 +36,6 @@ on:
         description: "Run core crypto benches"
         type: boolean
         default: true
-      wasm_client_bench:
-        description: "Run WASM client benches"
-        type: boolean
-        default: true
 
 jobs:
   start-benchmarks:
@@ -49,7 +45,7 @@ jobs:
         command: [ boolean_bench, shortint_bench,
                    integer_bench, integer_multi_bit_bench,
                    signed_integer_bench, signed_integer_multi_bit_bench,
-                   core_crypto_bench, wasm_client_bench ]
+                   core_crypto_bench ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs
@@ -101,9 +97,6 @@ jobs:
               - tfhe/src/core_crypto/**
               - tfhe/benches/core_crypto/**
               - .github/workflows/core_crypto_benchmark.yml
-            wasm_client_bench:
-              - tfhe/web_wasm_parallel_tests/**
-              - .github/workflows/wasm_client_benchmark.yml
 
       - name: Checkout Slab repo
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
