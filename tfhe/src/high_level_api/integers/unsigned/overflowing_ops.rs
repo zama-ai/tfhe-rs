@@ -1,5 +1,7 @@
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -48,9 +50,17 @@ where
                 (FheUint::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support overflowing_add yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner_result = cuda_key.key.unsigned_overflowing_add(
+                    &self.ciphertext.on_gpu(),
+                    &other.ciphertext.on_gpu(),
+                    streams,
+                );
+                (
+                    FheUint::<Id>::new(inner_result.0),
+                    FheBool::new(inner_result.1),
+                )
+            }),
         })
     }
 }

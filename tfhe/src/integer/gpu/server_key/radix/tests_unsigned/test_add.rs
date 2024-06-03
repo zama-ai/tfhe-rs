@@ -8,12 +8,14 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_add_test, default_sum_ciphertexts_vec_test, unchecked_add_assign_test,
     unchecked_add_test,
 };
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::default_overflowing_add_test;
 use crate::shortint::parameters::*;
 
 create_gpu_parametrized_test!(integer_unchecked_add);
 create_gpu_parametrized_test!(integer_unchecked_add_assign);
 create_gpu_parametrized_test!(integer_add);
 create_gpu_parametrized_test!(integer_sum_ciphertexts_vec);
+create_gpu_parametrized_test!(integer_default_overflowing_add);
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -54,4 +56,12 @@ where
     };
     let executor = GpuFunctionExecutor::new(sum_vec);
     default_sum_ciphertexts_vec_test(param, executor);
+}
+
+fn integer_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
+    default_overflowing_add_test(param, executor);
 }

@@ -160,6 +160,22 @@ impl CudaRadixCiphertextInfo {
                 .collect(),
         }
     }
+    pub(crate) fn after_overflowing_add(&self, other: &Self) -> Self {
+        Self {
+            blocks: self
+                .blocks
+                .iter()
+                .zip(&other.blocks)
+                .map(|(left, _)| CudaBlockInfo {
+                    degree: left.degree,
+                    message_modulus: left.message_modulus,
+                    carry_modulus: left.carry_modulus,
+                    pbs_order: left.pbs_order,
+                    noise_level: left.noise_level,
+                })
+                .collect(),
+        }
+    }
     pub(crate) fn boolean_info(&self, noise_level: NoiseLevel) -> Self {
         Self {
             blocks: self

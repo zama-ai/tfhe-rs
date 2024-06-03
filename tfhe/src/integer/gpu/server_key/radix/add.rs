@@ -1,12 +1,14 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_add_integer_radix_assign_async,
     unchecked_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
+use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -354,5 +356,140 @@ impl CudaServerKey {
         }
 
         self.unchecked_sum_ciphertexts(&ciphertexts, streams)
+    }
+
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let gpu_index = 0;
+    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let total_bits = num_blocks * cks.parameters().message_modulus().0.ilog2() as usize;
+    /// let modulus = 1 << total_bits;
+    ///
+    /// let msg1 = 127;
+    /// let msg2 = 130;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// // Copy to GPU
+    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
+    ///
+    /// // Compute homomorphically an overflowing addition:
+    /// let (d_ct_res, d_ct_overflowed) = sks.unsigned_overflowing_add(&d_ct1, &d_ct2, &streams);
+    ///
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
+    /// let ct_overflowed = d_ct_overflowed.to_boolean_block(&streams);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// let dec_overflowed: bool = cks.decrypt_bool(&ct_overflowed);
+    /// assert_eq!(dec_result, (msg1 + msg2) % modulus);
+    /// assert_eq!(dec_overflowed, true);
+    /// ```
+    pub fn unsigned_overflowing_add(
+        &self,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        ct_right: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                unsafe {
+                    tmp_rhs = ct_right.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                }
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate_async(stream);
+
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+        self.unchecked_unsigned_overflowing_add(lhs, rhs, stream)
+    }
+
+    pub fn unchecked_unsigned_overflowing_add(
+        &self,
+        lhs: &CudaUnsignedRadixCiphertext,
+        rhs: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
+        assert_eq!(
+            lhs.as_ref().d_blocks.lwe_ciphertext_count(),
+            rhs.as_ref().d_blocks.lwe_ciphertext_count(),
+            "Left hand side must must have a number of blocks equal \
+            to the number of blocks of the right hand side: lhs {} blocks, rhs {} blocks",
+            lhs.as_ref().d_blocks.lwe_ciphertext_count().0,
+            rhs.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        let ct_res;
+        let ct_overflowed;
+        unsafe {
+            (ct_res, ct_overflowed) =
+                self.unchecked_unsigned_overflowing_add_async(lhs, rhs, stream);
+        }
+        stream.synchronize();
+
+        (ct_res, ct_overflowed)
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_unsigned_overflowing_add_async(
+        &self,
+        lhs: &CudaUnsignedRadixCiphertext,
+        rhs: &CudaUnsignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
+        let mut ct_res = self.unchecked_add(lhs, rhs, stream);
+        let mut carry_out = self.propagate_single_carry_assign_async(&mut ct_res, stream);
+
+        ct_res.as_mut().info = ct_res
+            .as_ref()
+            .info
+            .after_overflowing_add(&rhs.as_ref().info);
+
+        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
+        {
+            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
+        } else {
+            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::NOMINAL);
+        }
+
+        let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext);
+
+        (ct_res, ct_overflowed)
     }
 }
