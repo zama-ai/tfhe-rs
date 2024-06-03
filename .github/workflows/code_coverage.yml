@@ -6,57 +6,45 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-    # All the inputs are provided by Slab
-    inputs:
-      instance_id:
-        description: "AWS instance ID"
-        type: string
-      instance_image_id:
-        description: "AWS instance AMI ID"
-        type: string
-      instance_type:
-        description: "AWS instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: 'Slab request ID'
-        type: string
-      fork_repo:
-        description: 'Name of forked repo as user/repo'
-        type: string
-      fork_git_sha:
-        description: 'Git SHA to checkout from fork'
-        type: string
+  # Code coverage workflow is only run via workflow_dispatch event since execution duration is not stabilized yet.
 
 jobs:
-  code-coverage:
-    concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
-      cancel-in-progress: true
-    runs-on: ${{ inputs.runner_name }}
-    timeout-minutes: 11520 # 8 days
+  setup-instance:
+    name: Setup instance (code-coverage)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
-      # Step used for log purpose.
-      - name: Instance configuration used
-        run: |
-          echo "ID: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
-          echo "Fork repo: ${{ inputs.fork_repo }}"
-          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-small
 
+  code-coverage:
+    name: Code coverage tests
+    needs: setup-instance
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.event_name }}_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 5760 # 4 days
+    steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
-        with:
-          repository: ${{ inputs.fork_repo }}
-          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
@@ -127,8 +115,28 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "Code coverage finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-instance:
+    name: Teardown instance (code-coverage)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, code-coverage ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (code-coverage) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
