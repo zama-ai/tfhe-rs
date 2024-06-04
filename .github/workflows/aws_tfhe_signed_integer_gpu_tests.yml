@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
-name: TFHE Cuda Backend - Fast tests
+# Compile and test tfhe-cuda-backend signed integer on an AWS instance
+name: TFHE Cuda Backend - Signed integer tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,14 +19,14 @@ on:
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-tests)
+    name: Setup instance (cuda-signed-integer-tests)
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@1d4b7b7540118af5f96ac16a1dc4cfd9c5929dc8
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -35,8 +35,8 @@ jobs:
           backend: aws
           profile: gpu-test
 
-  cuda-pcc:
-    name: CUDA post-commit checks
+  cuda-signed-integer-tests:
+    name: CUDA signed integer tests
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
@@ -55,16 +55,14 @@ jobs:
 
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          persist-credentials: 'false'
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
 
       - name: Set up home
         run: |
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17
+        uses: dtolnay/rust-toolchain@d8352f6b1d2e870bc5716e7a6d9b65c4cc244a1a
         with:
           toolchain: stable
 
@@ -87,13 +85,13 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
-      - name: Run fmt checks
+      - name: Run signed integer tests
         run: |
-          make check_fmt_gpu
+          make test_signed_integer_gpu_ci
 
-      - name: Run clippy checks
+      - name: Run signed integer multi-bit tests
         run: |
-          make pcc_gpu
+          make test_signed_integer_multi_bit_gpu_ci
 
       - name: Slack Notification
         if: ${{ always() }}
@@ -101,94 +99,17 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS post-commit checks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-
-  cuda-tests-linux:
-    name: CUDA tests
-    needs: [ setup-instance, cuda-pcc ]
-    concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    strategy:
-      fail-fast: false
-      # explicit include-based build matrix, of known valid options
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            cuda: "12.2"
-            gcc: 9
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-
-    steps:
-      - name: Checkout tfhe-rs
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          persist-credentials: 'false'
-
-      - name: Set up home
-        run: |
-          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-
-      - name: Install latest stable
-        uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17
-        with:
-          toolchain: stable
-
-      - name: Export CUDA variables
-        if: ${{ !cancelled() }}
-        run: |
-          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
-
-      # Specify the correct host compilers
-      - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
-        run: |
-          {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "HOME=/home/ubuntu";
-          } >> "${GITHUB_ENV}"
-
-      - name: Run core crypto and internal CUDA backend tests
-        run: |
-          make test_core_crypto_gpu
-          make test_cuda_backend
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          make test_high_level_api_gpu
-
-      - name: Slack Notification
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "CUDA AWS signed integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-pcc, cuda-tests-linux ]
+    needs: [ setup-instance, cuda-signed-integer-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@1d4b7b7540118af5f96ac16a1dc4cfd9c5929dc8
+        uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -202,4 +123,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-signed-integer-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

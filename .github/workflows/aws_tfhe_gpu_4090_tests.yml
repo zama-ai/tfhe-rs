@@ -17,13 +17,16 @@ on:
   workflow_dispatch:
   pull_request:
     types: [ labeled ]
-
-  # FIXME: remove pull_request event and schedule it as nightly
+  schedule:
+    # Nightly tests @ 1AM after each work day
+    - cron: "0 1 * * MON-FRI"
 
 jobs:
   cuda-tests-linux:
     name: CUDA tests (RTX 4090)
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, '4090_test') }}
+    if: github.event_name == 'workflow_dispatch' ||
+      contains(github.event.label.name, '4090_test') ||
+      (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs')
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: true
