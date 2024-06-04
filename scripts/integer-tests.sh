@@ -3,7 +3,7 @@
 set -e
 
 function usage() {
-    echo "$0: shortint test runner"
+    echo "$0: integer test runner"
     echo
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
@@ -11,18 +11,19 @@ function usage() {
     echo "--unsigned-only           Run only unsigned integer tests, by default both signed and unsigned tests are run"
     echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
     echo "--cargo-profile           The cargo profile used to build tests"
+    echo "--backend                 Backend to use with tfhe-rs"
     echo "--avx512-support          Set to ON to enable avx512"
     echo "--tfhe-package            The package spec like tfhe@0.4.2, default=tfhe"
     echo
 }
 
 RUST_TOOLCHAIN="+stable"
-multi_bit=""
-not_multi_bit="_multi_bit"
-# Run signed test by default
-signed=""
-not_signed=""
+multi_bit_argument=
+sign_argument=
+fast_tests_argument=
 cargo_profile="release"
+backend="cpu"
+gpu_feature=""
 avx512_feature=""
 tfhe_package="tfhe"
 
@@ -40,18 +41,15 @@ do
             ;;
 
         "--multi-bit" )
-            multi_bit="_multi_bit"
-            not_multi_bit=""
+            multi_bit_argument=--multi-bit
             ;;
 
         "--unsigned-only" )
-            signed=""
-            not_signed="_signed"
+            sign_argument=--unsigned-only
             ;;
 
         "--signed-only" )
-            signed="_signed"
-            not_signed=""
+            sign_argument=--signed-only
             ;;
 
         "--cargo-profile" )
@@ -59,6 +57,10 @@ do
             cargo_profile="$1"
             ;;
 
+        "--backend" )
+            shift
+            backend="$1"
+            ;;
         "--avx512-support" )
             shift
             if [[ "$1" == "ON" ]]; then
@@ -81,6 +83,14 @@ done
 
 if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
     RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+fi
+
+if [[ "${FAST_TESTS}" == TRUE ]]; then
+    fast_tests_argument=--fast-tests
+fi
+
+if [[ "${backend}" == "gpu" ]]; then
+    gpu_feature="gpu"
 fi
 
 CURR_DIR="$(dirname "$0")"
@@ -107,47 +117,12 @@ else
     doctest_threads="${num_cpu_threads}"
 fi
 
-# block pbs are too slow for high params
-# mul_crt_4_4 is extremely flaky (~80% failure)
-# test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
-# test_integer_smart_mul_param_message_4_carry_4_ks_pbs is too slow
-# so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
-# we skip smart_div, smart_rem which are already covered by the smar_div_rem test
-# we similarly skip default_div, default_rem which are covered by default_div_rem
-full_test_filter_expression="""\
-test(/^integer::.*${multi_bit}/) \
-${signed:+"and test(/^integer::.*${signed}/)"} \
-${not_multi_bit:+"and not test(~${not_multi_bit})"} \
-${not_signed:+"and not test(~${not_signed})"} \
-and not test(/.*integer_smart_div_param/) \
-and not test(/.*integer_smart_rem_param/) \
-and not test(/.*integer_default_div_param/) \
-and not test(/.*integer_default_rem_param/) \
-and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs$/) \
-and not test(~mul_crt_param_message_4_carry_4_ks_pbs) \
-and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs$/) \
-and not test(/.*test_integer_smart_mul_param_message_4_carry_4_ks_pbs$/) \
-and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs$/)"""
-
-# test only fast default operations with only two set of parameters
-# we skip default_div, default_rem which are covered by default_div_rem
-fast_test_filter_expression="""\
-test(/^integer::.*${multi_bit}/) \
-${signed:+"and test(/^integer::.*${signed}/)"} \
-${not_multi_bit:+"and not test(~${not_multi_bit})"} \
-${not_signed:+"and not test(~${not_signed})"} \
-and test(/.*_default_.*?_param${multi_bit}_message_[2-3]_carry_[2-3]${multi_bit:+"_group_2"}_ks_pbs/) \
-and not test(/.*integer_default_div_param/) \
-and not test(/.*integer_default_rem_param/) \
-and not test(/.*_param_message_[14]_carry_[14]_ks_pbs$/) \
-and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/)"""
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${multi_bit_argument} ${sign_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set'"
-    filter_expression="${fast_test_filter_expression}"
 else
     echo "Running 'slow' test set"
-    filter_expression="${full_test_filter_expression}"
 fi
 
 cargo "${RUST_TOOLCHAIN}" nextest run \
@@ -155,17 +130,17 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,"${avx512_feature}" \
+    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,"${avx512_feature}","${gpu_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
-if [[ "${multi_bit}" == "" ]]; then
+if [[ -z ${multi_bit_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \
-        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
+        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}","${gpu_feature}" \
         --doc \
-        -- --test-threads="${doctest_threads}" integer::
+        -- --test-threads="${doctest_threads}" integer::"${gpu_feature}"
 fi
 
 echo "Test ran in $SECONDS seconds"
