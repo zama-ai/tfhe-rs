@@ -2,6 +2,7 @@
 //! keyswitch`](`LweKeyswitchKey#lwe-keyswitch`).
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposer, SignedDecomposerNonNative,
 };
@@ -310,6 +311,137 @@ pub fn keyswitch_lwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCont
                 level_key_ciphertext.as_ref(),
                 decomposed.modular_value(),
                 ciphertext_modulus.get_custom_modulus().cast_into(),
+            );
+        }
+    }
+}
+
+/// Keyswitch an [`LWE ciphertext`](`LweCiphertext`) with a certain InputScalar type to represent
+/// data encrypted under an [`LWE secret key`](`LweSecretKey`) to another [`LWE secret
+/// key`](`LweSecretKey`) using a different OutputScalar type to represent data.
+///
+/// # Notes
+///
+/// This function only supports power of 2 moduli and going from a large InputScalar with
+/// `input_bits` to a a smaller OutputScalar with `output_bits` and `output_bits` < `input_bits`.
+///
+/// The product of the `lwe_keyswitch_key`'s
+/// [`DecompositionBaseLog`](`crate::core_crypto::commons::parameters::DecompositionBaseLog`) and
+/// [`DecompositionLevelCount`](`crate::core_crypto::commons::parameters::DecompositionLevelCount`)
+/// needs to be smaller than `output_bits`.
+pub fn keyswitch_lwe_ciphertext_with_scalar_change<
+    InputScalar,
+    OutputScalar,
+    KSKCont,
+    InputCont,
+    OutputCont,
+>(
+    lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
+    input_lwe_ciphertext: &LweCiphertext<InputCont>,
+    output_lwe_ciphertext: &mut LweCiphertext<OutputCont>,
+) where
+    InputScalar: UnsignedInteger,
+    OutputScalar: UnsignedInteger + CastFrom<InputScalar>,
+    KSKCont: Container<Element = OutputScalar>,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+{
+    assert!(
+        InputScalar::BITS > OutputScalar::BITS,
+        "This operation only supports going from a large InputScalar type \
+        to a strictly smaller OutputScalar type."
+    );
+    assert!(
+        lwe_keyswitch_key.decomposition_base_log().0
+            * lwe_keyswitch_key.decomposition_level_count().0
+            <= OutputScalar::BITS,
+        "This operation only supports a DecompositionBaseLog and DecompositionLevelCount product \
+        smaller than the OutputScalar bit count."
+    );
+
+    assert!(
+        lwe_keyswitch_key.input_key_lwe_dimension()
+            == input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        LweKeyswitchKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        lwe_keyswitch_key.input_key_lwe_dimension(),
+        input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+    );
+    assert!(
+        lwe_keyswitch_key.output_key_lwe_dimension()
+            == output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        LweKeyswitchKey output LweDimension: {:?}, output LweCiphertext LweDimension {:?}.",
+        lwe_keyswitch_key.output_key_lwe_dimension(),
+        output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+    );
+
+    let output_ciphertext_modulus = output_lwe_ciphertext.ciphertext_modulus();
+
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_ciphertext_modulus,
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_ciphertext_modulus
+    );
+    assert!(
+        output_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    let input_ciphertext_modulus = input_lwe_ciphertext.ciphertext_modulus();
+
+    assert!(
+        input_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    // Clear the output ciphertext, as it will get updated gradually
+    output_lwe_ciphertext.as_mut().fill(OutputScalar::ZERO);
+
+    let output_modulus_bits = match output_ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native => OutputScalar::BITS,
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            output_ciphertext_modulus.get_custom_modulus().ilog2() as usize
+        }
+        CiphertextModulusKind::Other => unreachable!(),
+    };
+
+    let input_body_decomposer = SignedDecomposer::new(
+        DecompositionBaseLog(output_modulus_bits),
+        DecompositionLevelCount(1),
+    );
+
+    // Power of two are encoded in the MSBs of the types so we need to scale the type to the other
+    // one without having to worry about the moduli
+    let input_to_output_scaling_factor = InputScalar::BITS - OutputScalar::BITS;
+
+    let rounded_downscaled_body = input_body_decomposer
+        .closest_representable(*input_lwe_ciphertext.get_body().data)
+        >> input_to_output_scaling_factor;
+
+    *output_lwe_ciphertext.get_mut_body().data = rounded_downscaled_body.cast_into();
+
+    // We instantiate a decomposer
+    let input_decomposer = SignedDecomposer::<InputScalar>::new(
+        lwe_keyswitch_key.decomposition_base_log(),
+        lwe_keyswitch_key.decomposition_level_count(),
+    );
+
+    for (keyswitch_key_block, &input_mask_element) in lwe_keyswitch_key
+        .iter()
+        .zip(input_lwe_ciphertext.get_mask().as_ref())
+    {
+        let decomposition_iter = input_decomposer.decompose(input_mask_element);
+        // Loop over the levels
+        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        {
+            slice_wrapping_sub_scalar_mul_assign(
+                output_lwe_ciphertext.as_mut(),
+                level_key_ciphertext.as_ref(),
+                decomposed.value().cast_into(),
             );
         }
     }
