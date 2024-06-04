@@ -22,7 +22,8 @@ jobs:
   setup-instance:
     name: Setup instance (cuda-integer-full-benchmarks)
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -171,7 +172,9 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-integer-full-benchmarks ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    if: ${{ !success() && !cancelled() }}
+    if: ${{ !success() &&
+      !cancelled() &&
+      (github.event_name != 'schedule' || (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')) }}
     continue-on-error: true
     steps:
       - name: Send message

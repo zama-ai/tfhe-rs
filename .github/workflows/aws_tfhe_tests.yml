@@ -24,6 +24,8 @@ on:
 jobs:
   should-run:
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
       pull-requests: write
     outputs:
