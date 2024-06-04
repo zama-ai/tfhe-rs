@@ -18,6 +18,8 @@ on:
   pull_request:
     types: [ labeled ]
 
+  # FIXME: remove pull_request event and schedule it as nightly
+
 jobs:
   cuda-tests-linux:
     name: CUDA tests (RTX 4090)
