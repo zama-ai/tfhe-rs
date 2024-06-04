@@ -465,6 +465,54 @@ test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
+.PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
+test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
+		--tfhe-package "$(TFHE_SPEC)"
+
+.PHONY: test_unsigned_integer_gpu_ci # Run the tests for unsigned integer ci on gpu backend
+test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
+		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+
+.PHONY: test_signed_integer_gpu_ci # Run the tests for signed integer ci on gpu backend
+test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
+		--signed-only --tfhe-package "$(TFHE_SPEC)"
+
+.PHONY: test_integer_multi_bit_gpu_ci # Run the tests for integer ci on gpu backend running only multibit tests
+test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
+		--tfhe-package "$(TFHE_SPEC)"
+
+.PHONY: test_unsigned_integer_multi_bit_gpu_ci # Run the tests for unsigned integer ci on gpu backend running only multibit tests
+test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
+		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+
+.PHONY: test_signed_integer_multi_bit_gpu_ci # Run the tests for signed integer ci on gpu backend running only multibit tests
+test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
+		--signed-only --tfhe-package "$(TFHE_SPEC)"
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -555,7 +603,7 @@ test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "$(TFHE_SPEC)"
 
-.PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
+.PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for unsigned integer ci running only multibit tests
 test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
@@ -563,7 +611,7 @@ test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nex
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
 
-.PHONY: test_signed_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
+.PHONY: test_signed_integer_multi_bit_ci # Run the tests for signed integer ci running only multibit tests
 test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
