@@ -70,6 +70,7 @@ jobs:
       - name: Run benchmarks with AVX512
         run: |
           make bench_pbs
+          make bench_pbs128
           make bench_ks
 
       - name: Parse results

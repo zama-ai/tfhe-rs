@@ -1,109 +1,160 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+#[path = "../utilities.rs"]
+mod utilities;
+
+use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dyn_stack::PodStack;
+use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
+use tfhe::core_crypto::prelude::*;
+use tfhe::shortint::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
+    LweDimension, PolynomialSize,
+};
 
-fn sqr(x: f64) -> f64 {
-    x * x
-}
+fn pbs_128(c: &mut Criterion) {
+    let bench_name = "core_crypto::pbs128";
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
-fn criterion_bench(c: &mut Criterion) {
-    {
-        use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
-        use tfhe::core_crypto::prelude::*;
-        type Scalar = u128;
+    type Scalar = u128;
 
-        let small_lwe_dimension = LweDimension(742);
-        let glwe_dimension = GlweDimension(1);
-        let polynomial_size = PolynomialSize(2048);
-        let lwe_noise_distribution =
-            Gaussian::from_standard_dev(StandardDev(sqr(0.000007069849454709433)), 0.0);
-        let pbs_base_log = DecompositionBaseLog(23);
-        let pbs_level = DecompositionLevelCount(1);
-        let ciphertext_modulus = CiphertextModulus::new_native();
+    let lwe_dimension = LweDimension(860);
+    let glwe_dimension = GlweDimension(2);
+    let polynomial_size = PolynomialSize(2048);
+    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(45);
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(24);
+    let pbs_base_log = DecompositionBaseLog(24);
+    let pbs_level = DecompositionLevelCount(3);
+    let ciphertext_modulus = CiphertextModulus::new_native();
 
-        let mut boxed_seeder = new_seeder();
-        let seeder = boxed_seeder.as_mut();
+    let params_name = "PARAMS_SWITCH_SQUASH";
 
-        let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+    let mut boxed_seeder = new_seeder();
+    let seeder = boxed_seeder.as_mut();
 
-        let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-        let small_lwe_sk =
-            LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 
-        let glwe_sk = GlweSecretKey::<Vec<Scalar>>::generate_new_binary(
-            glwe_dimension,
-            polynomial_size,
-            &mut secret_generator,
-        );
+    let input_lwe_secret_key =
+        LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);
 
-        let big_lwe_sk = glwe_sk.into_lwe_secret_key();
+    let output_glwe_secret_key = GlweSecretKey::<Vec<Scalar>>::generate_new_binary(
+        glwe_dimension,
+        polynomial_size,
+        &mut secret_generator,
+    );
 
-        let fourier_bsk = Fourier128LweBootstrapKey::new(
-            small_lwe_dimension,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            pbs_base_log,
-            pbs_level,
-        );
+    let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
 
-        let fft = Fft128::new(polynomial_size);
-        let fft = fft.as_view();
+    let mut bsk = LweBootstrapKey::new(
+        Scalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        pbs_base_log,
+        pbs_level,
+        lwe_dimension,
+        ciphertext_modulus,
+    );
+    par_generate_lwe_bootstrap_key(
+        &input_lwe_secret_key,
+        &output_glwe_secret_key,
+        &mut bsk,
+        glwe_noise_distribution,
+        &mut encryption_generator,
+    );
 
-        let message_modulus: Scalar = 1 << 4;
+    let mut fourier_bsk = Fourier128LweBootstrapKey::new(
+        lwe_dimension,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        pbs_base_log,
+        pbs_level,
+    );
+    convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
 
-        let input_message: Scalar = 3;
+    let message_modulus: Scalar = 1 << 4;
 
-        let delta: Scalar = (1 << (Scalar::BITS - 1)) / message_modulus;
+    let input_message: Scalar = 3;
 
-        let plaintext = Plaintext(input_message * delta);
+    let delta: Scalar = (1 << (Scalar::BITS - 1)) / message_modulus;
 
-        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
-            &small_lwe_sk,
-            plaintext,
-            lwe_noise_distribution,
-            ciphertext_modulus,
-            &mut encryption_generator,
-        );
+    let plaintext = Plaintext(input_message * delta);
 
-        let accumulator: GlweCiphertextOwned<Scalar> = GlweCiphertextOwned::new(
-            Scalar::ONE,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            ciphertext_modulus,
-        );
+    let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+        &input_lwe_secret_key,
+        plaintext,
+        lwe_noise_distribution,
+        ciphertext_modulus,
+        &mut encryption_generator,
+    );
 
-        let mut pbs_out: LweCiphertext<Vec<Scalar>> = LweCiphertext::new(
-            0,
-            big_lwe_sk.lwe_dimension().to_lwe_size(),
-            ciphertext_modulus,
-        );
+    let accumulator: GlweCiphertextOwned<Scalar> = GlweCiphertextOwned::new(
+        Scalar::ONE,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
-        let mut buf = vec![
-            0u8;
-            bootstrap_scratch::<Scalar>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft
-            )
-            .unwrap()
-            .unaligned_bytes_required()
-        ];
+    let mut out_pbs_ct: LweCiphertext<Vec<Scalar>> = LweCiphertext::new(
+        0,
+        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
+    );
 
-        c.bench_function("pbs128", |b| {
-            b.iter(|| {
-                fourier_bsk.bootstrap(
-                    &mut pbs_out,
-                    &lwe_ciphertext_in,
-                    &accumulator,
-                    fft,
-                    PodStack::new(&mut buf),
-                )
-            });
+    let fft = Fft128::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut buffers = vec![
+        0u8;
+        bootstrap_scratch::<Scalar>(
+            fourier_bsk.glwe_size(),
+            fourier_bsk.polynomial_size(),
+            fft
+        )
+        .unwrap()
+        .unaligned_bytes_required()
+    ];
+
+    let id = format!("{bench_name}::{params_name}");
+    bench_group.bench_function(&id, |b| {
+        b.iter(|| {
+            fourier_bsk.bootstrap(
+                &mut out_pbs_ct,
+                &lwe_ciphertext_in,
+                &accumulator,
+                fft,
+                PodStack::new(&mut buffers),
+            );
+            black_box(&mut out_pbs_ct);
         });
-    }
+    });
+
+    let params_record = CryptoParametersRecord {
+        lwe_dimension: Some(lwe_dimension),
+        glwe_dimension: Some(glwe_dimension),
+        polynomial_size: Some(polynomial_size),
+        pbs_base_log: Some(pbs_base_log),
+        pbs_level: Some(pbs_level),
+        ciphertext_modulus: Some(ciphertext_modulus),
+        ..Default::default()
+    };
+
+    let bit_size = (message_modulus as u32).ilog2();
+    write_to_json(
+        &id,
+        params_record,
+        params_name,
+        "pbs",
+        &OperatorType::Atomic,
+        bit_size,
+        vec![bit_size],
+    );
 }
 
-criterion_group!(benches, criterion_bench);
-criterion_main!(benches);
+criterion_group!(pbs128_group, pbs_128);
+criterion_main!(pbs128_group);
