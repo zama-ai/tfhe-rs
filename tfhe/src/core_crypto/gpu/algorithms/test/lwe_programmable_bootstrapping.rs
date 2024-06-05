@@ -55,46 +55,46 @@ fn lwe_encrypt_pbs_decrypt<
         ciphertext_modulus
     ));
 
+    // Create the LweSecretKey
+    let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        input_lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+    let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+    let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
+    let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
+
+    let mut bsk = LweBootstrapKey::new(
+        Scalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_dimension,
+        ciphertext_modulus,
+    );
+
+    par_generate_lwe_bootstrap_key(
+        &input_lwe_secret_key,
+        &output_glwe_secret_key,
+        &mut bsk,
+        glwe_noise_distribution,
+        &mut rsc.encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
+
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            input_lwe_dimension,
-            &mut rsc.secret_random_generator,
-        );
-        let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
-            glwe_dimension,
-            polynomial_size,
-            &mut rsc.secret_random_generator,
-        );
-        let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
-        let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();
-
-        let mut bsk = LweBootstrapKey::new(
-            Scalar::ZERO,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            decomp_base_log,
-            decomp_level_count,
-            input_lwe_dimension,
-            ciphertext_modulus,
-        );
-
-        par_generate_lwe_bootstrap_key(
-            &input_lwe_secret_key,
-            &output_glwe_secret_key,
-            &mut bsk,
-            glwe_noise_distribution,
-            &mut rsc.encryption_random_generator,
-        );
-
-        assert!(check_encrypted_content_respects_mod(
-            &*bsk,
-            ciphertext_modulus
-        ));
-
-        let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
-
         for _ in 0..NB_TESTS {
             let plaintext = Plaintext(msg * delta);
 

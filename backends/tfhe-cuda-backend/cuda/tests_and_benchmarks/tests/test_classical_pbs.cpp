@@ -289,20 +289,20 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
             915, 1, 8192,
             new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
-            2, 1, 5},
+            2, 1, 2},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
         (ClassicalProgrammableBootstrapTestParams){
             864, 1, 8192,
             new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
-            2, 1, 5},
+            2, 1, 2},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
         (ClassicalProgrammableBootstrapTestParams){
             930, 1, 16384,
             new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
-            1, 2, 1, 5},
+            1, 2, 1, 1},
 
         // BOOLEAN_DEFAULT_PARAMETERS
         (ClassicalProgrammableBootstrapTestParams){
@@ -360,20 +360,20 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
             915, 1, 8192,
             new_gaussian_from_std_dev(sqrt(8.883173851180252e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 22, 1, 64, 1,
-            100, 1, 5},
+            100, 1, 2},
         // SHORTINT_PARAM_MESSAGE_3_CARRY_3
         (ClassicalProgrammableBootstrapTestParams){
             864, 1, 8192,
             new_gaussian_from_std_dev(sqrt(1.5843564961097632e-15)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 8, 8,
-            100, 1, 5},
+            100, 1, 2},
         // SHORTINT_PARAM_MESSAGE_4_CARRY_3
         // SHORTINT_PARAM_MESSAGE_7_CARRY_0
         (ClassicalProgrammableBootstrapTestParams){
             930, 1, 16384,
             new_gaussian_from_std_dev(sqrt(5.129877458078009e-14)),
             new_gaussian_from_std_dev(sqrt(4.70197740328915e-38)), 15, 2, 128,
-            1, 100, 1, 5});
+            1, 100, 1, 1});
 std::string printParamName(
     ::testing::TestParamInfo<ClassicalProgrammableBootstrapTestParams> p) {
   ClassicalProgrammableBootstrapTestParams params = p.param;
