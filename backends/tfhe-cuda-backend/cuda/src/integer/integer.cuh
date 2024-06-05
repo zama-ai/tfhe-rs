@@ -574,10 +574,10 @@ void host_full_propagate_inplace(
   int big_lwe_size = (glwe_dimension * polynomial_size + 1);
   int small_lwe_size = (lwe_dimension + 1);
 
+  cudaSetDevice(gpu_indexes[0]);
   for (int i = 0; i < num_blocks; i++) {
     auto cur_input_block = &input_blocks[i * big_lwe_size];
 
-    cudaSetDevice(gpu_indexes[0]);
     cuda_keyswitch_lwe_ciphertext_vector<Torus>(
         streams[0], gpu_indexes[0], mem_ptr->tmp_small_lwe_vector,
         mem_ptr->lwe_indexes, cur_input_block, mem_ptr->lwe_indexes, ksks[0],

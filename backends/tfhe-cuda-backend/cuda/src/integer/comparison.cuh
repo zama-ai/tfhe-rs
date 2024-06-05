@@ -331,7 +331,6 @@ compare_radix_blocks_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                         int_comparison_buffer<Torus> *mem_ptr, void **bsks,
                         Torus **ksks, uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;
@@ -358,7 +357,7 @@ compare_radix_blocks_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_out, bsks, ksks,
+      streams, gpu_indexes, 1, lwe_array_out, lwe_array_out, bsks, ksks,
       num_radix_blocks, is_non_zero_lut);
 
   // Add one
@@ -381,7 +380,6 @@ tree_sign_reduction(cudaStream_t *streams, uint32_t *gpu_indexes,
                     std::function<Torus(Torus)> sign_handler_f, void **bsks,
                     Torus **ksks, uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = tree_buffer->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
@@ -467,7 +465,6 @@ __host__ void host_integer_radix_difference_check_kb(
     std::function<Torus(Torus)> reduction_lut_f, void **bsks, Torus **ksks,
     uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto diff_buffer = mem_ptr->diff_buffer;
 
   auto params = mem_ptr->params;
@@ -601,7 +598,6 @@ host_integer_radix_maxmin_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                              int_comparison_buffer<Torus> *mem_ptr, void **bsks,
                              Torus **ksks, uint32_t total_num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   // Compute the sign
   host_integer_radix_difference_check_kb(
       streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
