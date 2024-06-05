@@ -371,9 +371,8 @@ int uint8_public_key(const ClientKey *client_key, const PublicKey *public_key) {
 
 int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *server_key) {
   int ok;
-  CompactFheUint8 *lhs = NULL;
-  CompactFheUint8 *deserialized_lhs = NULL;
-  CompactFheUint8 *result = NULL;
+  FheUint8 *lhs = NULL;
+  FheUint8 *deserialized_lhs = NULL;
   DynamicBuffer value_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   DynamicBuffer cks_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   DynamicBufferView deser_view = {.pointer = NULL, .length = 0};
@@ -391,30 +390,20 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   ok = client_key_deserialize(deser_view, &deserialized_client_key);
   assert(ok == 0);
 
-  struct CompactPublicKey *public_key;
-
-  ok = compact_public_key_new(deserialized_client_key, &public_key);
+  ok = fhe_uint8_try_encrypt_with_client_key_u8(lhs_clear, client_key, &lhs);
   assert(ok == 0);
 
-  ok = compact_fhe_uint8_try_encrypt_with_compact_public_key_u8(lhs_clear, public_key, &lhs);
-  assert(ok == 0);
-
-  ok = compact_fhe_uint8_safe_serialize(lhs, &value_buffer, max_serialization_size);
+  ok = fhe_uint8_safe_serialize(lhs, &value_buffer, max_serialization_size);
   assert(ok == 0);
 
   deser_view.pointer = value_buffer.pointer;
   deser_view.length = value_buffer.length;
-  ok = compact_fhe_uint8_safe_deserialize_conformant(deser_view, max_serialization_size, server_key,
-                                                     &deserialized_lhs);
-  assert(ok == 0);
-
-  FheUint8 *expanded = NULL;
-
-  ok = compact_fhe_uint8_expand(deserialized_lhs, &expanded);
+  ok = fhe_uint8_safe_deserialize_conformant(deser_view, max_serialization_size, server_key,
+                                             &deserialized_lhs);
   assert(ok == 0);
 
   uint8_t clear;
-  ok = fhe_uint8_decrypt(expanded, deserialized_client_key, &clear);
+  ok = fhe_uint8_decrypt(deserialized_lhs, deserialized_client_key, &clear);
   assert(ok == 0);
 
   assert(clear == lhs_clear);
@@ -422,11 +411,8 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   if (value_buffer.pointer != NULL) {
     destroy_dynamic_buffer(&value_buffer);
   }
-  compact_fhe_uint8_destroy(lhs);
-  compact_fhe_uint8_destroy(deserialized_lhs);
-  compact_fhe_uint8_destroy(result);
-  fhe_uint8_destroy(expanded);
-
+  fhe_uint8_destroy(lhs);
+  fhe_uint8_destroy(deserialized_lhs);
   return ok;
 }
 
@@ -434,7 +420,6 @@ int uint8_serialization(const ClientKey *client_key) {
   int ok;
   FheUint8 *lhs = NULL;
   FheUint8 *deserialized_lhs = NULL;
-  FheUint8 *result = NULL;
   DynamicBuffer value_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   DynamicBuffer cks_buffer = {.pointer = NULL, .length = 0, .destructor = NULL};
   DynamicBufferView deser_view = {.pointer = NULL, .length = 0};
@@ -472,7 +457,6 @@ int uint8_serialization(const ClientKey *client_key) {
   }
   fhe_uint8_destroy(lhs);
   fhe_uint8_destroy(deserialized_lhs);
-  fhe_uint8_destroy(result);
   return ok;
 }
 
@@ -498,7 +482,6 @@ int uint8_compressed(const ClientKey *client_key) {
 
   fhe_uint8_destroy(lhs);
   compressed_fhe_uint8_destroy(clhs);
-  fhe_uint8_destroy(result);
   return ok;
 }
 

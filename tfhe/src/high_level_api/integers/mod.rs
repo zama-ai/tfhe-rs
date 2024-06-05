@@ -16,8 +16,8 @@ pub(in crate::high_level_api) use signed::FheIntId;
 pub(in crate::high_level_api) use unsigned::FheUintId;
 // These are pub-exported so that their doc can appear in generated rust docs
 use crate::shortint::MessageModulus;
-pub use signed::{CompactFheInt, CompactFheIntList, CompressedFheInt, FheInt};
-pub use unsigned::{CompactFheUint, CompactFheUintList, CompressedFheUint, FheUint};
+pub use signed::{CompressedFheInt, FheInt};
+pub use unsigned::{CompressedFheUint, FheUint};
 
 pub mod oprf;
 mod signed;

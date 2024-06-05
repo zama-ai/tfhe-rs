@@ -12,15 +12,14 @@ import init, {
   TfheCompactPublicKey,
   TfheConfigBuilder,
   FheUint8,
-  CompactFheUint32List,
-  CompactFheUint256List,
   ZkComputeLoad,
-  ProvenCompactFheUint64,
-  ProvenCompactFheUint64List,
   CompactPkeCrs,
+  CompactCiphertextList,
+  ProvenCompactCiphertextList,
   Shortint,
-  CompactFheUint64,
 } from "./pkg/tfhe.js";
+
+const U32_MAX = 4294967295;
 
 function assert(cond, text) {
   if (cond) return;
@@ -93,75 +92,6 @@ async function publicKeyTest() {
   assert_eq(decrypted, 255);
 }
 
-const U32_MAX = 4294967295;
-
-async function compactPublicKeyTest32BitOnConfig(config) {
-  console.time("ClientKey Gen");
-  let clientKey = TfheClientKey.generate(config);
-  console.timeEnd("ClientKey Gen");
-
-  console.time("CompactPublicKey Gen");
-  let publicKey = TfheCompactPublicKey.new(clientKey);
-  console.timeEnd("CompactPublicKey Gen");
-
-  let serialized_pk = publicKey.serialize();
-  console.log("Serialized CompactPublicKey size: ", serialized_pk.length);
-
-  let values = [0, 1, 2394, U32_MAX];
-
-  console.time("CompactFheUint32List Encrypt");
-  let compact_list = CompactFheUint32List.encrypt_with_compact_public_key(
-    values,
-    publicKey,
-  );
-  console.timeEnd("CompactFheUint32List Encrypt");
-
-  {
-    console.time("CompactFheUint32List Expand");
-    let encrypted_list = compact_list.expand();
-    console.timeEnd("CompactFheUint32List Expand");
-
-    assert_eq(encrypted_list.length, values.length);
-
-    for (let i = 0; i < values.length; i++) {
-      let decrypted = encrypted_list[i].decrypt(clientKey);
-      assert_eq(decrypted, values[i]);
-    }
-  }
-
-  let serialized_list = compact_list.serialize();
-  console.log("Serialized CompactFheUint32List size: ", serialized_list.length);
-
-  let deserialized_list = CompactFheUint32List.deserialize(serialized_list);
-  let encrypted_list = deserialized_list.expand();
-  assert_eq(encrypted_list.length, values.length);
-
-  for (let i = 0; i < values.length; i++) {
-    let decrypted = encrypted_list[i].decrypt(clientKey);
-    assert_eq(decrypted, values[i]);
-  }
-}
-
-async function compactPublicKeyTest32BitBig() {
-  const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-  );
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
-  await compactPublicKeyTest32BitOnConfig(config);
-}
-
-async function compactPublicKeyTest32BitSmall() {
-  const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-  );
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
-  await compactPublicKeyTest32BitOnConfig(config);
-}
-
 async function compactPublicKeyBench32BitOnConfig(config) {
   const bench_loops = 100;
   let bench_results = {};
@@ -185,23 +115,17 @@ async function compactPublicKeyBench32BitOnConfig(config) {
   console.log("CompactPublicKey Gen bench: ", timing_1, " ms");
   bench_results["compact_public_key_gen_32bit_mean"] = timing_1;
 
-  let values = [0, 1, 2, 2394, U32_MAX];
-
-  // Encrypt compact CT list for serialization for later
-  console.time("CompactFheUint32List Encrypt");
-  let compact_list = CompactFheUint32List.encrypt_with_compact_public_key(
-    values,
-    publicKey,
-  );
-  console.timeEnd("CompactFheUint32List Encrypt");
+  let values = [0, 1, 2, 2394, U32_MAX].map(BigInt);
 
   // Bench the encryption for bench_loops iterations
   start = performance.now();
+  let compact_list;
   for (let i = 0; i < bench_loops; i++) {
-    let _ = CompactFheUint32List.encrypt_with_compact_public_key(
-      values,
-      publicKey,
-    );
+    let builder = CompactCiphertextList.builder(publicKey);
+    for (let value of values) {
+      builder.push_u256(value);
+    }
+    compact_list = builder.build();
   }
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
@@ -250,74 +174,13 @@ async function compactPublicKeyBench32BitSmall() {
   );
 }
 
-async function compactPublicKeyTest256BitOnConfig(config) {
-  console.time("ClientKey Gen");
-  let clientKey = TfheClientKey.generate(config);
-  console.timeEnd("ClientKey Gen");
-
-  console.time("CompactPublicKey Gen");
-  let publicKey = TfheCompactPublicKey.new(clientKey);
-  console.timeEnd("CompactPublicKey Gen");
-
-  let serialized_pk = publicKey.serialize();
-  console.log("Serialized CompactPublicKey size: ", serialized_pk.length);
-
-  let values = [0, 1, 2394, U32_MAX].map((e) => BigInt(e));
-
-  console.time("CompactFheUint256List Encrypt");
-  let compact_list = CompactFheUint256List.encrypt_with_compact_public_key(
-    values,
-    publicKey,
-  );
-  console.timeEnd("CompactFheUint256List Encrypt");
-
-  {
-    console.time("CompactFheUint256List Expand");
-    let encrypted_list = compact_list.expand();
-    console.timeEnd("CompactFheUint256List Expand");
-
-    assert_eq(encrypted_list.length, values.length);
-
-    for (let i = 0; i < values.length; i++) {
-      let decrypted = encrypted_list[i].decrypt(clientKey);
-      assert_eq(decrypted, values[i]);
-    }
+function generateRandomBigInt(bitLen) {
+  let result = BigInt(0);
+  for (let i = 0; i < bitLen; i++) {
+    result << 1n;
+    result |= BigInt(Math.random() < 0.5);
   }
-
-  let serialized_list = compact_list.serialize();
-  console.log(
-    "Serialized CompactFheUint256List size: ",
-    serialized_list.length,
-  );
-
-  let deserialized_list = CompactFheUint256List.deserialize(serialized_list);
-  let encrypted_list = deserialized_list.expand();
-  assert_eq(encrypted_list.length, values.length);
-
-  for (let i = 0; i < values.length; i++) {
-    let decrypted = encrypted_list[i].decrypt(clientKey);
-    assert_eq(decrypted, values[i]);
-  }
-}
-
-async function compactPublicKeyTest256BitBig() {
-  const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-  );
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
-  await compactPublicKeyTest256BitOnConfig(config);
-}
-
-async function compactPublicKeyTest256BitSmall() {
-  const block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-  );
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
-  await compactPublicKeyTest256BitOnConfig(config);
+  return result;
 }
 
 async function compressedCompactPublicKeyTest256BitOnConfig(config) {
@@ -339,51 +202,40 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
   publicKey = publicKey.decompress();
   console.timeEnd("CompressedCompactPublicKey Decompression");
 
-  let values = [0, 1, 2394, U32_MAX].map((e) => BigInt(e));
+  let clear_u2 = 3;
+  let clear_i32 = -3284;
+  let clear_bool = true;
+  let clear_u256 = generateRandomBigInt(256);
 
-  console.time("CompactFheUint256List Encrypt");
-  let compact_list = CompactFheUint256List.encrypt_with_compact_public_key(
-    values,
-    publicKey,
-  );
-  console.timeEnd("CompactFheUint256List Encrypt");
+  let builder = CompactCiphertextList.builder(publicKey);
+  builder.push_u2(clear_u2);
+  builder.push_i32(clear_i32);
+  builder.push_boolean(clear_bool);
+  builder.push_u256(clear_u256);
 
-  {
-    console.time("CompactFheUint256List Expand");
-    let encrypted_list = compact_list.expand();
-    console.timeEnd("CompactFheUint256List Expand");
+  let num_bits_encrypted = 2 + 4 + 1 + 256;
+  console.log("Numb bits in compact list: ", num_bits_encrypted);
 
-    assert_eq(encrypted_list.length, values.length);
+  console.time("CompactCiphertextList Encrypt");
+  let list = builder.build();
+  console.timeEnd("CompactCiphertextList Encrypt");
 
-    for (let i = 0; i < values.length; i++) {
-      let decrypted = encrypted_list[i].decrypt(clientKey);
-      assert_eq(decrypted, values[i]);
-    }
-  }
-
-  let serialized_list = compact_list.serialize();
-  console.log(
-    "Serialized CompactFheUint256List size: ",
-    serialized_list.length,
+  let serialized = list.safe_serialize(BigInt(10000000));
+  console.log("Serialized CompactCiphertextList size: ", serialized.length);
+  let deserialized = CompactCiphertextList.safe_deserialize(
+    serialized,
+    BigInt(10000000),
   );
 
-  let deserialized_list = CompactFheUint256List.deserialize(serialized_list);
-  let encrypted_list = deserialized_list.expand();
-  assert_eq(encrypted_list.length, values.length);
+  let expander = deserialized.expand();
 
-  for (let i = 0; i < values.length; i++) {
-    let decrypted = encrypted_list[i].decrypt(clientKey);
-    assert_eq(decrypted, values[i]);
-  }
-}
+  assert_eq(expander.get_uint2(0).decrypt(clientKey), clear_u2);
 
-function generateRandomBigInt(bitLen) {
-  let result = BigInt(0);
-  for (let i = 0; i < bitLen; i++) {
-    result << 1n;
-    result |= BigInt(Math.random() < 0.5);
-  }
-  return result;
+  assert_eq(expander.get_int32(1).decrypt(clientKey), clear_i32);
+
+  assert_eq(expander.get_bool(2).decrypt(clientKey), clear_bool);
+
+  assert_eq(expander.get_uint256(3).decrypt(clientKey), clear_u256);
 }
 
 async function compactPublicKeyZeroKnowledge() {
@@ -407,12 +259,10 @@ async function compactPublicKeyZeroKnowledge() {
   {
     let input = generateRandomBigInt(64);
     let start = performance.now();
-    let encrypted = ProvenCompactFheUint64.encrypt_with_compact_public_key(
-      input,
-      public_params,
-      publicKey,
-      ZkComputeLoad.Proof,
-    );
+
+    let builder = CompactCiphertextList.builder(publicKey);
+    builder.push_u64(input);
+    let list = builder.build_with_proof(public_params, ZkComputeLoad.Proof);
     let end = performance.now();
     console.log(
       "Time to encrypt + prove CompactFheUint64: ",
@@ -420,13 +270,11 @@ async function compactPublicKeyZeroKnowledge() {
       " ms",
     );
 
-    let bytes = encrypted.serialize();
-    console.log("ProvenCompactFheUint64 size:", bytes.length);
-
-    assert_eq(encrypted.verifies(public_params, publicKey), true);
+    let bytes = list.serialize();
+    console.log("CompactCiphertextList size:", bytes.length);
 
     start = performance.now();
-    let expanded = encrypted.verify_and_expand(public_params, publicKey);
+    let expander = list.verify_and_expand(public_params, publicKey);
     end = performance.now();
     console.log(
       "Time to verify + expand CompactFheUint64: ",
@@ -434,8 +282,7 @@ async function compactPublicKeyZeroKnowledge() {
       " ms",
     );
 
-    let decrypted = expanded.decrypt(clientKey);
-    assert_eq(decrypted, input);
+    assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
   }
 
   {
@@ -446,10 +293,12 @@ async function compactPublicKeyZeroKnowledge() {
       generateRandomBigInt(64),
     ];
     let start = performance.now();
-    let encrypted = ProvenCompactFheUint64List.encrypt_with_compact_public_key(
-      inputs,
+    let builder = CompactCiphertextList.builder(publicKey);
+    for (let input of inputs) {
+      builder.push_u64(input);
+    }
+    let encrypted = builder.build_with_proof(
       public_params,
-      publicKey,
       ZkComputeLoad.Proof,
     );
     let end = performance.now();
@@ -458,10 +307,9 @@ async function compactPublicKeyZeroKnowledge() {
       end - start,
       " ms",
     );
-    assert_eq(encrypted.verifies(public_params, publicKey), true);
 
     start = performance.now();
-    let expanded_list = encrypted.verify_and_expand(public_params, publicKey);
+    let expander = encrypted.verify_and_expand(public_params, publicKey);
     end = performance.now();
     console.log(
       "Time to verify + expand CompactFheUint64: ",
@@ -470,8 +318,7 @@ async function compactPublicKeyZeroKnowledge() {
     );
 
     for (let i = 0; i < inputs.length; i++) {
-      let decrypted = expanded_list[i].decrypt(clientKey);
-      assert_eq(decrypted, inputs[i]);
+      assert_eq(expander.get_uint64(i).decrypt(clientKey), inputs[i]);
     }
   }
 }
@@ -521,21 +368,17 @@ async function compactPublicKeyBench256BitOnConfig(config) {
 
   let values = [0, 1, 2, 2394, U32_MAX].map((e) => BigInt(e));
 
-  // Encrypt compact CT list for serialization for later
-  console.time("CompactFheUint256List Encrypt");
-  let compact_list = CompactFheUint256List.encrypt_with_compact_public_key(
-    values,
-    publicKey,
-  );
-  console.timeEnd("CompactFheUint256List Encrypt");
-
   // Bench the encryption for bench_loops iterations
   start = performance.now();
+  let compact_list;
   for (let i = 0; i < bench_loops; i++) {
-    let _ = CompactFheUint256List.encrypt_with_compact_public_key(
-      values,
-      publicKey,
-    );
+    console.time("CompactFheUint256List Encrypt");
+    let builder = CompactCiphertextList.builder(publicKey);
+    for (let value of values) {
+      builder.push_u256(value);
+    }
+    compact_list = builder.build();
+    console.timeEnd("CompactFheUint256List Encrypt");
   }
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
@@ -678,12 +521,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
       let input = generateRandomBigInt(64);
 
       const start = performance.now();
-      let _ = ProvenCompactFheUint64.encrypt_with_compact_public_key(
-        input,
-        public_params,
-        publicKey,
-        loadChoice,
-      );
+      let builder = ProvenCompactCiphertextList.builder(publicKey);
+      builder.push_u64(input);
+      let list = builder.build_with_proof(public_params);
+
       const end = performance.now();
       timing += end - start;
     }
@@ -708,10 +549,6 @@ async function main() {
   return Comlink.proxy({
     publicKeyTest,
     compressedPublicKeyTest,
-    compactPublicKeyTest32BitSmall,
-    compactPublicKeyTest32BitBig,
-    compactPublicKeyTest256BitSmall,
-    compactPublicKeyTest256BitBig,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
     compactPublicKeyZeroKnowledge,

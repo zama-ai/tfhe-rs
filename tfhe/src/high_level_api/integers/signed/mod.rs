@@ -1,5 +1,4 @@
 mod base;
-mod compact;
 mod compressed;
 
 mod encrypt;
@@ -10,11 +9,8 @@ mod scalar_ops;
 mod static_;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "zk-pok-experimental")]
-mod zk;
 
 pub use base::{FheInt, FheIntId};
-pub use compact::{CompactFheInt, CompactFheIntList};
 pub use compressed::CompressedFheInt;
 
 expand_pub_use_fhe_type!(

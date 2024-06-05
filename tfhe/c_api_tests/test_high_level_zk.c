@@ -25,7 +25,7 @@ int main(void) {
 
   // Compute the CRS
   // Note that we do that before generating the client key
-  // as client_key_generate thakes ownership of the config
+  // as client_key_generate takes ownership of the config
   CompactPkeCrs *crs;
   size_t max_num_bits = 32;
   status = compact_pke_crs_from_config(config, max_num_bits, &crs);
@@ -44,64 +44,89 @@ int main(void) {
   status = compact_public_key_new(client_key, &pk);
   assert(status == 0);
 
-  // Demo of ProvenCompactFheUint32
+  // Then, we create the compact list
+  ProvenCompactCiphertextList *compact_list = NULL;
   {
-    uint32_t msg = 8328937;
-    ProvenCompactFheUint32 *proven_fhe_uint;
-    status = proven_compact_fhe_uint32_try_encrypt(msg, public_params, pk, ZkComputeLoadProof,
-                                                   &proven_fhe_uint);
+    CompactCiphertextListBuilder *builder;
+    status = compact_ciphertext_list_builder_new(pk, &builder);
     assert(status == 0);
 
-    FheUint32 *fhe_uint;
-    // This function does not take ownership of the proven fhe uint, so we have to cleanup later
-    status =
-        proven_compact_fhe_uint32_verify_and_expand(proven_fhe_uint, public_params, pk, &fhe_uint);
+    // Push some values
+    status = compact_ciphertext_list_builder_push_u32(builder, 38382);
     assert(status == 0);
 
-    uint32_t decrypted;
-    status = fhe_uint32_decrypt(fhe_uint, client_key, &decrypted);
+    status = compact_ciphertext_list_builder_push_i64(builder, -1);
     assert(status == 0);
 
-    assert(decrypted == msg);
-    fhe_uint32_destroy(fhe_uint);
-    proven_compact_fhe_uint32_destroy(proven_fhe_uint);
+    status = compact_ciphertext_list_builder_push_bool(builder, true);
+    assert(status == 0);
+
+    status = compact_ciphertext_list_builder_push_u2(builder, 3);
+    assert(status == 0);
+
+    status = compact_ciphertext_list_builder_build_with_proof(builder, public_params,
+                                                              ZkComputeLoadProof, &compact_list);
+    assert(status == 0);
+
+    // Don't forget to destroy the builder
+    compact_ciphertext_list_builder_destroy(builder);
   }
 
-  // Demo of ProvenCompactFheUint32List
+  // Now we can expand values
+  FheUint32 *a = NULL;
+  FheInt64 *b = NULL;
+  FheBool *c = NULL;
+  FheUint2 *d = NULL;
   {
-    uint32_t msgs[4] = {8328937, 217521191, 2753219039, 91099540};
-    ProvenCompactFheUint32List *proven_fhe_list;
-    status = proven_compact_fhe_uint32_list_try_encrypt(msgs, 4, public_params, pk,
-                                                        ZkComputeLoadProof, &proven_fhe_list);
+    CompactCiphertextListExpander *expander = NULL;
+    status = proven_compact_ciphertext_list_verify_and_expand(compact_list, public_params, pk,
+                                                              &expander);
     assert(status == 0);
 
-    size_t list_len;
-    status = proven_compact_fhe_uint32_list_len(proven_fhe_list, &list_len);
-    assert(status == 0);
-    assert(list_len == 4);
-
-    FheUint32 *fhe_uints[4];
-    // This function does not take ownership of the proven fhe uint, so we have to cleanup later
-    status = proven_compact_fhe_uint32_list_verify_and_expand(proven_fhe_list, public_params, pk,
-                                                              &fhe_uints[0], 4);
+    status = compact_ciphertext_list_expander_get_fhe_uint32(expander, 0, &a);
     assert(status == 0);
 
-    for (size_t i = 0; i < 4; ++i) {
-      uint32_t decrypted;
-      status = fhe_uint32_decrypt(fhe_uints[i], client_key, &decrypted);
-      assert(status == 0);
+    status = compact_ciphertext_list_expander_get_fhe_int64(expander, 1, &b);
+    assert(status == 0);
 
-      assert(decrypted == msgs[i]);
-      fhe_uint32_destroy(fhe_uints[i]);
-    }
+    status = compact_ciphertext_list_expander_get_fhe_bool(expander, 2, &c);
+    assert(status == 0);
 
-    proven_compact_fhe_uint32_list_destroy(proven_fhe_list);
+    status = compact_ciphertext_list_expander_get_fhe_uint2(expander, 3, &d);
+    assert(status == 0);
+
+    // Don't forget to destroy the expander
+    compact_ciphertext_list_expander_destroy(expander);
   }
 
+  uint32_t clear_a = 0;
+  status = fhe_uint32_decrypt(a, client_key, &clear_a);
+  assert(status == 0);
+  assert(clear_a == 38382);
+
+  int64_t clear_b = 0;
+  status = fhe_int64_decrypt(b, client_key, &clear_b);
+  assert(status == 0);
+  assert(clear_b == -1);
+
+  bool clear_c = false;
+  status = fhe_bool_decrypt(c, client_key, &clear_c);
+  assert(status == 0);
+  assert(clear_c == true);
+
+  uint8_t clear_d = 0;
+  status = fhe_uint2_decrypt(d, client_key, &clear_d);
+  assert(status == 0);
+  assert(clear_d == 3);
+
+  fhe_uint32_destroy(a);
+  fhe_int64_destroy(b);
+  fhe_bool_destroy(c);
+  fhe_uint2_destroy(d);
+  client_key_destroy(client_key);
+  compact_public_key_destroy(pk);
   compact_pke_public_params_destroy(public_params);
   compact_pke_crs_destroy(crs);
-  compact_public_key_destroy(pk);
-  client_key_destroy(client_key);
 
   return EXIT_SUCCESS;
 }

@@ -32,27 +32,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
-
-    let a = tfhe::ProvenCompactFheUint64::try_encrypt(
-        clear_a,
-        public_zk_params,
-        &public_key,
-        ZkComputeLoad::Proof,
-    )?;
-    let b = tfhe::ProvenCompactFheUint64::try_encrypt(
-        clear_b,
-        public_zk_params,
-        &public_key,
-        ZkComputeLoad::Proof,
-    )?;
+    
+    let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
+        .push(clear_a)
+        .push(clear_b)
+        .build_with_proof(public_zk_params, ZkComputeLoad::Proof)?;
 
     // Server side
     let result = {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let a = a.verify_and_expand(&public_zk_params, &public_key)?;
-        let b = b.verify_and_expand(&public_zk_params, &public_key)?;
+        let mut expander = proven_compact_list.verify_and_expand(&public_zk_params, &public_key)?;
+        let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
+        let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
 
         a + b
     };

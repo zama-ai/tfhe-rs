@@ -1,8 +1,7 @@
 #![allow(clippy::excessive_precision)]
 use crate::conformance::ListSizeConstraint;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextConformanceParams, CiphertextListConformanceParams,
-    EncryptionKeyChoice, MessageModulus,
+    CarryModulus, CiphertextConformanceParams, EncryptionKeyChoice, MessageModulus,
 };
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -163,11 +162,10 @@ impl RadixCiphertextConformanceParams {
     pub fn to_ct_list_conformance_parameters(
         &self,
         list_constraint: ListSizeConstraint,
-    ) -> RadixCompactCiphertextListConformanceParams {
-        RadixCompactCiphertextListConformanceParams {
+    ) -> CompactCiphertextListConformanceParams {
+        CompactCiphertextListConformanceParams {
             shortint_params: self.shortint_params,
-            num_blocks_per_integer: self.num_blocks_per_integer,
-            num_integers_constraint: list_constraint,
+            num_elements_constraint: list_constraint,
         }
     }
 
@@ -186,17 +184,7 @@ impl RadixCiphertextConformanceParams {
 /// Structure to store the expected properties of a ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
-pub struct RadixCompactCiphertextListConformanceParams {
+pub struct CompactCiphertextListConformanceParams {
     pub shortint_params: CiphertextConformanceParams,
-    pub num_blocks_per_integer: usize,
-    pub num_integers_constraint: ListSizeConstraint,
-}
-
-impl RadixCompactCiphertextListConformanceParams {
-    pub fn to_shortint_ct_list_conformance_parameters(&self) -> CiphertextListConformanceParams {
-        self.shortint_params.to_ct_list_conformance_parameters(
-            self.num_integers_constraint
-                .multiply_group_size(self.num_blocks_per_integer),
-        )
-    }
+    pub num_elements_constraint: ListSizeConstraint,
 }

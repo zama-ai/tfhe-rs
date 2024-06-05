@@ -85,51 +85,12 @@ int uint256_compact_public_key(const ClientKey *client_key,
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
-  CompactFheUint256List *list = NULL;
 
   U256 result_clear = {0};
   U256 clears[2] = {{5, 6, 7, 8}, {1, 2, 3, 4}};
 
   ok = compressed_compact_public_key_decompress(compressed_public_key, &public_key);
   assert(ok == 0);
-
-  // Compact list example
-  {
-    ok = compact_fhe_uint256_list_try_encrypt_with_compact_public_key_u256(&clears[0], 2,
-                                                                           public_key, &list);
-    assert(ok == 0);
-
-    size_t len = 0;
-    ok = compact_fhe_uint256_list_len(list, &len);
-    assert(ok == 0);
-    assert(len == 2);
-
-    FheUint256 *expand_output[2] = {NULL};
-    ok = compact_fhe_uint256_list_expand(list, &expand_output[0], 2);
-    assert(ok == 0);
-
-    // transfer ownership
-    lhs = expand_output[0];
-    rhs = expand_output[1];
-    // We can destroy the compact list
-    // The expanded ciphertext are independent from it
-    compact_fhe_uint256_list_destroy(list);
-
-    ok = fhe_uint256_sub(lhs, rhs, &result);
-    assert(ok == 0);
-
-    ok = fhe_uint256_decrypt(result, client_key, &result_clear);
-    assert(ok == 0);
-
-    assert(result_clear.w0 == 4);
-    assert(result_clear.w1 == 4);
-    assert(result_clear.w2 == 4);
-    assert(result_clear.w3 == 4);
-
-    fhe_uint256_destroy(lhs);
-    fhe_uint256_destroy(rhs);
-    fhe_uint256_destroy(result);
-  }
 
   {
     ok = fhe_uint256_try_encrypt_with_compact_public_key_u256(clears[0], public_key, &lhs);
@@ -165,48 +126,12 @@ int int32_compact_public_key(const ClientKey *client_key,
   FheInt32 *lhs = NULL;
   FheInt32 *rhs = NULL;
   FheInt32 *result = NULL;
-  CompactFheInt32List *list = NULL;
 
   int32_t result_clear = 0;
   int32_t clears[2] = {-9482394, 98712234};
 
   ok = compressed_compact_public_key_decompress(compressed_public_key, &public_key);
   assert(ok == 0);
-
-  // Compact list example
-  {
-    ok = compact_fhe_int32_list_try_encrypt_with_compact_public_key_i32(&clears[0], 2, public_key,
-                                                                        &list);
-    assert(ok == 0);
-
-    size_t len = 0;
-    ok = compact_fhe_int32_list_len(list, &len);
-    assert(ok == 0);
-    assert(len == 2);
-
-    FheInt32 *expand_output[2] = {NULL};
-    ok = compact_fhe_int32_list_expand(list, &expand_output[0], 2);
-    assert(ok == 0);
-
-    // transfer ownership
-    lhs = expand_output[0];
-    rhs = expand_output[1];
-    // We can destroy the compact list
-    // The expanded ciphertext are independent from it
-    compact_fhe_int32_list_destroy(list);
-
-    ok = fhe_int32_sub(lhs, rhs, &result);
-    assert(ok == 0);
-
-    ok = fhe_int32_decrypt(result, client_key, &result_clear);
-    assert(ok == 0);
-
-    assert(result_clear == clears[0] - clears[1]);
-
-    fhe_int32_destroy(lhs);
-    fhe_int32_destroy(rhs);
-    fhe_int32_destroy(result);
-  }
 
   {
     ok = fhe_int32_try_encrypt_with_compact_public_key_i32(clears[0], public_key, &lhs);

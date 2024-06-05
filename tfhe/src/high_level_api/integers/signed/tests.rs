@@ -1,13 +1,11 @@
-use crate::conformance::ListSizeConstraint;
 use crate::integer::I256;
 use crate::prelude::*;
 use crate::safe_deserialization::safe_deserialize_conformant;
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{
-    generate_keys, set_server_key, ClientKey, CompactFheInt32, CompactFheInt32List,
-    CompactFheInt32ListConformanceParams, CompactPublicKey, CompressedFheInt16, CompressedFheInt32,
-    Config, ConfigBuilder, FheInt16, FheInt256, FheInt32, FheInt32ConformanceParams, FheInt64,
-    FheInt8, FheUint64, FheUint8,
+    generate_keys, set_server_key, ClientKey, CompactPublicKey, CompressedFheInt16,
+    CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
+    FheInt32ConformanceParams, FheInt64, FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
 
@@ -578,66 +576,6 @@ fn test_compact_public_key_small() {
     assert_eq!(clear, -123i8);
 }
 
-#[test]
-fn test_compact_public_key_list_big() {
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(
-
-crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            None,
-        )
-        .build();
-    test_compact_public_key_list(config);
-}
-
-#[test]
-fn test_compact_public_key_list_small() {
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(
-            crate::shortint::parameters::classic::compact_pk
-            ::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-            None,
-        )
-        .build();
-    test_compact_public_key_list(config);
-}
-
-fn test_compact_public_key_list(config: Config) {
-    let (client_key, server_key) = generate_keys(config);
-
-    let public_key = CompactPublicKey::new(&client_key);
-
-    let mut rng = rand::thread_rng();
-
-    let clear_xs = (0..50).map(|_| rng.gen::<i32>()).collect::<Vec<_>>();
-    let clear_ys = (0..50).map(|_| rng.gen::<i32>()).collect::<Vec<_>>();
-
-    let compacted_xs = CompactFheInt32List::encrypt(&clear_xs, &public_key);
-    let compacted_ys = CompactFheInt32List::encrypt(&clear_ys, &public_key);
-
-    let exs = compacted_xs.expand();
-    let eys = compacted_ys.expand();
-
-    set_server_key(server_key);
-
-    let encrypted_results = exs.iter().zip(eys).map(|(x, y)| x + y).collect::<Vec<_>>();
-    let clear_results = clear_xs
-        .iter()
-        .zip(clear_ys)
-        .map(|(x, y)| x + y)
-        .collect::<Vec<_>>();
-
-    for (encrypted, clear) in encrypted_results.iter().zip(clear_results) {
-        let decrypted: i32 = encrypted.decrypt(&client_key);
-        assert_eq!(clear, decrypted);
-    }
-
-    let compact_single = CompactFheInt32::encrypt(clear_xs[0], &public_key);
-    let a = compact_single.expand();
-    let decrypted: i32 = a.decrypt(&client_key);
-    assert_eq!(clear_xs[0], decrypted);
-}
-
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
     let mut rng = thread_rng();
     for _ in 0..5 {
@@ -741,109 +679,4 @@ fn test_safe_deserialize_conformant_compressed_fhe_int32() {
 
     let decrypted: i32 = deserialized_a.decompress().decrypt(&client_key);
     assert_eq!(decrypted, clear_a);
-}
-
-#[test]
-fn test_safe_deserialize_conformant_compact_fhe_int32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
-    set_server_key(server_key.clone());
-    let pk = CompactPublicKey::new(&client_key);
-
-    let clear_a = random::<i32>();
-    let a = CompactFheInt32::encrypt(clear_a, &pk);
-    let mut serialized = vec![];
-    assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
-
-    let params = FheInt32ConformanceParams::from(&server_key);
-    let deserialized_a =
-        safe_deserialize_conformant::<CompactFheInt32>(serialized.as_slice(), 1 << 20, &params)
-            .unwrap();
-    let decrypted: i32 = deserialized_a.expand().decrypt(&client_key);
-    assert_eq!(decrypted, clear_a);
-
-    let params = FheInt32ConformanceParams::from(block_params);
-    assert!(deserialized_a.is_conformant(&params));
-}
-
-#[test]
-fn test_safe_deserialize_conformant_compact_fhe_int32_list() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
-    set_server_key(server_key.clone());
-    let pk = CompactPublicKey::new(&client_key);
-
-    let clears = [random::<i32>(), random::<i32>(), random::<i32>()];
-    let compact_list = CompactFheInt32List::encrypt(&clears, &pk);
-
-    let mut serialized = vec![];
-    assert!(crate::safe_serialize(&compact_list, &mut serialized, 1 << 20).is_ok());
-
-    let params = CompactFheInt32ListConformanceParams::from((
-        &server_key,
-        ListSizeConstraint::exact_size(3),
-    ));
-    let deserialized_list =
-        safe_deserialize_conformant::<CompactFheInt32List>(serialized.as_slice(), 1 << 20, &params)
-            .unwrap();
-
-    let expanded_list = deserialized_list.expand();
-    for (fhe_uint, expected) in expanded_list.iter().zip(clears.into_iter()) {
-        let decrypted: i32 = fhe_uint.decrypt(&client_key);
-        assert_eq!(decrypted, expected);
-    }
-
-    let params = CompactFheInt32ListConformanceParams::from((
-        block_params,
-        ListSizeConstraint::exact_size(3),
-    ));
-    assert!(deserialized_list.is_conformant(&params));
-}
-
-#[cfg(feature = "zk-pok-experimental")]
-#[test]
-fn test_fhe_int_zk() {
-    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
-
-    let params =
-        crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
-
-    let config = ConfigBuilder::with_custom_parameters(params, None).build();
-    let crs = CompactPkeCrs::from_config(config, 32).unwrap();
-    let ck = ClientKey::generate(config);
-    let pk = CompactPublicKey::new(&ck);
-
-    let msg = random::<i32>();
-
-    let proven_compact_fhe_uint = crate::ProvenCompactFheInt32::try_encrypt(
-        msg,
-        crs.public_params(),
-        &pk,
-        ZkComputeLoad::Proof,
-    )
-    .unwrap();
-    let fhe_uint = proven_compact_fhe_uint
-        .verify_and_expand(crs.public_params(), &pk)
-        .unwrap();
-    let decrypted: i32 = fhe_uint.decrypt(&ck);
-    assert_eq!(decrypted, msg);
-
-    let messages = (0..4).map(|_| random()).collect::<Vec<i32>>();
-    let proven_compact_fhe_uint_list = crate::ProvenCompactFheInt32List::try_encrypt(
-        &messages,
-        crs.public_params(),
-        &pk,
-        ZkComputeLoad::Proof,
-    )
-    .unwrap();
-    let fhe_uints = proven_compact_fhe_uint_list
-        .verify_and_expand(crs.public_params(), &pk)
-        .unwrap();
-    let decrypted = fhe_uints
-        .iter()
-        .map(|fb| fb.decrypt(&ck))
-        .collect::<Vec<i32>>();
-    assert_eq!(decrypted.as_slice(), &messages);
 }

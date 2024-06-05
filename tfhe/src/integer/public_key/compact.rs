@@ -1,7 +1,7 @@
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
-use crate::integer::encryption::{create_clear_radix_block_iterator, encrypt_words_radix_impl};
+use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::integer::{ClientKey, SignedRadixCiphertext};
 use crate::shortint::{
     CompactPublicKey as ShortintCompactPublicKey,
@@ -59,25 +59,19 @@ impl CompactPublicKey {
         )
     }
 
-    pub fn encrypt_radix_compact<T: DecomposableInto<u64>>(
+    pub fn encrypt_radix_compact<T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>>(
         &self,
         message: T,
         num_blocks_per_integer: usize,
     ) -> CompactCiphertextList {
-        let clear_block_iter = create_clear_radix_block_iterator(
-            message,
-            self.key.parameters.message_modulus(),
-            num_blocks_per_integer,
-        );
-
-        let ct_list = self.key.encrypt_iter(clear_block_iter);
-        CompactCiphertextList {
-            ct_list,
-            num_blocks_per_integer,
-        }
+        CompactCiphertextList::builder(self)
+            .push_with_num_blocks(message, num_blocks_per_integer)
+            .build()
     }
 
-    pub fn encrypt_slice_radix_compact<T: DecomposableInto<u64>>(
+    pub fn encrypt_slice_radix_compact<
+        T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+    >(
         &self,
         messages: &[T],
         num_blocks: usize,
@@ -85,51 +79,16 @@ impl CompactPublicKey {
         self.encrypt_iter_radix_compact(messages.iter().copied(), num_blocks)
     }
 
-    pub fn encrypt_iter_radix_compact<T: DecomposableInto<u64>>(
+    pub fn encrypt_iter_radix_compact<
+        T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+    >(
         &self,
-        mut message_iter: impl Iterator<Item = T>,
+        message_iter: impl Iterator<Item = T>,
         num_blocks_per_integer: usize,
     ) -> CompactCiphertextList {
-        let mut iterator_chain;
-        match (message_iter.next(), message_iter.next()) {
-            (None, None) => panic!("At least one message is required"),
-            (None, Some(_)) => unreachable!(),
-            (Some(first_message), None) => {
-                // Cannot form a chain
-                return self.encrypt_radix_compact(first_message, num_blocks_per_integer);
-            }
-            (Some(first_message), Some(second_message)) => {
-                let first_iter = create_clear_radix_block_iterator(
-                    first_message,
-                    self.key.parameters.message_modulus(),
-                    num_blocks_per_integer,
-                );
-                let second_iter = create_clear_radix_block_iterator(
-                    second_message,
-                    self.key.parameters.message_modulus(),
-                    num_blocks_per_integer,
-                );
-
-                iterator_chain =
-                    Box::new(first_iter.chain(second_iter)) as Box<dyn Iterator<Item = u64>>;
-            }
-        }
-
-        for message in message_iter {
-            let other_iter = create_clear_radix_block_iterator(
-                message,
-                self.key.parameters.message_modulus(),
-                num_blocks_per_integer,
-            );
-
-            iterator_chain = Box::new(iterator_chain.chain(other_iter));
-        }
-
-        let ct_list = self.key.encrypt_iter(iterator_chain);
-        CompactCiphertextList {
-            ct_list,
-            num_blocks_per_integer,
-        }
+        let mut builder = CompactCiphertextList::builder(self);
+        builder.extend_with_num_blocks(message_iter, num_blocks_per_integer);
+        builder.build()
     }
 
     pub fn size_elements(&self) -> usize {

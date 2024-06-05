@@ -7,11 +7,9 @@ expand_pub_use_fhe_type!(
     };
 );
 
-pub use compact::{CompactFheUint, CompactFheUintList};
 pub use compressed::CompressedFheUint;
 
 mod base;
-mod compact;
 mod compressed;
 mod static_;
 mod wopbs;
@@ -23,5 +21,3 @@ mod overflowing_ops;
 pub(crate) mod scalar_ops;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "zk-pok-experimental")]
-mod zk;
