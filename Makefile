@@ -847,6 +847,12 @@ bench_pbs: install_rs_check_toolchain
 	--bench pbs-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
+.PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
+bench_pbs128: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs128-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
