@@ -145,7 +145,7 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
     int gpu_offset = get_gpu_offset(num_samples, i, gpu_count);
 
     // Compute Keyswitch
-    cuda_keyswitch_lwe_ciphertext_vector(
+    cuda_keyswitch_lwe_ciphertext_vector<Torus>(
         streams[i], gpu_indexes[i], lwe_array_out, lwe_output_indexes,
         lwe_array_in, lwe_input_indexes, ksks[i], lwe_dimension_in,
         lwe_dimension_out, base_log, level_count, num_samples_on_gpu,

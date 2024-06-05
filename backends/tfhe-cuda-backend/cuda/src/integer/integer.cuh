@@ -155,10 +155,11 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
 
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   /// Apply KS to go from a big LWE dimension to a small LWE dimension
-  execute_keyswitch(streams, gpu_indexes, gpu_count, lut->tmp_lwe_after_ks,
-                    lut->lwe_trivial_indexes, lwe_array_in, lut->lwe_indexes_in,
-                    ksks, big_lwe_dimension, small_lwe_dimension, ks_base_log,
-                    ks_level, num_radix_blocks, false);
+  execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count,
+                           lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes,
+                           lwe_array_in, lut->lwe_indexes_in, ksks,
+                           big_lwe_dimension, small_lwe_dimension, ks_base_log,
+                           ks_level, num_radix_blocks, false);
 
   /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
   /// dimension to a big LWE dimension
@@ -207,11 +208,11 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   /// Apply KS to go from a big LWE dimension to a small LWE dimension
-  execute_keyswitch(streams, gpu_indexes, gpu_count, lut->tmp_lwe_after_ks,
-                    lut->lwe_trivial_indexes, lwe_array_pbs_in,
-                    lut->lwe_indexes_in, ksks, big_lwe_dimension,
-                    small_lwe_dimension, ks_base_log, ks_level,
-                    num_radix_blocks, false);
+  execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count,
+                           lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes,
+                           lwe_array_pbs_in, lut->lwe_indexes_in, ksks,
+                           big_lwe_dimension, small_lwe_dimension, ks_base_log,
+                           ks_level, num_radix_blocks, false);
 
   /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
   /// dimension to a big LWE dimension
