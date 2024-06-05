@@ -22,3 +22,6 @@ dieharder_run.log
 
 # Cuda local build
 backends/tfhe-cuda-backend/cuda/cmake-build-debug/
+
+# Dir used for backward compatibility test data
+tfhe/tfhe-backward-compat-data/
