@@ -484,3 +484,12 @@ pub unsafe extern "C" fn shortint_get_parameters_small(
         }
     })
 }
+
+pub struct CompressionParameters(
+    pub(crate) crate::shortint::parameters::list_compression::CompressionParameters,
+);
+
+#[no_mangle]
+pub static SHORTINT_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompressionParameters = CompressionParameters(
+    crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+);

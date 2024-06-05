@@ -2,6 +2,7 @@ mod array;
 #[cfg(feature = "boolean")]
 pub mod booleans;
 mod compact_list;
+pub mod compressed_ciphertext_list;
 pub mod config;
 pub mod i128;
 pub mod i256;
