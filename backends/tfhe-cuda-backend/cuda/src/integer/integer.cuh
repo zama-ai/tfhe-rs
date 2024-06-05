@@ -471,7 +471,6 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
     space *= 2;
   }
 
-  cudaSetDevice(gpu_indexes[0]);
   host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
                                  generates_or_propagates, 1, num_blocks,
                                  big_lwe_size);

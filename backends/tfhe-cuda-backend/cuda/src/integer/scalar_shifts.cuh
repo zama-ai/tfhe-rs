@@ -31,8 +31,6 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     int_logical_scalar_shift_buffer<Torus> *mem, void **bsks, Torus **ksks,
     uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
-
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;

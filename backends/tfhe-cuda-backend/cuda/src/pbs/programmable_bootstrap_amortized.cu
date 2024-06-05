@@ -158,7 +158,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, uint32_t gpu_offset = 0) {
+    uint32_t max_shared_memory, uint32_t gpu_offset) {
 
   if (base_log > 32)
     PANIC("Cuda error (amortized PBS): base log should be > number of bits in "

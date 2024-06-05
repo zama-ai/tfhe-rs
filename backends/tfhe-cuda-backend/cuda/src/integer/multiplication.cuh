@@ -325,7 +325,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           streams[0], gpu_indexes[0],
           luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
 
-    cudaSetDevice(gpu_indexes[0]);
     cuda_keyswitch_lwe_ciphertext_vector(
         streams[0], gpu_indexes[0], small_lwe_vector, lwe_indexes_in,
         new_blocks, lwe_indexes_in, ksks[0], polynomial_size * glwe_dimension,
@@ -355,7 +354,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     r = (new_blocks_created + rem_blocks) / num_blocks;
   }
 
-  cudaSetDevice(gpu_indexes[0]);
   host_addition(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
                 &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
                 num_blocks);

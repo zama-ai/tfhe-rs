@@ -11,7 +11,6 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr, void **bsks,
     Torus **ksks, uint32_t num_radix_blocks, BITOP_TYPE op) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto lut = mem_ptr->lut;
   auto params = lut->params;
   auto big_lwe_dimension = params.big_lwe_dimension;

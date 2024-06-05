@@ -353,7 +353,7 @@ void generate_ids_update_degrees(int *terms_degree, size_t *h_lwe_idx_in,
                                  size_t &carry_count, size_t &sm_copy_count);
 /*
  *  generate bivariate accumulator (lut) for device pointer
- *    v_stream - cuda stream
+ *    stream - cuda stream
  *    acc_bivariate - device pointer for bivariate accumulator
  *    ...
  *    f - wrapping function with two Torus inputs
@@ -371,7 +371,7 @@ void generate_device_accumulator_bivariate_with_factor(
     uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f, int factor);
 /*
  *  generate univariate accumulator (lut) for device pointer
- *    v_stream - cuda stream
+ *    stream - cuda stream
  *    acc - device pointer for univariate accumulator
  *    ...
  *    f - evaluating function with one Torus input
@@ -462,7 +462,7 @@ template <typename Torus> struct int_radix_lut {
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
     ///////////////
-    auto active_gpu_count = std::min(num_radix_blocks, gpu_count);
+    auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cudaSetDevice(i);

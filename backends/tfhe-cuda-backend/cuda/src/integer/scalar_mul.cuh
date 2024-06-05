@@ -65,7 +65,6 @@ __host__ void host_integer_scalar_mul_radix(
   if (num_radix_blocks == 0 | num_scalars == 0)
     return;
 
-  cudaSetDevice(gpu_indexes[0]);
   // lwe_size includes the presence of the body
   // whereas lwe_dimension is the number of elements in the mask
   uint32_t lwe_size = input_lwe_dimension + 1;
