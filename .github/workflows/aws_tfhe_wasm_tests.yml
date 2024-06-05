@@ -72,7 +72,7 @@ jobs:
 
       - name: Run parallel wasm tests
         run: |
-          make ci_test_web_js_api_parallel
+          make test_web_js_api_parallel_ci
 
       - name: Slack Notification
         if: ${{ always() }}
