@@ -239,13 +239,16 @@ pub fn bootstrap_scratch<Scalar>(
 
 impl<'a> FourierLweBootstrapKeyView<'a> {
     // CastInto required for PBS modulus switch which returns a usize
-    pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
+    pub fn blind_rotate_assign<InputScalar, OutputScalar>(
         self,
-        mut lut: GlweCiphertextMutView<'_, Scalar>,
-        lwe: &[Scalar],
+        mut lut: GlweCiphertextMutView<'_, OutputScalar>,
+        lwe: &[InputScalar],
         fft: FftView<'_>,
         mut stack: PodStack<'_>,
-    ) {
+    ) where
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+    {
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
         let lut_poly_size = lut.polynomial_size();
@@ -273,7 +276,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), self.into_ggsw_iter())
         {
-            if *lwe_mask_element != Scalar::ZERO {
+            if *lwe_mask_element != InputScalar::ZERO {
                 let monomial_degree =
                     MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size));
 
@@ -321,20 +324,22 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         }
     }
 
-    pub fn bootstrap<Scalar>(
+    pub fn bootstrap<InputScalar, OutputScalar>(
         self,
-        mut lwe_out: LweCiphertextMutView<'_, Scalar>,
-        lwe_in: LweCiphertextView<'_, Scalar>,
-        accumulator: GlweCiphertextView<'_, Scalar>,
+        mut lwe_out: LweCiphertextMutView<'_, OutputScalar>,
+        lwe_in: LweCiphertextView<'_, InputScalar>,
+        accumulator: GlweCiphertextView<'_, OutputScalar>,
         fft: FftView<'_>,
         stack: PodStack<'_>,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
-        Scalar: UnsignedTorus + CastInto<usize>,
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
     {
-        debug_assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
-        debug_assert_eq!(
-            lwe_in.ciphertext_modulus(),
+        assert!(lwe_in.ciphertext_modulus().is_power_of_two());
+        assert!(lwe_out.ciphertext_modulus().is_power_of_two());
+        assert_eq!(
+            lwe_out.ciphertext_modulus(),
             accumulator.ciphertext_modulus()
         );
 

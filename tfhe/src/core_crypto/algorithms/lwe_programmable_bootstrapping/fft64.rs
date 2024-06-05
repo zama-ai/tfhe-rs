@@ -177,18 +177,26 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_assign<InputScalar, OutputScalar, InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert_eq!(input.ciphertext_modulus(), lut.ciphertext_modulus());
+    assert!(
+        input.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the input to have a power of two modulus."
+    );
+    assert!(
+        lut.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the lut to have a power of two modulus."
+    );
 
     let mut buffers = ComputationBuffers::new();
 
@@ -196,7 +204,7 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     let fft = fft.as_view();
 
     buffers.resize(
-        blind_rotate_assign_mem_optimized_requirement::<Scalar>(
+        blind_rotate_assign_mem_optimized_requirement::<OutputScalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -213,7 +221,13 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 /// Memory optimized version of [`blind_rotate_assign`], the caller must provide
 /// a properly configured [`FftView`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of [`blind_rotate_assign_mem_optimized_requirement`].
-pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_assign_mem_optimized<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    KeyCont,
+>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
@@ -221,12 +235,20 @@ pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>
     stack: PodStack<'_>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert_eq!(input.ciphertext_modulus(), lut.ciphertext_modulus());
+    assert!(
+        input.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the input to have a power of two modulus."
+    );
+    assert!(
+        lut.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the lut to have a power of two modulus."
+    );
 
     // Blind rotate assign manages the rounding to go back to the proper torus if the ciphertext
     // modulus is not the native one
@@ -236,12 +258,12 @@ pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>
 }
 
 /// Return the required memory for [`blind_rotate_assign_mem_optimized`].
-pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
+pub fn blind_rotate_assign_mem_optimized_requirement<OutputScalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    blind_rotate_assign_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
 }
 
 /// Compute the external product of `ggsw` and `glwe`, and add the result to `out`.
@@ -917,20 +939,31 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
+pub fn programmable_bootstrap_lwe_ciphertext<
+    InputScalar,
+    OutputScalar,
+    InputCont,
+    OutputCont,
+    AccCont,
+    KeyCont,
+>(
     input: &LweCiphertext<InputCont>,
     output: &mut LweCiphertext<OutputCont>,
     accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert_eq!(input.ciphertext_modulus(), output.ciphertext_modulus());
+    assert!(
+        input.ciphertext_modulus().is_power_of_two(),
+        "This operation requires the input to have a power of two modulus."
+    );
     assert_eq!(
         output.ciphertext_modulus(),
         accumulator.ciphertext_modulus()
@@ -942,7 +975,7 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
     let fft = fft.as_view();
 
     buffers.resize(
-        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -968,7 +1001,8 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
 /// capacity at least as large as the result of
 /// [`programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement`].
 pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     InputCont,
     OutputCont,
     AccCont,
@@ -982,20 +1016,13 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
     stack: PodStack<'_>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize>,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-    AccCont: Container<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize>,
+    OutputScalar: UnsignedTorus,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert_eq!(
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-        "Mismatched moduli between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus()
-    );
-
     assert_eq!(
         accumulator.ciphertext_modulus(),
         output.ciphertext_modulus(),
@@ -1031,10 +1058,10 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
 }
 
 /// Return the required memory for [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
-pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
+pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputScalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
 }
