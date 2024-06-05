@@ -57,6 +57,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install git-lfs
+        run: |
+          sudo apt update && sudo apt -y install git-lfs
+
       - name: Run concrete-csprng tests
         run: |
           make test_concrete_csprng
@@ -108,6 +112,17 @@ jobs:
       - name: Run safe deserialization tests
         run: |
           make test_safe_deserialization
+
+      - name: Clone test data
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
+        with:
+          repository: zama-ai/tfhe-backward-compat-data
+          path: tfhe/tfhe-backward-compat-data
+          lfs: 'true'
+
+      - name: Run backward compatibility tests
+        run: |
+          make test_backward_compatibility_ci
 
       - name: Slack Notification
         if: ${{ always() }}
