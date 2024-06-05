@@ -27,40 +27,40 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize>>(
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
+    let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let big_lwe_sk = glwe_sk.into_lwe_secret_key();
+
+    let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+        &big_lwe_sk,
+        &lwe_sk,
+        ks_decomp_base_log,
+        ks_decomp_level_count,
+        lwe_noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &ksk_big_to_small,
+        ciphertext_modulus
+    ));
+
+    let d_ksk_big_to_small =
+        CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &stream);
+
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
-
-            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dimension,
-                polynomial_size,
-                &mut rsc.secret_random_generator,
-            );
-
-            let big_lwe_sk = glwe_sk.into_lwe_secret_key();
-
-            let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-                &big_lwe_sk,
-                &lwe_sk,
-                ks_decomp_base_log,
-                ks_decomp_level_count,
-                lwe_noise_distribution,
-                ciphertext_modulus,
-                &mut rsc.encryption_random_generator,
-            );
-
-            assert!(check_encrypted_content_respects_mod(
-                &ksk_big_to_small,
-                ciphertext_modulus
-            ));
-
-            let d_ksk_big_to_small =
-                CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &stream);
-
             let plaintext = Plaintext(msg * delta);
 
             let ct = allocate_and_encrypt_new_lwe_ciphertext(

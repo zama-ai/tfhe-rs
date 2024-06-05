@@ -20,14 +20,13 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
+    let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
-
             let mut ct = LweCiphertext::new(
                 Scalar::ZERO,
                 lwe_dimension.to_lwe_size(),
