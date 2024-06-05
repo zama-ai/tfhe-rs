@@ -14,7 +14,7 @@ use tfhe::shortint::parameters::classic::compact_pk::{
 };
 use tfhe::shortint::PBSParameters;
 use tfhe::{
-    generate_keys, CompactFheUint256List, CompactFheUint32List, CompactPublicKey, ConfigBuilder,
+    generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint256, FheUint32,
 };
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -70,7 +70,9 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
 
-        let encrypted_inputs = CompactFheUint32List::encrypt(&vec_inputs, &public_key);
+        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
+            .extend(vec_inputs.iter().copied())
+            .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
@@ -86,15 +88,12 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             vec![],
         );
 
-        let expanded_inputs = encrypted_inputs.expand();
-
-        vec_inputs
-            .iter()
-            .zip(expanded_inputs.iter())
-            .for_each(|(&input, ct)| {
-                let clear: u32 = ct.decrypt(&client_key);
-                assert_eq!(clear, input);
-            });
+        let expander = encrypted_inputs.expand().unwrap();
+        for (i, input) in vec_inputs.into_iter().enumerate() {
+            let expanded: FheUint32 = expander.get(i).unwrap().unwrap();
+            let clear: u32 = expanded.decrypt(&client_key);
+            assert_eq!(clear, input);
+        }
     }
 
     {
@@ -129,7 +128,9 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
 
-        let encrypted_inputs = CompactFheUint32List::encrypt(&vec_inputs, &public_key);
+        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
+            .extend(vec_inputs.iter().copied())
+            .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
@@ -145,15 +146,12 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             vec![],
         );
 
-        let expanded_inputs = encrypted_inputs.expand();
-
-        vec_inputs
-            .iter()
-            .zip(expanded_inputs.iter())
-            .for_each(|(&input, ct)| {
-                let clear: u32 = ct.decrypt(&client_key);
-                assert_eq!(clear, input);
-            });
+        let expander = encrypted_inputs.expand().unwrap();
+        for (i, input) in vec_inputs.into_iter().enumerate() {
+            let expanded: FheUint32 = expander.get(i).unwrap().unwrap();
+            let clear: u32 = expanded.decrypt(&client_key);
+            assert_eq!(clear, input);
+        }
     }
 
     // 256 bits
@@ -177,9 +175,11 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_256_bits", params.name());
 
-        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
+        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| U256::from(rng.gen::<u32>())).collect();
 
-        let encrypted_inputs = CompactFheUint256List::encrypt(&vec_inputs, &public_key);
+        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
+            .extend(vec_inputs.iter().copied())
+            .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
@@ -195,15 +195,12 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             vec![],
         );
 
-        let expanded_inputs = encrypted_inputs.expand();
-
-        vec_inputs
-            .iter()
-            .zip(expanded_inputs.iter())
-            .for_each(|(&input, ct)| {
-                let clear: U256 = ct.decrypt(&client_key);
-                assert_eq!(clear, U256::from(input));
-            });
+        let expander = encrypted_inputs.expand().unwrap();
+        for (i, input) in vec_inputs.into_iter().enumerate() {
+            let expanded: FheUint256 = expander.get(i).unwrap().unwrap();
+            let clear: U256 = expanded.decrypt(&client_key);
+            assert_eq!(clear, input);
+        }
     }
 
     {
@@ -226,9 +223,11 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_256_bits", params.name());
 
-        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
+        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| U256::from(rng.gen::<u32>())).collect();
 
-        let encrypted_inputs = CompactFheUint256List::encrypt(&vec_inputs, &public_key);
+        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
+            .extend(vec_inputs.iter().copied())
+            .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
@@ -244,15 +243,12 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             vec![],
         );
 
-        let expanded_inputs = encrypted_inputs.expand();
-
-        vec_inputs
-            .iter()
-            .zip(expanded_inputs.iter())
-            .for_each(|(&input, ct)| {
-                let clear: U256 = ct.decrypt(&client_key);
-                assert_eq!(clear, U256::from(input));
-            });
+        let expander = encrypted_inputs.expand().unwrap();
+        for (i, input) in vec_inputs.into_iter().enumerate() {
+            let expanded: FheUint256 = expander.get(i).unwrap().unwrap();
+            let clear: U256 = expanded.decrypt(&client_key);
+            assert_eq!(clear, input);
+        }
     }
 }
 

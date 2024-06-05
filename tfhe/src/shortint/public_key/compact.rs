@@ -27,16 +27,24 @@ pub struct CompactPublicKey {
 
 fn to_plaintext_iterator(
     message_iter: impl Iterator<Item = u64>,
+    encryption_modulus: u64,
     parameters: &ShortintParameterSet,
 ) -> impl Iterator<Item = Plaintext<u64>> {
     let message_modulus = parameters.message_modulus().0 as u64;
     let carry_modulus = parameters.carry_modulus().0 as u64;
+
+    let full_modulus = message_modulus * carry_modulus;
+
+    assert!(
+        encryption_modulus <= full_modulus,
+        "Encryption modulus cannot exceed the plaintext modulus"
+    );
+
     message_iter.map(move |message| {
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63) / (message_modulus * carry_modulus);
+        let delta = (1_u64 << 63) / (full_modulus);
 
-        //The input is reduced modulus the message_modulus
-        let m = message % message_modulus;
+        let m = message % encryption_modulus;
 
         let shifted_message = m * delta;
         // encode the message
@@ -144,9 +152,13 @@ impl CompactPublicKey {
     }
 
     pub fn encrypt(&self, message: u64) -> Ciphertext {
-        let plain = to_plaintext_iterator(once(message), &self.parameters)
-            .next()
-            .unwrap();
+        let plain = to_plaintext_iterator(
+            once(message),
+            self.parameters.message_modulus().0 as u64,
+            &self.parameters,
+        )
+        .next()
+        .unwrap();
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
@@ -229,14 +241,49 @@ impl CompactPublicKey {
         Ok(ProvenCiphertext { ciphertext, proof })
     }
 
+    /// Encrypts the messages contained in the slice into a compact ciphertext list
+    ///
+    /// See [Self::encrypt_iter] for more details
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
-        self.encrypt_iter(messages.iter().copied())
+        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus().0 as u64)
     }
 
+    /// Encrypts the messages coming from the iterator into a compact ciphertext list
+    ///
+    /// Values of the messages should be in range [0..message_modulus[
+    /// (a modulo operation is applied to each input)
     pub fn encrypt_iter(&self, messages: impl Iterator<Item = u64>) -> CompactCiphertextList {
-        let plaintext_container = to_plaintext_iterator(messages, &self.parameters)
-            .map(|plaintext| plaintext.0)
-            .collect::<Vec<_>>();
+        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus().0 as u64)
+    }
+
+    /// Encrypts the messages contained in the slice into a compact ciphertext list
+    ///
+    /// See [Self::encrypt_iter_with_modulus] for more details
+    pub fn encrypt_slice_with_modulus(
+        &self,
+        messages: &[u64],
+        encryption_modulus: u64,
+    ) -> CompactCiphertextList {
+        self.encrypt_iter_with_modulus(messages.iter().copied(), encryption_modulus)
+    }
+
+    /// Encrypts the messages coming from the iterator into a compact ciphertext list
+    ///
+    /// Values of the messages should be in range [0..encryption_modulus[
+    /// (a modulo operation is applied to each input)
+    ///
+    /// # Panic
+    ///
+    /// - This will panic is encryption modulus is greater that message_modulus * carry_modulus
+    pub fn encrypt_iter_with_modulus(
+        &self,
+        messages: impl Iterator<Item = u64>,
+        encryption_modulus: u64,
+    ) -> CompactCiphertextList {
+        let plaintext_container =
+            to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
+                .map(|plaintext| plaintext.0)
+                .collect::<Vec<_>>();
 
         let plaintext_list = PlaintextList::from_container(plaintext_container);
         let mut ct_list = LweCompactCiphertextListOwned::new(
@@ -285,7 +332,7 @@ impl CompactPublicKey {
         let message_modulus = self.parameters.message_modulus();
         CompactCiphertextList {
             ct_list,
-            degree: Degree::new(message_modulus.0 - 1),
+            degree: Degree::new(encryption_modulus as usize - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus(),
             pbs_order: self.pbs_order,
@@ -299,15 +346,24 @@ impl CompactPublicKey {
         messages: &[u64],
         public_params: &CompactPkePublicParams,
         load: ZkComputeLoad,
+        encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus =
             (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
         let delta = (1u64 << 63) / plaintext_modulus;
+        assert!(encryption_modulus <= plaintext_modulus);
 
+        // This is the maximum number of lwe that can share the same mask in lwe compact pk
+        // encryption
+        let max_ciphertext_per_bin = self.key.lwe_dimension().0;
+        // This is the maximum of lwe message a single proof can prove
         let max_num_message = public_params.k;
-        let num_lists = messages.len().div_ceil(max_num_message);
+        // One of the two is the limiting factor for how much we can pack messages
+        let message_chunk_size = max_num_message.min(max_ciphertext_per_bin);
+
+        let num_lists = messages.len().div_ceil(message_chunk_size);
         let mut proved_lists = Vec::with_capacity(num_lists);
-        for message_chunk in messages.chunks(max_num_message) {
+        for message_chunk in messages.chunks(message_chunk_size) {
             let mut ct_list = LweCompactCiphertextListOwned::new(
                 0u64,
                 self.key.lwe_dimension().to_lwe_size(),
@@ -362,7 +418,7 @@ impl CompactPublicKey {
             let message_modulus = self.parameters.message_modulus();
             let ciphertext = CompactCiphertextList {
                 ct_list,
-                degree: Degree::new(message_modulus.0 - 1),
+                degree: Degree::new(encryption_modulus as usize - 1),
                 message_modulus,
                 carry_modulus: self.parameters.carry_modulus(),
                 pbs_order: self.pbs_order,

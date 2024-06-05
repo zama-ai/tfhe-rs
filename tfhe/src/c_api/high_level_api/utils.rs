@@ -138,30 +138,6 @@ macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
 
 pub(crate) use impl_try_encrypt_with_compact_public_key_on_type;
 
-macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
-    ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
-        ::paste::paste! {
-            #[no_mangle]
-            pub unsafe extern "C" fn  [<$wrapper_type:snake _try_encrypt_with_compact_public_key_ $input_type:snake>](
-                input: *const $input_type,
-                input_len: usize,
-                public_key: *const $crate::c_api::high_level_api::keys::CompactPublicKey,
-                result: *mut *mut $wrapper_type,
-            ) -> ::std::os::raw::c_int {
-                $crate::c_api::utils::catch_panic(|| {
-                    let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
-                    let slc = ::std::slice::from_raw_parts(input, input_len);
-                    let inner = <$wrapped_type>::try_encrypt(slc, &public_key.0).unwrap();
-
-                    *result = Box::into_raw(Box::new($wrapper_type(inner)));
-                })
-            }
-        }
-    };
-}
-
-pub(crate) use impl_try_encrypt_list_with_compact_public_key_on_type;
-
 macro_rules! impl_try_encrypt_trivial_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {
@@ -395,65 +371,6 @@ macro_rules! impl_safe_deserialize_conformant_integer {
 }
 
 pub(crate) use impl_safe_deserialize_conformant_integer;
-
-macro_rules! impl_safe_deserialize_conformant_integer_list {
-    ($wrapper_type:ty) => {
-        ::paste::paste! {
-            /// Deserializes a list safely, and checks that the resulting ciphertext
-            /// is in compliance with the shape of ciphertext that the `server_key` expects.
-            ///
-            /// This function can only deserialize, types which have been serialized
-            /// by a `safe_serialize` function.
-            ///
-            /// - `serialized_size_limit`: size limit (in number of byte) of the serialized object
-            ///    (to avoid out of memory attacks)
-            /// - `server_key`: ServerKey used in the conformance check
-            /// - `exact_len`: exact lenght/size/number of element the list must have
-            ///    (not less nor more, otherwise, it's considered an error)
-            /// - `result`: pointer where resulting deserialized object needs to be stored.
-            ///    * cannot be NULL
-            ///    * (*result) will point the deserialized object on success, else NULL
-            #[no_mangle]
-            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_deserialize_conformant>](
-                buffer_view: crate::c_api::buffer::DynamicBufferView,
-                serialized_size_limit: u64,
-                server_key: *const crate::c_api::high_level_api::keys::ServerKey,
-                exact_len: usize,
-                result: *mut *mut $wrapper_type,
-            ) -> ::std::os::raw::c_int {
-                ::paste::paste! {
-                  crate::c_api::utils::catch_panic(|| {
-                    crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
-
-                    let sk = crate::c_api::utils::get_ref_checked(server_key).unwrap();
-
-                    let buffer_view: &[u8] = buffer_view.as_slice();
-
-                    // First fill the result with a null ptr so that if we fail and the return code is not
-                    // checked, then any access to the result pointer will segfault (mimics malloc on failure)
-                    *result = std::ptr::null_mut();
-
-                    let params = $crate::high_level_api::[<$wrapper_type ConformanceParams>]::from(
-                        (&sk.0, $crate::conformance::ListSizeConstraint::exact_size(exact_len))
-                    );
-                    let inner = $crate::safe_deserialization::safe_deserialize_conformant(
-                            buffer_view,
-                            serialized_size_limit,
-                            &params
-                        )
-                        .unwrap();
-
-                    let heap_allocated_object = Box::new($wrapper_type(inner));
-
-                    *result = Box::into_raw(heap_allocated_object);
-                })
-              }
-            }
-        }
-    };
-}
-
-pub(crate) use impl_safe_deserialize_conformant_integer_list;
 
 macro_rules! impl_binary_fn_on_type {
     // More general binary fn case,

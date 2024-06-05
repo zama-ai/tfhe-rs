@@ -103,8 +103,8 @@ use tfhe::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
 use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS};
 use tfhe::conformance::ListSizeConstraint;
 use tfhe::{
-    generate_keys, CompactFheUint8, CompactFheUint8List, FheUint8ConformanceParams,
-    CompactFheUint8ListConformanceParams, CompactPublicKey, ConfigBuilder
+    generate_keys, FheUint8, CompactCiphertextList, FheUint8ConformanceParams,
+    CompactPublicKey, ConfigBuilder, CompactCiphertextListConformanceParams
 };
 
 fn main() {
@@ -124,7 +124,7 @@ fn main() {
 
     let msg = 27u8;
 
-    let ct = CompactFheUint8::try_encrypt(msg, &public_key).unwrap();
+    let ct = FheUint8::try_encrypt(msg, &client_key).unwrap();
     
     assert!(ct.is_conformant(&conformance_params_1));
     assert!(!ct.is_conformant(&conformance_params_2));
@@ -133,31 +133,36 @@ fn main() {
 
     safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
     
-    assert!(safe_deserialize_conformant::<CompactFheUint8>(
+    assert!(safe_deserialize_conformant::<FheUint8>(
         buffer.as_slice(),
         1 << 20,
         &conformance_params_2
     ).is_err());
 
-    let ct2 = safe_deserialize_conformant::<CompactFheUint8>(
+    let ct2 = safe_deserialize_conformant::<FheUint8>(
         buffer.as_slice(),
         1 << 20,
         &conformance_params_1
     ).unwrap();
 
-    let dec: u8 = ct2.expand().decrypt(&client_key);
+    let dec: u8 = ct2.decrypt(&client_key);
     assert_eq!(msg, dec);
     
     
     // Example with a compact list:
     let msgs = [27, 188u8];
-    let compact_list = CompactFheUint8List::try_encrypt(&msgs, &public_key).unwrap();
-    
+    let mut builder = CompactCiphertextList::builder(&public_key);
+    builder.extend(msgs.iter().copied());
+    let compact_list = builder.build();
+
     let mut buffer = vec![];
     safe_serialize(&compact_list, &mut buffer, 1 << 40).unwrap();
     
-    let conformance_params = CompactFheUint8ListConformanceParams::from((&server_key, ListSizeConstraint::exact_size(2)));
-    assert!(safe_deserialize_conformant::<CompactFheUint8List>(
+    let conformance_params = CompactCiphertextListConformanceParams {
+        shortint_params: params_1.to_shortint_conformance_param(),
+        num_elements_constraint: ListSizeConstraint::exact_size(2),
+    };
+    assert!(safe_deserialize_conformant::<CompactCiphertextList>(
         buffer.as_slice(),
         1 << 20,
         &conformance_params

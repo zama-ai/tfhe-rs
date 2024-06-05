@@ -25,10 +25,6 @@ async function setup() {
   const demoNames = [
     "publicKeyTest",
     "compressedPublicKeyTest",
-    "compactPublicKeyTest32BitBig",
-    "compactPublicKeyTest32BitSmall",
-    "compactPublicKeyTest256BitBig",
-    "compactPublicKeyTest256BitSmall",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
     "compactPublicKeyZeroKnowledge",

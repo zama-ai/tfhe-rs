@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parametrized_test;
-use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey};
+use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey, RadixCiphertext};
 use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -100,7 +100,7 @@ fn small_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameter
 }
 
 fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
-    let (cks, _) = gen_keys(params, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys(params, IntegerKeyKind::Radix);
     let pk = crate::integer::public_key::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();
@@ -117,13 +117,28 @@ fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
             clear_vec.push(clear);
         }
 
-        let compact_encrypted_list = pk.encrypt_slice_radix_compact(&clear_vec, num_block);
+        let mut builder = crate::integer::ciphertext::CompactCiphertextList::builder(&pk);
+        builder.extend_with_num_blocks(clear_vec.iter().copied(), num_block);
 
-        let ciphertext_vec = compact_encrypted_list.expand();
+        let compact_lists = [builder.build(), builder.build_packed().unwrap()];
 
-        for (ciphertext, clear) in ciphertext_vec.iter().zip(clear_vec.iter().copied()) {
-            let decrypted: u128 = cks.decrypt_radix(ciphertext);
-            assert_eq!(decrypted, clear);
+        assert!(!compact_lists[0].is_packed());
+        assert!(compact_lists[1].is_packed());
+
+        for compact_encrypted_list in compact_lists {
+            let expander = compact_encrypted_list.expand(&sks).unwrap();
+
+            let mut ciphertext_vec = Vec::with_capacity(num_ct_for_this_iter);
+            for i in 0..num_ct_for_this_iter {
+                let radix = expander.get::<RadixCiphertext>(i).unwrap().unwrap();
+                assert_eq!(radix.blocks.len(), num_block);
+                ciphertext_vec.push(radix);
+            }
+
+            for (ciphertext, clear) in ciphertext_vec.iter().zip(clear_vec.iter().copied()) {
+                let decrypted: u128 = cks.decrypt_radix(ciphertext);
+                assert_eq!(decrypted, clear);
+            }
         }
     }
 }

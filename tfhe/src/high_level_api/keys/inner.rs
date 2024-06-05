@@ -1,6 +1,5 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
-use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
@@ -214,17 +213,6 @@ impl IntegerCompactPublicKey {
         let key = CompactPublicKey::try_new(cks)?;
 
         Some(Self { key })
-    }
-
-    pub(in crate::high_level_api) fn try_encrypt_compact<T>(
-        &self,
-        values: &[T],
-        num_blocks: usize,
-    ) -> CompactCiphertextList
-    where
-        T: crate::integer::block_decomposition::DecomposableInto<u64>,
-    {
-        self.key.encrypt_slice_radix_compact(values, num_blocks)
     }
 
     pub fn into_raw_parts(self) -> CompactPublicKey {

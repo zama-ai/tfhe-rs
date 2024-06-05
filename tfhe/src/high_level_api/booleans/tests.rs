@@ -6,8 +6,8 @@
 
 use crate::prelude::*;
 use crate::{
-    generate_keys, set_server_key, ClientKey, CompactFheBool, CompactFheBoolList, CompactPublicKey,
-    CompressedFheBool, CompressedPublicKey, ConfigBuilder, Device, FheBool,
+    generate_keys, set_server_key, ClientKey, CompressedFheBool, CompressedPublicKey,
+    ConfigBuilder, Device, FheBool,
 };
 
 #[inline(always)]
@@ -316,48 +316,11 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
     assert_eq!(b.decrypt(&cks), false);
 }
 
-fn compact_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
-    let (cks, sks_device) = setup_fn();
-    let cpk = CompactPublicKey::new(&cks);
-
-    let cttrue = CompactFheBool::encrypt(true, &cpk);
-    let cffalse = CompactFheBool::encrypt(false, &cpk);
-
-    let a = cttrue.expand();
-    let b = cffalse.expand();
-
-    assert_degree_is_ok(&a);
-    assert_degree_is_ok(&b);
-
-    assert_eq!(a.current_device(), sks_device);
-    assert_eq!(b.current_device(), sks_device);
-
-    assert_eq!(a.decrypt(&cks), true);
-    assert_eq!(b.decrypt(&cks), false);
-}
-
-fn compact_bool_list_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
-    let (cks, sks_device) = setup_fn();
-    let cpk = CompactPublicKey::new(&cks);
-
-    let clears = vec![false, true, true, false];
-    let compacts = CompactFheBoolList::encrypt(&clears, &cpk);
-
-    let ciphertexts = compacts.expand();
-
-    for (fhe_bool, clear) in ciphertexts.into_iter().zip(clears.into_iter()) {
-        assert_degree_is_ok(&fhe_bool);
-        assert_eq!(fhe_bool.current_device(), sks_device);
-        assert_eq!(fhe_bool.decrypt(&cks), clear);
-    }
-}
-
 mod cpu {
     use super::*;
-    use crate::conformance::ListSizeConstraint;
     use crate::safe_deserialization::safe_deserialize_conformant;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    use crate::{CompactFheBoolListConformanceParams, FheBoolConformanceParams};
+    use crate::FheBoolConformanceParams;
     use rand::random;
 
     fn setup_default() -> ClientKey {
@@ -667,16 +630,6 @@ mod cpu {
     }
 
     #[test]
-    fn test_compact_bool() {
-        compact_bool_test_case(|| (setup_default(), Device::Cpu));
-    }
-
-    #[test]
-    fn test_compact_bool_list() {
-        compact_bool_list_test_case(|| (setup_default(), Device::Cpu));
-    }
-
-    #[test]
     fn test_trivial_bool() {
         let keys = setup_default();
 
@@ -764,118 +717,6 @@ mod cpu {
 
         let decrypted: bool = deserialized_a.decompress().decrypt(&client_key);
         assert_eq!(decrypted, clear_a);
-    }
-
-    #[test]
-    fn test_safe_deserialize_conformant_compact_fhe_bool() {
-        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
-        set_server_key(server_key.clone());
-        let pk = CompactPublicKey::new(&client_key);
-
-        let clear_a = random::<bool>();
-        let a = CompactFheBool::encrypt(clear_a, &pk);
-        let mut serialized = vec![];
-        assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
-
-        let params = FheBoolConformanceParams::from(&server_key);
-        let deserialized_a =
-            safe_deserialize_conformant::<CompactFheBool>(serialized.as_slice(), 1 << 20, &params)
-                .unwrap();
-
-        assert!(deserialized_a.is_conformant(&FheBoolConformanceParams::from(block_params)));
-
-        let decrypted: bool = deserialized_a.expand().decrypt(&client_key);
-        assert_eq!(decrypted, clear_a);
-    }
-
-    #[test]
-    fn test_safe_deserialize_conformant_compact_fhe_bool_list() {
-        let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
-        set_server_key(server_key.clone());
-        let pk = CompactPublicKey::new(&client_key);
-
-        let clears = [random::<bool>(), random::<bool>(), random::<bool>()];
-        let compact_list = CompactFheBoolList::encrypt(&clears, &pk);
-
-        let mut serialized = vec![];
-        assert!(crate::safe_serialize(&compact_list, &mut serialized, 1 << 20).is_ok());
-
-        let params = CompactFheBoolListConformanceParams::from((
-            &server_key,
-            ListSizeConstraint::exact_size(3),
-        ));
-        let deserialized_list = safe_deserialize_conformant::<CompactFheBoolList>(
-            serialized.as_slice(),
-            1 << 20,
-            &params,
-        )
-        .unwrap();
-
-        assert!(
-            deserialized_list.is_conformant(&CompactFheBoolListConformanceParams::from((
-                block_params,
-                ListSizeConstraint::exact_size(3)
-            )))
-        );
-
-        let expanded_list = deserialized_list.expand();
-        for (fhe_uint, expected) in expanded_list.iter().zip(clears.into_iter()) {
-            let decrypted: bool = fhe_uint.decrypt(&client_key);
-            assert_eq!(decrypted, expected)
-        }
-    }
-
-    #[cfg(feature = "zk-pok-experimental")]
-    #[test]
-    fn test_fhe_bool_zk() {
-        use crate::zk::{CompactPkeCrs, ZkComputeLoad};
-
-        let params =
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40;
-
-        let config = ConfigBuilder::with_custom_parameters(params, None).build();
-        let crs = CompactPkeCrs::from_config(config, 2).unwrap();
-        let ck = ClientKey::generate(config);
-        let pk = CompactPublicKey::new(&ck);
-
-        for msg in [true, false] {
-            let proven_compact_fhe_bool = crate::ProvenCompactFheBool::try_encrypt(
-                msg,
-                crs.public_params(),
-                &pk,
-                ZkComputeLoad::Proof,
-            )
-            .unwrap();
-            let fhe_bool = proven_compact_fhe_bool
-                .verify_and_expand(crs.public_params(), &pk)
-                .unwrap();
-            let decrypted = fhe_bool.decrypt(&ck);
-            assert_eq!(decrypted, msg);
-            assert_degree_is_ok(&fhe_bool);
-        }
-
-        let proven_compact_fhe_bool_list = crate::ProvenCompactFheBoolList::try_encrypt(
-            &[true, false],
-            crs.public_params(),
-            &pk,
-            ZkComputeLoad::Proof,
-        )
-        .unwrap();
-        let fhe_bools = proven_compact_fhe_bool_list
-            .verify_and_expand(crs.public_params(), &pk)
-            .unwrap();
-        let decrypted = fhe_bools
-            .iter()
-            .map(|fb| fb.decrypt(&ck))
-            .collect::<Vec<_>>();
-        assert_eq!(decrypted.as_slice(), &[true, false]);
-        for fhe_bool in fhe_bools {
-            assert_degree_is_ok(&fhe_bool);
-        }
     }
 }
 
@@ -1183,15 +1024,5 @@ mod gpu {
     #[test]
     fn test_compressed_bool() {
         compressed_bool_test_case(|| (setup_gpu_default(), Device::CudaGpu));
-    }
-
-    #[test]
-    fn test_compact_bool() {
-        compact_bool_test_case(|| (setup_gpu_default(), Device::CudaGpu));
-    }
-
-    #[test]
-    fn test_compact_bool_list() {
-        compact_bool_list_test_case(|| (setup_gpu_default(), Device::CudaGpu));
     }
 }

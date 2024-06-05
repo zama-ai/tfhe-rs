@@ -175,7 +175,12 @@ mod tests {
             .collect::<Vec<_>>();
 
         let proven_ct = pk
-            .encrypt_and_prove_slice(&msgs, crs.public_params(), ZkComputeLoad::Proof)
+            .encrypt_and_prove_slice(
+                &msgs,
+                crs.public_params(),
+                ZkComputeLoad::Proof,
+                params.message_modulus.0 as u64,
+            )
             .unwrap();
         assert!(proven_ct.verify(crs.public_params(), &pk).is_valid());
 

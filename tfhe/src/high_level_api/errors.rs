@@ -1,3 +1,4 @@
+use crate::Error;
 use std::fmt::{Display, Formatter};
 
 /// Unwrap 'Extension' trait
@@ -38,3 +39,9 @@ impl Display for UninitializedServerKey {
 }
 
 impl std::error::Error for UninitializedServerKey {}
+
+impl From<UninitializedServerKey> for Error {
+    fn from(value: UninitializedServerKey) -> Self {
+        Self::new(format!("{value}"))
+    }
+}
