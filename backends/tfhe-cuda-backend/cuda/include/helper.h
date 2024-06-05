@@ -10,4 +10,6 @@ int get_active_gpu_count(int num_inputs, int gpu_count);
 
 int get_num_inputs_on_gpu(int total_num_inputs, int gpu_index, int gpu_count);
 
+int get_gpu_offset(int total_num_inputs, int gpu_index, int gpu_count);
+
 #endif

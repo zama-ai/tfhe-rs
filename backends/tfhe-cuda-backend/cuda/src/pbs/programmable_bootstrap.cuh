@@ -145,7 +145,7 @@ void execute_pbs(
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
-            i >= 1 ? num_lwe_inputs_on_gpu_0 + (i - 1) * num_inputs_on_gpu : 0;
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
@@ -172,7 +172,7 @@ void execute_pbs(
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
-            i >= 1 ? num_lwe_inputs_on_gpu_0 + (i - 1) * num_inputs_on_gpu : 0;
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -190,7 +190,7 @@ void execute_pbs(
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
         int gpu_offset =
-            i >= 1 ? num_lwe_inputs_on_gpu_0 + (i - 1) * num_inputs_on_gpu : 0;
+            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
             lut_vector_indexes + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(

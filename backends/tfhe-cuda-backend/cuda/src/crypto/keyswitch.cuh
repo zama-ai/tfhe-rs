@@ -142,8 +142,7 @@ void execute_keyswitch(cudaStream_t *streams, uint32_t *gpu_indexes,
 #pragma omp parallel for num_threads(active_gpu_count)
   for (uint i = 0; i < active_gpu_count; i++) {
     int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
-    int gpu_offset =
-        i >= 1 ? num_samples_on_gpu_0 + (i - 1) * num_samples_on_gpu : 0;
+    int gpu_offset = get_gpu_offset(num_samples, i, gpu_count);
 
     // Compute Keyswitch
     cuda_keyswitch_lwe_ciphertext_vector(
