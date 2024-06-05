@@ -205,13 +205,13 @@ __host__ void is_at_least_one_comparisons_block_true(
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
-          ksks, 1, lut);
+          streams, gpu_indexes, 1, lwe_array_out, accumulator, bsks, ksks, 1,
+          lut);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
-          accumulator, bsks, ksks, num_chunks, lut);
+          streams, gpu_indexes, 1, mem_ptr->tmp_lwe_array_out, accumulator,
+          bsks, ksks, num_chunks, lut);
     }
   }
 }

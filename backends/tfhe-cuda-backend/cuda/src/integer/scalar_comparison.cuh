@@ -12,7 +12,6 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     std::function<Torus(Torus)> sign_handler_f, void **bsks, Torus **ksks,
     uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
@@ -47,10 +46,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
   if (total_num_scalar_blocks == 0) {
     // We only have to compare blocks with zero
     // means scalar is zero
-    host_compare_with_zero_equality(streams, gpu_indexes, gpu_count,
-                                    mem_ptr->tmp_lwe_array_out, lwe_array_in,
-                                    mem_ptr, bsks, ksks, total_num_radix_blocks,
-                                    mem_ptr->is_zero_lut);
+    host_compare_with_zero_equality(
+        streams, gpu_indexes, 1, mem_ptr->tmp_lwe_array_out, lwe_array_in,
+        mem_ptr, bsks, ksks, total_num_radix_blocks, mem_ptr->is_zero_lut);
 
     auto scalar_last_leaf_lut_f = [sign_handler_f](Torus x) -> Torus {
       x = (x == 1 ? IS_EQUAL : IS_SUPERIOR);
@@ -234,8 +232,8 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // means scalar is zero
     Torus *are_all_msb_zeros = mem_ptr->tmp_lwe_array_out;
     host_compare_with_zero_equality(
-        streams, gpu_indexes, gpu_count, are_all_msb_zeros, lwe_array_in,
-        mem_ptr, bsks, ksks, total_num_radix_blocks, mem_ptr->is_zero_lut);
+        streams, gpu_indexes, 1, are_all_msb_zeros, lwe_array_in, mem_ptr, bsks,
+        ksks, total_num_radix_blocks, mem_ptr->is_zero_lut);
     Torus *sign_block =
         lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
 
@@ -546,7 +544,6 @@ __host__ void scalar_compare_radix_blocks_kb(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;
@@ -579,8 +576,8 @@ __host__ void scalar_compare_radix_blocks_kb(
   // Apply LUT to compare to 0
   auto sign_lut = mem_ptr->eq_buffer->is_non_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb(
-      streams, gpu_indexes, gpu_count, lwe_array_out, subtracted_blocks, bsks,
-      ksks, num_radix_blocks, sign_lut);
+      streams, gpu_indexes, 1, lwe_array_out, subtracted_blocks, bsks, ksks,
+      num_radix_blocks, sign_lut);
 
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
@@ -597,7 +594,6 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
   // Calculates the difference sign between the ciphertext and the scalar
@@ -635,7 +631,6 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;

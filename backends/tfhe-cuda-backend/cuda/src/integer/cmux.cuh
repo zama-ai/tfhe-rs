@@ -36,8 +36,8 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
-      ksks, num_radix_blocks, predicate);
+      streams, gpu_indexes, 1, lwe_array_out, tmp_lwe_array_input, bsks, ksks,
+      num_radix_blocks, predicate);
 }
 
 template <typename Torus>
@@ -62,7 +62,7 @@ __host__ void host_integer_radix_cmux_kb(
 #pragma omp section
     {
       auto mem_true = mem_ptr->zero_if_true_buffer;
-      zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
+      zero_out_if(true_streams, gpu_indexes, 1, mem_ptr->tmp_true_ct,
                   lwe_array_true, lwe_condition, mem_true,
                   mem_ptr->inverted_predicate_lut, bsks, ksks,
                   num_radix_blocks);
@@ -70,7 +70,7 @@ __host__ void host_integer_radix_cmux_kb(
 #pragma omp section
     {
       auto mem_false = mem_ptr->zero_if_false_buffer;
-      zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
+      zero_out_if(false_streams, gpu_indexes, 1, mem_ptr->tmp_false_ct,
                   lwe_array_false, lwe_condition, mem_false,
                   mem_ptr->predicate_lut, bsks, ksks, num_radix_blocks);
     }
