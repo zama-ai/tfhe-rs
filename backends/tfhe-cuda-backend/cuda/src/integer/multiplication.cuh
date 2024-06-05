@@ -280,7 +280,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     // we allocate luts_message_carry in the host function (instead of scratch)
     // to reduce average memory consumption
     auto luts_message_carry = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, mem_ptr->params, 2, total_count, true);
+        streams, gpu_indexes, 1, mem_ptr->params, 2, total_count, true);
 
     auto message_acc = luts_message_carry->get_lut(0);
     auto carry_acc = luts_message_carry->get_lut(1);
@@ -331,16 +331,18 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
         lwe_dimension, mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
         message_count);
 
-    execute_pbs<Torus>(streams, gpu_indexes, gpu_count, new_blocks,
-                       lwe_indexes_out, luts_message_carry->lut,
-                       luts_message_carry->lut_indexes, small_lwe_vector,
-                       lwe_indexes_in, bsks, luts_message_carry->buffer,
-                       glwe_dimension, lwe_dimension, polynomial_size,
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs<Torus>(streams, gpu_indexes, 1, new_blocks, lwe_indexes_out,
+                       luts_message_carry->lut, luts_message_carry->lut_indexes,
+                       small_lwe_vector, lwe_indexes_in, bsks,
+                       luts_message_carry->buffer, glwe_dimension,
+                       lwe_dimension, polynomial_size,
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, total_count, 2, 0,
                        max_shared_memory, mem_ptr->params.pbs_type);
 
-    luts_message_carry->release(streams, gpu_indexes, gpu_count);
+    luts_message_carry->release(streams, gpu_indexes, 1);
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
     int new_blocks_created = 2 * ch_amount * num_blocks;
