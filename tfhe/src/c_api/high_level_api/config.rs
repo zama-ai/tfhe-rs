@@ -1,4 +1,5 @@
 use super::utils::*;
+use crate::c_api::shortint::parameters::CompressionParameters;
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
@@ -104,5 +105,22 @@ pub unsafe extern "C" fn config_builder_build(
         let config = Box::from_raw(builder).0.build();
 
         *result = Box::into_raw(Box::new(Config(config)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn config_builder_enable_compression(
+    builder: *mut *mut ConfigBuilder,
+    compression_parameters: *const CompressionParameters,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(builder).unwrap();
+
+        let compression_parameters = get_ref_checked(compression_parameters).unwrap();
+
+        let inner = Box::from_raw(*builder)
+            .0
+            .enable_compression(compression_parameters.0);
+        *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }
