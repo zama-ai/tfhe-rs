@@ -756,8 +756,8 @@ test_nodejs_wasm_api: build_node_js_api
 test_web_js_api_parallel: build_web_js_api_parallel
 	$(MAKE) -C tfhe/web_wasm_parallel_tests test
 
-.PHONY: ci_test_web_js_api_parallel # Run tests for the web wasm api
-ci_test_web_js_api_parallel: build_web_js_api_parallel
+.PHONY: test_web_js_api_parallel_ci # Run tests for the web wasm api
+test_web_js_api_parallel_ci: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
@@ -884,8 +884,8 @@ bench_ks_gpu: install_rs_check_toolchain
 bench_web_js_api_parallel: build_web_js_api_parallel
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench
 
-.PHONY: ci_bench_web_js_api_parallel # Run benchmarks for the web wasm api
-ci_bench_web_js_api_parallel: build_web_js_api_parallel
+.PHONY: bench_web_js_api_parallel_ci # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_ci: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
 	nvm use node && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
