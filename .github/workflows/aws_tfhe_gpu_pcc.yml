@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
-name: TFHE Cuda Backend - Fast tests
+# Perfom tfhe-cuda-backend post-commit checks on an AWS instance
+name: TFHE Cuda Backend - Post-commit Checks
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,34 +13,32 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
-  workflow_dispatch:
   pull_request:
 
 jobs:
   setup-instance:
-    name: Setup instance (cuda-tests)
+    name: Setup instance (cuda-pcc)
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
       - name: Start instance
         id: start-instance
-        uses: zama-ai/slab-github-runner@1d4b7b7540118af5f96ac16a1dc4cfd9c5929dc8
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
-          profile: gpu-test
+          profile: gpu-build
 
-  cuda-tests-linux:
-    name: CUDA tests
+  cuda-pcc:
+    name: CUDA post-commit checks
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+      cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
@@ -87,22 +85,13 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
-      - name: Run core crypto and internal CUDA backend tests
+      - name: Run fmt checks
         run: |
-          make test_core_crypto_gpu
-          make test_cuda_backend
+          make check_fmt_gpu
 
-      - name: Run user docs tests
+      - name: Run clippy checks
         run: |
-          make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          make test_high_level_api_gpu
+          make pcc_gpu
 
       - name: Slack Notification
         if: ${{ always() }}
@@ -110,17 +99,17 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "CUDA AWS post-commit checks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (cuda-tests)
+    name: Teardown instance (cuda-pcc)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [ setup-instance, cuda-pcc ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
         id: stop-instance
-        uses: zama-ai/slab-github-runner@1d4b7b7540118af5f96ac16a1dc4cfd9c5929dc8
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -134,4 +123,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-pcc) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
