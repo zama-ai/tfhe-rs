@@ -325,11 +325,15 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
           streams[0], gpu_indexes[0],
           luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
 
-    cuda_keyswitch_lwe_ciphertext_vector(
-        streams[0], gpu_indexes[0], small_lwe_vector, lwe_indexes_in,
-        new_blocks, lwe_indexes_in, ksks[0], polynomial_size * glwe_dimension,
-        lwe_dimension, mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
-        message_count);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    /// Apply KS to go from a big LWE dimension to a small LWE dimension
+    execute_keyswitch(streams, gpu_indexes, gpu_count, small_lwe_vector,
+                      lwe_indexes_in, new_blocks, lwe_indexes_in, ksks,
+                      polynomial_size * glwe_dimension, lwe_dimension,
+                      mem_ptr->params.ks_base_log, mem_ptr->params.ks_level,
+                      message_count, false);
+    for (uint j = 0; j < gpu_count; j++)
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -341,7 +345,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
                        mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
                        mem_ptr->params.grouping_factor, total_count, 2, 0,
                        max_shared_memory, mem_ptr->params.pbs_type);
-
     luts_message_carry->release(streams, gpu_indexes, 1);
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
