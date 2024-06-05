@@ -19,6 +19,8 @@ FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=20
 FORWARD_COMPAT?=OFF
+BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
+BACKWARD_COMPAT_DATA_DIR=tfhe-backward-compat-data
 # sed: -n, do not print input stream, -e means a script/expression
 # 1,/version/ indicates from the first line, to the line matching version at the start of the line
 # p indicates to print, so we keep only the start of the Cargo.toml until we hit the first version
@@ -658,6 +660,14 @@ test_versionable: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-versionable
 
+.PHONY: test_backward_compatibility_ci
+test_backward_compatibility_ci: install_rs_build_toolchain
+	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),shortint -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
+
+.PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
+test_backward_compatibility: tfhe/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
@@ -933,6 +943,12 @@ write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 	--example write_params_to_file \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache
+
+.PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
+clone_backward_compat_data:
+	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) tfhe/$(BACKWARD_COMPAT_DATA_DIR)
+
+tfhe/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
 
 #
 # Real use case examples
