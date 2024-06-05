@@ -700,3 +700,138 @@ fn lwe_encrypt_pbs_ntt64_decrypt_custom_mod(params: ClassicTestParams<u64>) {
 create_parametrized_test!(lwe_encrypt_pbs_ntt64_decrypt_custom_mod {
     TEST_PARAMS_3_BITS_SOLINAS_U64
 });
+
+#[test]
+fn test_lwe_encrypt_pbs_switch_mod_switch_scalar_decrypt_custom_mod() {
+    let params = super::TEST_PARAMS_4_BITS_NATIVE_U64;
+
+    let lwe_dimension = params.lwe_dimension;
+    let lwe_noise_distribution_u64 = params.lwe_noise_distribution;
+    let lwe_noise_distribution_u32 =
+        DynamicDistribution::new_gaussian(lwe_noise_distribution_u64.gaussian_std_dev());
+    let glwe_noise_distribution = params.glwe_noise_distribution;
+    let output_ciphertext_modulus = params.ciphertext_modulus;
+    let message_modulus_log = params.message_modulus_log;
+    let output_encoding_with_padding = get_encoding_with_padding(output_ciphertext_modulus);
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+    let pbs_base_log = params.pbs_base_log;
+    let pbs_level_count = params.pbs_level;
+
+    let input_ciphertext_modulus = CiphertextModulus::<u32>::new_native();
+    let input_encoding_with_padding = get_encoding_with_padding(input_ciphertext_modulus);
+
+    let mut rsc = TestResources::new();
+
+    let input_msg_modulus = 1u32 << message_modulus_log.0;
+    let output_msg_modulus = 1u64 << message_modulus_log.0;
+    let mut msg = input_msg_modulus;
+    let input_delta = input_encoding_with_padding / input_msg_modulus;
+    let output_delta = output_encoding_with_padding / output_msg_modulus;
+
+    let f = |x| x;
+
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
+        polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        output_msg_modulus.cast_into(),
+        output_ciphertext_modulus,
+        output_delta,
+        f,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        output_ciphertext_modulus
+    ));
+
+    let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key::<u32, _>(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let lwe_sk_as_u64 = LweSecretKey::from_container(
+        lwe_sk
+            .as_ref()
+            .iter()
+            .copied()
+            .map(|x| x as u64)
+            .collect::<Vec<_>>(),
+    );
+
+    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
+        &lwe_sk_as_u64,
+        &glwe_sk,
+        pbs_base_log,
+        pbs_level_count,
+        glwe_noise_distribution,
+        output_ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        output_ciphertext_modulus
+    ));
+
+    let mut fbsk = FourierLweBootstrapKey::new(
+        bsk.input_lwe_dimension(),
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+    );
+
+    par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+    drop(bsk);
+
+    while msg != 0 {
+        msg -= 1;
+        for _ in 0..NB_TESTS {
+            let plaintext = Plaintext(msg * input_delta);
+
+            let ct = allocate_and_encrypt_new_lwe_ciphertext(
+                &lwe_sk,
+                plaintext,
+                lwe_noise_distribution_u32,
+                input_ciphertext_modulus,
+                &mut rsc.encryption_random_generator,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                input_ciphertext_modulus
+            ));
+
+            let mut output_ct = LweCiphertext::new(
+                0u64,
+                fbsk.output_lwe_dimension().to_lwe_size(),
+                output_ciphertext_modulus,
+            );
+
+            programmable_bootstrap_lwe_ciphertext(&ct, &mut output_ct, &accumulator, &fbsk);
+
+            assert!(check_encrypted_content_respects_mod(
+                &output_ct,
+                output_ciphertext_modulus
+            ));
+
+            let decrypted = decrypt_lwe_ciphertext(&glwe_sk.as_lwe_secret_key(), &output_ct);
+
+            let decoded = round_decode(decrypted.0, output_delta) % output_msg_modulus;
+
+            assert_eq!(msg as u64, decoded);
+        }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
+    }
+}
