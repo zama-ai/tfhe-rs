@@ -809,6 +809,14 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
+.PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
+bench_integer_zk: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-pke-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,zk-pok-experimental,nightly-avx512 \
+	-p $(TFHE_SPEC) --
+
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \

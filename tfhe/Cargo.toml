@@ -201,7 +201,6 @@ path = "benches/integer/oprf.rs"
 harness = false
 required-features = ["integer", "internal-keycache"]
 
-
 [[bench]]
 name = "oprf-shortint-bench"
 path = "benches/shortint/oprf.rs"
@@ -219,6 +218,12 @@ name = "integer-signed-bench"
 path = "benches/integer/signed_bench.rs"
 harness = false
 required-features = ["integer", "internal-keycache"]
+
+[[bench]]
+name = "zk-pke-bench"
+path = "benches/integer/zk_pke.rs"
+harness = false
+required-features = ["integer", "zk-pok-experimental", "internal-keycache"]
 
 [[bench]]
 name = "hlapi"
