@@ -11,8 +11,11 @@ use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_NAME, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME, PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64_NAME,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME,
 };
+use tfhe::shortint::parameters::classic::compact_pk::tuniform::p_fail_2_minus_64::pbs_ks::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::classic::compact_pk::{
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
@@ -33,6 +36,9 @@ fn params_from_name(name: &str) -> ClassicPBSParameters {
         PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME => PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_NAME => PARAM_MESSAGE_1_CARRY_1_KS_PBS,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME => PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64_NAME => {
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64
+        }
         _ => panic!("failed to get parameters for name '{name}'"),
     }
 }

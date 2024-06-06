@@ -21,6 +21,7 @@ import init, {
 } from "./pkg/tfhe.js";
 
 const U32_MAX = 4294967295;
+const U64_MAX = BigInt("0xffffffffffffffff")
 
 function assert(cond, text) {
   if (cond) return;
@@ -505,47 +506,65 @@ async function compactPublicKeyZeroKnowledgeBench() {
     ShortintEncryptionKeyChoice.Big,
   );
 
-  let config = TfheConfigBuilder.default()
-    .use_custom_parameters(block_params)
-    .build();
-
-  let clientKey = TfheClientKey.generate(config);
-  let publicKey = TfheCompactPublicKey.new(clientKey);
-
-  console.log("Start CRS generation");
-  console.time("CRS generation");
-  let crs = CompactPkeCrs.from_config(config, 4 * 64);
-  console.timeEnd("CRS generation");
-  let public_params = crs.public_params();
-
-  const bench_loops = 4; // The computation is expensive
   let bench_results = {};
-  let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
-  const load_to_str = {
-    [ZkComputeLoad.Proof]: "compute_load_proof",
-    [ZkComputeLoad.Verify]: "compute_load_verify",
-  };
-  for (const loadChoice of load_choices) {
-    let timing = 0;
-    for (let i = 0; i < bench_loops; i++) {
-      let input = generateRandomBigInt(64);
 
-      const start = performance.now();
-      let builder = ProvenCompactCiphertextList.builder(publicKey);
-      builder.push_u64(input);
-      let list = builder.build_with_proof(public_params);
+  for (const block_params_name of params_to_bench) {
+    let block_params = new ShortintParameters(block_params_name);
 
-      const end = performance.now();
-      timing += end - start;
+    let config = TfheConfigBuilder.default()
+      .use_custom_parameters(block_params)
+      .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let publicKey = TfheCompactPublicKey.new(clientKey);
+
+    const bench_loops = 5; // The computation is expensive
+    let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
+    const load_to_str = {
+      [ZkComputeLoad.Proof]: "compute_load_proof",
+      [ZkComputeLoad.Verify]: "compute_load_verify",
+    };
+
+    const param_to_name = {
+      [ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64]: "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64",
+    };
+
+    let bits_to_encrypt = [640, 1280, 4096];
+
+    let encrypt_counts = bits_to_encrypt.map((v) => v / 64);
+
+    for (const encrypt_count of encrypt_counts) {
+      console.log("Start CRS generation");
+      console.time("CRS generation");
+      let crs = CompactPkeCrs.from_config(config, encrypt_count * 64);
+      console.timeEnd("CRS generation");
+
+      let public_params = crs.public_params();
+      let inputs = Array.from(Array(encrypt_count).keys()).map((_) => U64_MAX);
+      for (const loadChoice of load_choices) {
+        let timing = 0;
+        for (let i = 0; i < bench_loops; i++) {
+          console.time("Loop " + i);
+          let compact_list_builder = ProvenCompactCiphertextList.builder(publicKey);
+          for (let j = 0; j < encrypt_count; j++) {
+            compact_list_builder.push_u64(inputs[j]);
+          }
+          const start = performance.now();
+          let list = compact_list_builder.build_with_proof_packed(public_params, loadChoice);
+          const end = performance.now();
+          console.timeEnd("Loop " + i);
+          timing += end - start;
+        }
+        const mean = timing / bench_loops;
+        const bench_str =
+          "compact_fhe_uint_proven_encryption_" +
+          encrypt_count * 64 +
+          "_bits_packed_" + load_to_str[loadChoice] + "_mean_" +
+          param_to_name[block_params_name];
+        console.log(bench_str, ": ", mean, " ms");
+        bench_results[bench_str] = mean;
+      }
     }
-    const mean = timing / bench_loops;
-
-    const bench_str =
-      "compact_fhe_uint64_proven_encryption_" +
-      load_to_str[loadChoice] +
-      "_mean";
-    console.log(bench_str, ": ", mean, " ms");
-    bench_results["compact_fhe_uint64_proven_encryption_"] = mean;
   }
 
   return bench_results;

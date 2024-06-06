@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::shortint::parameters::classic::compact_pk::tuniform::p_fail_2_minus_64::pbs_ks::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 use crate::shortint::parameters::*;
