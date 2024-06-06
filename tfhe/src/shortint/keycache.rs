@@ -1,5 +1,6 @@
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
+use crate::shortint::parameters::classic::compact_pk::tuniform::p_fail_2_minus_64::pbs_ks::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
 use crate::shortint::parameters::classic::compact_pk::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -104,6 +105,8 @@ named_params_impl!( ShortintParameterSet =>
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
+    // CPK ZK bench
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64,
     // Wopbs
     WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,

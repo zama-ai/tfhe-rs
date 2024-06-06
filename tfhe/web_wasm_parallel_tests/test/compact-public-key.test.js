@@ -15,3 +15,11 @@ it(
   },
   1200 * 1000,
 ); // 20 minutes timeout
+
+it(
+  "Compact Public Key Bench 64 Bit With ZeroKnowledge",
+  async () => {
+    await runTestAttachedToButton("compactPublicKeyZeroKnowledgeBench");
+  },
+  3600 * 1000,
+); // 60 minutes timeout
