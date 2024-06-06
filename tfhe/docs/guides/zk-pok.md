@@ -36,7 +36,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof(public_zk_params, ZkComputeLoad::Proof)?;
+        .build_with_proof_packed(public_zk_params, ZkComputeLoad::Proof)?;
 
     // Server side
     let result = {

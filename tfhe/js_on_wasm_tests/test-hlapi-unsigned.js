@@ -19,7 +19,6 @@ const {
 const {
     randomBytes,
 } = require('node:crypto');
-const {FheUint2048} = require("../pkg");
 
 const U256_MAX = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 const U128_MAX = BigInt("340282366920938463463374607431768211455");
