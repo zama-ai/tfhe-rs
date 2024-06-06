@@ -36,8 +36,8 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, 1, lwe_array_out, tmp_lwe_array_input, bsks, ksks,
-      num_radix_blocks, predicate);
+      streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
+      ksks, num_radix_blocks, predicate);
 }
 
 template <typename Torus>
@@ -51,9 +51,11 @@ __host__ void host_integer_radix_cmux_kb(
 
   // Since our CPU threads will be working on different streams we shall assert
   // the work in the main stream is completed
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-  auto true_stream = mem_ptr->zero_if_true_buffer->local_stream;
-  auto false_stream = mem_ptr->zero_if_false_buffer->local_stream;
+  auto true_streams = mem_ptr->zero_if_true_buffer->local_streams;
+  auto false_streams = mem_ptr->zero_if_false_buffer->local_streams;
+  for (uint j = 0; j < gpu_count; j++) {
+    cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+  }
 
 #pragma omp parallel sections
   {
@@ -61,7 +63,7 @@ __host__ void host_integer_radix_cmux_kb(
 #pragma omp section
     {
       auto mem_true = mem_ptr->zero_if_true_buffer;
-      zero_out_if(&true_stream, gpu_indexes, 1, mem_ptr->tmp_true_ct,
+      zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
                   lwe_array_true, lwe_condition, mem_true,
                   mem_ptr->inverted_predicate_lut, bsks, ksks,
                   num_radix_blocks);
@@ -69,13 +71,15 @@ __host__ void host_integer_radix_cmux_kb(
 #pragma omp section
     {
       auto mem_false = mem_ptr->zero_if_false_buffer;
-      zero_out_if(&false_stream, gpu_indexes, 1, mem_ptr->tmp_false_ct,
+      zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
                   lwe_array_false, lwe_condition, mem_false,
                   mem_ptr->predicate_lut, bsks, ksks, num_radix_blocks);
     }
   }
-  cuda_synchronize_stream(true_stream, gpu_indexes[0]);
-  cuda_synchronize_stream(false_stream, gpu_indexes[0]);
+  for (uint j = 0; j < gpu_count; j++) {
+    cuda_synchronize_stream(true_streams[j], gpu_indexes[j]);
+    cuda_synchronize_stream(false_streams[j], gpu_indexes[j]);
+  }
 
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will

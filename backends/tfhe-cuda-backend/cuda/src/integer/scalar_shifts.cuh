@@ -217,20 +217,22 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     }
     // Since our CPU threads will be working on different streams we shall
     // assert the work in the main stream is completed
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+    }
 #pragma omp parallel sections
     {
       // All sections may be executed in parallel
 #pragma omp section
       {
         integer_radix_apply_univariate_lookup_table_kb(
-            &mem->local_stream_1, &gpu_indexes[0], 1, padding_block,
+            mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
             last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
         // Replace blocks 'pulled' from the left with the correct padding block
         for (uint i = 0; i < rotations; i++) {
           cuda_memcpy_async_gpu_to_gpu(
               lwe_array + (num_blocks - rotations + i) * big_lwe_size,
-              padding_block, big_lwe_size_bytes, mem->local_stream_1,
+              padding_block, big_lwe_size_bytes, mem->local_streams_1[0],
               gpu_indexes[0]);
         }
       }
@@ -238,13 +240,15 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       {
         if (shift_within_block != 0 && rotations != num_blocks) {
           integer_radix_apply_univariate_lookup_table_kb(
-              &mem->local_stream_2, &gpu_indexes[0], 1, last_block,
+              mem->local_streams_2, gpu_indexes, gpu_count, last_block,
               last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
         }
       }
     }
-    cuda_synchronize_stream(mem->local_stream_1, gpu_indexes[0]);
-    cuda_synchronize_stream(mem->local_stream_2, gpu_indexes[0]);
+    for (uint j = 0; j < gpu_count; j++) {
+      cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
+      cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
+    }
 
   } else {
     PANIC("Cuda error (scalar shift): left scalar shift is never of the "
