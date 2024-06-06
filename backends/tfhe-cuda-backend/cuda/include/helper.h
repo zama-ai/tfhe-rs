@@ -1,9 +1,10 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+extern bool p2p_enabled;
+
 extern "C" {
 int cuda_setup_multi_gpu();
-void cuda_cleanup_multi_gpu();
 }
 
 int get_active_gpu_count(int num_inputs, int gpu_count);

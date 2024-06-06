@@ -85,9 +85,6 @@ impl Drop for CudaStreams {
                 cuda_destroy_stream(s, self.gpu_indexes[i]);
             }
         }
-        unsafe {
-            cuda_cleanup_multi_gpu();
-        }
     }
 }
 

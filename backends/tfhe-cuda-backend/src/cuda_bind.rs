@@ -72,8 +72,6 @@ extern "C" {
 
     pub fn cuda_setup_multi_gpu() -> i32;
 
-    pub fn cuda_cleanup_multi_gpu();
-
     /// Copy a bootstrap key `src` represented with 64 bits in the standard domain from the CPU to
     /// the GPU `gpu_index` using the stream `v_stream`, and convert it to the Fourier domain on the
     /// GPU. The resulting bootstrap key `dest` on the GPU is an array of f64 values.
