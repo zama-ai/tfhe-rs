@@ -232,7 +232,7 @@ impl CompactCiphertextListBuilder {
         let packed_messages = self
             .messages
             .chunks(2)
-            .map(|two_values| (two_values[1] * msg_mod) + two_values[0])
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0])
             .collect::<Vec<_>>();
         let ct_list = self.pk.key.encrypt_and_prove_slice(
             packed_messages.as_slice(),
