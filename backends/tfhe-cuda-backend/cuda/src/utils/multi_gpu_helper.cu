@@ -21,8 +21,7 @@ int cuda_setup_multi_gpu() {
           cudaMemAccessDesc desc = {};
           // Enable P2P Access and mempool access
           check_cuda_error(cudaSetDevice(i));
-          check_cuda_error_ignore_specific(cudaDeviceEnablePeerAccess(0, 0),
-                                           cudaErrorPeerAccessAlreadyEnabled);
+          check_cuda_error(cudaDeviceEnablePeerAccess(0, 0));
 
           check_cuda_error(cudaDeviceGetDefaultMemPool(&mempool, 0));
           desc.location.type = cudaMemLocationTypeDevice;
