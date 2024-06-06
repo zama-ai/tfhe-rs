@@ -224,6 +224,10 @@ impl CompactCiphertextListBuilder {
         public_params: &CompactPkePublicParams,
         load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
+        if self.pk.key.parameters.carry_modulus().0 < self.pk.key.parameters.message_modulus().0 {
+            return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
+        }
+
         let msg_mod = self.pk.key.message_modulus().0 as u64;
         let packed_messages = self
             .messages
@@ -532,7 +536,7 @@ impl ProvenCompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok_experimental")]
+#[cfg(feature = "zk-pok-experimental")]
 #[cfg(test)]
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;
@@ -560,19 +564,16 @@ mod tests {
             .collect::<Vec<_>>();
 
         let proven_ct = CompactCiphertextList::builder(&pk)
-            .push_sized_numbers(msgs.iter().copied(), num_blocks)
+            .extend_with_num_blocks(msgs.iter().copied(), num_blocks)
             .build_with_proof_packed(crs.public_params(), ZkComputeLoad::Proof)
             .unwrap();
 
-        let mut expander = proven_ct
+        let expander = proven_ct
             .verify_and_expand(crs.public_params(), &pk, &sk)
             .unwrap();
 
-        for msg in msgs {
-            let expanded = expander
-                .expand_next_as::<RadixCiphertext>()
-                .unwrap()
-                .unwrap();
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = expander.get::<RadixCiphertext>(idx).unwrap().unwrap();
             let decrypted = cks.decrypt_radix::<u64>(&expanded);
             assert_eq!(msg, decrypted);
         }
