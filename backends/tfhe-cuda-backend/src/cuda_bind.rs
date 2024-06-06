@@ -721,13 +721,17 @@ extern "C" {
     );
 
     pub fn scratch_cuda_full_propagation_64(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
         lwe_dimension: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
+        ks_level: u32,
+        ks_base_log: u32,
         pbs_level: u32,
+        pbs_base_log: u32,
         grouping_factor: u32,
         num_blocks: u32,
         message_modulus: u32,
@@ -744,20 +748,13 @@ extern "C" {
         mem_ptr: *mut i8,
         ksks: *const *mut c_void,
         bsks: *const *mut c_void,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        ks_base_log: u32,
-        ks_level: u32,
-        pbs_base_log: u32,
-        pbs_level: u32,
-        grouping_factor: u32,
         num_blocks: u32,
     );
 
     pub fn cleanup_cuda_full_propagation(
-        stream: *mut c_void,
-        gpu_index: u32,
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
         mem_ptr: *mut *mut i8,
     );
 
