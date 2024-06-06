@@ -94,7 +94,6 @@ public:
                        d_ksk_array, plaintexts, d_lwe_ct_in_array,
                        lwe_input_indexes, d_lwe_ct_out_array,
                        lwe_output_indexes);
-    cuda_cleanup_multi_gpu();
     if (active_gpu_count > 1) {
       for (uint gpu_i = 1; gpu_i < active_gpu_count; gpu_i++) {
         cuda_destroy_stream(streams[gpu_i], gpu_i);
