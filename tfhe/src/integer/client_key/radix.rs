@@ -5,6 +5,8 @@ use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::BooleanBlock;
+use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
+use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
 use serde::{Deserialize, Serialize};
 
@@ -127,6 +129,22 @@ impl RadixClientKey {
 
     pub fn num_blocks(&self) -> usize {
         self.num_blocks
+    }
+
+    pub fn new_compression_private_key(
+        &self,
+        params: CompressionParameters,
+    ) -> CompressionPrivateKeys {
+        self.key.key.new_compression_private_key(params)
+    }
+
+    pub fn new_compression_decompression_keys(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> (CompressionKey, DecompressionKey) {
+        self.key
+            .key
+            .new_compression_decompression_keys(private_compression_key)
     }
 }
 
