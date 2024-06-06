@@ -629,7 +629,7 @@ template <typename Torus> struct int_radix_lut {
     auto src_lut = lut_array[src_gpu_idx];
     auto src_lut_indexes = lut_indexes_array[src_gpu_idx];
 
-//#pragma omp parallel for num_threads(active_gpu_count)
+#pragma omp parallel for num_threads(active_gpu_count)
     for (uint i = 0; i < active_gpu_count; i++) {
       if (i != src_gpu_idx) {
         auto dst_lut = lut_array[i];
