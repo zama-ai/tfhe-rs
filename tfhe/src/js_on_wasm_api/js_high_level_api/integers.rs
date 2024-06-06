@@ -949,20 +949,6 @@ impl CompactCiphertextListBuilder {
     }
 
     #[cfg(feature = "zk-pok-experimental")]
-    pub fn build_with_proof(
-        &self,
-        public_params: &CompactPkePublicParams,
-        compute_load: ZkComputeLoad,
-    ) -> Result<ProvenCompactCiphertextList, JsError> {
-        catch_panic_result(|| {
-            self.0
-                .build_with_proof(&public_params.0, compute_load.into())
-                .map_err(into_js_error)
-                .map(ProvenCompactCiphertextList)
-        })
-    }
-
-    #[cfg(feature = "zk-pok-experimental")]
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,

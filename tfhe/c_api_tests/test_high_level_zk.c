@@ -36,13 +36,18 @@ int main(void) {
   assert(status == 0);
 
   ClientKey *client_key;
-  status = client_key_generate(config, &client_key);
+  ServerKey *server_key;
+  status = generate_keys(config, &client_key, &server_key);
   assert(status == 0);
+
+  set_server_key(server_key);
 
   // zk proofs of encryption works only using the CompactPublicKey
   CompactPublicKey *pk;
   status = compact_public_key_new(client_key, &pk);
   assert(status == 0);
+
+
 
   // Then, we create the compact list
   ProvenCompactCiphertextList *compact_list = NULL;
@@ -64,7 +69,7 @@ int main(void) {
     status = compact_ciphertext_list_builder_push_u2(builder, 3);
     assert(status == 0);
 
-    status = compact_ciphertext_list_builder_build_with_proof(builder, public_params,
+    status = compact_ciphertext_list_builder_build_with_proof_packed(builder, public_params,
                                                               ZkComputeLoadProof, &compact_list);
     assert(status == 0);
 
@@ -124,6 +129,7 @@ int main(void) {
   fhe_bool_destroy(c);
   fhe_uint2_destroy(d);
   client_key_destroy(client_key);
+  server_key_destroy(server_key);
   compact_public_key_destroy(pk);
   compact_pke_public_params_destroy(public_params);
   compact_pke_crs_destroy(crs);

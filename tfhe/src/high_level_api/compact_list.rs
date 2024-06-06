@@ -345,17 +345,6 @@ impl CompactCiphertextListBuilder {
     }
 
     #[cfg(feature = "zk-pok-experimental")]
-    pub fn build_with_proof(
-        &self,
-        public_params: &CompactPkePublicParams,
-        compute_load: ZkComputeLoad,
-    ) -> crate::Result<ProvenCompactCiphertextList> {
-        self.inner
-            .build_with_proof(public_params, compute_load)
-            .map(ProvenCompactCiphertextList)
-    }
-
-    #[cfg(feature = "zk-pok-experimental")]
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,

@@ -484,30 +484,10 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     builder.push_i32(clear_i32);
     builder.push_boolean(clear_bool);
     builder.push_u256(clear_u256);
-    let list = builder.build_with_proof(public_params, ZkComputeLoad.Proof);
+    let list = builder.build_with_proof_packed(public_params, ZkComputeLoad.Proof);
 
     let serialized = list.safe_serialize(BigInt(10000000));
     let deserialized = ProvenCompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));
 
-    let expander = deserialized.verify_and_expand(public_params, publicKey);
-
-    assert.deepStrictEqual(
-        expander.get_uint2(0).decrypt(clientKey),
-        clear_u2,
-    );
-
-    assert.deepStrictEqual(
-        expander.get_int32(1).decrypt(clientKey),
-        clear_i32,
-    );
-
-    assert.deepStrictEqual(
-        expander.get_bool(2).decrypt(clientKey),
-        clear_bool,
-    );
-
-    assert.deepStrictEqual(
-        expander.get_uint256(3).decrypt(clientKey),
-        clear_u256,
-    );
+    // We cannot verify packed ZK in wasm
 });

@@ -75,26 +75,6 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_packed(
 
 #[cfg(feature = "zk-pok-experimental")]
 #[no_mangle]
-pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof(
-    builder: *const CompactCiphertextListBuilder,
-    public_params: *const CompactPkePublicParams,
-    compute_load: ZkComputeLoad,
-    list: *mut *mut ProvenCompactCiphertextList,
-) -> c_int {
-    catch_panic(|| {
-        let builder = get_ref_checked(builder).unwrap();
-        let public_params = get_ref_checked(public_params).unwrap();
-        let inner = builder
-            .0
-            .build_with_proof(&public_params.0, compute_load.into())
-            .unwrap();
-
-        *list = Box::into_raw(Box::new(ProvenCompactCiphertextList(inner)));
-    })
-}
-
-#[cfg(feature = "zk-pok-experimental")]
-#[no_mangle]
 pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed(
     builder: *const CompactCiphertextListBuilder,
     public_params: *const CompactPkePublicParams,
