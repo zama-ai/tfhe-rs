@@ -117,8 +117,9 @@ __host__ void are_all_comparisons_block_true(
         lut = (*is_equal_to_num_blocks_map)[chunk_length];
       } else {
         // LUT needs to be computed
-        auto new_lut = new int_radix_lut<Torus>(
-            streams, gpu_indexes, 1, params, max_value, num_radix_blocks, true);
+        auto new_lut =
+            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
+                                     max_value, num_radix_blocks, true);
 
         auto is_equal_to_num_blocks_lut_f = [max_value,
                                              chunk_length](Torus x) -> Torus {
@@ -138,13 +139,13 @@ __host__ void are_all_comparisons_block_true(
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, 1, lwe_array_out, accumulator, bsks, ksks, 1,
-          lut);
+          streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
+          ksks, 1, lut);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, 1, tmp_out, accumulator, bsks, ksks, num_chunks,
-          lut);
+          streams, gpu_indexes, gpu_count, tmp_out, accumulator, bsks, ksks,
+          num_chunks, lut);
     }
   }
 }
@@ -205,13 +206,13 @@ __host__ void is_at_least_one_comparisons_block_true(
     if (remaining_blocks == 1) {
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, 1, lwe_array_out, accumulator, bsks, ksks, 1,
-          lut);
+          streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
+          ksks, 1, lut);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, 1, mem_ptr->tmp_lwe_array_out, accumulator,
-          bsks, ksks, num_chunks, lut);
+          streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
+          accumulator, bsks, ksks, num_chunks, lut);
     }
   }
 }
@@ -304,7 +305,6 @@ __host__ void host_integer_radix_equality_check_kb(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     uint32_t num_radix_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto eq_buffer = mem_ptr->eq_buffer;
 
   // Applies the LUT for the comparison operation
@@ -357,7 +357,7 @@ compare_radix_blocks_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb(
-      streams, gpu_indexes, 1, lwe_array_out, lwe_array_out, bsks, ksks,
+      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_out, bsks, ksks,
       num_radix_blocks, is_non_zero_lut);
 
   // Add one

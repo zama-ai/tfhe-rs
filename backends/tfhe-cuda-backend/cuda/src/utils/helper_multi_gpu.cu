@@ -1,5 +1,7 @@
 #include "device.h"
 #include "helper_multi_gpu.h"
+#include <mutex>
+#include <omp.h>
 
 std::mutex m;
 bool p2p_enabled = false;
@@ -13,6 +15,7 @@ int cuda_setup_multi_gpu() {
     m.lock();
     if (!p2p_enabled) {
       p2p_enabled = true;
+      omp_set_nested(1);
       int has_peer_access_to_device_0;
       for (int i = 1; i < num_gpus; i++) {
         check_cuda_error(
