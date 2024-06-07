@@ -8,6 +8,7 @@ use serde::Serialize;
 use tfhe::boolean::parameters::{
     BooleanParameters, DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
 };
+use tfhe::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
@@ -430,6 +431,148 @@ fn multi_bit_deterministic_pbs<
         });
 
         let bit_size = params.message_modulus.unwrap().ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn mem_optimized_pbs_ntt(c: &mut Criterion) {
+    let bench_name = "core_crypto::pbs_ntt";
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    let custom_ciphertext_modulus =
+        tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
+
+    for (name, params) in throughput_benchmark_parameters::<u64>().iter_mut() {
+        let name = format!("{name}_PLACEHOLDER_NTT");
+
+        params.ciphertext_modulus = Some(custom_ciphertext_modulus);
+
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<u64> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension.unwrap(),
+                params.polynomial_size.unwrap(),
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
+
+        let lwe_noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
+        let glwe_noise_distribution =
+            DynamicDistribution::new_gaussian_from_std_dev(params.glwe_std_dev.unwrap());
+
+        let mut bsk = LweBootstrapKey::new(
+            0u64,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+            params.lwe_dimension.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        par_generate_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &output_glwe_secret_key,
+            &mut bsk,
+            glwe_noise_distribution,
+            &mut encryption_generator,
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
+            &input_lwe_secret_key,
+            Plaintext(0u64),
+            lwe_noise_distribution,
+            params.ciphertext_modulus.unwrap(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            0u64,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            0u64,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        let mut nbsk = NttLweBootstrapKeyOwned::new(
+            0u64,
+            bsk.input_lwe_dimension(),
+            bsk.glwe_size(),
+            bsk.polynomial_size(),
+            bsk.decomposition_base_log(),
+            bsk.decomposition_level_count(),
+            bsk.ciphertext_modulus(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let ntt = Ntt64::new(params.ciphertext_modulus.unwrap(), nbsk.polynomial_size());
+        let ntt = ntt.as_view();
+
+        let stack_size = programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            ntt,
+        )
+        .unwrap()
+        .try_unaligned_bytes_required()
+        .unwrap();
+
+        buffers.resize(stack_size);
+
+        par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+
+        drop(bsk);
+
+        let id = format!("{bench_name}::{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
+                        &lwe_ciphertext_in,
+                        &mut out_pbs_ct,
+                        &accumulator,
+                        &nbsk,
+                        ntt,
+                        buffers.stack(),
+                    );
+                    black_box(&mut out_pbs_ct);
+                })
+            });
+        }
+
+        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
         write_to_json(
             &id,
             *params,
@@ -1181,7 +1324,8 @@ use cuda::{
 criterion_group!(
     pbs_group,
     mem_optimized_pbs::<u64>,
-    mem_optimized_pbs::<u32>
+    mem_optimized_pbs::<u32>,
+    mem_optimized_pbs_ntt
 );
 
 criterion_group!(
