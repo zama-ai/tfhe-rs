@@ -23,6 +23,8 @@ pub mod gpu;
 #[cfg(test)]
 pub mod keycache;
 
+pub mod backward_compatibility;
+
 // Experimental section
 #[cfg(feature = "experimental")]
 pub mod experimental;

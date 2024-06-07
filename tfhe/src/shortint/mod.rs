@@ -47,6 +47,7 @@
 //! let output = client_key.decrypt(&ct_3);
 //! assert_eq!(output, 1);
 //! ```
+pub mod backward_compatibility;
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
