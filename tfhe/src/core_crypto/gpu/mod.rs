@@ -257,7 +257,6 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger>(
         base_log.0 as u32,
         l_gadget.0 as u32,
         num_samples,
-        0,
     );
 }
 

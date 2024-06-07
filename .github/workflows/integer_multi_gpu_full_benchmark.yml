@@ -35,8 +35,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: multi-gpu-test
+          backend: hyperstack
+          profile: multi-h100-nvlink
 
   cuda-integer-full-multi-gpu-benchmarks:
     name: Execute multi GPU integer benchmarks for all operations flavor
@@ -54,11 +54,23 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
-            gcc: 9
+            gcc: 11
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-    
+      CMAKE_VERSION: 3.29.6
     steps:
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
+
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -117,7 +129,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware "p3.8xlarge" \
+          --hardware "n3-H100x8-nvlink" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \

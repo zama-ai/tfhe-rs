@@ -75,7 +75,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size) {
+    uint32_t lwe_chunk_size) {
 
   if (base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
@@ -89,8 +89,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 512:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -99,8 +98,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 1024:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -109,8 +107,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 2048:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -119,8 +116,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 4096:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -129,8 +125,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 8192:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -139,8 +134,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 16384:
     host_cg_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -149,8 +143,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
@@ -168,7 +161,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size) {
+    uint32_t lwe_chunk_size) {
 
   if (base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
@@ -182,8 +175,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 512:
     host_multi_bit_programmable_bootstrap<Torus, int64_t, AmortizedDegree<512>>(
@@ -191,8 +183,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 1024:
     host_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -201,8 +192,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 2048:
     host_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -211,8 +201,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 4096:
     host_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -221,8 +210,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 8192:
     host_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -231,8 +219,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 16384:
     host_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -241,8 +228,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
@@ -258,8 +244,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_luts,
-    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t gpu_offset,
-    uint32_t lwe_chunk_size) {
+    uint32_t lwe_idx, uint32_t max_shared_memory, uint32_t lwe_chunk_size) {
 
   pbs_buffer<uint64_t, MULTI_BIT> *buffer =
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
@@ -277,8 +262,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(bootstrapping_key),
         (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
 #else
     PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
 #endif
@@ -293,8 +277,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(lwe_input_indexes),
         static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case PBS_VARIANT::DEFAULT:
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
@@ -306,8 +289,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         static_cast<uint64_t *>(lwe_input_indexes),
         static_cast<uint64_t *>(bootstrapping_key), buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
@@ -575,7 +557,7 @@ cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size);
+    uint32_t lwe_chunk_size);
 
 template void
 scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t, int64_t>(
@@ -595,7 +577,7 @@ cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size);
+    uint32_t lwe_chunk_size);
 
 template bool
 has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
@@ -683,7 +665,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size) {
+    uint32_t lwe_chunk_size) {
 
   if (base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be > number of bits in "
@@ -697,8 +679,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 512:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -707,8 +688,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 1024:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -717,8 +697,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 2048:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -727,8 +706,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 4096:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -737,8 +715,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 8192:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -747,8 +724,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   case 16384:
     host_tbc_multi_bit_programmable_bootstrap<Torus, int64_t,
@@ -757,8 +733,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
         lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
-        num_samples, num_luts, lwe_idx, max_shared_memory, gpu_offset,
-        lwe_chunk_size);
+        num_samples, num_luts, lwe_idx, max_shared_memory, lwe_chunk_size);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
@@ -785,5 +760,5 @@ cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size);
+    uint32_t lwe_chunk_size);
 #endif

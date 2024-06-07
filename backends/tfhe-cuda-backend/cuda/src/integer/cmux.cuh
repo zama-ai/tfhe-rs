@@ -76,8 +76,10 @@ __host__ void host_integer_radix_cmux_kb(
                   mem_ptr->predicate_lut, bsks, ksks, num_radix_blocks);
     }
   }
-  for (uint j = 0; j < gpu_count; j++) {
+  for (uint j = 0; j < mem_ptr->zero_if_true_buffer->active_gpu_count; j++) {
     cuda_synchronize_stream(true_streams[j], gpu_indexes[j]);
+  }
+  for (uint j = 0; j < mem_ptr->zero_if_false_buffer->active_gpu_count; j++) {
     cuda_synchronize_stream(false_streams[j], gpu_indexes[j]);
   }
 

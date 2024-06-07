@@ -1,5 +1,5 @@
 #include "device.h"
-#include "helper_multi_gpu.h"
+#include "helper_multi_gpu.cuh"
 #include <mutex>
 #include <omp.h>
 
@@ -21,34 +21,14 @@ int cuda_setup_multi_gpu() {
         check_cuda_error(
             cudaDeviceCanAccessPeer(&has_peer_access_to_device_0, i, 0));
         if (has_peer_access_to_device_0) {
-          cudaMemPool_t mempool;
-          cudaMemAccessDesc desc = {};
-          // Enable P2P Access and mempool access
           check_cuda_error(cudaSetDevice(i));
           check_cuda_error(cudaDeviceEnablePeerAccess(0, 0));
-
-          check_cuda_error(cudaDeviceGetDefaultMemPool(&mempool, 0));
-          desc.location.type = cudaMemLocationTypeDevice;
-          desc.location.id = i;
-          desc.flags = cudaMemAccessFlagsProtReadWrite;
-          check_cuda_error(
-              cudaMemPoolSetAccess(mempool, &desc, 1 /* numDescs */));
-          num_used_gpus += 1;
-        } else {
-          break;
         }
+        num_used_gpus += 1;
       }
     } else {
-      int has_peer_access_to_device_0;
-      for (int i = 1; i < num_gpus; i++) {
-        check_cuda_error(
-            cudaDeviceCanAccessPeer(&has_peer_access_to_device_0, i, 0));
-        if (has_peer_access_to_device_0) {
-          num_used_gpus += 1;
-        } else {
-          break;
-        }
-      }
+      for (int i = 1; i < num_gpus; i++)
+        num_used_gpus += 1;
     }
     m.unlock();
   }

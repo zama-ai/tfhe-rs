@@ -3,6 +3,7 @@
 
 #include "crypto/keyswitch.cuh"
 #include "device.h"
+#include "helper_multi_gpu.h"
 #include "integer.h"
 #include "integer/scalar_addition.cuh"
 #include "linear_algebra.h"
@@ -10,6 +11,7 @@
 #include "polynomial/functions.cuh"
 #include "programmable_bootstrap.h"
 #include "utils/helper.cuh"
+#include "utils/helper_multi_gpu.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <functional>
 
@@ -153,28 +155,69 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-  /// Apply KS to go from a big LWE dimension to a small LWE dimension
-  execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count,
-                           lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes,
-                           lwe_array_in, lut->lwe_indexes_in, ksks,
-                           big_lwe_dimension, small_lwe_dimension, ks_base_log,
-                           ks_level, num_radix_blocks, false);
+  /// For multi GPU execution we create vectors of pointers for inputs and
+  /// outputs
+  std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
+  std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
+  std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-  /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
-  /// dimension to a big LWE dimension
-  execute_pbs<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lut->lwe_indexes_out,
-      lut->lut_vec, lut->lut_indexes_vec, lut->tmp_lwe_after_ks,
-      lut->lwe_trivial_indexes, bsks, lut->buffer, glwe_dimension,
-      small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-      grouping_factor, num_radix_blocks, 1, 0,
-      cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
-
-  /// Synchronize all GPUs
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-  for (uint i = 0; i < active_gpu_count; i++) {
-    cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+  if (active_gpu_count == 1) {
+    execute_keyswitch_async<Torus>(streams, gpu_indexes, 1, lwe_after_ks_vec[0],
+                                   lwe_trivial_indexes_vec[0], lwe_array_in,
+                                   lut->lwe_indexes_in, ksks, big_lwe_dimension,
+                                   small_lwe_dimension, ks_base_log, ks_level,
+                                   num_radix_blocks);
+
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs_async<Torus>(
+        streams, gpu_indexes, 1, lwe_array_out, lut->lwe_indexes_out,
+        lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
+        lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
+        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        grouping_factor, num_radix_blocks, 1, 0,
+        cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
+  } else {
+    /// Make sure all data that should be on GPU 0 is indeed there
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+
+    /// With multiple GPUs we push to the vectors on each GPU then when we
+    /// gather data to GPU 0 we can copy back to the original indexing
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lwe_array_in_vec, lwe_array_in,
+        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
+        big_lwe_dimension + 1);
+
+    /// Apply KS to go from a big LWE dimension to a small LWE dimension
+    execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
+                                   lwe_after_ks_vec, lwe_trivial_indexes_vec,
+                                   lwe_array_in_vec, lwe_trivial_indexes_vec,
+                                   ksks, big_lwe_dimension, small_lwe_dimension,
+                                   ks_base_log, ks_level, num_radix_blocks);
+
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
+        lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, lut->buffer,
+        glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
+        pbs_level, grouping_factor, num_radix_blocks, 1, 0,
+        cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
+
+    /// Copy data back to GPU 0 and release vecs
+    multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
+                                      lwe_array_out, lwe_after_pbs_vec,
+                                      lut->h_lwe_indexes_out,
+                                      lut->using_trivial_lwe_indexes,
+                                      num_radix_blocks, big_lwe_dimension + 1);
+
+    /// Synchronize all GPUs
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
   }
 }
 
@@ -205,29 +248,65 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
                         num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+  /// For multi GPU execution we create vectors of pointers for inputs and
+  /// outputs
+  std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
+  std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
+  std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-  /// Apply KS to go from a big LWE dimension to a small LWE dimension
-  execute_keyswitch<Torus>(streams, gpu_indexes, gpu_count,
-                           lut->tmp_lwe_after_ks, lut->lwe_trivial_indexes,
-                           lwe_array_pbs_in, lut->lwe_indexes_in, ksks,
-                           big_lwe_dimension, small_lwe_dimension, ks_base_log,
-                           ks_level, num_radix_blocks, false);
-
-  /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
-  /// dimension to a big LWE dimension
-  execute_pbs<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lut->lwe_indexes_out,
-      lut->lut_vec, lut->lut_indexes_vec, lut->tmp_lwe_after_ks,
-      lut->lwe_trivial_indexes, bsks, lut->buffer, glwe_dimension,
-      small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-      grouping_factor, num_radix_blocks, 1, 0,
-      cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type, false);
-
-  /// Synchronize all GPUs
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-  for (uint i = 0; i < active_gpu_count; i++) {
-    cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+  if (active_gpu_count == 1) {
+    execute_keyswitch_async<Torus>(streams, gpu_indexes, 1, lwe_after_ks_vec[0],
+                                   lwe_trivial_indexes_vec[0], lwe_array_pbs_in,
+                                   lut->lwe_indexes_in, ksks, big_lwe_dimension,
+                                   small_lwe_dimension, ks_base_log, ks_level,
+                                   num_radix_blocks);
+
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs_async<Torus>(
+        streams, gpu_indexes, 1, lwe_array_out, lut->lwe_indexes_out,
+        lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
+        lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
+        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        grouping_factor, num_radix_blocks, 1, 0,
+        cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
+  } else {
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
+        lwe_array_pbs_in, lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        num_radix_blocks, big_lwe_dimension + 1);
+
+    /// Apply KS to go from a big LWE dimension to a small LWE dimension
+    execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
+                                   lwe_after_ks_vec, lwe_trivial_indexes_vec,
+                                   lwe_array_in_vec, lwe_trivial_indexes_vec,
+                                   ksks, big_lwe_dimension, small_lwe_dimension,
+                                   ks_base_log, ks_level, num_radix_blocks);
+
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
+        lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, lut->buffer,
+        glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
+        pbs_level, grouping_factor, num_radix_blocks, 1, 0,
+        cuda_get_max_shared_memory(gpu_indexes[0]), pbs_type);
+
+    /// Copy data back to GPU 0 and release vecs
+    multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
+                                      lwe_array_out, lwe_after_pbs_vec,
+                                      lut->h_lwe_indexes_out,
+                                      lut->using_trivial_lwe_indexes,
+                                      num_radix_blocks, big_lwe_dimension + 1);
+
+    /// Synchronize all GPUs
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
   }
 }
 
@@ -325,7 +404,6 @@ void generate_device_accumulator_bivariate(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
     uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f) {
 
-  cudaSetDevice(gpu_index);
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
@@ -357,7 +435,6 @@ void generate_device_accumulator_bivariate_with_factor(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t message_modulus,
     uint32_t carry_modulus, std::function<Torus(Torus, Torus)> f, int factor) {
 
-  cudaSetDevice(gpu_index);
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
@@ -595,10 +672,10 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     cudaSetDevice(gpu_indexes[0]);
     /// Since the keyswitch is done on one input only, use only 1 GPU
-    cuda_keyswitch_lwe_ciphertext_vector<Torus>(
-        streams[0], gpu_indexes[0], mem_ptr->tmp_small_lwe_vector,
+    execute_keyswitch_async<Torus>(
+        streams, gpu_indexes, 1, mem_ptr->tmp_small_lwe_vector,
         mem_ptr->lut->lwe_trivial_indexes, cur_input_block,
-        mem_ptr->lut->lwe_trivial_indexes, ksks[0], params.big_lwe_dimension,
+        mem_ptr->lut->lwe_trivial_indexes, ksks, params.big_lwe_dimension,
         params.small_lwe_dimension, params.ks_base_log, params.ks_level, 1);
 
     cuda_memcpy_async_gpu_to_gpu(&mem_ptr->tmp_small_lwe_vector[small_lwe_size],
@@ -606,7 +683,7 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  small_lwe_size * sizeof(Torus), streams[0],
                                  gpu_indexes[0]);
 
-    execute_pbs<Torus>(
+    execute_pbs_async<Torus>(
         streams, gpu_indexes, 1, mem_ptr->tmp_big_lwe_vector,
         mem_ptr->lut->lwe_trivial_indexes, mem_ptr->lut->lut_vec,
         mem_ptr->lut->lut_indexes_vec, mem_ptr->tmp_small_lwe_vector,
