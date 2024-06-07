@@ -139,8 +139,7 @@ void programmable_bootstrap_multibit_setup(
     DynamicDistribution lwe_noise_distribution,
     DynamicDistribution glwe_noise_distribution, int pbs_base_log,
     int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
-    uint64_t *delta, int number_of_inputs, int repetitions, int samples,
-    int lwe_chunk_size) {
+    uint64_t *delta, int number_of_inputs, int repetitions, int samples) {
   cudaSetDevice(gpu_index);
 
   *payload_modulus = message_modulus * carry_modulus;
@@ -157,7 +156,7 @@ void programmable_bootstrap_multibit_setup(
   generate_lwe_multi_bit_programmable_bootstrap_keys(
       stream, gpu_index, d_bsk_array, *lwe_sk_in_array, *lwe_sk_out_array, lwe_dimension,
       glwe_dimension, polynomial_size, grouping_factor, pbs_level, pbs_base_log,
-      seed, glwe_noise_distribution, repetitions);
+      glwe_noise_distribution, repetitions);
   shuffle_seed(seed);
 
   *plaintexts = generate_plaintexts(*payload_modulus, *delta, number_of_inputs,

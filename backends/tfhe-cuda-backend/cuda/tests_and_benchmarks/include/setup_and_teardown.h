@@ -37,8 +37,7 @@ void programmable_bootstrap_multibit_setup(
     int grouping_factor, DynamicDistribution lwe_noise_distribution,
     DynamicDistribution glwe_noise_distribution, int pbs_base_log,
     int pbs_level, int message_modulus, int carry_modulus, int *payload_modulus,
-    uint64_t *delta, int number_of_inputs, int repetitions, int samples,
-    int chunk_size = 0);
+    uint64_t *delta, int number_of_inputs, int repetitions, int samples);
 void programmable_bootstrap_multibit_teardown(
     cudaStream_t stream, uint32_t gpu_index, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, uint64_t *d_bsk_array, uint64_t *plaintexts,

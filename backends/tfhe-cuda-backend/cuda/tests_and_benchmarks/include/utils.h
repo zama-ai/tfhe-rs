@@ -40,7 +40,7 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cudaStream_t stream, uint32_t gpu_index, uint64_t **d_bsk_array,
     uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
     int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
-    int grouping_factor, Seed *seed, DynamicDistribution noise_distribution,
+    int grouping_factor, DynamicDistribution noise_distribution,
     const unsigned repetitions);
 
 void generate_lwe_keyswitch_keys(

@@ -66,7 +66,7 @@ static void FFTBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
 
   // Add to the list of parameters to benchmark
   for (auto x : params)
-    b->Args({x.polynomial_size, x.samples});
+    b->Args({static_cast<long>(x.polynomial_size), x.samples});
 }
 
 BENCHMARK_REGISTER_F(FourierTransformTestPrimitives_u64, cuda_fft_mult)

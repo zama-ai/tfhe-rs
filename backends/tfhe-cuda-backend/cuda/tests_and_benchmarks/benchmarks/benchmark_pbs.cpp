@@ -90,6 +90,7 @@ public:
   }
 
   void TearDown(const ::benchmark::State &state) {
+    (void)state;
     programmable_bootstrap_multibit_teardown(
         stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array, d_bsk, plaintexts,
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
@@ -158,6 +159,7 @@ public:
   }
 
   void TearDown(const ::benchmark::State &state) {
+    (void)state;
     programmable_bootstrap_classical_teardown(
         stream, gpu_index, lwe_sk_in_array, lwe_sk_out_array, d_fourier_bsk,
         plaintexts, d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
@@ -399,6 +401,7 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
 
 static void
 CGBootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
+  (void)b;
   // Define the parameters to benchmark
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
   // input_lwe_ciphertext_count
