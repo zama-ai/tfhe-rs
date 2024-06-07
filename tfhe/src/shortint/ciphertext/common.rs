@@ -1,6 +1,6 @@
 use super::super::CheckError;
-use crate::backward_compatibility::shortint::ciphertext::*;
 pub use crate::core_crypto::commons::parameters::PBSOrder;
+use crate::shortint::backward_compatibility::ciphertext::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::cmp;
