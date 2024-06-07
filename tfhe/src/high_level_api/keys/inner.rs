@@ -3,6 +3,7 @@ use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
+use crate::Error;
 use concrete_csprng::seeders::Seed;
 use serde::{Deserialize, Serialize};
 
@@ -207,12 +208,12 @@ impl IntegerCompactPublicKey {
         Self::try_new(client_key).expect("Incompatible parameters")
     }
 
-    pub(in crate::high_level_api) fn try_new(client_key: &IntegerClientKey) -> Option<Self> {
+    pub(in crate::high_level_api) fn try_new(client_key: &IntegerClientKey) -> Result<Self, Error> {
         let cks = &client_key.key;
 
         let key = CompactPublicKey::try_new(cks)?;
 
-        Some(Self { key })
+        Ok(Self { key })
     }
 
     pub fn into_raw_parts(self) -> CompactPublicKey {

@@ -33,11 +33,14 @@ fn main() {
 
 This example shows how to use compact public keys. The main difference is in the `ConfigBuilder` where the parameter set has been changed.
 
-For more information on using compact public keys to encrypt data and generate a zero-knowledge proof of correct encryption at the same time, see[ the guide on ZK proofs](zk-pok.md).
+For more information on using compact public keys to encrypt data and generate a zero-knowledge proof of correct encryption at the same time, see [the guide on ZK proofs](zk-pok.md).
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompactPublicKey};
+use tfhe::{
+    generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8,
+};
+
 
 fn main() {
      let config = ConfigBuilder::default()
@@ -49,8 +52,12 @@ fn main() {
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
-    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 255u8);
 }

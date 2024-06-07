@@ -25,7 +25,7 @@ impl KnowsMessageModulus for crate::shortint::CompressedPublicKey {
 
 impl KnowsMessageModulus for crate::shortint::CompactPublicKey {
     fn message_modulus(&self) -> MessageModulus {
-        self.parameters.message_modulus()
+        self.parameters.message_modulus
     }
 }
 

@@ -125,5 +125,6 @@ int main(void) {
   fhe_uint2_destroy(d);
   client_key_destroy(client_key);
   compact_public_key_destroy(public_key);
+  compact_ciphertext_list_destroy(compact_list);
   return EXIT_SUCCESS;
 }

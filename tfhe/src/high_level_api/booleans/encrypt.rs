@@ -8,10 +8,8 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::BooleanBlock;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
-use crate::shortint::ciphertext::Degree;
-use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, PublicKey};
+use crate::{ClientKey, CompressedPublicKey, PublicKey};
 
 impl FheTryEncrypt<bool, ClientKey> for FheBool {
     type Error = crate::Error;
@@ -21,18 +19,6 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
         let mut ciphertext = Self::new(integer_client_key.encrypt_bool(value));
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
-    }
-}
-
-impl FheTryEncrypt<bool, CompactPublicKey> for FheBool {
-    type Error = crate::Error;
-
-    fn try_encrypt(value: bool, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let mut ciphertext = key.key.key.encrypt_radix(value as u8, 1);
-        ciphertext.blocks[0].degree = Degree::new(1);
-        Ok(Self::new(BooleanBlock::new_unchecked(
-            ciphertext.blocks.into_iter().next().unwrap(),
-        )))
     }
 }
 

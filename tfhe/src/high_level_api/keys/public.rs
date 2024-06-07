@@ -15,8 +15,8 @@
 //! - [CompressedCompactPublicKey]
 use super::ClientKey;
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
-use crate::integer::encryption::KnowsMessageModulus;
 use crate::shortint::MessageModulus;
+use crate::Error;
 
 /// Classical public key.
 ///
@@ -102,7 +102,7 @@ impl CompactPublicKey {
         }
     }
 
-    pub fn try_new(client_key: &ClientKey) -> Option<Self> {
+    pub fn try_new(client_key: &ClientKey) -> Result<Self, Error> {
         IntegerCompactPublicKey::try_new(&client_key.key).map(|key| Self { key })
     }
 
@@ -114,10 +114,6 @@ impl CompactPublicKey {
         Self {
             key: IntegerCompactPublicKey::from_raw_parts(key),
         }
-    }
-
-    pub(crate) fn message_modulus(&self) -> MessageModulus {
-        self.key.key.key.message_modulus()
     }
 }
 

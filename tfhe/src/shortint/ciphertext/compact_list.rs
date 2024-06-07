@@ -4,7 +4,9 @@ use super::common::*;
 use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{
+    CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -14,7 +16,7 @@ pub struct CompactCiphertextList {
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
     pub noise_level: NoiseLevel,
 }
 
@@ -22,17 +24,42 @@ impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CiphertextListConformanceParams;
 
     fn is_conformant(&self, param: &CiphertextListConformanceParams) -> bool {
-        self.ct_list.is_conformant(&param.ct_list_params)
-            && self.message_modulus == param.message_modulus
-            && self.carry_modulus == param.carry_modulus
-            && self.pbs_order == param.pbs_order
-            && self.degree == param.degree
-            && self.noise_level == param.noise_level
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            noise_level,
+        } = self;
+        let CiphertextListConformanceParams {
+            ct_list_params,
+            message_modulus: param_message_modulus,
+            carry_modulus: param_carry_modulus,
+            degree: param_degree,
+            noise_level: param_noise_level,
+            expansion_kind: param_expansion_kind,
+        } = param;
+        ct_list.is_conformant(ct_list_params)
+            && *message_modulus == *param_message_modulus
+            && *carry_modulus == *param_carry_modulus
+            && *expansion_kind == *param_expansion_kind
+            && *degree == *param_degree
+            && *noise_level == *param_noise_level
     }
 }
 
 impl CompactCiphertextList {
     pub fn expand(&self) -> Vec<Ciphertext> {
+        assert!(
+            !matches!(
+                self.expansion_kind,
+                CompactCiphertextListExpansionKind::RequiresCasting
+            ),
+            "Cannot expand a CompactCiphertextList that requires casting without casting, \
+            please call expand_with_casting"
+        );
+
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
             self.ct_list.lwe_size(),
@@ -54,6 +81,11 @@ impl CompactCiphertextList {
             par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 
+        let pbs_order = match self.expansion_kind {
+            CompactCiphertextListExpansionKind::RequiresCasting => unreachable!(),
+            CompactCiphertextListExpansionKind::NoCasting(pbs_order) => pbs_order,
+        };
+
         output_lwe_ciphertext_list
             .as_ref()
             .chunks_exact(self.ct_list.lwe_size().0)
@@ -67,7 +99,7 @@ impl CompactCiphertextList {
                     degree: self.degree,
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    pbs_order: self.pbs_order,
+                    pbs_order,
                     noise_level: self.noise_level,
                 }
             })
@@ -82,7 +114,7 @@ impl CompactCiphertextList {
         Degree,
         MessageModulus,
         CarryModulus,
-        PBSOrder,
+        CompactCiphertextListExpansionKind,
         NoiseLevel,
     ) {
         let Self {
@@ -90,7 +122,7 @@ impl CompactCiphertextList {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            expansion_kind,
             noise_level,
         } = self;
 
@@ -99,7 +131,7 @@ impl CompactCiphertextList {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            expansion_kind,
             noise_level,
         )
     }
@@ -110,7 +142,7 @@ impl CompactCiphertextList {
         degree: Degree,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
-        pbs_order: PBSOrder,
+        expansion_kind: CompactCiphertextListExpansionKind,
         noise_level: NoiseLevel,
     ) -> Self {
         Self {
@@ -118,7 +150,7 @@ impl CompactCiphertextList {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            expansion_kind,
             noise_level,
         }
     }

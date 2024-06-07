@@ -17,6 +17,7 @@ use crate::core_crypto::prelude::{
 use serde::{Deserialize, Serialize};
 
 pub mod classic;
+pub mod compact_public_key_only;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;
 pub mod key_switching;
@@ -30,6 +31,7 @@ pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 pub use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::p_fail_2_minus_40::{ks_pbs, pbs_ks};
+pub use compact_public_key_only::CompactCiphertextListExpansionKind;
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
@@ -200,7 +202,7 @@ pub struct CiphertextListConformanceParams {
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
     pub noise_level: NoiseLevel,
-    pub pbs_order: PBSOrder,
+    pub expansion_kind: CompactCiphertextListExpansionKind,
 }
 
 impl CiphertextConformanceParams {
@@ -217,7 +219,7 @@ impl CiphertextConformanceParams {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: self.degree,
-            pbs_order: self.pbs_order,
+            expansion_kind: self.pbs_order.into(),
             noise_level: self.noise_level,
         }
     }

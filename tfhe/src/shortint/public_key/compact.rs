@@ -1,37 +1,108 @@
-#[cfg(feature = "zk-pok-experimental")]
-use crate::core_crypto::algorithms::encrypt_and_prove_lwe_ciphertext_with_compact_public_key;
-#[cfg(feature = "zk-pok-experimental")]
-use crate::core_crypto::entities::Cleartext;
 use crate::core_crypto::prelude::{
-    allocate_and_generate_new_seeded_lwe_compact_public_key,
-    encrypt_lwe_ciphertext_with_compact_public_key, generate_lwe_compact_public_key,
-    LweCiphertextCount, LweCiphertextOwned, LweCompactCiphertextListOwned,
-    LweCompactPublicKeyOwned, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
+    allocate_and_generate_new_binary_lwe_secret_key,
+    allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
+    Container, LweCiphertextCount, LweCompactCiphertextListOwned, LweCompactPublicKeyOwned,
+    LweSecretKey, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
-use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
 #[cfg(feature = "zk-pok-experimental")]
-use crate::shortint::ciphertext::{ProvenCiphertext, ProvenCompactCiphertextList};
+use crate::shortint::ciphertext::ProvenCompactCiphertextList;
+use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
+use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
+use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
 #[cfg(feature = "zk-pok-experimental")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::Error;
 use serde::{Deserialize, Serialize};
-use std::iter::once;
 
+/// Private key from which a [`CompactPublicKey`] can be built.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompactPrivateKey<KeyCont: Container<Element = u64>> {
+    key: LweSecretKey<KeyCont>,
+    parameters: CompactPublicKeyEncryptionParameters,
+}
+
+impl<C: Container<Element = u64>> CompactPrivateKey<C> {
+    pub fn from_raw_parts(
+        key: LweSecretKey<C>,
+        parameters: CompactPublicKeyEncryptionParameters,
+    ) -> Result<Self, Error> {
+        if !parameters.is_valid() {
+            return Err(Error::new(String::from(
+                "Invalid CompactPublicKeyEncryptionParameters",
+            )));
+        }
+
+        if key.lwe_dimension() != parameters.encryption_lwe_dimension {
+            return Err(Error::new(String::from(
+                "Mismatch between CompactPublicKeyEncryptionParameters encryption_lwe_dimension \
+                and key lwe_dimension",
+            )));
+        }
+
+        Ok(Self { key, parameters })
+    }
+
+    pub fn into_raw_parts(self) -> (LweSecretKey<C>, CompactPublicKeyEncryptionParameters) {
+        let Self { key, parameters } = self;
+        (key, parameters)
+    }
+
+    pub fn key(&self) -> LweSecretKey<&'_ [u64]> {
+        self.key.as_view()
+    }
+
+    pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
+        self.parameters
+    }
+}
+
+impl CompactPrivateKey<Vec<u64>> {
+    pub fn new(parameters: CompactPublicKeyEncryptionParameters) -> Self {
+        let parameters = parameters.validate();
+        let encryption_lwe_dimension = parameters.encryption_lwe_dimension;
+
+        let key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_binary_lwe_secret_key(
+                encryption_lwe_dimension,
+                &mut engine.secret_generator,
+            )
+        });
+
+        Self { key, parameters }
+    }
+}
+
+impl<'res, 'key: 'res> TryFrom<&'key ClientKey> for CompactPrivateKey<&'res [u64]> {
+    type Error = crate::Error;
+
+    fn try_from(client_key: &'key ClientKey) -> Result<Self, Self::Error> {
+        let parameters = client_key.parameters;
+        let compact_encryption_parameters: CompactPublicKeyEncryptionParameters =
+            parameters.try_into()?;
+
+        Self::from_raw_parts(
+            client_key.encryption_key_and_noise().0,
+            compact_encryption_parameters,
+        )
+    }
+}
+
+/// Public key construction described in <https://eprint.iacr.org/2023/603> by M. Joye.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompactPublicKey {
     pub(crate) key: LweCompactPublicKeyOwned<u64>,
-    pub parameters: ShortintParameterSet,
-    pub pbs_order: PBSOrder,
+    pub parameters: CompactPublicKeyEncryptionParameters,
 }
 
 fn to_plaintext_iterator(
     message_iter: impl Iterator<Item = u64>,
     encryption_modulus: u64,
-    parameters: &ShortintParameterSet,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
 ) -> impl Iterator<Item = Plaintext<u64>> {
-    let message_modulus = parameters.message_modulus().0 as u64;
-    let carry_modulus = parameters.carry_modulus().0 as u64;
+    let message_modulus = message_modulus.0 as u64;
+    let carry_modulus = carry_modulus.0 as u64;
 
     let full_modulus = message_modulus * carry_modulus;
 
@@ -53,40 +124,51 @@ fn to_plaintext_iterator(
 }
 
 impl CompactPublicKey {
-    pub fn new(client_key: &ClientKey) -> Self {
-        Self::try_new(client_key).expect(
+    pub fn new<'data, C, E>(compact_private_key: C) -> Self
+    where
+        Error: From<E>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+    {
+        Self::try_new(compact_private_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new(client_key: &ClientKey) -> Option<Self> {
-        let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise_distribution) =
-            client_key.encryption_key_and_noise();
+    pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, Error>
+    where
+        Error: From<E>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+    {
+        let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
 
-        if !secret_encryption_key.lwe_dimension().0.is_power_of_two() {
-            return None;
+        let parameters = compact_private_key.parameters;
+
+        if !parameters.is_valid() {
+            return Err(Error::new(String::from(
+                "Invalid CompactPublicKeyEncryptionParameters",
+            )));
         }
+
+        let (secret_encryption_key, encryption_noise_distribution) = (
+            &compact_private_key.key,
+            parameters.encryption_noise_distribution,
+        );
 
         let mut key = LweCompactPublicKeyOwned::new(
             0u64,
             secret_encryption_key.lwe_dimension(),
-            parameters.ciphertext_modulus(),
+            parameters.ciphertext_modulus,
         );
         ShortintEngine::with_thread_local_mut(|engine| {
             generate_lwe_compact_public_key(
-                &secret_encryption_key,
+                secret_encryption_key,
                 &mut key,
                 encryption_noise_distribution,
                 &mut engine.encryption_generator,
             );
         });
 
-        Some(Self {
-            key,
-            parameters,
-            pbs_order: client_key.parameters.encryption_key_choice().into(),
-        })
+        Ok(Self { key, parameters })
     }
 
     /// Deconstruct a [`CompactPublicKey`] into its constituents.
@@ -94,16 +176,11 @@ impl CompactPublicKey {
         self,
     ) -> (
         LweCompactPublicKeyOwned<u64>,
-        ShortintParameterSet,
-        PBSOrder,
+        CompactPublicKeyEncryptionParameters,
     ) {
-        let Self {
-            key,
-            parameters,
-            pbs_order,
-        } = self;
+        let Self { key, parameters } = self;
 
-        (key, parameters, pbs_order)
+        (key, parameters)
     }
 
     /// Construct a [`CompactPublicKey`] from its constituents.
@@ -113,18 +190,9 @@ impl CompactPublicKey {
     /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         key: LweCompactPublicKeyOwned<u64>,
-        parameters: ShortintParameterSet,
-        pbs_order: PBSOrder,
+        parameters: CompactPublicKeyEncryptionParameters,
     ) -> Self {
-        let expected_pbs_order: PBSOrder = parameters.encryption_key_choice().into();
-
-        assert_eq!(
-            pbs_order, expected_pbs_order,
-            "Mismatch between expected PBSOrder ({expected_pbs_order:?}) and \
-            provided PBSOrder ({pbs_order:?})"
-        );
-
-        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
+        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension;
 
         assert_eq!(
             key.lwe_dimension(),
@@ -137,59 +205,14 @@ impl CompactPublicKey {
 
         assert_eq!(
             key.ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
+            parameters.ciphertext_modulus,
             "Mismatch between the LweCompactPublicKey CiphertextModulus ({:?}) and \
             the provided parameters CiphertextModulus ({:?})",
             key.ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
+            parameters.ciphertext_modulus,
         );
 
-        Self {
-            key,
-            parameters,
-            pbs_order,
-        }
-    }
-
-    pub fn encrypt(&self, message: u64) -> Ciphertext {
-        let plain = to_plaintext_iterator(
-            once(message),
-            self.parameters.message_modulus().0 as u64,
-            &self.parameters,
-        )
-        .next()
-        .unwrap();
-
-        // This allocates the required ct
-        let mut encrypted_ct = LweCiphertextOwned::new(
-            0u64,
-            self.key.lwe_dimension().to_lwe_size(),
-            self.parameters.ciphertext_modulus(),
-        );
-
-        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
-
-        ShortintEngine::with_thread_local_mut(|engine| {
-            encrypt_lwe_ciphertext_with_compact_public_key(
-                &self.key,
-                &mut encrypted_ct,
-                plain,
-                encryption_noise_distribution,
-                encryption_noise_distribution,
-                &mut engine.secret_generator,
-                &mut engine.encryption_generator,
-            );
-        });
-
-        let message_modulus = self.parameters.message_modulus();
-        Ciphertext::new(
-            encrypted_ct,
-            Degree::new(message_modulus.0 - 1),
-            NoiseLevel::NOMINAL,
-            message_modulus,
-            self.parameters.carry_modulus(),
-            self.pbs_order,
-        )
+        Self { key, parameters }
     }
 
     #[cfg(feature = "zk-pok-experimental")]
@@ -198,54 +221,16 @@ impl CompactPublicKey {
         message: u64,
         public_params: &CompactPkePublicParams,
         load: ZkComputeLoad,
-    ) -> crate::Result<ProvenCiphertext> {
-        // This allocates the required ct
-        let mut encrypted_ct = LweCiphertextOwned::new(
-            0u64,
-            self.key.lwe_dimension().to_lwe_size(),
-            self.parameters.ciphertext_modulus(),
-        );
-
-        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
-
-        let plaintext_modulus =
-            (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
-        let delta = (1u64 << 63) / plaintext_modulus;
-
-        let proof = ShortintEngine::with_thread_local_mut(|engine| {
-            encrypt_and_prove_lwe_ciphertext_with_compact_public_key(
-                &self.key,
-                &mut encrypted_ct,
-                Cleartext(message),
-                delta,
-                encryption_noise_distribution,
-                encryption_noise_distribution,
-                &mut engine.secret_generator,
-                &mut engine.encryption_generator,
-                &mut engine.random_generator,
-                public_params,
-                load,
-            )
-        })?;
-
-        let message_modulus = self.parameters.message_modulus();
-        let ciphertext = Ciphertext::new(
-            encrypted_ct,
-            Degree::new(message_modulus.0 - 1),
-            NoiseLevel::NOMINAL,
-            message_modulus,
-            self.parameters.carry_modulus(),
-            self.pbs_order,
-        );
-
-        Ok(ProvenCiphertext { ciphertext, proof })
+        encryption_modulus: u64,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        self.encrypt_and_prove_slice(&[message], public_params, load, encryption_modulus)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
     ///
     /// See [Self::encrypt_iter] for more details
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
-        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus().0 as u64)
+        self.encrypt_slice_with_modulus(messages, self.parameters.message_modulus.0 as u64)
     }
 
     /// Encrypts the messages coming from the iterator into a compact ciphertext list
@@ -253,7 +238,7 @@ impl CompactPublicKey {
     /// Values of the messages should be in range [0..message_modulus[
     /// (a modulo operation is applied to each input)
     pub fn encrypt_iter(&self, messages: impl Iterator<Item = u64>) -> CompactCiphertextList {
-        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus().0 as u64)
+        self.encrypt_iter_with_modulus(messages, self.parameters.message_modulus.0 as u64)
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
@@ -280,20 +265,24 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
-        let plaintext_container =
-            to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
-                .map(|plaintext| plaintext.0)
-                .collect::<Vec<_>>();
+        let plaintext_container = to_plaintext_iterator(
+            messages,
+            encryption_modulus,
+            self.parameters.message_modulus,
+            self.parameters.carry_modulus,
+        )
+        .map(|plaintext| plaintext.0)
+        .collect::<Vec<_>>();
 
         let plaintext_list = PlaintextList::from_container(plaintext_container);
         let mut ct_list = LweCompactCiphertextListOwned::new(
             0u64,
             self.key.lwe_dimension().to_lwe_size(),
             LweCiphertextCount(plaintext_list.plaintext_count().0),
-            self.parameters.ciphertext_modulus(),
+            self.parameters.ciphertext_modulus,
         );
 
-        let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
+        let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
 
         // No parallelism allowed
         #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
@@ -329,13 +318,13 @@ impl CompactPublicKey {
             });
         }
 
-        let message_modulus = self.parameters.message_modulus();
+        let message_modulus = self.parameters.message_modulus;
         CompactCiphertextList {
             ct_list,
             degree: Degree::new(encryption_modulus as usize - 1),
             message_modulus,
-            carry_modulus: self.parameters.carry_modulus(),
-            pbs_order: self.pbs_order,
+            carry_modulus: self.parameters.carry_modulus,
+            expansion_kind: self.parameters.expansion_kind,
             noise_level: NoiseLevel::NOMINAL,
         }
     }
@@ -349,7 +338,7 @@ impl CompactPublicKey {
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus =
-            (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+            (self.parameters.message_modulus.0 * self.parameters.carry_modulus.0) as u64;
         let delta = (1u64 << 63) / plaintext_modulus;
         assert!(encryption_modulus <= plaintext_modulus);
 
@@ -368,10 +357,10 @@ impl CompactPublicKey {
                 0u64,
                 self.key.lwe_dimension().to_lwe_size(),
                 LweCiphertextCount(message_chunk.len()),
-                self.parameters.ciphertext_modulus(),
+                self.parameters.ciphertext_modulus,
             );
 
-            let encryption_noise_distribution = self.parameters.encryption_noise_distribution();
+            let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
 
             // No parallelism allowed
             #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
@@ -415,13 +404,13 @@ impl CompactPublicKey {
                 })
             }?;
 
-            let message_modulus = self.parameters.message_modulus();
+            let message_modulus = self.parameters.message_modulus;
             let ciphertext = CompactCiphertextList {
                 ct_list,
                 degree: Degree::new(encryption_modulus as usize - 1),
                 message_modulus,
-                carry_modulus: self.parameters.carry_modulus(),
-                pbs_order: self.pbs_order,
+                carry_modulus: self.parameters.carry_modulus,
+                expansion_kind: self.parameters.expansion_kind,
                 noise_level: NoiseLevel::NOMINAL,
             };
 
@@ -443,30 +432,33 @@ impl CompactPublicKey {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedCompactPublicKey {
     pub(crate) key: SeededLweCompactPublicKeyOwned<u64>,
-    pub parameters: ShortintParameterSet,
-    pub pbs_order: PBSOrder,
+    pub parameters: CompactPublicKeyEncryptionParameters,
 }
 
 impl CompressedCompactPublicKey {
-    pub fn new(client_key: &ClientKey) -> Self {
-        let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise_distribution) =
-            client_key.encryption_key_and_noise();
+    pub fn new<'data, C>(input_key: C) -> Self
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>>,
+        C::Error: core::fmt::Debug,
+    {
+        let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into().unwrap();
+
+        let parameters = compact_private_key.parameters;
+        let (secret_encryption_key, encryption_noise_distribution) = (
+            compact_private_key.key,
+            parameters.encryption_noise_distribution,
+        );
 
         let key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_compact_public_key(
                 &secret_encryption_key,
                 encryption_noise_distribution,
-                parameters.ciphertext_modulus(),
+                parameters.ciphertext_modulus,
                 &mut engine.seeder,
             )
         });
 
-        Self {
-            key,
-            parameters,
-            pbs_order: client_key.parameters.encryption_key_choice().into(),
-        }
+        Self { key, parameters }
     }
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
@@ -474,16 +466,11 @@ impl CompressedCompactPublicKey {
         self,
     ) -> (
         SeededLweCompactPublicKeyOwned<u64>,
-        ShortintParameterSet,
-        PBSOrder,
+        CompactPublicKeyEncryptionParameters,
     ) {
-        let Self {
-            key,
-            parameters,
-            pbs_order,
-        } = self;
+        let Self { key, parameters } = self;
 
-        (key, parameters, pbs_order)
+        (key, parameters)
     }
 
     /// Construct a [`CompressedCompactPublicKey`] from its constituents.
@@ -493,18 +480,9 @@ impl CompressedCompactPublicKey {
     /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         key: SeededLweCompactPublicKeyOwned<u64>,
-        parameters: ShortintParameterSet,
-        pbs_order: PBSOrder,
+        parameters: CompactPublicKeyEncryptionParameters,
     ) -> Self {
-        let expected_pbs_order: PBSOrder = parameters.encryption_key_choice().into();
-
-        assert_eq!(
-            pbs_order, expected_pbs_order,
-            "Mismatch between expected PBSOrder ({expected_pbs_order:?}) and \
-            provided PBSOrder ({pbs_order:?})"
-        );
-
-        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
+        let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension;
 
         assert_eq!(
             key.lwe_dimension(),
@@ -517,18 +495,14 @@ impl CompressedCompactPublicKey {
 
         assert_eq!(
             key.ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
+            parameters.ciphertext_modulus,
             "Mismatch between the SeededLweCompactPublicKeyOwned CiphertextModulus ({:?}) and \
             the provided parameters CiphertextModulus ({:?})",
             key.ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
+            parameters.ciphertext_modulus,
         );
 
-        Self {
-            key,
-            parameters,
-            pbs_order,
-        }
+        Self { key, parameters }
     }
 
     pub fn decompress(&self) -> CompactPublicKey {
@@ -536,7 +510,6 @@ impl CompressedCompactPublicKey {
         CompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,
-            pbs_order: self.pbs_order,
         }
     }
 }

@@ -198,8 +198,12 @@ fn test_compact_public_key_big() {
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
-    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 255u8);
 }
@@ -212,8 +216,12 @@ fn test_compact_public_key_small() {
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
-    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 255u8);
 }
