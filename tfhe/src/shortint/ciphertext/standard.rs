@@ -1,9 +1,9 @@
 //! Module with the definition of the Ciphertext.
 use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
-use crate::backward_compatibility::shortint::ciphertext::CiphertextVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
+use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
