@@ -179,7 +179,7 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cudaStream_t stream, uint32_t gpu_index, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
     int polynomial_size, int grouping_factor, int pbs_level, int pbs_base_log,
-    Seed *seed, DynamicDistribution noise_distribution,
+    DynamicDistribution noise_distribution,
     const unsigned repetitions) {
 
   int bsk_size = lwe_dimension * pbs_level * (glwe_dimension + 1) *
