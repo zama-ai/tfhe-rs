@@ -361,7 +361,12 @@ function hlapi_compact_public_key_encrypt_decrypt_int32_single(config) {
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfheCompactPublicKey.new(clientKey);
 
-    let encrypted = FheInt32.encrypt_with_compact_public_key(I32_MIN, publicKey);
+    let builder = CompactCiphertextList.builder(publicKey);
+    builder.push_i32(I32_MIN);
+    let list = builder.build();
+    let expander = list.expand();
+    let encrypted = expander.get_int32(0);
+
     let decrypted = encrypted.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, I32_MIN);
 

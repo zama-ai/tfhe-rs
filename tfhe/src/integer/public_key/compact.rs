@@ -1,12 +1,11 @@
-use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
-use crate::integer::encryption::encrypt_words_radix_impl;
-use crate::integer::{ClientKey, SignedRadixCiphertext};
+use crate::integer::ciphertext::CompactCiphertextList;
+use crate::integer::ClientKey;
 use crate::shortint::{
     CompactPublicKey as ShortintCompactPublicKey,
     CompressedCompactPublicKey as ShortintCompressedCompactPublicKey,
 };
+use crate::Error;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -20,9 +19,9 @@ impl CompactPublicKey {
         Self { key }
     }
 
-    pub fn try_new(client_key: &ClientKey) -> Option<Self> {
+    pub fn try_new(client_key: &ClientKey) -> Result<Self, Error> {
         let key = ShortintCompactPublicKey::try_new(&client_key.key)?;
-        Some(Self { key })
+        Ok(Self { key })
     }
 
     /// Deconstruct a [`CompactPublicKey`] into its constituents.
@@ -33,30 +32,6 @@ impl CompactPublicKey {
     /// Construct a [`CompactPublicKey`] from its constituents.
     pub fn from_raw_parts(key: ShortintCompactPublicKey) -> Self {
         Self { key }
-    }
-
-    pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
-    where
-        T: DecomposableInto<u64> + UnsignedNumeric,
-    {
-        encrypt_words_radix_impl(
-            &self.key,
-            message,
-            num_blocks,
-            ShortintCompactPublicKey::encrypt,
-        )
-    }
-
-    pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
-    where
-        T: DecomposableInto<u64> + SignedNumeric,
-    {
-        encrypt_words_radix_impl(
-            &self.key,
-            message,
-            num_blocks,
-            ShortintCompactPublicKey::encrypt,
-        )
     }
 
     pub fn encrypt_radix_compact<T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>>(

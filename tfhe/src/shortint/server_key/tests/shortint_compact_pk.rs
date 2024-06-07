@@ -109,9 +109,11 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let mut ctxt_0 = pk.encrypt(clear_0);
+        let ctxt_0 = pk.encrypt_slice(&[clear_0]);
+        let ctxt_1 = pk.encrypt_slice(&[clear_1]);
 
-        let ctxt_1 = pk.encrypt(clear_1);
+        let mut ctxt_0 = ctxt_0.expand().into_iter().next().unwrap();
+        let ctxt_1 = ctxt_1.expand().into_iter().next().unwrap();
 
         let d = cks.decrypt(&ctxt_0);
         assert_eq!(d, clear_0);

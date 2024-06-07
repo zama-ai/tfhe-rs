@@ -152,13 +152,22 @@ mod tests {
         let pk = CompactPublicKey::new(&cks);
 
         let msg = random::<u64>() % params.message_modulus.0 as u64;
+        // No packing
+        let encryption_modulus = params.message_modulus.0 as u64;
 
         let proven_ct = pk
-            .encrypt_and_prove(msg, crs.public_params(), ZkComputeLoad::Proof)
+            .encrypt_and_prove(
+                msg,
+                crs.public_params(),
+                ZkComputeLoad::Proof,
+                encryption_modulus,
+            )
             .unwrap();
-        assert!(proven_ct.verify(crs.public_params(), &pk).is_valid());
+        let proven_ct = proven_ct.verify_and_expand(crs.public_params(), &pk);
+        assert!(proven_ct.is_ok());
+        let proven_ct = proven_ct.unwrap();
 
-        let decrypted = cks.decrypt(proven_ct.ciphertext());
+        let decrypted = cks.decrypt(&proven_ct[0]);
         assert_eq!(msg, decrypted);
     }
 

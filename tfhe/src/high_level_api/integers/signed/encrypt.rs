@@ -4,7 +4,7 @@ use crate::high_level_api::integers::FheIntId;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::client_key::RecomposableSignedInteger;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
-use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, FheInt, PublicKey};
+use crate::{ClientKey, CompressedPublicKey, FheInt, PublicKey};
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheInt<Id>
 where
@@ -78,22 +78,6 @@ where
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let ciphertext = key
-            .key
-            .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext))
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for FheInt<Id>
-where
-    Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
-{
-    type Error = crate::Error;
-
-    fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let ciphertext = key
-            .key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
         Ok(Self::new(ciphertext))

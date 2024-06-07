@@ -39,7 +39,6 @@ impl_try_decrypt_trivial_on_type!(FheBool, bool);
 impl_try_encrypt_trivial_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 impl_try_encrypt_with_client_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 impl_try_encrypt_with_public_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
-impl_try_encrypt_with_compact_public_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 
 pub struct CompressedFheBool(crate::high_level_api::CompressedFheBool);
 

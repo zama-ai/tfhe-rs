@@ -179,7 +179,7 @@ impl CompactCiphertextListBuilder {
     }
 
     pub fn build_packed(&self) -> crate::Result<CompactCiphertextList> {
-        if self.pk.key.parameters.carry_modulus().0 < self.pk.key.parameters.message_modulus().0 {
+        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
             return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
         }
 
@@ -210,7 +210,7 @@ impl CompactCiphertextListBuilder {
             self.messages.as_slice(),
             public_params,
             load,
-            self.pk.key.parameters.message_modulus().0 as u64,
+            self.pk.key.parameters.message_modulus.0 as u64,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,
@@ -224,11 +224,15 @@ impl CompactCiphertextListBuilder {
         public_params: &CompactPkePublicParams,
         load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        if self.pk.key.parameters.carry_modulus().0 < self.pk.key.parameters.message_modulus().0 {
-            return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
+        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
+            return Err(crate::Error::new(
+                "In order to build a packed ProvenCompactCiphertextList, \
+                parameters must have CarryModulus >= MessageModulus"
+                    .to_string(),
+            ));
         }
 
-        let msg_mod = self.pk.key.message_modulus().0 as u64;
+        let msg_mod = self.pk.key.parameters.message_modulus.0 as u64;
         let packed_messages = self
             .messages
             .chunks(2)

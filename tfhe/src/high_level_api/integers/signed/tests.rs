@@ -3,8 +3,8 @@ use crate::prelude::*;
 use crate::safe_deserialization::safe_deserialize_conformant;
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{
-    generate_keys, set_server_key, ClientKey, CompactPublicKey, CompressedFheInt16,
-    CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
+    generate_keys, set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey,
+    CompressedFheInt16, CompressedFheInt32, Config, ConfigBuilder, FheInt16, FheInt256, FheInt32,
     FheInt32ConformanceParams, FheInt64, FheInt8, FheUint64, FheUint8,
 };
 use rand::prelude::*;
@@ -552,8 +552,12 @@ fn test_compact_public_key_big() {
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(-1i8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
-    let a = FheInt8::try_encrypt(-1i8, &public_key).unwrap();
     let clear: i8 = a.decrypt(&client_key);
     assert_eq!(clear, -1i8);
 }
@@ -570,8 +574,12 @@ fn test_compact_public_key_small() {
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(-123i8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
-    let a = FheInt8::try_encrypt(-123i8, &public_key).unwrap();
     let clear: i8 = a.decrypt(&client_key);
     assert_eq!(clear, -123i8);
 }

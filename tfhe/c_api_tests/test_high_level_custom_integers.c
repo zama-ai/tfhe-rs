@@ -82,6 +82,7 @@ int uint256_compact_public_key(const ClientKey *client_key,
                                const CompressedCompactPublicKey *compressed_public_key) {
   int ok;
   CompactPublicKey *public_key = NULL;
+  CompactCiphertextList *compact_list = NULL;
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
@@ -93,10 +94,31 @@ int uint256_compact_public_key(const ClientKey *client_key,
   assert(ok == 0);
 
   {
-    ok = fhe_uint256_try_encrypt_with_compact_public_key_u256(clears[0], public_key, &lhs);
+    CompactCiphertextListBuilder *builder = NULL;
+    CompactCiphertextListExpander *expander = NULL;
+    ok = compact_ciphertext_list_builder_new(public_key, &builder);
     assert(ok == 0);
 
-    ok = fhe_uint256_try_encrypt_with_compact_public_key_u256(clears[1], public_key, &rhs);
+    ok = compact_ciphertext_list_builder_push_u256(builder, clears[0]);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_builder_push_u256(builder, clears[1]);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_builder_build(builder, &compact_list);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_expand(compact_list, &expander);
+    assert(ok == 0);
+
+    size_t len = 0;
+    ok = compact_ciphertext_list_expander_len(expander, &len);
+    assert(ok == 0 && len == 2);
+
+    ok = compact_ciphertext_list_expander_get_fhe_uint256(expander, 0, &lhs);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_expander_get_fhe_uint256(expander, 1, &rhs);
     assert(ok == 0);
 
     ok = fhe_uint256_sub(lhs, rhs, &result);
@@ -110,12 +132,15 @@ int uint256_compact_public_key(const ClientKey *client_key,
     assert(result_clear.w2 == 4);
     assert(result_clear.w3 == 4);
 
+    compact_ciphertext_list_expander_destroy(expander);
+    compact_ciphertext_list_builder_destroy(builder);
     fhe_uint256_destroy(lhs);
     fhe_uint256_destroy(rhs);
     fhe_uint256_destroy(result);
   }
 
   compact_public_key_destroy(public_key);
+  compact_ciphertext_list_destroy(compact_list);
   return ok;
 }
 
@@ -123,6 +148,7 @@ int int32_compact_public_key(const ClientKey *client_key,
                              const CompressedCompactPublicKey *compressed_public_key) {
   int ok;
   CompactPublicKey *public_key = NULL;
+  CompactCiphertextList *compact_list = NULL;
   FheInt32 *lhs = NULL;
   FheInt32 *rhs = NULL;
   FheInt32 *result = NULL;
@@ -134,10 +160,31 @@ int int32_compact_public_key(const ClientKey *client_key,
   assert(ok == 0);
 
   {
-    ok = fhe_int32_try_encrypt_with_compact_public_key_i32(clears[0], public_key, &lhs);
+    CompactCiphertextListBuilder *builder = NULL;
+    CompactCiphertextListExpander *expander = NULL;
+    ok = compact_ciphertext_list_builder_new(public_key, &builder);
     assert(ok == 0);
 
-    ok = fhe_int32_try_encrypt_with_compact_public_key_i32(clears[1], public_key, &rhs);
+    ok = compact_ciphertext_list_builder_push_i32(builder, clears[0]);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_builder_push_i32(builder, clears[1]);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_builder_build(builder, &compact_list);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_expand(compact_list, &expander);
+    assert(ok == 0);
+
+    size_t len = 0;
+    ok = compact_ciphertext_list_expander_len(expander, &len);
+    assert(ok == 0 && len == 2);
+
+    ok = compact_ciphertext_list_expander_get_fhe_int32(expander, 0, &lhs);
+    assert(ok == 0);
+
+    ok = compact_ciphertext_list_expander_get_fhe_int32(expander, 1, &rhs);
     assert(ok == 0);
 
     ok = fhe_int32_add(lhs, rhs, &result);
@@ -148,12 +195,15 @@ int int32_compact_public_key(const ClientKey *client_key,
 
     assert(result_clear == clears[0] + clears[1]);
 
+    compact_ciphertext_list_expander_destroy(expander);
+    compact_ciphertext_list_builder_destroy(builder);
     fhe_int32_destroy(lhs);
     fhe_int32_destroy(rhs);
     fhe_int32_destroy(result);
   }
 
   compact_public_key_destroy(public_key);
+  compact_ciphertext_list_destroy(compact_list);
   return ok;
 }
 

@@ -120,7 +120,10 @@ This example shows how to use compressed compact public keys:
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, CompressedCompactPublicKey, ConfigBuilder, FheUint8};
+use tfhe::{
+    generate_keys, set_server_key, CompactCiphertextList, CompressedCompactPublicKey,
+    ConfigBuilder, FheUint8,
+};
 
 fn main() {
     let config = ConfigBuilder::default()
@@ -145,7 +148,12 @@ fn main() {
         bincode::serialize(&public_key).unwrap().len()
     );
 
-    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
+
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 255u8);
 }

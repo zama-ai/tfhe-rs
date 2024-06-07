@@ -8,7 +8,7 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
-use crate::{ClientKey, CompactPublicKey, CompressedPublicKey, FheUint, PublicKey};
+use crate::{ClientKey, CompressedPublicKey, FheUint, PublicKey};
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheUint<Id>
 where
@@ -90,25 +90,6 @@ where
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let cpu_ciphertext = key
-            .key
-            .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext);
-
-        ciphertext.move_to_device_of_server_key_if_set();
-        Ok(ciphertext)
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for FheUint<Id>
-where
-    Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
-{
-    type Error = crate::Error;
-
-    fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let cpu_ciphertext = key
-            .key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
         let mut ciphertext = Self::new(cpu_ciphertext);
