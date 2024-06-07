@@ -19,17 +19,17 @@ impl DataKind {
 }
 
 pub trait Expandable: Sized {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self>;
+    fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self>;
 }
 
 impl<T> Expandable for T
 where
     T: IntegerRadixCiphertext,
 {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
+    fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
         match (kind, T::IS_SIGNED) {
             (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => {
-                Ok(T::from_blocks(blocks.to_vec()))
+                Ok(T::from_blocks(blocks))
             }
             (DataKind::Boolean, _) => {
                 let signed_or_unsigned_str = if T::IS_SIGNED { "signed" } else { "unsigned" };
@@ -48,7 +48,7 @@ where
 }
 
 impl Expandable for BooleanBlock {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
+    fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
         match kind {
             DataKind::Unsigned(_) => Err(crate::Error::new(
                 "Tried to expand a boolean block while an unsigned radix was stored".to_string(),
