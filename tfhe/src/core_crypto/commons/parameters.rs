@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
-use crate::backward_compatibility::core_crypto::commons::parameters::*;
+use crate::core_crypto::backward_compatibility::commons::parameters::*;
 
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]

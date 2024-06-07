@@ -2,8 +2,8 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::backward_compatibility::core_crypto::entities::lwe_secret_key::LweSecretKeyVersions;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::lwe_secret_key::LweSecretKeyVersions;
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::LweDimension;

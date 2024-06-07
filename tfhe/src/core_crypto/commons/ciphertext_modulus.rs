@@ -2,7 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
-use crate::backward_compatibility::core_crypto::commons::ciphertext_modulus::SerializableCiphertextModulusVersions;
+use crate::core_crypto::backward_compatibility::commons::ciphertext_modulus::SerializableCiphertextModulusVersions;
 use crate::core_crypto::commons::traits::UnsignedInteger;
 use crate::core_crypto::prelude::CastInto;
 use core::num::NonZeroU128;

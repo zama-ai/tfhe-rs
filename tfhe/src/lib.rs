@@ -91,7 +91,6 @@ pub mod core_crypto;
 /// cbindgen:ignore
 pub mod integer;
 
-pub mod backward_compatibility;
 #[cfg(feature = "shortint")]
 /// Welcome to the TFHE-rs [`shortint`](`crate::shortint`) module documentation!
 ///
