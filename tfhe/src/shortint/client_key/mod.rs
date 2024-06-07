@@ -3,9 +3,9 @@
 use tfhe_versionable::Versionize;
 
 use super::PBSOrder;
-use crate::backward_compatibility::shortint::client_key::ClientKeyVersions;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
+use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};

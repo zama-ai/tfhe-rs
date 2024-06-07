@@ -1,5 +1,5 @@
 use super::*;
-use crate::backward_compatibility::core_crypto::commons::math::random::GaussianVersions;
+use crate::core_crypto::backward_compatibility::commons::math::random::GaussianVersions;
 use crate::core_crypto::commons::math::torus::FromTorus;
 
 use serde::{Deserialize, Serialize};
