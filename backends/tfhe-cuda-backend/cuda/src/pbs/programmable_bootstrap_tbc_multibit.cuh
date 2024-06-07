@@ -29,8 +29,7 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t grouping_factor, uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint32_t keybundle_size_per_input, int8_t *device_mem,
-    uint64_t device_memory_size_per_block, bool support_dsm,
-    uint32_t gpu_offset) {
+    uint64_t device_memory_size_per_block, bool support_dsm) {
 
   cluster_group cluster = this_cluster();
 
@@ -66,8 +65,7 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
-                    (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
       &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
@@ -129,7 +127,7 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
     auto block_lwe_array_out =
-        &lwe_array_out[lwe_output_indexes[blockIdx.z + gpu_offset] *
+        &lwe_array_out[lwe_output_indexes[blockIdx.z] *
                            (glwe_dimension * polynomial_size + 1) +
                        blockIdx.y * polynomial_size];
 
@@ -273,8 +271,7 @@ __host__ void execute_tbc_external_product_loop(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_chunk_size, uint32_t max_shared_memory, int lwe_offset,
-    uint32_t gpu_offset) {
+    uint32_t lwe_chunk_size, uint32_t max_shared_memory, int lwe_offset) {
 
   cudaSetDevice(gpu_index);
   auto supports_dsm =
@@ -334,7 +331,7 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, full_dm, supports_dsm, gpu_offset));
+        keybundle_size_per_input, d_mem, full_dm, supports_dsm));
   } else if (max_shared_memory < full_dm + minimum_dm) {
     config.dynamicSmemBytes = partial_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
@@ -345,7 +342,7 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, partial_dm, supports_dsm, gpu_offset));
+        keybundle_size_per_input, d_mem, partial_dm, supports_dsm));
   } else {
     config.dynamicSmemBytes = full_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
@@ -356,7 +353,7 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, 0, supports_dsm, gpu_offset));
+        keybundle_size_per_input, d_mem, 0, supports_dsm));
   }
 }
 
@@ -369,7 +366,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t gpu_offset, uint32_t lwe_chunk_size = 0) {
+    uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(gpu_index);
 
   if (!lwe_chunk_size)
@@ -384,7 +381,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, max_shared_memory,
-        lwe_chunk_size, lwe_offset, gpu_offset);
+        lwe_chunk_size, lwe_offset);
 
     // Accumulate
     execute_tbc_external_product_loop<Torus, params>(
@@ -392,7 +389,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, lwe_chunk_size,
-        max_shared_memory, lwe_offset, gpu_offset);
+        max_shared_memory, lwe_offset);
   }
 }
 

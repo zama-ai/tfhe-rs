@@ -31,17 +31,13 @@ template <typename Torus> struct lwe_ciphertext_list {
   int_radix_params params;
 
   size_t big_lwe_size;
-  size_t radix_size;
   size_t big_lwe_size_bytes;
-  size_t radix_size_bytes;
   size_t big_lwe_dimension;
 
   lwe_ciphertext_list(Torus *src, int_radix_params params, size_t max_blocks)
       : data(src), params(params), max_blocks(max_blocks) {
     big_lwe_size = params.big_lwe_dimension + 1;
     big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
-    radix_size = max_blocks * big_lwe_size;
-    radix_size_bytes = radix_size * sizeof(Torus);
     big_lwe_dimension = params.big_lwe_dimension;
     len = max_blocks;
   }
@@ -404,7 +400,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                           gpu_count);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -514,7 +510,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                                  gpu_indexes, gpu_count);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -591,7 +587,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         set_quotient_bit(mem_ptr->sub_streams_3, gpu_indexes, gpu_count);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
@@ -632,7 +628,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           bsks, ksks, num_blocks, mem_ptr->message_extract_lut_2);
     }
   }
-  for (uint j = 0; j < gpu_count; j++) {
+  for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
   }

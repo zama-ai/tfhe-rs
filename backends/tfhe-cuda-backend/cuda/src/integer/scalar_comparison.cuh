@@ -133,7 +133,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
             mem_ptr, bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
     }
@@ -205,7 +205,6 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     std::function<Torus(Torus)> sign_handler_f, void **bsks, Torus **ksks,
     uint32_t total_num_radix_blocks, uint32_t total_num_scalar_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
@@ -397,7 +396,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
             signed_msb_lut->params.message_modulus);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
     }
@@ -465,7 +464,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
             mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
     }
@@ -737,7 +736,7 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     }
   }
 
-  for (uint j = 0; j < gpu_count; j++) {
+  for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
     cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
     cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
   }

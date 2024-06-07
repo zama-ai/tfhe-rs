@@ -245,7 +245,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         }
       }
     }
-    for (uint j = 0; j < gpu_count; j++) {
+    for (uint j = 0; j < mem->active_gpu_count; j++) {
       cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
     }

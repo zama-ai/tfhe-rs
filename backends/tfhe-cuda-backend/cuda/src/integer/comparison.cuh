@@ -245,7 +245,6 @@ __host__ void host_compare_with_zero_equality(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     int32_t num_radix_blocks, int_radix_lut<Torus> *zero_comparison) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;

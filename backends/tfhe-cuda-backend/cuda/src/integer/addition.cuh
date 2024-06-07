@@ -131,7 +131,7 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     }
   }
 
-  for (uint j = 0; j < gpu_count; j++) {
+  for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
   }
