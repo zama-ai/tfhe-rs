@@ -2,7 +2,9 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{Attribute, Expr, Ident, Lit, Meta, Path, Token, Type};
+use syn::{
+    Attribute, Expr, ExprLit, Ident, Lit, Meta, MetaNameValue, Path, Token, Type, TypeParam,
+};
 
 use crate::{parse_const_str, UNVERSIONIZE_ERROR_NAME};
 
@@ -14,6 +16,8 @@ pub(crate) struct VersionizeAttribute {
     from: Option<Path>,
     try_from: Option<Path>,
     into: Option<Path>,
+    versionize_bounds: Vec<TypeParam>,
+    unversionize_bounds: Vec<TypeParam>,
 }
 
 #[derive(Default)]
@@ -22,6 +26,8 @@ struct VersionizeAttributeBuilder {
     from: Option<Path>,
     try_from: Option<Path>,
     into: Option<Path>,
+    versionize_bounds: Vec<TypeParam>,
+    unversionize_bounds: Vec<TypeParam>,
 }
 
 impl VersionizeAttributeBuilder {
@@ -35,6 +41,8 @@ impl VersionizeAttributeBuilder {
             from: self.from,
             try_from: self.try_from,
             into: self.into,
+            versionize_bounds: self.versionize_bounds,
+            unversionize_bounds: self.unversionize_bounds,
         })
     }
 }
@@ -82,10 +90,33 @@ impl VersionizeAttribute {
                         attribute_builder.dispatch_enum = Some(dispatch_enum.clone());
                     }
                 }
-                Meta::List(_) => {
-                    return Err(Self::default_error(meta.span()));
+                Meta::List(list) => {
+                    // parse versionize(bound(unversionize = "Type: Bound"))
+                    if list.path.is_ident("bound") {
+                        let name_value: MetaNameValue = list.parse_args()?;
+                        let bound_attr: TypeParam = match &name_value.value {
+                            Expr::Lit(ExprLit {
+                                attrs: _,
+                                lit: Lit::Str(s),
+                            }) => syn::parse_str(&s.value())?,
+                            _ => {
+                                return Err(Self::default_error(meta.span()));
+                            }
+                        };
+
+                        if name_value.path.is_ident("versionize") {
+                            attribute_builder.versionize_bounds.push(bound_attr);
+                        } else if name_value.path.is_ident("unversionize") {
+                            attribute_builder.unversionize_bounds.push(bound_attr);
+                        } else {
+                            return Err(Self::default_error(meta.span()));
+                        }
+                    } else {
+                        return Err(Self::default_error(meta.span()));
+                    }
                 }
                 Meta::NameValue(name_value) => {
+                    // parse versionize(from = "TypeFrom")
                     if name_value.path.is_ident("from") {
                         if attribute_builder.from.is_some() {
                             return Err(Self::default_error(meta.span()));
@@ -93,6 +124,7 @@ impl VersionizeAttribute {
                             attribute_builder.from =
                                 Some(parse_path_ignore_quotes(&name_value.value)?);
                         }
+                        // parse versionize(try_from = "TypeTryFrom")
                     } else if name_value.path.is_ident("try_from") {
                         if attribute_builder.try_from.is_some() {
                             return Err(Self::default_error(meta.span()));
@@ -100,6 +132,7 @@ impl VersionizeAttribute {
                             attribute_builder.try_from =
                                 Some(parse_path_ignore_quotes(&name_value.value)?);
                         }
+                        // parse versionize(into = "TypeInto")
                     } else if name_value.path.is_ident("into") {
                         if attribute_builder.into.is_some() {
                             return Err(Self::default_error(meta.span()));
@@ -107,6 +140,19 @@ impl VersionizeAttribute {
                             attribute_builder.into =
                                 Some(parse_path_ignore_quotes(&name_value.value)?);
                         }
+                        // parse versionize(bound = "Type: Bound")
+                    } else if name_value.path.is_ident("bound") {
+                        let bound_attr: TypeParam = match &name_value.value {
+                            Expr::Lit(ExprLit {
+                                attrs: _,
+                                lit: Lit::Str(s),
+                            }) => syn::parse_str(&s.value())?,
+                            _ => {
+                                return Err(Self::default_error(meta.span()));
+                            }
+                        };
+                        attribute_builder.versionize_bounds.push(bound_attr.clone());
+                        attribute_builder.unversionize_bounds.push(bound_attr);
                     } else {
                         return Err(Self::default_error(meta.span()));
                     }
@@ -164,6 +210,14 @@ impl VersionizeAttribute {
         } else {
             quote! { #arg_name.try_into() }
         }
+    }
+
+    pub(crate) fn versionize_bounds(&self) -> &[TypeParam] {
+        &self.versionize_bounds
+    }
+
+    pub(crate) fn unversionize_bounds(&self) -> &[TypeParam] {
+        &self.unversionize_bounds
     }
 }
 
