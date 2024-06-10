@@ -1700,7 +1700,8 @@ template <typename Torus> struct int_zero_out_if_buffer {
 
   Torus *tmp;
 
-  cudaStream_t *local_streams;
+  cudaStream_t *true_streams;
+  cudaStream_t *false_streams;
 
   int_zero_out_if_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
                          uint32_t gpu_count, int_radix_params params,
@@ -1712,9 +1713,11 @@ template <typename Torus> struct int_zero_out_if_buffer {
     if (allocate_gpu_memory) {
       tmp = (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
       // We may use a different stream to allow concurrent operation
-      local_streams = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+      true_streams = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+      false_streams = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
       for (uint j = 0; j < gpu_count; j++) {
-        local_streams[j] = cuda_create_stream(gpu_indexes[j]);
+        true_streams[j] = cuda_create_stream(gpu_indexes[j]);
+        false_streams[j] = cuda_create_stream(gpu_indexes[j]);
       }
     }
   }
@@ -1722,9 +1725,11 @@ template <typename Torus> struct int_zero_out_if_buffer {
                uint32_t gpu_count) {
     cuda_drop_async(tmp, streams[0], gpu_indexes[0]);
     for (uint j = 0; j < gpu_count; j++) {
-      cuda_destroy_stream(local_streams[j], gpu_indexes[j]);
+      cuda_destroy_stream(true_streams[j], gpu_indexes[j]);
+      cuda_destroy_stream(false_streams[j], gpu_indexes[j]);
     }
-    free(local_streams);
+    free(true_streams);
+    free(false_streams);
   }
 };
 

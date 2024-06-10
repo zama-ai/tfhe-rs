@@ -51,8 +51,8 @@ __host__ void host_integer_radix_cmux_kb(
 
   // Since our CPU threads will be working on different streams we shall assert
   // the work in the main stream is completed
-  auto true_streams = mem_ptr->zero_if_true_buffer->local_streams;
-  auto false_streams = mem_ptr->zero_if_false_buffer->local_streams;
+  auto true_streams = mem_ptr->zero_if_true_buffer->true_streams;
+  auto false_streams = mem_ptr->zero_if_false_buffer->false_streams;
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
