@@ -3,10 +3,12 @@
 //! - [ClientKey] aggregates the keys used to encrypt/decrypt between normal and homomorphic types.
 
 use super::{CompressedServerKey, ServerKey};
+use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::IntegerClientKey;
 use crate::shortint::MessageModulus;
 use concrete_csprng::seeders::Seed;
+use tfhe_versionable::Versionize;
 
 /// Key of the client
 ///
@@ -14,7 +16,8 @@ use concrete_csprng::seeders::Seed;
 /// as they will allow to encrypt and decrypt data.
 ///
 /// This key **MUST NOT** be sent to the server.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(ClientKeyVersions)]
 pub struct ClientKey {
     pub(crate) key: IntegerClientKey,
 }

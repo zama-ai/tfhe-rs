@@ -1,12 +1,16 @@
 //! Module containing the definition of the GgswCiphertextList.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::ggsw_ciphertext_list::GgswCiphertextListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GgswCiphertextListVersions)]
 pub struct GgswCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

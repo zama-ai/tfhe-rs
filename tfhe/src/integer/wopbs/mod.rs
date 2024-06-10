@@ -6,6 +6,7 @@
 #[cfg(test)]
 mod test;
 
+use super::backward_compatibility::wopbs::WopbsKeyVersions;
 use super::ciphertext::RadixCiphertext;
 pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
 use crate::core_crypto::prelude::*;
@@ -16,8 +17,10 @@ use crate::shortint::wopbs::WopbsLUTBase;
 use crate::shortint::WopbsParameters;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(WopbsKeyVersions)]
 pub struct WopbsKey {
     wopbs_key: crate::shortint::wopbs::WopbsKey,
 }

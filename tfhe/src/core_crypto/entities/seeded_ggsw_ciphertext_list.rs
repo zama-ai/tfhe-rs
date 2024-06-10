@@ -1,6 +1,9 @@
 //! Module containing the definition of the SeededGgswCiphertextList.
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::seeded_ggsw_ciphertext_list::SeededGgswCiphertextListVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -8,7 +11,8 @@ use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`seeded GGSW ciphertexts`](`crate::core_crypto::entities::SeededGgswCiphertext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededGgswCiphertextListVersions)]
 pub struct SeededGgswCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

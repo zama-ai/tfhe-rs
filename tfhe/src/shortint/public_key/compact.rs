@@ -8,6 +8,9 @@ use crate::core_crypto::prelude::{
     LweCiphertextCount, LweCiphertextOwned, LweCompactCiphertextListOwned,
     LweCompactPublicKeyOwned, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
+use crate::shortint::backward_compatibility::public_key::{
+    CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
+};
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
 #[cfg(feature = "zk-pok-experimental")]
 use crate::shortint::ciphertext::{ProvenCiphertext, ProvenCompactCiphertextList};
@@ -17,8 +20,10 @@ use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use serde::{Deserialize, Serialize};
 use std::iter::once;
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(crate) key: LweCompactPublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
@@ -410,7 +415,8 @@ impl CompactPublicKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCompactPublicKeyVersions)]
 pub struct CompressedCompactPublicKey {
     pub(crate) key: SeededLweCompactPublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
