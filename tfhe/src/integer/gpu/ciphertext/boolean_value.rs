@@ -110,18 +110,18 @@ impl CudaBooleanBlock {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 1;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &mut stream);
     ///
-    /// let msg1 = 1u32;
-    /// let ct1 = BooleanBlock::try_new(&cks.encrypt(msg1)).unwrap();
+    /// let msg1 = true;
+    /// let ct1 = cks.encrypt_bool(msg1);
     ///
     /// // Copy to GPU
-    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &mut streams);
-    /// let ct2 = d_ct1.to_boolean_block(&mut streams);
+    /// let d_ct1 = CudaBooleanBlock::from_boolean_block(&ct1, &mut stream);
+    /// let ct2 = d_ct1.to_boolean_block(&mut stream);
     /// let res = cks.decrypt_bool(&ct2);
     ///
     /// assert_eq!(msg1, res);
