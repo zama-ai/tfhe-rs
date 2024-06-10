@@ -9,6 +9,7 @@
 pub mod derived_traits;
 pub mod upgrade;
 
+use aligned_vec::{ABox, AVec};
 use num_complex::Complex;
 use std::convert::Infallible;
 use std::fmt::Display;
@@ -369,3 +370,50 @@ impl<T: Unversionize> Unversionize for Complex<T> {
 }
 
 impl<T: NotVersioned> NotVersioned for Complex<T> {}
+
+impl<T: Versionize> Versionize for ABox<T> {
+    type Versioned<'vers> = T::Versioned<'vers> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.as_ref().versionize()
+    }
+
+    // Alignment doesn't matter for versioned types
+    type VersionedOwned = Box<T::VersionedOwned>;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        Box::new(T::versionize_owned(self))
+    }
+}
+
+impl<T: Unversionize> Unversionize for ABox<T>
+where
+    T::VersionedOwned: Clone,
+{
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(ABox::new(0, T::unversionize((*versioned).to_owned())?))
+    }
+}
+
+impl<T: VersionizeVec> Versionize for AVec<T> {
+    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        T::versionize_slice(self)
+    }
+
+    // Alignment doesn't matter for versioned types
+    type VersionedOwned = T::VersionedVec;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        T::versionize_vec(self)
+    }
+}
+
+impl<T: UnversionizeVec> Unversionize for AVec<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        T::unversionize_vec(versioned).map(|unver| AVec::from_iter(0, unver))
+    }
+}
+
+impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for AVec<T> {}
