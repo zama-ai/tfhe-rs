@@ -1386,7 +1386,8 @@ mod cuda {
     }
 
     fn cuda_default_if_then_else(c: &mut Criterion) {
-        let mut bench_group = c.benchmark_group("integer::cuda::if_then_else");
+        let bench_name = "integer::cuda::if_then_else";
+        let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(60));
@@ -1401,7 +1402,7 @@ mod cuda {
 
             let param_name = param.name();
 
-            let bench_id = format!("if_then_else:{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                 let gpu_sks = CudaServerKey::new(&cks, &stream);
