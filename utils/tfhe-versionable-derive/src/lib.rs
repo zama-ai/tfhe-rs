@@ -16,9 +16,10 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics, Ident, Lifetime,
-    LifetimeParam, Path, TraitBound, Type, TypeParamBound,
+    LifetimeParam, Path, TraitBound, Type, TypeParam, TypeParamBound,
 };
 use versionize_attribute::VersionizeAttribute;
 
@@ -180,8 +181,22 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
     let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
 
+    let mut versionize_generics = trait_generics.clone();
+    for bound in attributes.versionize_bounds() {
+        syn_unwrap!(add_type_param_bound(&mut versionize_generics, bound));
+    }
+
+    // Add generic bounds specified by the user with the `bound` attribute
+    let mut unversionize_generics = trait_generics.clone();
+    for bound in attributes.unversionize_bounds() {
+        syn_unwrap!(add_type_param_bound(&mut unversionize_generics, bound));
+    }
+
     let (_, _, ref_where_clause) = ref_generics.split_for_impl();
-    let (impl_generics, _, where_clause) = trait_generics.split_for_impl();
+    let (versionize_impl_generics, _, versionize_where_clause) =
+        versionize_generics.split_for_impl();
+    let (unversionize_impl_generics, _, unversionize_where_clause) =
+        unversionize_generics.split_for_impl();
 
     // If we want to apply a conversion before the call to versionize we need to use the "owned"
     // alternative of the dispatch enum to be able to store the conversion result.
@@ -199,8 +214,8 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     quote! {
         #version_trait_impl
 
-        impl #impl_generics #versionize_trait for #input_ident #ty_generics
-        #where_clause
+        impl #versionize_impl_generics #versionize_trait for #input_ident #ty_generics
+        #versionize_where_clause
         {
             type Versioned<#lifetime> =
             <#dispatch_enum_path #dispatch_generics as
@@ -220,8 +235,8 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
         }
 
-        impl #impl_generics #unversionize_trait for #input_ident #ty_generics
-        #where_clause
+        impl #unversionize_impl_generics #unversionize_trait for #input_ident #ty_generics
+        #unversionize_where_clause
         {
             fn unversionize(#unversionize_arg_name: Self::VersionedOwned) -> Result<Self, #unversionize_error>  {
                 #unversionize_body
@@ -332,6 +347,23 @@ fn add_trait_bound(generics: &mut Generics, trait_name: &str) -> syn::Result<()>
     }
 
     Ok(())
+}
+
+fn add_type_param_bound(generics: &mut Generics, type_param_bound: &TypeParam) -> syn::Result<()> {
+    for param in generics.type_params_mut() {
+        if param.ident == type_param_bound.ident {
+            param.bounds.extend(type_param_bound.bounds.clone());
+            return Ok(());
+        }
+    }
+
+    Err(syn::Error::new(
+        type_param_bound.span(),
+        format!(
+            "Bound type {} not found in target type generics",
+            type_param_bound.ident
+        ),
+    ))
 }
 
 /// Adds a "where clause" bound for all the input types with all the input traits
