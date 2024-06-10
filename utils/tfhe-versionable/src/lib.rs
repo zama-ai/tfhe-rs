@@ -159,6 +159,26 @@ impl_scalar_versionize!(f64);
 
 impl_scalar_versionize!(char);
 
+impl<T: Versionize> Versionize for Box<T> {
+    type Versioned<'vers> = T::Versioned<'vers> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.as_ref().versionize()
+    }
+
+    type VersionedOwned = Box<T::VersionedOwned>;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        Box::new(T::versionize_owned(self))
+    }
+}
+
+impl<T: Unversionize> Unversionize for Box<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(Box::new(T::unversionize(*versioned)?))
+    }
+}
+
 impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> Versionize for Vec<T> {
     type Versioned<'vers> = &'vers [T] where T: 'vers;
 
