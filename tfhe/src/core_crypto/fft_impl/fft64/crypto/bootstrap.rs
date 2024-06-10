@@ -2,6 +2,10 @@ use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
 use super::ggsw::*;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::backward_compatibility::fft_impl::{
+    FourierLweBootstrapKeyVersioned, FourierLweBootstrapKeyVersionedOwned,
+    FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
+};
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
@@ -20,6 +24,7 @@ use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
@@ -29,6 +34,91 @@ pub struct FourierLweBootstrapKey<C: Container<Element = c64>> {
     glwe_size: GlweSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+}
+
+#[derive(serde::Serialize)]
+pub struct FourierLweBootstrapKeyVersion<'vers> {
+    fourier: FourierPolynomialListVersioned<'vers>,
+    input_lwe_dimension: <LweDimension as Versionize>::Versioned<'vers>,
+    glwe_size: <GlweSize as Versionize>::Versioned<'vers>,
+    decomposition_base_log: <DecompositionBaseLog as Versionize>::Versioned<'vers>,
+    decomposition_level_count: <DecompositionLevelCount as Versionize>::Versioned<'vers>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FourierLweBootstrapKeyVersionOwned {
+    fourier: FourierPolynomialListVersionedOwned,
+    input_lwe_dimension: <LweDimension as Versionize>::VersionedOwned,
+    glwe_size: <GlweSize as Versionize>::VersionedOwned,
+    decomposition_base_log: <DecompositionBaseLog as Versionize>::VersionedOwned,
+    decomposition_level_count: <DecompositionLevelCount as Versionize>::VersionedOwned,
+}
+
+impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweBootstrapKey<C>>
+    for FourierLweBootstrapKeyVersion<'vers>
+{
+    fn from(value: &'vers FourierLweBootstrapKey<C>) -> Self {
+        Self {
+            fourier: value.fourier.versionize(),
+            input_lwe_dimension: value.input_lwe_dimension.versionize(),
+            glwe_size: value.glwe_size.versionize(),
+            decomposition_base_log: value.decomposition_base_log.versionize(),
+            decomposition_level_count: value.decomposition_level_count.versionize(),
+        }
+    }
+}
+
+impl<C: Container<Element = c64>> From<&FourierLweBootstrapKey<C>>
+    for FourierLweBootstrapKeyVersionOwned
+{
+    fn from(value: &FourierLweBootstrapKey<C>) -> Self {
+        Self {
+            fourier: value.fourier.versionize_owned(),
+            input_lwe_dimension: value.input_lwe_dimension.versionize_owned(),
+            glwe_size: value.glwe_size.versionize_owned(),
+            decomposition_base_log: value.decomposition_base_log.versionize_owned(),
+            decomposition_level_count: value.decomposition_level_count.versionize_owned(),
+        }
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweBootstrapKeyVersionOwned>
+    for FourierLweBootstrapKey<C>
+{
+    type Error = UnversionizeError;
+    fn try_from(value: FourierLweBootstrapKeyVersionOwned) -> Result<Self, Self::Error> {
+        Ok(Self {
+            fourier: FourierPolynomialList::unversionize(value.fourier)?,
+            input_lwe_dimension: LweDimension::unversionize(value.input_lwe_dimension)?,
+            glwe_size: GlweSize::unversionize(value.glwe_size)?,
+            decomposition_base_log: DecompositionBaseLog::unversionize(
+                value.decomposition_base_log,
+            )?,
+            decomposition_level_count: DecompositionLevelCount::unversionize(
+                value.decomposition_level_count,
+            )?,
+        })
+    }
+}
+
+impl<C: Container<Element = c64>> Versionize for FourierLweBootstrapKey<C> {
+    type Versioned<'vers> = FourierLweBootstrapKeyVersioned<'vers> where C: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.into()
+    }
+
+    type VersionedOwned = FourierLweBootstrapKeyVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        self.into()
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> Unversionize for FourierLweBootstrapKey<C> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Self::try_from(versioned)
+    }
 }
 
 pub type FourierLweBootstrapKeyView<'a> = FourierLweBootstrapKey<&'a [c64]>;

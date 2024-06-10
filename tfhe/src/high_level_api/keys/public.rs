@@ -13,7 +13,13 @@
 //! transfer sizes.
 //! - [CompressedPublicKey]
 //! - [CompressedCompactPublicKey]
+use tfhe_versionable::Versionize;
+
 use super::ClientKey;
+use crate::backward_compatibility::keys::{
+    CompactPublicKeyVersions, CompressedCompactPublicKeyVersions, CompressedPublicKeyVersions,
+    PublicKeyVersions,
+};
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::shortint::MessageModulus;
@@ -21,7 +27,8 @@ use crate::shortint::MessageModulus;
 /// Classical public key.
 ///
 /// Works for any parameters, but uses a lot of memory / disk space
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PublicKeyVersions)]
 pub struct PublicKey {
     pub(in crate::high_level_api) key: crate::integer::PublicKey,
 }
@@ -49,7 +56,8 @@ impl PublicKey {
 }
 
 /// Compressed classical public key.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedPublicKeyVersions)]
 pub struct CompressedPublicKey {
     pub(in crate::high_level_api) key: crate::integer::CompressedPublicKey,
 }
@@ -85,7 +93,8 @@ impl CompressedPublicKey {
 ///
 /// Compared to the  [PublicKey], this one is much smaller
 /// however it supports less parameters.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(in crate::high_level_api) key: IntegerCompactPublicKey,
 }
@@ -125,7 +134,8 @@ impl CompactPublicKey {
 ///
 /// The compression of [CompactPublicKey] allows to save disk space
 /// an reduce transfer sizes.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedCompactPublicKeyVersions)]
 pub struct CompressedCompactPublicKey {
     pub(in crate::high_level_api) key: IntegerCompressedCompactPublicKey,
 }

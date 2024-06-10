@@ -1,3 +1,6 @@
+use tfhe_versionable::Versionize;
+
+use crate::integer::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
@@ -6,7 +9,8 @@ use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::MessageModulus;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedPublicKeyVersions)]
 pub struct CompressedPublicKey {
     pub(crate) key: crate::shortint::CompressedPublicKey,
 }

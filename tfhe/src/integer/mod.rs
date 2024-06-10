@@ -51,6 +51,7 @@ pub(crate) mod encryption;
 #[cfg(test)]
 mod tests;
 
+pub mod backward_compatibility;
 pub mod bigint;
 pub mod ciphertext;
 pub mod client_key;
