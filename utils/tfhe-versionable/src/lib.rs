@@ -9,6 +9,7 @@
 pub mod derived_traits;
 pub mod upgrade;
 
+use num_complex::Complex;
 use std::convert::Infallible;
 use std::fmt::Display;
 use std::marker::PhantomData;
@@ -254,6 +255,8 @@ impl<T: Unversionize> Unversionize for Option<T> {
     }
 }
 
+impl<T: NotVersioned> NotVersioned for Option<T> {}
+
 impl<T> Versionize for PhantomData<T> {
     type Versioned<'vers> = Self
     where
@@ -277,3 +280,34 @@ impl<T> Unversionize for PhantomData<T> {
 }
 
 impl<T> NotVersioned for PhantomData<T> {}
+
+impl<T: Versionize> Versionize for Complex<T> {
+    type Versioned<'vers> = Complex<T::Versioned<'vers>> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        Complex {
+            re: self.re.versionize(),
+            im: self.im.versionize(),
+        }
+    }
+
+    type VersionedOwned = Complex<T::VersionedOwned>;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        Complex {
+            re: self.re.versionize_owned(),
+            im: self.im.versionize_owned(),
+        }
+    }
+}
+
+impl<T: Unversionize> Unversionize for Complex<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(Complex {
+            re: T::unversionize(versioned.re)?,
+            im: T::unversionize(versioned.im)?,
+        })
+    }
+}
+
+impl<T: NotVersioned> NotVersioned for Complex<T> {}
