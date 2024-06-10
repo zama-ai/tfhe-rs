@@ -27,3 +27,4 @@ toml = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 tfhe-versionable-derive = { version = "0.1.0", path = "../tfhe-versionable-derive" }
 num-complex = { version = "0.4", features = ["serde"] }
+aligned-vec = { version = "0.5", features = ["serde"] }
