@@ -1,4 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::parameters::{
+    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
+};
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey, RadixCiphertext};
 use crate::shortint::parameters::classic::compact_pk::*;
@@ -126,7 +129,18 @@ fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
         assert!(compact_lists[1].is_packed());
 
         for compact_encrypted_list in compact_lists {
-            let expander = compact_encrypted_list.expand(&sks).unwrap();
+            let unpacking_mode = if compact_encrypted_list.is_packed() {
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks)
+            } else {
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+            };
+
+            let expander = compact_encrypted_list
+                .expand(
+                    unpacking_mode,
+                    IntegerCompactCiphertextListCastingMode::NoCasting,
+                )
+                .unwrap();
 
             let mut ciphertext_vec = Vec::with_capacity(num_ct_for_this_iter);
             for i in 0..num_ct_for_this_iter {

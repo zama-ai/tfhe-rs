@@ -112,8 +112,18 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
         let ctxt_0 = pk.encrypt_slice(&[clear_0]);
         let ctxt_1 = pk.encrypt_slice(&[clear_1]);
 
-        let mut ctxt_0 = ctxt_0.expand().into_iter().next().unwrap();
-        let ctxt_1 = ctxt_1.expand().into_iter().next().unwrap();
+        let mut ctxt_0 = ctxt_0
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+        let ctxt_1 = ctxt_1
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
 
         let d = cks.decrypt(&ctxt_0);
         assert_eq!(d, clear_0);
@@ -168,8 +178,12 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
         let first_compact_list = pk.encrypt_slice(&first_clear_vec);
         let second_compact_list = pk.encrypt_slice(&second_clear_vec);
 
-        let mut first_expanded_vec = first_compact_list.expand();
-        let mut second_expanded_vec = second_compact_list.expand();
+        let mut first_expanded_vec = first_compact_list
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap();
+        let mut second_expanded_vec = second_compact_list
+            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+            .unwrap();
 
         // decryption check
         for i in 0..num_ct_for_this_iter {

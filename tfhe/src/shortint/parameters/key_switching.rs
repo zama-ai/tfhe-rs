@@ -1,4 +1,6 @@
-use crate::shortint::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::shortint::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice,
+};
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Shortint key switching.
@@ -6,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct ShortintKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,
+    pub destination_key: EncryptionKeyChoice,
 }
 
 impl ShortintKeySwitchingParameters {
@@ -17,10 +20,15 @@ impl ShortintKeySwitchingParameters {
     /// Unless you are a cryptographer who really knows the impact of each of those parameters, you
     /// __must__ stick with the provided parameters (if any), which both offer correct results with
     /// 128 bits of security.
-    pub fn new(ks_base_log: DecompositionBaseLog, ks_level: DecompositionLevelCount) -> Self {
+    pub fn new(
+        ks_base_log: DecompositionBaseLog,
+        ks_level: DecompositionLevelCount,
+        destination_key: EncryptionKeyChoice,
+    ) -> Self {
         Self {
             ks_base_log,
             ks_level,
+            destination_key,
         }
     }
 }
@@ -29,4 +37,5 @@ pub const PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS: ShortintKeySwitchingParamete
     ShortintKeySwitchingParameters {
         ks_level: DecompositionLevelCount(15),
         ks_base_log: DecompositionBaseLog(1),
+        destination_key: EncryptionKeyChoice::Big,
     };

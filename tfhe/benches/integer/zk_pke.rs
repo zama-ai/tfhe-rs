@@ -8,6 +8,9 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::core_crypto::prelude::*;
+use tfhe::integer::parameters::{
+    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
+};
 use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
 use tfhe::shortint::ciphertext::MaxNoiseLevel;
 use tfhe::shortint::parameters::{
@@ -175,7 +178,14 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
-                        let _ret = ct1.verify_and_expand(public_params, &pk, &sks).unwrap();
+                        let _ret = ct1
+                            .verify_and_expand(
+                                public_params,
+                                &pk,
+                                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks),
+                                IntegerCompactCiphertextListCastingMode::NoCasting,
+                            )
+                            .unwrap();
                     });
                 });
 

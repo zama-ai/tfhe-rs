@@ -3,7 +3,9 @@ use super::super::parameters::CiphertextListConformanceParams;
 use super::common::*;
 use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
+pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
 };
@@ -50,15 +52,23 @@ impl ParameterSetConformant for CompactCiphertextList {
 }
 
 impl CompactCiphertextList {
-    pub fn expand(&self) -> Vec<Ciphertext> {
-        assert!(
-            !matches!(
-                self.expansion_kind,
-                CompactCiphertextListExpansionKind::RequiresCasting
-            ),
-            "Cannot expand a CompactCiphertextList that requires casting without casting, \
-            please call expand_with_casting"
-        );
+    pub fn expand(
+        &self,
+        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
+    ) -> Result<Vec<Ciphertext>, crate::Error> {
+        if matches!(
+            self.expansion_kind,
+            CompactCiphertextListExpansionKind::RequiresCasting
+        ) && matches!(
+            casting_mode,
+            ShortintCompactCiphertextListCastingMode::NoCasting
+        ) {
+            return Err(crate::Error::new(String::from(
+                "Cannot expand a CompactCiphertextList that requires casting without casting, \
+                please provide a shortint::KeySwitchingKey passing it with the enum variant \
+                CompactCiphertextListExpansionMode::CastIfNecessary as casting_mode.",
+            )));
+        }
 
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
@@ -81,29 +91,56 @@ impl CompactCiphertextList {
             par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 
-        let pbs_order = match self.expansion_kind {
-            CompactCiphertextListExpansionKind::RequiresCasting => unreachable!(),
-            CompactCiphertextListExpansionKind::NoCasting(pbs_order) => pbs_order,
-        };
+        match self.expansion_kind {
+            CompactCiphertextListExpansionKind::RequiresCasting => match casting_mode {
+                ShortintCompactCiphertextListCastingMode::CastIfNecessary(casting_key) => {
+                    let pbs_order = casting_key.dest_server_key.pbs_order;
 
-        output_lwe_ciphertext_list
-            .as_ref()
-            .chunks_exact(self.ct_list.lwe_size().0)
-            .map(|lwe_data| {
-                let ct = LweCiphertext::from_container(
-                    lwe_data.to_vec(),
-                    self.ct_list.ciphertext_modulus(),
-                );
-                Ciphertext {
-                    ct,
-                    degree: self.degree,
-                    message_modulus: self.message_modulus,
-                    carry_modulus: self.carry_modulus,
-                    pbs_order,
-                    noise_level: self.noise_level,
+                    let res = output_lwe_ciphertext_list
+                        .iter()
+                        .map(|lwe_view| {
+                            let lwe_to_cast = LweCiphertext::from_container(
+                                lwe_view.as_ref().to_vec(),
+                                self.ct_list.ciphertext_modulus(),
+                            );
+                            let shortint_ct_to_cast = Ciphertext {
+                                ct: lwe_to_cast,
+                                degree: self.degree,
+                                message_modulus: self.message_modulus,
+                                carry_modulus: self.carry_modulus,
+                                pbs_order,
+                                noise_level: self.noise_level,
+                            };
+
+                            casting_key.cast(&shortint_ct_to_cast)
+                        })
+                        .collect::<Vec<_>>();
+                    Ok(res)
                 }
-            })
-            .collect::<Vec<_>>()
+                ShortintCompactCiphertextListCastingMode::NoCasting => unreachable!(),
+            },
+            CompactCiphertextListExpansionKind::NoCasting(pbs_order) => {
+                let res = output_lwe_ciphertext_list
+                    .iter()
+                    .map(|lwe_view| {
+                        let ct = LweCiphertext::from_container(
+                            lwe_view.as_ref().to_vec(),
+                            self.ct_list.ciphertext_modulus(),
+                        );
+                        Ciphertext {
+                            ct,
+                            degree: self.degree,
+                            message_modulus: self.message_modulus,
+                            carry_modulus: self.carry_modulus,
+                            pbs_order,
+                            noise_level: self.noise_level,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(res)
+            }
+        }
     }
 
     /// Deconstruct a [`CompactCiphertextList`] into its constituents.
@@ -153,6 +190,13 @@ impl CompactCiphertextList {
             expansion_kind,
             noise_level,
         }
+    }
+
+    pub fn needs_casting(&self) -> bool {
+        matches!(
+            self.expansion_kind,
+            CompactCiphertextListExpansionKind::RequiresCasting
+        )
     }
 
     pub fn size_elements(&self) -> usize {

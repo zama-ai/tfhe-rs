@@ -81,7 +81,7 @@ pub use ciphertext::{
 };
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{
-    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
+    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 

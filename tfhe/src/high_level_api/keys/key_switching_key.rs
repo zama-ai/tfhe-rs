@@ -32,9 +32,11 @@ impl KeySwitchingKey {
             return Err(IncompatibleParameters);
         }
 
+        // params_to == params_from, so we can use the parameters from params_to
         let params = ShortintKeySwitchingParameters {
-            ks_base_log: key_pair_to.0.key.block_parameters().ks_base_log(),
-            ks_level: key_pair_to.0.key.block_parameters().ks_level(),
+            ks_base_log: params_to.ks_base_log(),
+            ks_level: params_to.ks_level(),
+            destination_key: params_to.encryption_key_choice(),
         };
 
         Ok(Self::with_parameters(key_pair_from, key_pair_to, params))
@@ -47,7 +49,7 @@ impl KeySwitchingKey {
     ) -> Self {
         Self {
             key: crate::integer::key_switching_key::KeySwitchingKey::new(
-                (&key_pair_from.0.key.key, &key_pair_from.1.key.key),
+                (&key_pair_from.0.key.key, Some(&key_pair_from.1.key.key)),
                 (&key_pair_to.0.key.key, &key_pair_to.1.key.key),
                 params,
             ),
