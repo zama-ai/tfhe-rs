@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_main, Criterion};
 use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
@@ -65,43 +65,43 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
     ),
 ];
 
-fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
-{
-    if Scalar::BITS == 64 {
-        let classic = SHORTINT_BENCH_PARAMS
-            .iter()
-            .map(|params| {
-                (
-                    params.name(),
-                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
-                        .to_owned()
-                        .into(),
-                )
-            })
-            .collect::<Vec<(String, CryptoParametersRecord<Scalar>)>>();
-        let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
-            .iter()
-            .map(|params| {
-                (
-                    params.name(),
-                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
-                        .to_owned()
-                        .into(),
-                )
-            })
-            .collect();
-        [classic, multi_bit].concat()
-    } else if Scalar::BITS == 32 {
-        BOOLEAN_BENCH_PARAMS
-            .iter()
-            .map(|(name, params)| (name.to_string(), params.to_owned().into()))
-            .collect()
-    } else {
-        vec![]
-    }
+fn benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
+    let classic = SHORTINT_BENCH_PARAMS
+        .iter()
+        .map(|params| {
+            (
+                params.name(),
+                <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                    .to_owned()
+                    .into(),
+            )
+        })
+        .collect::<Vec<(String, CryptoParametersRecord<u64>)>>();
+    let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
+        .iter()
+        .map(|params| {
+            (
+                params.name(),
+                <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                    .to_owned()
+                    .into(),
+            )
+        })
+        .collect();
+    [classic, multi_bit].concat()
 }
 
-fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mut Criterion) {
+fn benchmark_parameters_32bits() -> Vec<(String, CryptoParametersRecord<u32>)> {
+    BOOLEAN_BENCH_PARAMS
+        .iter()
+        .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+        .collect()
+}
+
+fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    criterion: &mut Criterion,
+    parameters: &[(String, CryptoParametersRecord<Scalar>)],
+) {
     let bench_name = "core_crypto::keyswitch";
     let mut bench_group = criterion.benchmark_group(bench_name);
 
@@ -113,10 +113,8 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    for (name, params) in benchmark_parameters::<Scalar>().iter() {
+    for (name, params) in parameters.iter() {
         let lwe_dimension = params.lwe_dimension.unwrap();
-        let lwe_noise_distribution =
-            DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
         let glwe_dimension = params.glwe_dimension.unwrap();
         let polynomial_size = params.polynomial_size.unwrap();
         let ks_decomp_base_log = params.ks_base_log.unwrap();
@@ -136,23 +134,23 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
             &lwe_sk,
             ks_decomp_base_log,
             ks_decomp_level_count,
-            lwe_noise_distribution,
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            params.lwe_noise_distribution.unwrap(),
+            params.ciphertext_modulus.unwrap(),
             &mut encryption_generator,
         );
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &big_lwe_sk,
             Plaintext(Scalar::ONE),
-            lwe_noise_distribution,
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            params.lwe_noise_distribution.unwrap(),
+            params.ciphertext_modulus.unwrap(),
             &mut encryption_generator,
         );
 
         let mut output_ct = LweCiphertext::new(
             Scalar::ZERO,
             lwe_sk.lwe_dimension().to_lwe_size(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            params.ciphertext_modulus.unwrap(),
         );
 
         let id = format!("{bench_name}::{name}");
@@ -179,9 +177,9 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(criterion: &mu
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use crate::benchmark_parameters;
-    use crate::utilities::{write_to_json, OperatorType};
-    use criterion::{black_box, criterion_group, Criterion};
+    use crate::benchmark_parameters_64bits;
+    use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+    use criterion::{black_box, Criterion};
     use serde::Serialize;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
@@ -191,6 +189,7 @@ mod cuda {
 
     fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         criterion: &mut Criterion,
+        parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
         let bench_name = "core_crypto::cuda::keyswitch";
         let mut bench_group = criterion.benchmark_group(bench_name);
@@ -206,10 +205,8 @@ mod cuda {
         let gpu_index = 0;
         let streams = CudaStreams::new_single_gpu(gpu_index);
 
-        for (name, params) in benchmark_parameters::<Scalar>().iter() {
+        for (name, params) in parameters.iter() {
             let lwe_dimension = params.lwe_dimension.unwrap();
-            let lwe_noise_distribution =
-                DynamicDistribution::new_gaussian_from_std_dev(params.lwe_std_dev.unwrap());
             let glwe_dimension = params.glwe_dimension.unwrap();
             let polynomial_size = params.polynomial_size.unwrap();
             let ks_decomp_base_log = params.ks_base_log.unwrap();
@@ -231,7 +228,7 @@ mod cuda {
                 &lwe_sk,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
-                lwe_noise_distribution,
+                params.lwe_noise_distribution.unwrap(),
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
@@ -241,7 +238,7 @@ mod cuda {
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 Plaintext(Scalar::ONE),
-                lwe_noise_distribution,
+                params.lwe_noise_distribution.unwrap(),
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
@@ -292,21 +289,24 @@ mod cuda {
             );
         }
     }
-    criterion_group!(
-        name = cuda_keyswitch_group;
-        config = Criterion::default().sample_size(2000);
-        targets = cuda_keyswitch::<u64>
-    );
+
+    pub fn cuda_keyswitch_group() {
+        let mut criterion: Criterion<_> =
+            (Criterion::default().sample_size(2000)).configure_from_args();
+        cuda_keyswitch(&mut criterion, &benchmark_parameters_64bits());
+    }
 }
 
 #[cfg(feature = "gpu")]
 use cuda::cuda_keyswitch_group;
 
-criterion_group!(
-    name = keyswitch_group;
-    config = Criterion::default().sample_size(2000);
-    targets = keyswitch::<u64>, keyswitch::<u32>
-);
+pub fn keyswitch_group() {
+    let mut criterion: Criterion<_> =
+        (Criterion::default().sample_size(2000)).configure_from_args();
+    keyswitch(&mut criterion, &benchmark_parameters_64bits());
+    keyswitch(&mut criterion, &benchmark_parameters_32bits());
+}
+
 #[cfg(not(feature = "gpu"))]
 criterion_main!(keyswitch_group);
 #[cfg(feature = "gpu")]
