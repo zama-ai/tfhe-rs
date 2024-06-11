@@ -249,6 +249,12 @@ pub fn blind_rotate_assign_mem_optimized<
         lut.ciphertext_modulus().is_power_of_two(),
         "This operation requires the lut to have a power of two modulus."
     );
+    assert_eq!(
+        input.lwe_size(),
+        fourier_bsk.input_lwe_dimension().to_lwe_size()
+    );
+    assert_eq!(lut.glwe_size(), fourier_bsk.glwe_size());
+    assert_eq!(lut.polynomial_size(), fourier_bsk.polynomial_size());
 
     // Blind rotate assign manages the rounding to go back to the proper torus if the ciphertext
     // modulus is not the native one

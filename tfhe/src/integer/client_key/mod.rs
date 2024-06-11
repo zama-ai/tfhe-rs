@@ -5,6 +5,7 @@
 
 mod crt;
 mod radix;
+pub(crate) mod secret_encryption_key;
 pub(crate) mod utils;
 
 use super::block_decomposition::{DecomposableInto, RecomposableFrom};
@@ -26,6 +27,7 @@ use crate::shortint::{
 };
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
+use secret_encryption_key::SecretEncryptionKey;
 use serde::{Deserialize, Serialize};
 
 pub trait RecomposableSignedInteger:
@@ -108,6 +110,14 @@ impl AsRef<Self> for ClientKey {
 impl AsRef<ShortintClientKey> for ClientKey {
     fn as_ref(&self) -> &ShortintClientKey {
         &self.key
+    }
+}
+
+impl<'key> From<&'key ClientKey> for SecretEncryptionKey<&'key [u64]> {
+    fn from(value: &'key ClientKey) -> Self {
+        Self {
+            key: (&value.key).into(),
+        }
     }
 }
 

@@ -432,7 +432,7 @@ impl KeycacheKeySwitchingKey {
         let key_2 = KEY_CACHE.get_from_param(params.1);
         let ksk = self.inner.get_with_closure(params, &mut |_| {
             KeySwitchingKey::new(
-                (key_1.client_key(), key_1.server_key()),
+                (key_1.client_key(), Some(key_1.server_key())),
                 (key_2.client_key(), key_2.server_key()),
                 params.2,
             )

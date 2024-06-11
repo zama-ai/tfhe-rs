@@ -1,4 +1,4 @@
-use super::ClientKey;
+use super::{ClientKey, SecretEncryptionKey};
 use crate::integer::CrtCiphertext;
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +34,14 @@ pub struct CrtClientKey {
 impl AsRef<ClientKey> for CrtClientKey {
     fn as_ref(&self) -> &ClientKey {
         &self.key
+    }
+}
+
+impl<'key> From<&'key CrtClientKey> for SecretEncryptionKey<&'key [u64]> {
+    fn from(value: &'key CrtClientKey) -> Self {
+        Self {
+            key: (&value.key.key).into(),
+        }
     }
 }
 

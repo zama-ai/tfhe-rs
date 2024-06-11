@@ -1,6 +1,7 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::verify_lwe_ciphertext;
 use crate::shortint::ciphertext::CompactCiphertextList;
+use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::{Ciphertext, CompactPublicKey, EncryptionKeyChoice};
 use crate::zk::{CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
 use rayon::prelude::*;
@@ -89,6 +90,7 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
+        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<Vec<Ciphertext>> {
         let not_all_valid = self.proved_lists.par_iter().any(|(ct_list, proof)| {
             verify_lwe_compact_ciphertext_list(
@@ -107,7 +109,10 @@ impl ProvenCompactCiphertextList {
         let expanded = self
             .proved_lists
             .iter()
-            .flat_map(|(ct_list, _proof)| ct_list.expand())
+            .map(|(ct_list, _proof)| ct_list.expand(casting_mode))
+            .collect::<Result<Vec<Vec<_>>, _>>()?
+            .into_iter()
+            .flatten()
             .collect();
 
         Ok(expanded)
@@ -138,7 +143,10 @@ impl ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::{
+        ShortintCompactCiphertextListCastingMode,
+        PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+    };
     use crate::shortint::{ClientKey, CompactPublicKey};
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
@@ -163,7 +171,11 @@ mod tests {
                 encryption_modulus,
             )
             .unwrap();
-        let proven_ct = proven_ct.verify_and_expand(crs.public_params(), &pk);
+        let proven_ct = proven_ct.verify_and_expand(
+            crs.public_params(),
+            &pk,
+            ShortintCompactCiphertextListCastingMode::NoCasting,
+        );
         assert!(proven_ct.is_ok());
         let proven_ct = proven_ct.unwrap();
 
@@ -194,7 +206,11 @@ mod tests {
         assert!(proven_ct.verify(crs.public_params(), &pk).is_valid());
 
         let expanded = proven_ct
-            .verify_and_expand(crs.public_params(), &pk)
+            .verify_and_expand(
+                crs.public_params(),
+                &pk,
+                ShortintCompactCiphertextListCastingMode::NoCasting,
+            )
             .unwrap();
         let decrypted = expanded
             .iter()

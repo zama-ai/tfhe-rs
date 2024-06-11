@@ -6,7 +6,10 @@ use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
-use crate::integer::parameters::CompactCiphertextListConformanceParams;
+use crate::integer::parameters::{
+    CompactCiphertextListConformanceParams, IntegerCompactCiphertextListCastingMode,
+    IntegerCompactCiphertextListUnpackingMode,
+};
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::{Ciphertext, MessageModulus};
@@ -31,26 +34,48 @@ impl CompactCiphertextList {
         sks: &crate::ServerKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
         self.0
-            .expand(sks.key.pbs_key())
+            .expand(
+                // TODO check packing and casting modes
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
+                IntegerCompactCiphertextListCastingMode::NoCasting,
+            )
             .map(|inner| CompactCiphertextListExpander { inner })
     }
 
     pub fn expand(&self) -> crate::Result<CompactCiphertextListExpander> {
-        if self.0.is_packed() {
-            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
-                None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => self
-                    .0
-                    .expand(cpu_key.pbs_key())
-                    .map(|inner| CompactCiphertextListExpander { inner }),
-                #[cfg(feature = "gpu")]
-                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
-            })
-        } else {
-            Ok(CompactCiphertextListExpander {
-                inner: self.0.expand_without_unpacking(),
-            })
+        // For WASM
+        if !self.0.is_packed() && !self.0.needs_casting() {
+            // No ServerKey required, shortcircuit to avoid the global state call
+            return Ok(CompactCiphertextListExpander {
+                inner: self.0.expand(
+                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+                    IntegerCompactCiphertextListCastingMode::NoCasting,
+                )?,
+            });
         }
+
+        global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+            None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let unpacking_mode = if self.0.is_packed() {
+                    IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
+                } else {
+                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                };
+
+                let casting_mode = if self.0.needs_casting() {
+                    todo!("TODO check packing and casting modes")
+                } else {
+                    IntegerCompactCiphertextListCastingMode::NoCasting
+                };
+
+                self.0
+                    .expand(unpacking_mode, casting_mode)
+                    .map(|inner| CompactCiphertextListExpander { inner })
+            }
+            #[cfg(feature = "gpu")]
+            Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+        })
     }
 }
 impl ParameterSetConformant for CompactCiphertextList {
@@ -82,8 +107,14 @@ impl ProvenCompactCiphertextList {
         pk: &CompactPublicKey,
         sks: &crate::ServerKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        // TODO check modes
         self.0
-            .verify_and_expand(public_params, &pk.key.key, sks.key.pbs_key())
+            .verify_and_expand(
+                public_params,
+                &pk.key.key,
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
+                IntegerCompactCiphertextListCastingMode::NoCasting,
+            )
             .map(|expander| CompactCiphertextListExpander { inner: expander })
     }
 
@@ -92,21 +123,41 @@ impl ProvenCompactCiphertextList {
         public_params: &CompactPkePublicParams,
         pk: &CompactPublicKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        if self.0.is_packed() {
-            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
-                None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => self
-                    .0
-                    .verify_and_expand(public_params, &pk.key.key, cpu_key.pbs_key())
-                    .map(|expander| CompactCiphertextListExpander { inner: expander }),
-                #[cfg(feature = "gpu")]
-                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
-            })
-        } else {
-            self.0
-                .verify_and_expand_without_unpacking(public_params, &pk.key.key)
-                .map(|expander| CompactCiphertextListExpander { inner: expander })
+        // For WASM
+        if !self.0.is_packed() && !self.0.needs_casting() {
+            // No ServerKey required, shortcircuit to avoid the global state call
+            return Ok(CompactCiphertextListExpander {
+                inner: self.0.verify_and_expand(
+                    public_params,
+                    &pk.key.key,
+                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+                    IntegerCompactCiphertextListCastingMode::NoCasting,
+                )?,
+            });
         }
+
+        global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+            None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let unpacking_mode = if self.0.is_packed() {
+                    IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
+                } else {
+                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                };
+
+                let casting_mode = if self.0.needs_casting() {
+                    todo!("TODO check packing and casting modes")
+                } else {
+                    IntegerCompactCiphertextListCastingMode::NoCasting
+                };
+
+                self.0
+                    .verify_and_expand(public_params, &pk.key.key, unpacking_mode, casting_mode)
+                    .map(|expander| CompactCiphertextListExpander { inner: expander })
+            }
+            #[cfg(feature = "gpu")]
+            Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+        })
     }
 }
 

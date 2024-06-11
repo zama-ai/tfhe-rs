@@ -1,30 +1,47 @@
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{CrtClientKey, IntegerKeyKind, RadixClientKey};
-use crate::shortint::parameters::ShortintKeySwitchingParameters;
+use crate::integer::parameters::{
+    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
+};
+use crate::integer::{
+    ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
+    IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
+};
+use crate::shortint::parameters::compact_public_key_only::{
+    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
+};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
+    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
+    MaxNoiseLevel, MessageModulus, PolynomialSize, ShortintKeySwitchingParameters,
+};
 use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     let num_block = 4;
 
-    // We retrieve only one keys set from cache since testing key switching with two identical keys
-    // set is meaningless.
-    let (client_key_1, server_key_1) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
-    let client_key_1 = RadixClientKey::from((client_key_1, num_block));
+    let client_key_1 = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
-        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let client_key_2 = RadixClientKey::from((client_key_2, num_block));
+
+    assert_eq!(
+        client_key_1.parameters().encryption_key_choice(),
+        client_key_2.parameters().encryption_key_choice(),
+        "This test requires the same encryption key choice"
+    );
 
     // Get casting key
     let ksk_params = ShortintKeySwitchingParameters::new(
         client_key_2.parameters().ks_base_log(),
         client_key_2.parameters().ks_level(),
+        client_key_2.parameters().encryption_key_choice(),
     );
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, None),
         (&client_key_2, &server_key_2),
         ksk_params,
     );
@@ -42,23 +59,27 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    // We retrieve only one keys set from cache since testing key switching with two identical keys
-    // set is meaningless.
-    let (client_key_1, server_key_1) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
-    let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
+    let client_key_1 = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let client_key_2 = CrtClientKey::from((client_key_2, basis));
+
+    assert_eq!(
+        client_key_1.parameters().encryption_key_choice(),
+        client_key_2.parameters().encryption_key_choice(),
+        "This test requires the same encryption key choice"
+    );
 
     // Get casting key
     let ksk_params = ShortintKeySwitchingParameters::new(
         client_key_2.parameters().ks_base_log(),
         client_key_2.parameters().ks_level(),
+        client_key_2.parameters().encryption_key_choice(),
     );
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, None),
         (&client_key_2, &server_key_2),
         ksk_params,
     );
@@ -87,13 +108,20 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
         KEY_CACHE.get_from_params(PARAM_MESSAGE_1_CARRY_1_KS_PBS, IntegerKeyKind::CRT);
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
+    assert_eq!(
+        client_key_1.parameters().encryption_key_choice(),
+        client_key_2.parameters().encryption_key_choice(),
+        "This test requires the same encryption key choice"
+    );
+
     // Get casting key
     let ksk_params = ShortintKeySwitchingParameters::new(
         client_key_2.parameters().ks_base_log(),
         client_key_2.parameters().ks_level(),
+        client_key_2.parameters().encryption_key_choice(),
     );
     let _ = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, Some(&server_key_1)),
         (&client_key_2, &server_key_2),
         ksk_params,
     );
@@ -101,21 +129,27 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
 
 #[test]
 fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key_1, server_key_1) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    // We generate a set of client keys, using the default parameters:
+    let client_key_1 = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
-        crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+
+    assert_eq!(
+        client_key_1.parameters().encryption_key_choice(),
+        client_key_2.parameters().encryption_key_choice(),
+        "This test requires the same encryption key choice"
+    );
 
     // Get casting key
     let ksk_params = ShortintKeySwitchingParameters::new(
         client_key_2.parameters().ks_base_log(),
         client_key_2.parameters().ks_level(),
+        client_key_2.parameters().encryption_key_choice(),
     );
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, None),
         (&client_key_2, &server_key_2),
         ksk_params,
     );
@@ -127,4 +161,105 @@ fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     // High level decryption and test
     let clear: u8 = client_key_2.decrypt_radix(&ct2);
     assert_eq!(clear, 228);
+}
+
+#[test]
+fn test_cpk_encrypt_cast_compute_ci_run_filter() {
+    pub const PARAM_PKE_MESSAGE_2_CARRY_2_132_64: CompactPublicKeyEncryptionParameters =
+        CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: LweDimension(1024),
+            encryption_noise_distribution: DynamicDistribution::new_t_uniform(42),
+            message_modulus: MessageModulus(4),
+            carry_modulus: CarryModulus(4),
+            ciphertext_modulus: CiphertextModulus::new_native(),
+            expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+        };
+
+    pub const PARAM_FHE_MESSAGE_2_CARRY_2_132_64: ClassicPBSParameters = ClassicPBSParameters {
+        lwe_dimension: LweDimension(887),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(15),
+        pbs_base_log: DecompositionBaseLog(22),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        max_noise_level: MaxNoiseLevel::new(5),
+        log2_p_fail: -64.0,
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+    };
+
+    pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_132_64: ShortintKeySwitchingParameters =
+        ShortintKeySwitchingParameters {
+            ks_level: DecompositionLevelCount(5),
+            ks_base_log: DecompositionBaseLog(3),
+            destination_key: EncryptionKeyChoice::Big,
+        };
+
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_132_64;
+    let param_fhe = PARAM_FHE_MESSAGE_2_CARRY_2_132_64;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_132_64;
+
+    let num_block = 4usize;
+
+    assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
+    assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
+
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+
+    let compact_private_key = CompactPrivateKey::new(param_pke_only);
+    let pk = CompactPublicKey::new(&compact_private_key);
+
+    let cks_fhe = ClientKey::new(param_fhe);
+    let sks_fhe = ServerKey::new_radix_server_key(&cks_fhe);
+
+    // We do not need the sks_pke for the input here
+    let ksk = KeySwitchingKey::new(
+        (&compact_private_key, None),
+        (&cks_fhe, &sks_fhe),
+        param_ksk,
+    );
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u64 = rng.gen_range(0..modulus);
+
+    // Encrypt a value and cast
+    let ct1 = pk.encrypt_radix_compact(input_msg, num_block);
+    let expander = ct1
+        .expand(
+            IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks_fhe),
+            IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
+        )
+        .unwrap();
+    let mut ct1_extracted_and_cast = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+
+    let sanity_pbs: u64 = cks_fhe.decrypt_radix(&ct1_extracted_and_cast);
+    assert_eq!(sanity_pbs, input_msg);
+
+    let multiplier = rng.gen_range(0..modulus);
+
+    // Classical AP: DP, KS, PBS
+    sks_fhe.scalar_mul_assign_parallelized(&mut ct1_extracted_and_cast, multiplier);
+
+    {
+        let acc = sks_fhe.key.generate_lookup_table(|x| x);
+        let mut input_fresh = cks_fhe.encrypt_radix(input_msg, num_block);
+        for ct in input_fresh.blocks_mut() {
+            sks_fhe.key.apply_lookup_table_assign(ct, &acc);
+        }
+        sks_fhe.scalar_mul_assign_parallelized(&mut input_fresh, multiplier);
+        // High level decryption and test
+        let clear_fresh = cks_fhe.decrypt_radix::<u64>(&input_fresh) % modulus;
+        assert_eq!(clear_fresh, (input_msg * multiplier) % modulus);
+    }
+
+    // High level decryption and test
+    let clear = cks_fhe.decrypt_radix::<u64>(&ct1_extracted_and_cast) % modulus;
+    assert_eq!(clear, (input_msg * multiplier) % modulus);
 }

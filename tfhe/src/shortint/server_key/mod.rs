@@ -28,7 +28,7 @@ pub(crate) mod tests;
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, LweSize, MonomialDegree,
     PolynomialSize, ThreadCount,
 };
 use crate::core_crypto::commons::traits::*;
@@ -1078,16 +1078,11 @@ impl ServerKey {
         self.unchecked_create_trivial(modular_value as u64)
     }
 
-    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
-        let lwe_size = match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => {
-                self.bootstrapping_key.output_lwe_dimension().to_lwe_size()
-            }
-            PBSOrder::BootstrapKeyswitch => {
-                self.bootstrapping_key.input_lwe_dimension().to_lwe_size()
-            }
-        };
-
+    pub(crate) fn unchecked_create_trivial_with_lwe_size(
+        &self,
+        value: u64,
+        lwe_size: LweSize,
+    ) -> Ciphertext {
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
 
         let shifted_value = value * delta;
@@ -1110,6 +1105,19 @@ impl ServerKey {
             self.carry_modulus,
             self.pbs_order,
         )
+    }
+
+    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
+        let lwe_size = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => {
+                self.bootstrapping_key.output_lwe_dimension().to_lwe_size()
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                self.bootstrapping_key.input_lwe_dimension().to_lwe_size()
+            }
+        };
+
+        self.unchecked_create_trivial_with_lwe_size(value, lwe_size)
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {

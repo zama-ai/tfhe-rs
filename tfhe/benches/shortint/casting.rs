@@ -16,7 +16,7 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, Some(&server_key_1)),
         (&client_key_2, &server_key_2),
         ks_param,
     );
@@ -67,7 +67,7 @@ pub fn pack_cast(c: &mut Criterion) {
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, Some(&server_key_1)),
         (&client_key_2, &server_key_2),
         ks_param,
     );
@@ -108,7 +108,7 @@ pub fn cast(c: &mut Criterion) {
     let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
-        (&client_key_1, &server_key_1),
+        (&client_key_1, Some(&server_key_1)),
         (&client_key_2, &server_key_2),
         ks_param,
     );

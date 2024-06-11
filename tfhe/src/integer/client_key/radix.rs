@@ -1,6 +1,6 @@
 //! Definition of the client key for radix decomposition
 
-use super::{ClientKey, RecomposableSignedInteger};
+use super::{ClientKey, RecomposableSignedInteger, SecretEncryptionKey};
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
@@ -39,6 +39,14 @@ pub struct RadixClientKey {
 impl AsRef<ClientKey> for RadixClientKey {
     fn as_ref(&self) -> &ClientKey {
         &self.key
+    }
+}
+
+impl<'key> From<&'key RadixClientKey> for SecretEncryptionKey<&'key [u64]> {
+    fn from(value: &'key RadixClientKey) -> Self {
+        Self {
+            key: (&value.key.key).into(),
+        }
     }
 }
 

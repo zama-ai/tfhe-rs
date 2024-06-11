@@ -7,6 +7,7 @@ use crate::core_crypto::prelude::{
 #[cfg(feature = "zk-pok-experimental")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
+use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
@@ -55,6 +56,13 @@ impl<C: Container<Element = u64>> CompactPrivateKey<C> {
     pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
         self.parameters
     }
+
+    pub fn as_view(&self) -> CompactPrivateKey<&[u64]> {
+        CompactPrivateKey {
+            key: self.key.as_view(),
+            parameters: self.parameters(),
+        }
+    }
 }
 
 impl CompactPrivateKey<Vec<u64>> {
@@ -73,7 +81,18 @@ impl CompactPrivateKey<Vec<u64>> {
     }
 }
 
-impl<'res, 'key: 'res> TryFrom<&'key ClientKey> for CompactPrivateKey<&'res [u64]> {
+impl<'key, C: Container<Element = u64>> TryFrom<&'key CompactPrivateKey<C>>
+    for CompactPrivateKey<&'key [u64]>
+{
+    type Error = crate::Error;
+
+    #[inline(always)]
+    fn try_from(value: &'key CompactPrivateKey<C>) -> Result<Self, Self::Error> {
+        Ok(value.as_view())
+    }
+}
+
+impl<'key> TryFrom<&'key ClientKey> for CompactPrivateKey<&'key [u64]> {
     type Error = crate::Error;
 
     fn try_from(client_key: &'key ClientKey) -> Result<Self, Self::Error> {
@@ -85,6 +104,18 @@ impl<'res, 'key: 'res> TryFrom<&'key ClientKey> for CompactPrivateKey<&'res [u64
             client_key.encryption_key_and_noise().0,
             compact_encryption_parameters,
         )
+    }
+}
+
+impl<'key, C: Container<Element = u64>> From<&'key CompactPrivateKey<C>>
+    for SecretEncryptionKey<&'key [u64]>
+{
+    fn from(value: &'key CompactPrivateKey<C>) -> Self {
+        Self {
+            lwe_secret_key: value.key(),
+            message_modulus: value.parameters().message_modulus,
+            carry_modulus: value.parameters().carry_modulus,
+        }
     }
 }
 
@@ -124,20 +155,18 @@ fn to_plaintext_iterator(
 }
 
 impl CompactPublicKey {
-    pub fn new<'data, C, E>(compact_private_key: C) -> Self
+    pub fn new<'data, C>(compact_private_key: C) -> Self
     where
-        Error: From<E>,
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = Error>,
     {
         Self::try_new(compact_private_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, Error>
+    pub fn try_new<'data, C>(input_key: C) -> Result<Self, Error>
     where
-        Error: From<E>,
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = Error>,
     {
         let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
 

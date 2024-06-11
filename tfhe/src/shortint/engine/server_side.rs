@@ -6,18 +6,20 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::MaxDegree;
-use crate::shortint::parameters::ShortintKeySwitchingParameters;
+use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKey;
+use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{ClientKey, CompressedServerKey, ServerKey};
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
         // Plaintext Max Value
-        let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
+        let max_degree = MaxDegree::from_msg_carry_modulus(
+            cks.parameters.message_modulus(),
+            cks.parameters.carry_modulus(),
+        );
 
-        // The maximum number of operations before we need to clean the carry buffer
-        let max = MaxDegree::new(max_value);
-        self.new_server_key_with_max_degree(cks, max)
+        self.new_server_key_with_max_degree(cks, max_degree)
     }
 
     pub(crate) fn get_thread_count_for_multi_bit_pbs(
@@ -155,18 +157,29 @@ impl ShortintEngine {
 
     pub(crate) fn new_key_switching_key(
         &mut self,
-        cks1: &ClientKey,
-        cks2: &ClientKey,
+        input_secret_key: &SecretEncryptionKey<&[u64]>,
+        output_client_key: &ClientKey,
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
+        let (output_secret_key, encryption_noise) = match params.destination_key {
+            EncryptionKeyChoice::Big => (
+                output_client_key.large_lwe_secret_key(),
+                output_client_key.parameters.glwe_noise_distribution(),
+            ),
+            EncryptionKeyChoice::Small => (
+                output_client_key.small_lwe_secret_key(),
+                output_client_key.parameters.lwe_noise_distribution(),
+            ),
+        };
+
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(
-            &cks1.large_lwe_secret_key(),
-            &cks2.large_lwe_secret_key(),
+            &input_secret_key.lwe_secret_key,
+            &output_secret_key,
             params.ks_base_log,
             params.ks_level,
-            cks2.parameters.lwe_noise_distribution(),
-            cks2.parameters.ciphertext_modulus(),
+            encryption_noise,
+            output_client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         )
     }

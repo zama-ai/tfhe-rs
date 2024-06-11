@@ -4,6 +4,9 @@ use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
+pub use crate::integer::parameters::{
+    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
+};
 use crate::integer::{BooleanBlock, CompactPublicKey, ServerKey};
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{Ciphertext, MessageModulus};
@@ -370,7 +373,16 @@ impl ParameterSetConformant for CompactCiphertextList {
 
 impl CompactCiphertextList {
     pub fn is_packed(&self) -> bool {
-        self.ct_list.degree.get() > self.ct_list.message_modulus.0
+        self.ct_list.degree.get()
+            > self
+                .ct_list
+                .message_modulus
+                .corresponding_max_degree()
+                .get()
+    }
+
+    pub fn needs_casting(&self) -> bool {
+        self.ct_list.needs_casting()
     }
 
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
@@ -413,19 +425,43 @@ impl CompactCiphertextList {
         self.info.len()
     }
 
-    pub fn expand(&self, sks: &ServerKey) -> crate::Result<CompactCiphertextListExpander> {
-        let expanded_blocks = self.ct_list.expand();
+    pub fn expand(
+        &self,
+        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
+        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        let is_packed = self.is_packed();
 
-        let mut conformance_params = sks.key.conformance_params();
-        conformance_params.degree = self.ct_list.degree;
-        if !self.is_conformant_with_shortint_params(conformance_params) {
-            return Err(crate::Error::new(
-                "This compact list is not conformant with the given server key".to_string(),
-            ));
+        if is_packed
+            && matches!(
+                unpacking_mode,
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+            )
+        {
+            return Err(crate::Error::new(String::from(
+                "Cannot expand a CompactCiphertextList that requires unpacking without \
+                a server key, please provide a shortint::ServerKey passing it with the \
+                enum variant CompactCiphertextListUnpackingMode::UnpackIfNecessary \
+                as unpacking_mode.",
+            )));
         }
 
-        let expanded_blocks = if self.ct_list.degree.get() > self.ct_list.message_modulus.0 - 1 {
-            extract_message_and_carries(expanded_blocks, sks)
+        let expanded_blocks = self.ct_list.expand(casting_mode.into())?;
+
+        let expanded_blocks = if is_packed {
+            match unpacking_mode {
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                    if !self.is_compatible_with_unpacking_server_key(sks) {
+                        return Err(crate::Error::new(
+                            "This compact list is not conformant with the given server key"
+                                .to_string(),
+                        ));
+                    }
+
+                    extract_message_and_carries(expanded_blocks, sks)
+                }
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
+            }
         } else {
             expanded_blocks
         };
@@ -436,19 +472,19 @@ impl CompactCiphertextList {
         ))
     }
 
-    /// This simply expands the list without splitting messages if they were packed
-    /// caller should check using [Self::is_packed] to know if data is packed
-    pub(crate) fn expand_without_unpacking(&self) -> CompactCiphertextListExpander {
-        let expanded_blocks = self.ct_list.expand();
-        CompactCiphertextListExpander::new(expanded_blocks, self.info.clone())
-    }
-
     pub fn size_elements(&self) -> usize {
         self.ct_list.size_elements()
     }
 
     pub fn size_bytes(&self) -> usize {
         self.ct_list.size_bytes()
+    }
+
+    pub fn is_compatible_with_unpacking_server_key(&self, sks: &ServerKey) -> bool {
+        let mut conformance_params = sks.key.conformance_params();
+        conformance_params.degree = self.ct_list.degree;
+
+        self.is_conformant_with_shortint_params(conformance_params)
     }
 
     fn is_conformant_with_shortint_params(
@@ -486,57 +522,70 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
-        sks: &ServerKey,
+        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
+        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        let expanded_ct = self
-            .ct_list
-            .verify_and_expand(public_params, &public_key.key)?;
+        let is_packed = self.is_packed();
 
-        let degree = self.ct_list.proved_lists[0].0.degree;
-        let message_modulus = self.ct_list.proved_lists[0].0.message_modulus.0;
-
-        let mut conformance_params = sks.key.conformance_params();
-        conformance_params.degree = degree;
-        for ct in expanded_ct.iter() {
-            if !ct.is_conformant(&conformance_params) {
-                return Err(crate::Error::new(
-                    "This compact list is not conformant with the given server key".to_string(),
-                ));
-            }
+        if is_packed
+            && matches!(
+                unpacking_mode,
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+            )
+        {
+            return Err(crate::Error::new(String::from(
+                "Cannot expand a CompactCiphertextList that requires unpacking without \
+                a server key, please provide a shortint::ServerKey passing it with the \
+                enum variant CompactCiphertextListUnpackingMode::UnpackIfNecessary \
+                as unpacking_mode.",
+            )));
         }
 
-        let expanded_ct = if degree.get() > message_modulus - 1 {
-            extract_message_and_carries(expanded_ct, sks)
+        let expanded_blocks =
+            self.ct_list
+                .verify_and_expand(public_params, &public_key.key, casting_mode.into())?;
+
+        let expanded_blocks = if is_packed {
+            match unpacking_mode {
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                    let degree = self.ct_list.proved_lists[0].0.degree;
+                    let mut conformance_params = sks.key.conformance_params();
+                    conformance_params.degree = degree;
+
+                    for ct in expanded_blocks.iter() {
+                        if !ct.is_conformant(&conformance_params) {
+                            return Err(crate::Error::new(
+                                "This compact list is not conformant with the given server key"
+                                    .to_string(),
+                            ));
+                        }
+                    }
+
+                    extract_message_and_carries(expanded_blocks, sks)
+                }
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
+            }
         } else {
-            expanded_ct
+            expanded_blocks
         };
 
         Ok(CompactCiphertextListExpander::new(
-            expanded_ct,
+            expanded_blocks,
             self.info.clone(),
         ))
     }
 
     pub fn is_packed(&self) -> bool {
         self.ct_list.proved_lists[0].0.degree.get()
-            > self.ct_list.proved_lists[0].0.message_modulus.0
+            > self.ct_list.proved_lists[0]
+                .0
+                .message_modulus
+                .corresponding_max_degree()
+                .get()
     }
 
-    /// This simply expands the list without splitting messages if they were packed
-    /// caller should check using [Self::is_packed] to know if data is packed
-    pub(crate) fn verify_and_expand_without_unpacking(
-        &self,
-        public_params: &CompactPkePublicParams,
-        public_key: &CompactPublicKey,
-    ) -> crate::Result<CompactCiphertextListExpander> {
-        let expanded_ct = self
-            .ct_list
-            .verify_and_expand(public_params, &public_key.key)?;
-
-        Ok(CompactCiphertextListExpander::new(
-            expanded_ct,
-            self.info.clone(),
-        ))
+    pub fn needs_casting(&self) -> bool {
+        self.ct_list.proved_lists[0].0.needs_casting()
     }
 }
 
@@ -544,6 +593,9 @@ impl ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;
+    use crate::integer::parameters::{
+        IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
+    };
     use crate::integer::{ClientKey, CompactPublicKey, RadixCiphertext, ServerKey};
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
@@ -573,7 +625,12 @@ mod tests {
             .unwrap();
 
         let expander = proven_ct
-            .verify_and_expand(crs.public_params(), &pk, &sk)
+            .verify_and_expand(
+                crs.public_params(),
+                &pk,
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
+                IntegerCompactCiphertextListCastingMode::NoCasting,
+            )
             .unwrap();
 
         for (idx, msg) in msgs.iter().copied().enumerate() {

@@ -62,13 +62,13 @@ pub mod wopbs;
 
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
-pub use key_switching_key::KeySwitchingKey;
+pub use key_switching_key::{KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,
     MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
-    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
+    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 

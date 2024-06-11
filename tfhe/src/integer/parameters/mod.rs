@@ -1,7 +1,11 @@
 #![allow(clippy::excessive_precision)]
 use crate::conformance::ListSizeConstraint;
+use crate::integer::key_switching_key::KeySwitchingKeyView;
+use crate::integer::server_key::ServerKey;
+use crate::shortint::parameters::compact_public_key_only::CompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, EncryptionKeyChoice, MessageModulus,
+    ShortintCompactCiphertextListCastingMode,
 };
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -9,6 +13,28 @@ pub use crate::shortint::parameters::{
 };
 use crate::shortint::PBSParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
+
+pub type IntegerCompactCiphertextListCastingMode<'key> =
+    CompactCiphertextListCastingMode<KeySwitchingKeyView<'key>>;
+
+impl<'key> From<IntegerCompactCiphertextListCastingMode<'key>>
+    for ShortintCompactCiphertextListCastingMode<'key>
+{
+    fn from(value: IntegerCompactCiphertextListCastingMode<'key>) -> Self {
+        match value {
+            IntegerCompactCiphertextListCastingMode::CastIfNecessary(integer_key) => {
+                Self::CastIfNecessary(integer_key.key)
+            }
+            IntegerCompactCiphertextListCastingMode::NoCasting => Self::NoCasting,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum IntegerCompactCiphertextListUnpackingMode<'key> {
+    UnpackIfNecessary(&'key ServerKey),
+    NoUnpacking,
+}
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
     PARAM_MESSAGE_4_CARRY_4_KS_PBS_16_BITS,

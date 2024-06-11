@@ -360,7 +360,7 @@ fn trivium_test_shortint_long() {
     let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 
     let ksk = KeySwitchingKey::new(
-        (&client_key, &server_key),
+        (&client_key, Some(&server_key)),
         (&underlying_ck, &underlying_sk),
         PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );

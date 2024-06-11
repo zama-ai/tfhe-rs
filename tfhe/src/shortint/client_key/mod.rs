@@ -1,5 +1,7 @@
 //! Module with the definition of the ClientKey.
 
+pub(crate) mod secret_encryption_key;
+
 use super::PBSOrder;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
@@ -9,6 +11,7 @@ use crate::shortint::parameters::{
     DynamicDistribution, EncryptionKeyChoice, MessageModulus, ShortintParameterSet,
 };
 use crate::shortint::CarryModulus;
+use secret_encryption_key::SecretEncryptionKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -26,6 +29,16 @@ pub struct ClientKey {
     /// Key used as the output of the keyswitch operation
     pub(crate) lwe_secret_key: LweSecretKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
+}
+
+impl<'cks> From<&'cks ClientKey> for SecretEncryptionKey<&'cks [u64]> {
+    fn from(value: &'cks ClientKey) -> Self {
+        Self {
+            lwe_secret_key: value.encryption_key_and_noise().0,
+            message_modulus: value.parameters.message_modulus(),
+            carry_modulus: value.parameters.carry_modulus(),
+        }
+    }
 }
 
 impl ClientKey {
