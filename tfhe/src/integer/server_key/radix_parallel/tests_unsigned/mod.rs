@@ -10,6 +10,7 @@ pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
+pub(crate) mod test_scalar_div_mod;
 pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
@@ -460,7 +461,6 @@ create_parametrized_test!(
     }
 );
 // left/right rotations
-create_parametrized_test!(integer_default_scalar_div_rem);
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
 create_parametrized_test!(integer_default_trailing_zeros);
 create_parametrized_test!(integer_default_trailing_ones);
@@ -768,14 +768,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
     default_checked_ilog2_test(param, executor);
-}
-
-fn integer_default_scalar_div_rem<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_div_rem_parallelized);
-    default_scalar_div_rem_test(param, executor);
 }
 
 #[test]

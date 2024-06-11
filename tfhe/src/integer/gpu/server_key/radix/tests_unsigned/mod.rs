@@ -9,6 +9,7 @@ pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
+pub(crate) mod test_scalar_div_mod;
 pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
@@ -347,6 +348,38 @@ where
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
 
         let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.streams),
+            d_res.1.to_radix_ciphertext(&context.streams),
+        )
+    }
+}
+
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        u64,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a RadixCiphertext, u64)) -> (RadixCiphertext, RadixCiphertext) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
         (
             d_res.0.to_radix_ciphertext(&context.streams),
