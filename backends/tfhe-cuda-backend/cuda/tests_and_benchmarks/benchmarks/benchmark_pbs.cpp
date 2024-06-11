@@ -400,26 +400,6 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
 }
 
 static void
-CGBootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
-  (void)b;
-  // Define the parameters to benchmark
-  // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-  // input_lwe_ciphertext_count
-
-  // PARAM_MESSAGE_2_CARRY_2_KS_PBS
-  std::vector<BootstrapBenchmarkParams> params = {
-      (BootstrapBenchmarkParams){742, 1, 2048, 23, 1, 1},
-  };
-
-  // Add to the list of parameters to benchmark
-  for (int num_samples = 1; num_samples <= 4096; num_samples *= 2)
-    for (auto x : params) {
-      b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
-               x.pbs_base_log, x.pbs_level, num_samples});
-    }
-}
-
-static void
 BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // Define the parameters to benchmark
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,

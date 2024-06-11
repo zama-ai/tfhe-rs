@@ -36,6 +36,7 @@ public:
   }
 
   void TearDown(const ::benchmark::State &state) {
+    (void)state;
     fft_teardown(stream, gpu_index, poly1, poly2, h_cpoly1, h_cpoly2, d_cpoly1,
                  d_cpoly2);
   }
