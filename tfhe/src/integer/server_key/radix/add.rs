@@ -1,6 +1,7 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
-use crate::integer::ServerKey;
+use crate::integer::{BooleanBlock, ServerKey, SignedRadixCiphertext};
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 
 impl ServerKey {
@@ -260,4 +261,13 @@ impl ServerKey {
 
         self.unchecked_add_assign(ct_left, ct_right);
     }
+
+    pub fn unchecked_signed_overflowing_add(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.unchecked_signed_overflowing_add_or_sub(lhs, rhs, SignedOperation::Addition)
+    }
+
 }
