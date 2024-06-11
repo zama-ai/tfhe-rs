@@ -264,7 +264,6 @@ impl<T: UnsignedInteger> std::fmt::Display for DynamicDistribution<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Gaussian(Gaussian { std, mean }) => {
-                // TODO: do we need to replace the "." by a "-" for some parameter name display?
                 write!(f, "Gaussian(µ={mean},sigma={std})")
             }
             Self::TUniform(t_uniform) => {
