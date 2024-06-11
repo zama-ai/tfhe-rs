@@ -1,7 +1,7 @@
 expand_pub_use_fhe_type!(
     pub use unsigned{
         FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
-        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256
+        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256, FheUint2048
     };
 );
 

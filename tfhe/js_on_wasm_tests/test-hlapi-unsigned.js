@@ -31,6 +31,7 @@ const {
 const {
     randomBytes,
 } = require('node:crypto');
+const {FheUint2048} = require("../pkg");
 
 const U256_MAX = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 const U128_MAX = BigInt("340282366920938463463374607431768211455");
@@ -40,8 +41,16 @@ const U32_MAX = 4294967295;
 //
 // Note that the test hlapi_panic
 // purposefully creates a panic, to some panic message
-// will be printed and tess will be ok
+// will be printed and test will be ok
 init_panic_hook();
+function generateRandomBigInt(bitLength) {
+    const bytesNeeded = Math.ceil(bitLength / 8);
+    const randomBytesBuffer = randomBytes(bytesNeeded);
+
+    // Convert random bytes to BigInt
+    return BigInt(`0x${randomBytesBuffer.toString('hex')}`);
+}
+
 
 // Here integers are not enabled
 // but we try to use them, so an error should be returned
@@ -647,15 +656,6 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_list_compact', (t) =>
     hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config);
 });
 
-function generateRandomBigInt(bitLength) {
-    const bytesNeeded = Math.ceil(bitLength / 8);
-    const randomBytesBuffer = randomBytes(bytesNeeded);
-
-    // Convert random bytes to BigInt
-    const randomBigInt = BigInt(`0x${randomBytesBuffer.toString('hex')}`);
-
-    return randomBigInt;
-}
 
 test('hlapi_compact_public_key_encrypt_and_prove_compact_uint256', (t) => {
     let block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40);
@@ -690,5 +690,27 @@ test('hlapi_compact_public_key_encrypt_and_prove_compact_uint256', (t) => {
             let decrypted = expanded_list[i].decrypt(clientKey);
             assert.deepStrictEqual(decrypted, inputs[i]);
         }
+    }
+});
+
+
+test('hlapi_encrypt_2048_bits', (t) => {
+
+    let config = TfheConfigBuilder.default()
+        .build();
+
+    let clientKey = TfheClientKey.generate(config);
+
+    let values = [
+        (BigInt(1) << BigInt(2048)) - BigInt(1),
+        generateRandomBigInt(2048),
+        generateRandomBigInt(2048),
+        generateRandomBigInt(2048),
+    ];
+
+    for (const value of values) {
+        let encrypted = FheUint2048.encrypt_with_client_key(value, clientKey);
+        let decrypted = encrypted.decrypt(clientKey);
+        assert.deepStrictEqual(decrypted, value);
     }
 });

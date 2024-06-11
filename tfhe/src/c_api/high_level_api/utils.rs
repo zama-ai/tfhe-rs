@@ -42,6 +42,7 @@ impl_c_api_integer_type!(crate::c_api::high_level_api::u128::U128 => u128);
 impl_c_api_integer_type!(crate::c_api::high_level_api::i128::I128 => i128);
 impl_c_api_integer_type!(crate::c_api::high_level_api::u256::U256 => crate::integer::U256);
 impl_c_api_integer_type!(crate::c_api::high_level_api::i256::I256 => crate::integer::I256);
+impl_c_api_integer_type!(crate::c_api::high_level_api::u2048::U2048 => crate::integer::bigint::U2048);
 
 macro_rules! impl_destroy_on_type {
     ($wrapper_type:ty) => {

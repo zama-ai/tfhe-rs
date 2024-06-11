@@ -6,6 +6,11 @@ pub mod static_unsigned;
 pub mod u256;
 pub mod u512;
 
+pub use static_unsigned::StaticUnsignedBigInt;
+
+pub type U2048 = static_unsigned::StaticUnsignedBigInt<32>;
+pub type U4096 = static_unsigned::StaticUnsignedBigInt<64>;
+
 #[cfg(test)]
 fn u64_with_odd_bits_set() -> u64 {
     let mut v = 0u64;

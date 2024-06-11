@@ -1,35 +1,55 @@
 use crate::high_level_api::prelude::*;
+use crate::integer::bigint::{StaticUnsignedBigInt, U2048};
 use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
+use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
 
-impl From<U256> for JsValue {
-    fn from(value: U256) -> Self {
-        let (low_rs, high_rs) = value.to_low_high_u128();
+impl<const N: usize> From<StaticUnsignedBigInt<N>> for JsValue {
+    fn from(value: StaticUnsignedBigInt<N>) -> Self {
+        if N == 0 {
+            return Self::from(0);
+        }
 
-        let low_js = Self::from(low_rs);
-        let high_js = Self::from(high_rs);
-        (high_js << Self::bigint_from_str("128")) + low_js
+        let shift = BigInt::from(64u64);
+        let mut js_value = BigInt::from(0);
+
+        for v in value.0.iter().copied().rev() {
+            js_value = js_value << &shift;
+            js_value = js_value | BigInt::from(v);
+        }
+
+        js_value.into()
     }
 }
 
-impl TryFrom<JsValue> for U256 {
+impl<const N: usize> TryFrom<JsValue> for StaticUnsignedBigInt<N> {
     type Error = JsError;
 
-    fn try_from(value: JsValue) -> Result<Self, Self::Error> {
-        let low_js = &value & JsValue::bigint_from_str(U128_MAX_AS_STR);
-        let high_js = value >> JsValue::bigint_from_str("128");
+    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
+        let mut js_bigint = BigInt::new(&js_value).map_err(|err| {
+            JsError::new(&format!("Failed to convert the value: {}", err.to_string()))
+        })?;
+        let mask = BigInt::from(u64::MAX);
+        let shift = BigInt::from(u64::BITS);
 
-        // Since we masked the low value it will fit in u128
-        let low_rs = u128::try_from(low_js).unwrap();
-        // If high does not fit in u128, that means the value is > 256::MAX
-        let high_rs =
-            u128::try_from(high_js).map_err(|_| JsError::new("value is out of range for u256"))?;
+        let mut data = [0u64; N];
+        for word in data.iter_mut() {
+            // Since we masked the low value it will fit in u64
+            *word = (&js_bigint & &mask).try_into().unwrap();
+            js_bigint = js_bigint >> &shift;
+        }
 
-        let value = Self::from((low_rs, high_rs));
-        Ok(value)
+        if js_bigint == 0 {
+            Ok(Self(data))
+        } else {
+            Err(JsError::new(&format!(
+                "Value is out of range for U{}",
+                N * u64::BITS as usize
+            )))
+        }
     }
 }
 
@@ -583,6 +603,16 @@ create_wrapper_type_non_native_type!(
         proven_compact_type_name: ProvenCompactFheUint256,
         proven_compact_list_type_name: ProvenCompactFheUint256List,
         rust_type: U256,
+    },
+    {
+        type_name: FheUint2048,
+        compressed_type_name: CompressedFheUint2048,
+        compact_type_name: CompactFheUint2048,
+        compact_list_type_name: CompactFheUint2048List,
+        proven_type: ProvenFheUint2048,
+        proven_compact_type_name: ProvenCompactFheUint2048,
+        proven_compact_list_type_name: ProvenCompactFheUint2048List,
+        rust_type: U2048,
     },
     // Signed
     {

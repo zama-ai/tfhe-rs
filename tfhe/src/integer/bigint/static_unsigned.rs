@@ -371,6 +371,17 @@ impl<const N: usize> CastFrom<StaticUnsignedBigInt<N>> for u64 {
     }
 }
 
+impl<const N_IN: usize, const N_OUT: usize> CastFrom<StaticUnsignedBigInt<N_IN>>
+    for StaticUnsignedBigInt<N_OUT>
+{
+    fn cast_from(input: StaticUnsignedBigInt<N_IN>) -> Self {
+        let smallest = N_IN.min(N_OUT);
+        let mut data = [0u64; N_OUT];
+        data[..smallest].copy_from_slice(&input.0[..smallest]);
+        Self(data)
+    }
+}
+
 impl<const N: usize> CastFrom<StaticUnsignedBigInt<N>> for u8 {
     fn cast_from(input: StaticUnsignedBigInt<N>) -> Self {
         input.0[0] as Self
