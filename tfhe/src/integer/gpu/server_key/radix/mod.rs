@@ -25,22 +25,20 @@ mod add;
 mod bitwise_op;
 mod cmux;
 mod comparison;
+mod div_mod;
 mod mul;
 mod neg;
+mod rotate;
 mod scalar_add;
 mod scalar_bitwise_op;
 mod scalar_comparison;
+mod scalar_div_mod;
 mod scalar_mul;
+mod scalar_rotate;
 mod scalar_shift;
 mod scalar_sub;
 mod shift;
 mod sub;
-
-mod scalar_rotate;
-
-mod rotate;
-
-mod div_mod;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]

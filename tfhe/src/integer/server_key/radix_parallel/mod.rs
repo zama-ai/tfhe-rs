@@ -12,7 +12,7 @@ mod rotate;
 mod scalar_add;
 mod scalar_bitwise_op;
 mod scalar_comparison;
-mod scalar_div_mod;
+pub(crate) mod scalar_div_mod;
 mod scalar_mul;
 mod scalar_rotate;
 mod scalar_shift;

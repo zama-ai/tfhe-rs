@@ -18,7 +18,7 @@ use crate::integer::{IntegerCiphertext, ServerKey, I256, I512, U256, U512};
 use std::ops::{Add, AddAssign, BitAnd, Div, Mul, Neg, Shl, Shr, Sub};
 
 #[inline(always)]
-fn is_even<T>(d: T) -> bool
+pub(crate) fn is_even<T>(d: T) -> bool
 where
     T: Numeric + BitAnd<T, Output = T>,
 {
@@ -94,6 +94,7 @@ pub trait Reciprocable: MiniUnsignedInteger {
     type DoublePrecision: MiniUnsignedInteger
         + CastFrom<Self>
         + CastInto<Self>
+        + CastInto<u64>
         + ScalarMultiplier // Needed for scalar_mul
         + DecomposableInto<u8>; // Needed for scalar_mul
 }
@@ -201,19 +202,19 @@ impl SignedReciprocable for I256 {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct ApproximatedMultiplier<T> {
+pub(crate) struct ApproximatedMultiplier<T> {
     // The approximation of the inverse
-    multiplier: T,
+    pub(crate) multiplier: T,
     // The shift that we might need
     // to do post multiplication to correct error
-    shift_post: u32,
+    pub(crate) shift_post: u32,
     // Ceil ilog2 of the divisor
     // that is, we have: (l-1) < log2(divisor) <= l
-    l: u32,
+    pub(crate) l: u32,
 }
 
 #[allow(non_snake_case)]
-fn choose_multiplier<T: Reciprocable>(
+pub(crate) fn choose_multiplier<T: Reciprocable>(
     divisor: T,
     precision: u32,
     integer_bits: u32,
