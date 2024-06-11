@@ -43,7 +43,7 @@ pub use crate::high_level_api::booleans::{CompressedFheBool, FheBool, FheBoolCon
 expand_pub_use_fhe_type!(
     pub use crate::high_level_api::integers{
         FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16,
-        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256,
+        FheUint32, FheUint64, FheUint128, FheUint160, FheUint256, FheUint512, FheUint1024, FheUint2048,
 
         FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16,
         FheInt32, FheInt64, FheInt128, FheInt160, FheInt256

@@ -2,8 +2,11 @@ use super::utils::*;
 use crate::c_api::high_level_api::booleans::FheBool;
 use crate::c_api::high_level_api::i128::I128;
 use crate::c_api::high_level_api::i256::I256;
+use crate::c_api::high_level_api::u1024::U1024;
 use crate::c_api::high_level_api::u128::U128;
+use crate::c_api::high_level_api::u2048::U2048;
 use crate::c_api::high_level_api::u256::U256;
+use crate::c_api::high_level_api::u512::U512;
 use crate::high_level_api::prelude::*;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -382,6 +385,9 @@ create_integer_wrapper_type!(name: FheUint64, clear_scalar_type: u64);
 create_integer_wrapper_type!(name: FheUint128, clear_scalar_type: U128);
 create_integer_wrapper_type!(name: FheUint160, clear_scalar_type: U256);
 create_integer_wrapper_type!(name: FheUint256, clear_scalar_type: U256);
+create_integer_wrapper_type!(name: FheUint512, clear_scalar_type: U512);
+create_integer_wrapper_type!(name: FheUint1024, clear_scalar_type: U1024);
+create_integer_wrapper_type!(name: FheUint2048, clear_scalar_type: U2048);
 
 create_integer_wrapper_type!(
     name: FheInt2,
@@ -579,6 +585,9 @@ impl_oprf_for_uint!(name: FheUint64);
 impl_oprf_for_uint!(name: FheUint128);
 impl_oprf_for_uint!(name: FheUint160);
 impl_oprf_for_uint!(name: FheUint256);
+impl_oprf_for_uint!(name: FheUint512);
+impl_oprf_for_uint!(name: FheUint1024);
+impl_oprf_for_uint!(name: FheUint2048);
 
 impl_oprf_for_int!(name: FheInt2);
 impl_oprf_for_int!(name: FheInt4);

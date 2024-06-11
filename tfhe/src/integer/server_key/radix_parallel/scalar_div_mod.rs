@@ -11,6 +11,7 @@
 //! due to the huge difference between clear computation and FHE computation
 //! it is absolutely worth to compute the approximation of the inverse.
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
+use crate::integer::bigint::{StaticUnsignedBigInt, U1024, U2048, U4096};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
@@ -60,21 +61,7 @@ where
     }
 }
 
-impl MiniUnsignedInteger for U256 {
-    fn ceil_ilog2(self) -> u32 {
-        self.ceil_ilog2()
-    }
-
-    fn ilog2(self) -> u32 {
-        self.ilog2()
-    }
-
-    fn is_power_of_two(self) -> bool {
-        self.is_power_of_two()
-    }
-}
-
-impl MiniUnsignedInteger for U512 {
+impl<const N: usize> MiniUnsignedInteger for StaticUnsignedBigInt<N> {
     fn ceil_ilog2(self) -> u32 {
         self.ceil_ilog2()
     }
@@ -121,6 +108,18 @@ impl Reciprocable for u128 {
 
 impl Reciprocable for U256 {
     type DoublePrecision = U512;
+}
+
+impl Reciprocable for U512 {
+    type DoublePrecision = U1024;
+}
+
+impl Reciprocable for U1024 {
+    type DoublePrecision = U2048;
+}
+
+impl Reciprocable for U2048 {
+    type DoublePrecision = U4096;
 }
 
 pub trait SignedReciprocable:
