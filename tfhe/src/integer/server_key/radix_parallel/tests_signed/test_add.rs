@@ -63,13 +63,14 @@ fn integer_signed_unchecked_overflowing_add_parallelized<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_add_parallelized);
+    let executor =
+        CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_add_parallelized);
     signed_unchecked_overflowing_add_test(param, executor);
 }
 
 fn integer_signed_default_overflowing_add<P>(param: P)
-    where
-        P: Into<PBSParameters>,
+where
+    P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_add_parallelized);
     signed_default_overflowing_add_test(param, executor);
@@ -84,20 +85,20 @@ where
 }
 
 fn integer_signed_smart_add<P>(param: P)
-    where
-        P: Into<PBSParameters>,
+where
+    P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_add_parallelized);
     signed_smart_add_test(param, executor);
 }
 
 pub(crate) fn signed_unchecked_overflowing_add_test<P, T>(param: P, mut executor: T)
-    where
-        P: Into<PBSParameters>,
-        T: for<'a> FunctionExecutor<
-            (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
-            (SignedRadixCiphertext, BooleanBlock),
-        >,
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        (SignedRadixCiphertext, BooleanBlock),
+    >,
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
@@ -122,8 +123,7 @@ pub(crate) fn signed_unchecked_overflowing_add_test<P, T>(param: P, mut executor
         let ctxt_0 = cks.encrypt_signed(clear_0);
         let ctxt_1 = cks.encrypt_signed(clear_1);
 
-        let (ct_res, result_overflowed) =
-            executor.execute((&ctxt_0, &ctxt_1));
+        let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (expected_result, expected_overflowed) =
             signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
 
@@ -279,8 +279,7 @@ where
             let d1: i64 = cks.decrypt_signed(&ctxt_1);
             assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
 
-            let (ct_res, result_overflowed) =
-                executor.execute((&ctxt_0, &ctxt_1));
+            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
             assert!(ct_res.block_carries_are_empty());
 
             let (expected_result, expected_overflowed) =
