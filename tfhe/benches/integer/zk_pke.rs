@@ -7,10 +7,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::core_crypto::prelude::*;
 use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
 use tfhe::shortint::ciphertext::MaxNoiseLevel;
-use tfhe::shortint::parameters::{CarryModulus, ClassicPBSParameters, MessageModulus};
-// use tfhe::shortint::parameters::PBSParameters;
+use tfhe::shortint::parameters::{
+    CarryModulus, ClassicPBSParameters, MessageModulus, PBSParameters,
+};
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
-// use utilities::{write_to_json, OperatorType};
+use utilities::{write_to_json, OperatorType};
 
 // TODO to remove once casting is available
 pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64: ClassicPBSParameters =
@@ -59,7 +60,7 @@ fn pke_zk_proof(c: &mut Criterion) {
             let public_params = crs.public_params();
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
-                    ZkComputeLoad::Proof => "compute_load_prood",
+                    ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
                 let bench_id = format!("{param_name}_{bits}_bits_packed_{zk_load}");
@@ -75,17 +76,17 @@ fn pke_zk_proof(c: &mut Criterion) {
                     })
                 });
 
-                // let shortint_params: PBSParameters = param_pke.into();
+                let shortint_params: PBSParameters = param_pke.into();
 
-                // write_to_json::<u64, _>(
-                //     &bench_id,
-                //     shortint_params,
-                //     param_name,
-                //     "pke_zk_proof",
-                //     &OperatorType::Atomic,
-                //     shortint_params.message_modulus().0 as u32,
-                //     vec![shortint_params.message_modulus().0.ilog2(); num_block],
-                // );
+                write_to_json::<u64, _>(
+                    &bench_id,
+                    shortint_params,
+                    param_name,
+                    "pke_zk_proof",
+                    &OperatorType::Atomic,
+                    shortint_params.message_modulus().0 as u32,
+                    vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                );
             }
         }
     }
@@ -118,18 +119,21 @@ fn pke_zk_verify(c: &mut Criterion) {
 
             let fhe_uint_count = bits / 64;
 
+            println!("Generating CRS... ");
             let crs =
                 CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
             let public_params = crs.public_params();
+
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
-                    ZkComputeLoad::Proof => "compute_load_prood",
+                    ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
                 let bench_id = format!("{param_name}_{bits}_bits_packed_{zk_load}");
                 let input_msg = rng.gen::<u64>();
                 let messages = vec![input_msg; fhe_uint_count];
 
+                println!("Generating proven ciphertext ({zk_load})... ");
                 let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                     .extend(messages.iter().copied())
                     .build_with_proof_packed(public_params, compute_load)
@@ -141,17 +145,17 @@ fn pke_zk_verify(c: &mut Criterion) {
                     });
                 });
 
-                // let shortint_params: PBSParameters = param_pke.into();
+                let shortint_params: PBSParameters = param_pke.into();
 
-                // write_to_json::<u64, _>(
-                //     &bench_id,
-                //     shortint_params,
-                //     param_name,
-                //     "pke_zk_verify",
-                //     &OperatorType::Atomic,
-                //     shortint_params.message_modulus().0 as u32,
-                //     vec![shortint_params.message_modulus().0.ilog2(); num_block],
-                // );
+                write_to_json::<u64, _>(
+                    &bench_id,
+                    shortint_params,
+                    param_name,
+                    "pke_zk_verify",
+                    &OperatorType::Atomic,
+                    shortint_params.message_modulus().0 as u32,
+                    vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                );
             }
         }
     }
