@@ -1,5 +1,3 @@
-use crate::core_crypto::prelude::CastFrom;
-
 pub type U512 = super::static_unsigned::StaticUnsignedBigInt<8>;
 
 impl From<(u128, u128, u128, u128)> for U512 {
@@ -14,12 +12,6 @@ impl From<(u128, u128, u128, u128)> for U512 {
             (value3 & u128::from(u64::MAX)) as u64,
             (value3 >> 64) as u64,
         ])
-    }
-}
-
-impl CastFrom<crate::integer::U256> for U512 {
-    fn cast_from(input: crate::integer::U256) -> Self {
-        Self([input.0[0], input.0[1], input.0[2], input.0[3], 0, 0, 0, 0])
     }
 }
 

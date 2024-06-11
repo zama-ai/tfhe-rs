@@ -6,6 +6,17 @@ pub mod static_unsigned;
 pub mod u256;
 pub mod u512;
 
+pub use static_unsigned::StaticUnsignedBigInt;
+
+pub use i256::I256;
+pub use i512::I512;
+pub use u256::U256;
+pub use u512::U512;
+
+pub type U1024 = static_unsigned::StaticUnsignedBigInt<16>;
+pub type U2048 = static_unsigned::StaticUnsignedBigInt<32>;
+pub type U4096 = static_unsigned::StaticUnsignedBigInt<64>;
+
 #[cfg(test)]
 fn u64_with_odd_bits_set() -> u64 {
     let mut v = 0u64;

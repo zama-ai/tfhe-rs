@@ -8,8 +8,11 @@ pub mod i256;
 pub mod integers;
 pub mod keys;
 mod threading;
+pub mod u1024;
 pub mod u128;
+pub mod u2048;
 pub mod u256;
+pub mod u512;
 mod utils;
 #[cfg(feature = "zk-pok-experimental")]
 mod zk;
