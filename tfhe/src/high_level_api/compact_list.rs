@@ -361,7 +361,7 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     #[cfg(feature = "zk-pok-experimental")]
-    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
     #[cfg(feature = "zk-pok-experimental")]
     use crate::zk::CompactPkeCrs;
     use crate::{set_server_key, FheInt64, FheUint16, FheUint2, FheUint32};
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn test_proven_compact_list() {
         let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64,
             None,
         )
         .build();

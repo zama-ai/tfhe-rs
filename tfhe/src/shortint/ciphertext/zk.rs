@@ -138,14 +138,14 @@ impl ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
-    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
     use crate::shortint::{ClientKey, CompactPublicKey};
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
     #[test]
     fn test_zk_ciphertext_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
 
         let crs = CompactPkeCrs::from_shortint_params(params, 4).unwrap();
         let cks = ClientKey::new(params);
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
 
         let crs = CompactPkeCrs::from_shortint_params(params, 512).unwrap();
         let cks = ClientKey::new(params);
