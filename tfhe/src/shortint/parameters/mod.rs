@@ -31,12 +31,15 @@ pub mod test_parameters;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
+use crate::shortint::ciphertext::MaxDegree;
 pub use crate::shortint::parameters::classic::compact_pk::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
-pub use compact_public_key_only::CompactCiphertextListExpansionKind;
+pub use compact_public_key_only::{
+    CompactCiphertextListExpansionKind, ShortintCompactCiphertextListCastingMode,
+};
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
@@ -51,6 +54,12 @@ pub use parameters_wopbs::*;
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct MessageModulus(pub usize);
+
+impl MessageModulus {
+    pub fn corresponding_max_degree(&self) -> MaxDegree {
+        MaxDegree::new(self.0 - 1)
+    }
+}
 
 /// The modulus of the carry space. For a given plaintext $p$ we have the carry $c$ defined as
 /// $c = \frac{p}{MessageModulus}$ and so $0 <= c < CarryModulus$ as the total plaintext modulus is

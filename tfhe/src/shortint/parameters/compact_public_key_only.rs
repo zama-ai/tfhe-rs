@@ -1,6 +1,7 @@
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
 use crate::shortint::parameters::{CarryModulus, MessageModulus, ShortintParameterSet};
+use crate::shortint::KeySwitchingKeyView;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,15 @@ pub enum CompactCiphertextListExpansionKind {
     RequiresCasting,
     NoCasting(PBSOrder),
 }
+
+#[derive(Clone, Copy, Debug)]
+pub enum CompactCiphertextListCastingMode<K> {
+    CastIfNecessary(K),
+    NoCasting,
+}
+
+pub type ShortintCompactCiphertextListCastingMode<'key> =
+    CompactCiphertextListCastingMode<KeySwitchingKeyView<'key>>;
 
 impl From<PBSOrder> for CompactCiphertextListExpansionKind {
     fn from(value: PBSOrder) -> Self {
