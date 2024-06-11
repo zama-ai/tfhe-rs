@@ -1,0 +1,193 @@
+# Run PKE Zero-Knowledge benchmarks on an instance and return parsed results to Slab CI bot.
+name: PKE ZK benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 3a.m.
+    - cron: '0 3 * * 6'
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  PARSE_INTEGER_BENCH_CSV_FILE: tfhe_rs_integer_benches_${{ github.sha }}.csv
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+jobs:
+  should-run:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push' ||
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      zk_pok_changed: ${{ steps.changed-files.outputs.zk_pok_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@d6babd6899969df1a11d14c368283ea4436bca78
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            zk_pok:
+              - tfhe/Cargo.toml
+              - concrete-csprng/**
+              - tfhe-zk-pok/**
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+              - tfhe/src/zk.rs
+              - tfhe/benches/integer/zk_pke.rs
+              - .github/workflows/zk_pke_benchmark.yml
+
+  setup-instance:
+    name: Setup instance (pke-zk-benchmarks)
+    runs-on: ubuntu-latest
+    needs: should-run
+    if: github.event_name != 'push' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
+      (github.event_name == 'push' &&
+      github.repository == 'zama-ai/tfhe-rs' &&
+      needs.should-run.outputs.zk_pok_changed == 'true')
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: bench
+
+  pke-zk-benchmarks:
+    name: Execute PKE ZK benchmarks
+    if: github.event_name != 'push' ||
+      ((github.event_name == 'push' || github.event_name == 'schedule') &&
+      needs.setup-instance.result != 'skipped')
+    needs: [ should-run, setup-instance ]
+    concurrency:
+      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          fetch-depth: 0
+
+      - name: Get benchmark details
+        run: |
+          {
+            echo "BENCH_DATE=$(date --iso-8601=seconds)";
+            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_HASH=$(git describe --tags --dirty)";
+          } >> "${GITHUB_ENV}"
+
+      - name: Set up home
+        # "Install rust" step require root user to have a HOME directory which is not set.
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@d8352f6b1d2e870bc5716e7a6d9b65c4cc244a1a
+        with:
+          toolchain: nightly
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Run benchmarks with AVX512
+        run: |
+          make bench_integer_zk
+
+      - name: Parse results
+        run: |
+          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --database tfhe_rs \
+          --hardware "hpc7a.96xlarge" \
+          --backend cpu \
+          --project-version "${{ env.COMMIT_HASH }}" \
+          --branch ${{ github.ref_name }} \
+          --commit-date "${{ env.COMMIT_DATE }}" \
+          --bench-date "${{ env.BENCH_DATE }}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --throughput
+
+      - name: Upload parsed results artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: ${{ github.sha }}_integer_zk
+          path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Send data to Slab
+        shell: bash
+        run: |
+          echo "Computing HMac on results file"
+          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
+          echo "Sending results to Slab..."
+          curl -v -k \
+          -H "Content-Type: application/json" \
+          -H "X-Slab-Repository: ${{ github.repository }}" \
+          -H "X-Slab-Command: store_data_v2" \
+          -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
+          -d @${{ env.RESULTS_FILENAME }} \
+          ${{ secrets.SLAB_URL }}
+
+      - name: Slack Notification
+        if: ${{ !success() && !cancelled() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "PKE ZK benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (pke-zk-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, pke-zk-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@58f2cae4bf2c0b6728083f5f009b6dc0eb6dc3ac
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (pke-zk-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

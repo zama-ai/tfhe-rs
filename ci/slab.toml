@@ -13,6 +13,12 @@ region = "eu-west-3"
 image_id = "ami-051942e4055555752"
 instance_type = "m6i.4xlarge"
 
+[backend.aws.bench]
+region = "eu-west-1"
+image_id = "ami-0e88d98b86aff13de"
+instance_type = "hpc7a.96xlarge"
+
+# Legacy profile section, to be removed.
 [profile.bench]
 region = "eu-west-1"
 image_id = "ami-0e88d98b86aff13de"
