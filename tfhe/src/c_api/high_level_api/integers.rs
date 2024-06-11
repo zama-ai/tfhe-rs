@@ -4,6 +4,7 @@ use crate::c_api::high_level_api::i128::I128;
 use crate::c_api::high_level_api::i256::I256;
 use crate::c_api::high_level_api::keys::CompactPublicKey;
 use crate::c_api::high_level_api::u128::U128;
+use crate::c_api::high_level_api::u2048::U2048;
 use crate::c_api::high_level_api::u256::U256;
 use crate::c_api::utils::*;
 use crate::high_level_api::prelude::*;
@@ -593,6 +594,7 @@ create_integer_wrapper_type!(name: FheUint64, clear_scalar_type: u64);
 create_integer_wrapper_type!(name: FheUint128, clear_scalar_type: U128);
 create_integer_wrapper_type!(name: FheUint160, clear_scalar_type: U256);
 create_integer_wrapper_type!(name: FheUint256, clear_scalar_type: U256);
+create_integer_wrapper_type!(name: FheUint2048, clear_scalar_type: U2048);
 
 // compact list encryption is not part of the crate_integer_wrapper_type
 // as for U128 and U256 clear scalar types, the function to use is different

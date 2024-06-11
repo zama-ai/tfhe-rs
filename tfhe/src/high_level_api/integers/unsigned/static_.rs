@@ -145,3 +145,9 @@ static_int_type! {
         num_bits: 256,
     }
 }
+
+static_int_type! {
+    Unsigned {
+        num_bits: 2048,
+    }
+}
