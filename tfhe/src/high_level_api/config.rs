@@ -1,7 +1,11 @@
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 
 /// The config type
-#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(ConfigVersions)]
 pub struct Config {
     pub(crate) inner: IntegerConfig,
 }
