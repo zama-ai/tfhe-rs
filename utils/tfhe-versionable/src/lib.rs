@@ -41,6 +41,22 @@ pub trait Versionize {
     fn versionize_owned(&self) -> Self::VersionedOwned;
 }
 
+/// This trait is used as a proxy to be more felxible when deriving Versionize for Vec<T>.
+/// This way, we can chose to skip versioning Vec<T> if T is a native types but still versionize in
+/// a loop if T is a custom type.
+/// This is used as a workaround for feature(specialization) and to bypass the orphan rule.
+pub trait VersionizeVec: Sized {
+    type VersionedSlice<'vers>: Serialize
+    where
+        Self: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_>;
+
+    type VersionedVec: Serialize + DeserializeOwned;
+
+    fn versionize_vec(slice: &[Self]) -> Self::VersionedVec;
+}
+
 #[derive(Debug)]
 /// Errors that can arise in the unversionizing process.
 pub enum UnversionizeError {
@@ -106,17 +122,41 @@ pub trait Unversionize: Versionize + Sized {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError>;
 }
 
+pub trait UnversionizeVec: VersionizeVec {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError>;
+}
+
 /// Marker trait for a type that it not really versioned, where the `versionize` method returns
 /// Self or &Self.
 pub trait NotVersioned: Versionize {}
 
-/// Implements the versionable traits for a rust primitive scalar type (integer, float, bool and
+impl<T: NotVersioned + Serialize + DeserializeOwned + Clone> VersionizeVec for T {
+    type VersionedSlice<'vers> = &'vers [T] where T: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+    }
+
+    type VersionedVec = Vec<T>;
+
+    fn versionize_vec(slice: &[Self]) -> Self::VersionedVec {
+        slice.to_vec()
+    }
+}
+
+impl<T: NotVersioned + Serialize + DeserializeOwned + Clone> UnversionizeVec for T {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        Ok(versioned)
+    }
+}
+
+/// implements the versionable traits for a rust primitive scalar type (integer, float, bool and
 /// char) Since these types won't move between versions, we consider that they are their own
 /// versionized types
 macro_rules! impl_scalar_versionize {
     ($t:ty) => {
         impl Versionize for $t {
-            type Versioned<'a> = $t;
+            type Versioned<'vers> = $t;
 
             type VersionedOwned = $t;
 
@@ -136,6 +176,8 @@ macro_rules! impl_scalar_versionize {
         }
 
         impl NotVersioned for $t {}
+
+        impl NotVersioned for Vec<$t> {}
     };
 }
 
@@ -179,43 +221,39 @@ impl<T: Unversionize> Unversionize for Box<T> {
     }
 }
 
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> Versionize for Vec<T> {
-    type Versioned<'vers> = &'vers [T] where T: 'vers;
+impl<T: VersionizeVec> Versionize for Vec<T> {
+    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
-        self.as_slice()
+        T::versionize_slice(self)
     }
 
-    type VersionedOwned = Self;
+    type VersionedOwned = T::VersionedVec;
 
     fn versionize_owned(&self) -> Self::VersionedOwned {
-        self.clone()
+        T::versionize_vec(self)
     }
 }
 
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> Unversionize for Vec<T> {
+impl<T: VersionizeVec + Clone> Versionize for [T] {
+    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        T::versionize_slice(self)
+    }
+
+    type VersionedOwned = T::VersionedVec;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        T::versionize_vec(self)
+    }
+}
+
+impl<T: UnversionizeVec> Unversionize for Vec<T> {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Ok(versioned)
+        T::unversionize_vec(versioned)
     }
 }
-
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for Vec<T> {}
-
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> Versionize for [T] {
-    type Versioned<'vers> = &'vers [T] where T: 'vers;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self
-    }
-
-    type VersionedOwned = Vec<T>;
-
-    fn versionize_owned(&self) -> Self::VersionedOwned {
-        self.to_vec()
-    }
-}
-
-impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for [T] {}
 
 impl Versionize for String {
     type Versioned<'vers> = &'vers str;
