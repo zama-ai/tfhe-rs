@@ -3,6 +3,7 @@ use tfhe_versionable::VersionsDispatch;
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
 };
+use crate::integer::BooleanBlock;
 
 #[derive(VersionsDispatch)]
 pub enum BaseRadixCiphertextVersions<Block> {
@@ -22,4 +23,9 @@ pub enum BaseCrtCiphertextVersions<Block> {
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
     V0(CompactCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+pub enum BooleanBlockVersions {
+    V0(BooleanBlock),
 }

@@ -1,4 +1,7 @@
+use tfhe_versionable::Versionize;
+
 use super::FheBool;
+use crate::backward_compatibility::booleans::{CompactFheBoolListVersions, CompactFheBoolVersions};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::CompactCiphertextList;
@@ -34,7 +37,8 @@ use crate::{CompactPublicKey, FheBoolConformanceParams, ServerKey};
 /// assert_eq!(decrypted, true);
 /// ```
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(CompactFheBoolVersions)]
 pub struct CompactFheBool {
     pub(in crate::high_level_api) list: CompactCiphertextList,
 }
@@ -110,7 +114,8 @@ impl ParameterSetConformant for CompactFheBool {
 /// assert_eq!(decrypted, clears);
 /// ```
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(CompactFheBoolListVersions)]
 pub struct CompactFheBoolList {
     list: CompactCiphertextList,
 }
