@@ -1,11 +1,44 @@
 use crate::curve_api::{Curve, CurveGroupOps, FieldOps, PairingGroupOps};
 
+use ark_serialize::{
+    CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
+};
 use core::ops::{Index, IndexMut};
 use rand::RngCore;
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 #[repr(transparent)]
 struct OneBased<T: ?Sized>(T);
+
+impl<T: Valid> Valid for OneBased<T> {
+    fn check(&self) -> Result<(), SerializationError> {
+        self.0.check()
+    }
+}
+
+impl<T: CanonicalDeserialize> CanonicalDeserialize for OneBased<T> {
+    fn deserialize_with_mode<R: ark_serialize::Read>(
+        reader: R,
+        compress: Compress,
+        validate: Validate,
+    ) -> Result<Self, SerializationError> {
+        T::deserialize_with_mode(reader, compress, validate).map(Self)
+    }
+}
+
+impl<T: CanonicalSerialize> CanonicalSerialize for OneBased<T> {
+    fn serialize_with_mode<W: ark_serialize::Write>(
+        &self,
+        writer: W,
+        compress: Compress,
+    ) -> Result<(), SerializationError> {
+        self.0.serialize_with_mode(writer, compress)
+    }
+
+    fn serialized_size(&self, compress: Compress) -> usize {
+        self.0.serialized_size(compress)
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComputeLoad {
@@ -42,7 +75,13 @@ impl<T: ?Sized + IndexMut<usize>> IndexMut<usize> for OneBased<T> {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, CanonicalSerialize, CanonicalDeserialize,
+)]
+#[serde(bound(
+    deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
+    serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
+))]
 struct GroupElements<G: Curve> {
     g_list: OneBased<Vec<G::G1>>,
     g_hat_list: OneBased<Vec<G::G2>>,

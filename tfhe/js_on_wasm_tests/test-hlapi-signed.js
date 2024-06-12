@@ -19,8 +19,10 @@ const {
     FheInt256,
     CompactCiphertextList,
     ProvenCompactCiphertextList,
+    CompactPkePublicParams,
+    CompactPkeCrs,
+    ZkComputeLoad,
 } = require("../pkg/tfhe.js");
-const {CompactPkeCrs, ZkComputeLoad} = require("../pkg");
 const {
     randomBytes,
 } = require('node:crypto');
@@ -466,6 +468,11 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
 
     let crs = CompactPkeCrs.from_parameters(block_params, 2 + 32 + 1 + 256);
     let public_params = crs.public_params();
+
+    const compress = false; // We don't compress as it's too slow on wasm
+    let serialized_pke_params = public_params.serialize(compress);
+    let validate = false; // Also too slow on wasm
+    public_params = CompactPkePublicParams.deserialize(serialized_pke_params, compress, validate);
 
     let clear_u2 = 3;
     let clear_i32 = -3284;

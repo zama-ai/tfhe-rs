@@ -137,8 +137,8 @@ pub trait PairingGroupOps<Zp, G1, G2>:
 
 pub trait Curve {
     type Zp: FieldOps;
-    type G1: CurveGroupOps<Self::Zp> + serde::Serialize + for<'de> serde::Deserialize<'de>;
-    type G2: CurveGroupOps<Self::Zp> + serde::Serialize + for<'de> serde::Deserialize<'de>;
+    type G1: CurveGroupOps<Self::Zp> + CanonicalSerialize + CanonicalDeserialize;
+    type G2: CurveGroupOps<Self::Zp> + CanonicalSerialize + CanonicalDeserialize;
     type Gt: PairingGroupOps<Self::Zp, Self::G1, Self::G2>;
 }
 
