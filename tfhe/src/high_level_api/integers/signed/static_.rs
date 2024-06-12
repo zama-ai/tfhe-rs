@@ -7,6 +7,7 @@ use crate::high_level_api::integers::signed::compact::{
 use crate::high_level_api::integers::signed::compressed::CompressedFheInt;
 use crate::high_level_api::IntegerId;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::NotVersioned;
 
 macro_rules! static_int_type {
     // Defines a static integer type that uses
@@ -20,7 +21,7 @@ macro_rules! static_int_type {
         // Define the Id of the FheInt concrete/specialized type
         ::paste::paste! {
             #[doc = concat!("Id for the [FheInt", stringify!($num_bits), "] data type.")]
-            #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+            #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, NotVersioned)]
             pub struct [<FheInt $num_bits Id>];
 
             impl IntegerId for [<FheInt $num_bits Id>] {

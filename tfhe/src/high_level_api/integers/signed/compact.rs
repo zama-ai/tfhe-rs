@@ -1,3 +1,6 @@
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::integers::{CompactFheIntListVersions, CompactFheIntVersions};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
@@ -33,7 +36,8 @@ use std::marker::PhantomData;
 /// assert_eq!(decrypted, i32::MIN);
 /// ```
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(CompactFheIntVersions)]
 pub struct CompactFheInt<Id: FheIntId> {
     pub(in crate::high_level_api::integers) list: CompactCiphertextList,
     pub(in crate::high_level_api::integers) id: Id,
@@ -126,7 +130,8 @@ impl<Id: FheIntId> ParameterSetConformant for CompactFheInt<Id> {
 /// assert_eq!(decrypted, clears);
 /// ```
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(CompactFheIntListVersions)]
 pub struct CompactFheIntList<Id: FheIntId> {
     pub(in crate::high_level_api::integers) list: CompactCiphertextList,
     pub(in crate::high_level_api::integers) id: Id,
