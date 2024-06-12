@@ -145,7 +145,7 @@ impl AssociatedType for DispatchType {
 
                 // Wraps the highest version into the dispatch enum
                 let src_type = self.latest_version_type()?;
-                let src = parse_quote! { &#src_type };
+                let src = parse_quote! { #src_type };
                 let dest_ident = self.ident();
                 let dest = parse_quote! { #dest_ident #ty_generics };
                 let constructor = self.generate_conversion_constructor_ref("value")?;

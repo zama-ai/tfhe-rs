@@ -6,9 +6,9 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Attribute, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields,
-    FieldsNamed, FieldsUnnamed, Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion,
-    Lifetime, Path, Type, Variant,
+    parse_quote, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion, Lifetime,
+    Path, Type, Variant,
 };
 
 use crate::associated::{
@@ -18,7 +18,7 @@ use crate::associated::{
 use crate::{
     add_lifetime_bound, add_trait_where_clause, parse_const_str, parse_trait_bound,
     punctuated_from_iter_result, LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME,
-    VERSIONIZE_TRAIT_NAME,
+    VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
 };
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
@@ -132,7 +132,7 @@ impl AssociatedType for VersionType {
                 let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
                 let src_ident = self.orig_type.ident.clone();
-                let src = parse_quote! { &#src_ident #orig_generics };
+                let src = parse_quote! { #src_ident #orig_generics };
                 let dest_ident = self.ident();
                 let dest = parse_quote! { #dest_ident #ty_generics };
                 let constructor = self.generate_conversion_constructor(
@@ -193,11 +193,18 @@ impl VersionType {
 
     fn type_generics(&self) -> syn::Result<Generics> {
         let mut generics = self.orig_type.generics.clone();
-        if let AssociatedTypeKind::Ref(Some(lifetime)) = &self.kind {
-            add_lifetime_bound(&mut generics, lifetime);
+        if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind {
+            if let Some(lifetime) = opt_lifetime {
+                add_lifetime_bound(&mut generics, lifetime);
+            }
+            add_trait_where_clause(&mut generics, self.inner_types()?, &[VERSIONIZE_TRAIT_NAME])?;
+        } else {
+            add_trait_where_clause(
+                &mut generics,
+                self.inner_types()?,
+                &[VERSIONIZE_OWNED_TRAIT_NAME],
+            )?;
         }
-
-        add_trait_where_clause(&mut generics, self.inner_types()?, &[VERSIONIZE_TRAIT_NAME])?;
 
         Ok(generics)
     }
@@ -327,13 +334,14 @@ impl VersionType {
             let unver_ty = field.ty.clone();
 
             let versionize_trait = parse_trait_bound(VERSIONIZE_TRAIT_NAME)?;
+            let versionize_owned_trait = parse_trait_bound(VERSIONIZE_OWNED_TRAIT_NAME)?;
 
             let ty: Type = match &kind {
                 AssociatedTypeKind::Ref(lifetime) => parse_quote! {
                     <#unver_ty as #versionize_trait>::Versioned<#lifetime>
                 },
                 AssociatedTypeKind::Owned => parse_quote! {
-                    <#unver_ty as #versionize_trait>::VersionedOwned
+                    <#unver_ty as #versionize_owned_trait>::VersionedOwned
                 },
             };
 
@@ -632,22 +640,24 @@ impl VersionType {
         direction: ConversionDirection,
     ) -> syn::Result<TokenStream> {
         let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
+        let versionize_owned_trait: Path = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
         let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
 
         let field_constructor = match direction {
             ConversionDirection::OrigToAssociated => {
-                let param = if is_ref {
-                    field_param
-                } else {
-                    quote! {&#field_param}
-                };
-
                 match self.kind {
-                    AssociatedTypeKind::Ref(_) => quote! {
-                        #versionize_trait::versionize(#param)
-                    },
+                    AssociatedTypeKind::Ref(_) => {
+                        let param = if is_ref {
+                            field_param
+                        } else {
+                            quote! {&#field_param}
+                        };
+
+                        quote! {
+                            #versionize_trait::versionize(#param)
+                        }},
                     AssociatedTypeKind::Owned => quote! {
-                        #versionize_trait::versionize_owned(#param)
+                        #versionize_owned_trait::versionize_owned(#field_param)
                     },
                 }
             }

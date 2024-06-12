@@ -31,7 +31,7 @@ pub mod serialization_proxy {
 }
 
 pub(crate) use serialization_proxy::*;
-use tfhe_versionable::{Unversionize, Versionize};
+use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 /// New type to manage seeds used for compressed/seeded types.
@@ -46,11 +46,13 @@ impl Versionize for CompressionSeed {
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
     }
+}
 
+impl VersionizeOwned for CompressionSeed {
     type VersionedOwned = CompressionSeedVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
-        (*self).into()
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.into()
     }
 }
 

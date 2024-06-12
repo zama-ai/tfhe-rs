@@ -3,23 +3,27 @@
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionsDispatch};
+use tfhe_versionable::{
+    Unversionize, UnversionizeError, Versionize, VersionizeOwned, VersionsDispatch,
+};
 
 // Example of a simple struct with a manual Versionize impl that requires a specific bound
 struct MyStruct<T> {
     val: T,
 }
 
-impl<T: Serialize + DeserializeOwned + ToOwned<Owned = T>> Versionize for MyStruct<T> {
+impl<T: Serialize + DeserializeOwned> Versionize for MyStruct<T> {
     type Versioned<'vers> = &'vers T where T: 'vers;
 
     fn versionize(&self) -> Self::Versioned<'_> {
         &self.val
     }
+}
 
+impl<T: Serialize + DeserializeOwned + ToOwned<Owned = T>> VersionizeOwned for MyStruct<T> {
     type VersionedOwned = T;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         self.val.to_owned()
     }
 }

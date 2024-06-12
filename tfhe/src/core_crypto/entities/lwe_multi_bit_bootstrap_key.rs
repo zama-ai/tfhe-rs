@@ -15,7 +15,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(LweMultiBitBootstrapKeyVersions)]
@@ -415,11 +415,11 @@ pub struct FourierLweMultiBitBootstrapKeyVersion<'vers> {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct FourierLweMultiBitBootstrapKeyVersionOwned {
     fourier: FourierPolynomialListVersionedOwned,
-    input_lwe_dimension: <LweDimension as Versionize>::VersionedOwned,
-    glwe_size: <GlweSize as Versionize>::VersionedOwned,
-    decomposition_base_log: <DecompositionBaseLog as Versionize>::VersionedOwned,
-    decomposition_level_count: <DecompositionLevelCount as Versionize>::VersionedOwned,
-    grouping_factor: <LweBskGroupingFactor as Versionize>::VersionedOwned,
+    input_lwe_dimension: <LweDimension as VersionizeOwned>::VersionedOwned,
+    glwe_size: <GlweSize as VersionizeOwned>::VersionedOwned,
+    decomposition_base_log: <DecompositionBaseLog as VersionizeOwned>::VersionedOwned,
+    decomposition_level_count: <DecompositionLevelCount as VersionizeOwned>::VersionedOwned,
+    grouping_factor: <LweBskGroupingFactor as VersionizeOwned>::VersionedOwned,
 }
 
 impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweMultiBitBootstrapKey<C>>
@@ -437,10 +437,10 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweMultiBitBootstrap
     }
 }
 
-impl<C: Container<Element = c64>> From<&FourierLweMultiBitBootstrapKey<C>>
+impl<C: Container<Element = c64>> From<FourierLweMultiBitBootstrapKey<C>>
     for FourierLweMultiBitBootstrapKeyVersionOwned
 {
-    fn from(value: &FourierLweMultiBitBootstrapKey<C>) -> Self {
+    fn from(value: FourierLweMultiBitBootstrapKey<C>) -> Self {
         Self {
             fourier: value.fourier.versionize_owned(),
             input_lwe_dimension: value.input_lwe_dimension.versionize_owned(),
@@ -478,10 +478,12 @@ impl<C: Container<Element = c64>> Versionize for FourierLweMultiBitBootstrapKey<
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
     }
+}
 
+impl<C: Container<Element = c64>> VersionizeOwned for FourierLweMultiBitBootstrapKey<C> {
     type VersionedOwned = FourierLweMultiBitBootstrapKeyVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         self.into()
     }
 }

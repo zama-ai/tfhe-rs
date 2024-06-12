@@ -23,10 +23,10 @@ pub enum SerializableShortintBootstrappingKeyVersionedOwned {
     V0(SerializableShortintBootstrappingKeyVersionOwned),
 }
 
-impl<C: Container<Element = concrete_fft::c64>> From<&SerializableShortintBootstrappingKey<C>>
+impl<C: Container<Element = concrete_fft::c64>> From<SerializableShortintBootstrappingKey<C>>
     for SerializableShortintBootstrappingKeyVersionedOwned
 {
-    fn from(value: &SerializableShortintBootstrappingKey<C>) -> Self {
+    fn from(value: SerializableShortintBootstrappingKey<C>) -> Self {
         Self::V0(value.into())
     }
 }

@@ -33,10 +33,10 @@ pub enum FourierPolynomialListVersionedOwned {
     V0(FourierPolynomialList<ABox<[c64]>>),
 }
 
-impl<C: Container<Element = c64>> From<&FourierPolynomialList<C>>
+impl<C: Container<Element = c64>> From<FourierPolynomialList<C>>
     for FourierPolynomialListVersionedOwned
 {
-    fn from(value: &FourierPolynomialList<C>) -> Self {
+    fn from(value: FourierPolynomialList<C>) -> Self {
         let owned_poly = FourierPolynomialList {
             data: ABox::collect(value.data.as_ref().iter().copied()),
             polynomial_size: value.polynomial_size,
@@ -76,10 +76,10 @@ pub enum FourierLweBootstrapKeyVersionedOwned {
     V0(FourierLweBootstrapKeyVersionOwned),
 }
 
-impl<C: Container<Element = c64>> From<&FourierLweBootstrapKey<C>>
+impl<C: Container<Element = c64>> From<FourierLweBootstrapKey<C>>
     for FourierLweBootstrapKeyVersionedOwned
 {
-    fn from(value: &FourierLweBootstrapKey<C>) -> Self {
+    fn from(value: FourierLweBootstrapKey<C>) -> Self {
         Self::V0(value.into())
     }
 }
