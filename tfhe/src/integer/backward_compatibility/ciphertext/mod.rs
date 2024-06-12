@@ -5,6 +5,7 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedRadixCiphertext, CompressedModulusSwitchedRadixCiphertextGeneric,
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
 };
+use crate::integer::BooleanBlock;
 
 #[derive(VersionsDispatch)]
 pub enum BaseRadixCiphertextVersions<Block> {
@@ -45,4 +46,9 @@ pub enum CompressedModulusSwitchedRadixCiphertextVersions {
 #[allow(dead_code)]
 pub(crate) enum CompressedModulusSwitchedRadixCiphertextGenericVersions {
     V0(CompressedModulusSwitchedRadixCiphertextGeneric),
+}
+
+#[derive(VersionsDispatch)]
+pub enum BooleanBlockVersions {
+    V0(BooleanBlock),
 }

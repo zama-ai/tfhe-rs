@@ -1,8 +1,10 @@
 use super::{IntegerCiphertext, IntegerRadixCiphertext};
+use crate::integer::backward_compatibility::ciphertext::BooleanBlockVersions;
 use crate::integer::{RadixCiphertext, ServerKey};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Wrapper type used to signal that the inner value encrypts 0 or 1
 ///
@@ -42,7 +44,8 @@ use serde::{Deserialize, Serialize};
 /// let dec: u8 = cks.decrypt(&ct_res);
 /// assert_eq!(u8::from(a >= b), dec);
 /// ```
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Versionize)]
+#[versionize(BooleanBlockVersions)]
 pub struct BooleanBlock(pub(crate) Ciphertext);
 
 impl BooleanBlock {
