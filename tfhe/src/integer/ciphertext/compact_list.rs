@@ -1,9 +1,12 @@
 use super::super::parameters::RadixCompactCiphertextListConformanceParams;
 use super::IntegerRadixCiphertext;
 use crate::conformance::ParameterSetConformant;
+use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
     pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
     // Keep track of the num_blocks, as we allow

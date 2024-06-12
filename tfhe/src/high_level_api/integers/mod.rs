@@ -12,8 +12,14 @@ expand_pub_use_fhe_type!(
     };
 );
 
-pub(in crate::high_level_api) use signed::FheIntId;
-pub(in crate::high_level_api) use unsigned::FheUintId;
+pub(in crate::high_level_api) use signed::{
+    CompressedSignedRadixCiphertext, FheIntId,
+    RadixCiphertextVersionOwned as SignedRadixCiphertextVersionOwned,
+};
+pub(in crate::high_level_api) use unsigned::{
+    CompressedRadixCiphertext, FheUintId,
+    RadixCiphertextVersionOwned as UnsignedRadixCiphertextVersionOwned,
+};
 // These are pub-exported so that their doc can appear in generated rust docs
 use crate::shortint::MessageModulus;
 pub use signed::{CompactFheInt, CompactFheIntList, CompressedFheInt, FheInt};

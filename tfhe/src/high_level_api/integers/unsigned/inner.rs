@@ -1,3 +1,4 @@
+use crate::backward_compatibility::integers::UnsignedRadixCiphertextVersionedOwned;
 use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
@@ -5,6 +6,7 @@ use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::Device;
 use serde::{Deserializer, Serializer};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
 pub(crate) enum RadixCiphertext {
     Cpu(crate::integer::RadixCiphertext),
@@ -55,6 +57,44 @@ impl<'de> serde::Deserialize<'de> for RadixCiphertext {
             Self::Cpu(crate::integer::RadixCiphertext::deserialize(deserializer)?);
         deserialized.move_to_device_of_server_key_if_set();
         Ok(deserialized)
+    }
+}
+
+// Only CPU data are serialized so we only version the CPU type.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct RadixCiphertextVersionOwned(
+    <crate::integer::RadixCiphertext as Versionize>::VersionedOwned,
+);
+
+impl Versionize for RadixCiphertext {
+    type Versioned<'vers> = UnsignedRadixCiphertextVersionedOwned;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        let data = self.on_cpu();
+        let versioned = data.versionize_owned();
+        UnsignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(versioned))
+    }
+
+    type VersionedOwned = UnsignedRadixCiphertextVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        let cpu_data = self.on_cpu();
+        UnsignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(
+            cpu_data.versionize_owned(),
+        ))
+    }
+}
+
+impl Unversionize for RadixCiphertext {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        match versioned {
+            UnsignedRadixCiphertextVersionedOwned::V0(v0) => {
+                let mut unversioned =
+                    Self::Cpu(crate::integer::RadixCiphertext::unversionize(v0.0)?);
+                unversioned.move_to_device_of_server_key_if_set();
+                Ok(unversioned)
+            }
+        }
     }
 }
 

@@ -16,6 +16,8 @@ mod zk;
 pub use base::{FheInt, FheIntId};
 pub use compact::{CompactFheInt, CompactFheIntList};
 pub use compressed::CompressedFheInt;
+pub(in crate::high_level_api) use compressed::CompressedSignedRadixCiphertext;
+pub(in crate::high_level_api) use inner::RadixCiphertextVersionOwned;
 
 expand_pub_use_fhe_type!(
     pub use static_{

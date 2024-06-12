@@ -1,3 +1,8 @@
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::integers::{
+    CompressedFheIntVersions, CompressedSignedRadixCiphertextVersions,
+};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
@@ -36,7 +41,8 @@ use crate::ClientKey;
 /// let decrypted: i32 = decompressed.decrypt(&client_key);
 /// assert_eq!(decrypted, i32::MIN);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedFheIntVersions)]
 pub struct CompressedFheInt<Id>
 where
     Id: FheIntId,
@@ -120,7 +126,8 @@ impl<Id: FheIntId> Named for CompressedFheInt<Id> {
     const NAME: &'static str = "high_level_api::CompressedFheInt";
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedSignedRadixCiphertextVersions)]
 pub enum CompressedSignedRadixCiphertext {
     Seeded(IntegerCompressedSignedRadixCiphertext),
     ModulusSwitched(CompressedModulusSwitchedSignedRadixCiphertext),
