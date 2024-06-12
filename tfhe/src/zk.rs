@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::math::random::{BoundedDistribution, Deserialize, Serialize};
+use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
 use rand_core::RngCore;
 use std::cmp::Ordering;
@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use tfhe_zk_pok::proofs::pke::crs_gen;
 
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
+pub use tfhe_zk_pok::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 pub type CompactPkeProof = tfhe_zk_pok::proofs::pke::Proof<Curve>;
 pub type CompactPkePublicParams = tfhe_zk_pok::proofs::pke::PublicParams<Curve>;
@@ -29,7 +30,6 @@ impl ZkVerificationOutCome {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct CompactPkeCrs {
     public_params: CompactPkePublicParams,
 }

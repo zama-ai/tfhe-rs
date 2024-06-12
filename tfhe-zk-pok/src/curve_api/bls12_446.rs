@@ -36,7 +36,17 @@ fn bigint_to_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
 mod g1 {
     use super::*;
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[derive(
+        Copy,
+        Clone,
+        PartialEq,
+        Eq,
+        Serialize,
+        Deserialize,
+        Hash,
+        CanonicalSerialize,
+        CanonicalDeserialize,
+    )]
     #[repr(transparent)]
     pub struct G1 {
         #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
@@ -168,7 +178,17 @@ mod g1 {
 mod g2 {
     use super::*;
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[derive(
+        Copy,
+        Clone,
+        PartialEq,
+        Eq,
+        Serialize,
+        Deserialize,
+        Hash,
+        CanonicalSerialize,
+        CanonicalDeserialize,
+    )]
     #[repr(transparent)]
     pub struct G2 {
         #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]

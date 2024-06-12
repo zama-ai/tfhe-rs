@@ -6,7 +6,7 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct PublicParams<G: Curve> {
     g_lists: GroupElements<G>,
     big_d: usize,
@@ -52,6 +52,10 @@ impl<G: Curve> PublicParams<G> {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
+    serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
+))]
 pub struct Proof<G: Curve> {
     c_hat: G::G2,
     c_y: G::G1,
@@ -992,49 +996,75 @@ mod tests {
             m_roundtrip[i] = result;
         }
 
-        let public_param = crs_gen::<crate::curve_api::Bls12_446>(d, k, b_i, q, t, rng);
+        type Curve = crate::curve_api::Bls12_446;
 
-        for use_fake_e1 in [false, true] {
-            for use_fake_e2 in [false, true] {
-                for use_fake_m in [false, true] {
-                    for use_fake_r in [false, true] {
-                        let (public_commit, private_commit) = commit(
-                            a.clone(),
-                            b.clone(),
-                            c1.clone(),
-                            c2.clone(),
-                            if use_fake_r {
-                                fake_r.clone()
-                            } else {
-                                r.clone()
-                            },
-                            if use_fake_e1 {
-                                fake_e1.clone()
-                            } else {
-                                e1.clone()
-                            },
-                            if use_fake_m {
-                                fake_m.clone()
-                            } else {
-                                m.clone()
-                            },
-                            if use_fake_e2 {
-                                fake_e2.clone()
-                            } else {
-                                e2.clone()
-                            },
-                            &public_param,
-                            rng,
-                        );
+        let serialize_then_deserialize =
+            |public_param: &PublicParams<Curve>,
+             compress: Compress|
+             -> Result<PublicParams<Curve>, SerializationError> {
+                let mut data = Vec::new();
+                public_param.serialize_with_mode(&mut data, compress)?;
 
-                        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                            let proof =
-                                prove((&public_param, &public_commit), &private_commit, load, rng);
+                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
+            };
 
-                            assert_eq!(
-                                verify(&proof, (&public_param, &public_commit)).is_err(),
-                                use_fake_e1 || use_fake_e2 || use_fake_r || use_fake_m
+        let original_public_param = crs_gen::<Curve>(d, k, b_i, q, t, rng);
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+
+        for public_param in [
+            original_public_param,
+            public_param_that_was_compressed,
+            public_param_that_was_not_compressed,
+        ] {
+            for use_fake_e1 in [false, true] {
+                for use_fake_e2 in [false, true] {
+                    for use_fake_m in [false, true] {
+                        for use_fake_r in [false, true] {
+                            let (public_commit, private_commit) = commit(
+                                a.clone(),
+                                b.clone(),
+                                c1.clone(),
+                                c2.clone(),
+                                if use_fake_r {
+                                    fake_r.clone()
+                                } else {
+                                    r.clone()
+                                },
+                                if use_fake_e1 {
+                                    fake_e1.clone()
+                                } else {
+                                    e1.clone()
+                                },
+                                if use_fake_m {
+                                    fake_m.clone()
+                                } else {
+                                    m.clone()
+                                },
+                                if use_fake_e2 {
+                                    fake_e2.clone()
+                                } else {
+                                    e2.clone()
+                                },
+                                &public_param,
+                                rng,
                             );
+
+                            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                                let proof = prove(
+                                    (&public_param, &public_commit),
+                                    &private_commit,
+                                    load,
+                                    rng,
+                                );
+
+                                assert_eq!(
+                                    verify(&proof, (&public_param, &public_commit)).is_err(),
+                                    use_fake_e1 || use_fake_e2 || use_fake_r || use_fake_m
+                                );
+                            }
                         }
                     }
                 }
