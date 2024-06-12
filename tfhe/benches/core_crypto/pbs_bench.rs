@@ -110,8 +110,8 @@ fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
     if Scalar::BITS == 64 {
         let parameters = if cfg!(feature = "gpu") {
             vec![
-                PARAM_GPU_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             ]
         } else {
             vec![

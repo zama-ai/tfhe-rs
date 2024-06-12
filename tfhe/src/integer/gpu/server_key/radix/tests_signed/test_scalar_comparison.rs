@@ -43,13 +43,13 @@ macro_rules! define_gpu_signed_scalar_comparison_test_functions {
 
             create_gpu_parametrized_test!([<integer_signed_unchecked_scalar_ $comparison_name _ $clear_type>]{
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             });
             create_gpu_parametrized_test!([<integer_signed_default_scalar_ $comparison_name $clear_type>]{
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-                PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             });
         }
     };
@@ -89,23 +89,23 @@ where
 
 create_gpu_parametrized_test!(integer_signed_unchecked_scalar_max_i128 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_signed_unchecked_scalar_min_i128 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_signed_scalar_max_i128 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_signed_scalar_min_i128 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 
 define_gpu_signed_scalar_comparison_test_functions!(eq, i128);
