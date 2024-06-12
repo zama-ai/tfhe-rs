@@ -19,14 +19,13 @@ mod shift;
 mod sub;
 
 pub mod compressed;
-use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 use aligned_vec::ABox;
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
-use serde::de::DeserializeOwned;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -192,10 +191,10 @@ impl<'vers, C: Container<Element = concrete_fft::c64>>
     }
 }
 
-impl<C: Container<Element = concrete_fft::c64>> From<&SerializableShortintBootstrappingKey<C>>
+impl<C: Container<Element = concrete_fft::c64>> From<SerializableShortintBootstrappingKey<C>>
     for SerializableShortintBootstrappingKeyVersionOwned
 {
-    fn from(value: &SerializableShortintBootstrappingKey<C>) -> Self {
+    fn from(value: SerializableShortintBootstrappingKey<C>) -> Self {
         match value {
             SerializableShortintBootstrappingKey::Classic(bsk) => {
                 Self::Classic(bsk.versionize_owned())
@@ -205,7 +204,7 @@ impl<C: Container<Element = concrete_fft::c64>> From<&SerializableShortintBootst
                 deterministic_execution,
             } => Self::MultiBit {
                 fourier_bsk: fourier_bsk.versionize_owned(),
-                deterministic_execution: *deterministic_execution,
+                deterministic_execution,
             },
         }
     }
@@ -243,15 +242,19 @@ impl<C: Container<Element = concrete_fft::c64>> Versionize
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
     }
+}
 
+impl<C: Container<Element = concrete_fft::c64>> VersionizeOwned
+    for SerializableShortintBootstrappingKey<C>
+{
     type VersionedOwned = SerializableShortintBootstrappingKeyVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         self.into()
     }
 }
 
-impl<C: IntoContainerOwned<Element = concrete_fft::c64> + Serialize + DeserializeOwned> Unversionize
+impl<C: IntoContainerOwned<Element = concrete_fft::c64>> Unversionize
     for SerializableShortintBootstrappingKey<C>
 {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
@@ -320,12 +323,13 @@ impl Versionize for ShortintBootstrappingKey {
     fn versionize(&self) -> Self::Versioned<'_> {
         SerializableShortintBootstrappingKey::from(self).versionize_owned()
     }
+}
 
-    type VersionedOwned = <SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>> as Versionize>::VersionedOwned;
+impl VersionizeOwned for ShortintBootstrappingKey {
+    type VersionedOwned = <SerializableShortintBootstrappingKey<ABox<[concrete_fft::c64]>> as VersionizeOwned>::VersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
-        todo!()
-        //SerializableShortintBootstrappingKey::from(self).versionize_owned()
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        SerializableShortintBootstrappingKey::from(self).versionize_owned()
     }
 }
 

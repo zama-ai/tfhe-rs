@@ -3,10 +3,11 @@ use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    Attribute, Expr, ExprLit, Ident, Lit, Meta, MetaNameValue, Path, Token, Type, TypeParam,
+    Attribute, Expr, ExprLit, Ident, Lit, Meta, MetaNameValue, Path, Token, TraitBound, Type,
+    TypeParam,
 };
 
-use crate::{parse_const_str, UNVERSIONIZE_ERROR_NAME};
+use crate::{parse_const_str, UNVERSIONIZE_ERROR_NAME, VERSIONIZE_OWNED_TRAIT_NAME};
 
 /// Name of the attribute used to give arguments to our macros
 const VERSIONIZE_ATTR_NAME: &str = "versionize";
@@ -184,11 +185,12 @@ impl VersionizeAttribute {
     }
 
     pub(crate) fn versionize_method_body(&self) -> proc_macro2::TokenStream {
+        let versionize_owned_trait: TraitBound = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
         self.into
             .as_ref()
             .map(|target| {
                 quote! {
-                    #target::from(self.to_owned()).versionize_owned()
+                    #versionize_owned_trait::versionize_owned(#target::from(self.to_owned()))
                 }
             })
             .unwrap_or_else(|| {

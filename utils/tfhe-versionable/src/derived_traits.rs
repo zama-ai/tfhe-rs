@@ -11,10 +11,7 @@ pub trait Version: Sized {
     type Ref<'vers>: From<&'vers Self> + Serialize
     where
         Self: 'vers;
-    type Owned: for<'vers> From<&'vers Self>
-        + TryInto<Self, Error = UnversionizeError>
-        + DeserializeOwned
-        + Serialize;
+    type Owned: From<Self> + TryInto<Self, Error = UnversionizeError> + DeserializeOwned + Serialize;
 }
 
 /// This trait is implemented on the dispatch enum for a given type. The dispatch enum
@@ -24,7 +21,7 @@ pub trait VersionsDispatch<Unversioned>: Sized {
     type Ref<'vers>: From<&'vers Unversioned> + Serialize
     where
         Unversioned: 'vers;
-    type Owned: for<'vers> From<&'vers Unversioned>
+    type Owned: From<Unversioned>
         + TryInto<Unversioned, Error = UnversionizeError>
         + DeserializeOwned
         + Serialize;

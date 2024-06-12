@@ -2,7 +2,7 @@
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::{Unversionize, UnversionizeError, Upgrade, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Upgrade, Versionize, VersionizeOwned};
 
 struct MyStruct<T: Default> {
     attr: T,
@@ -30,7 +30,7 @@ struct MyStructVersion<'vers, T: 'vers + Default + Versionize> {
 }
 
 #[derive(Serialize, Deserialize)]
-struct MyStructVersionOwned<T: Default + Versionize> {
+struct MyStructVersionOwned<T: Default + VersionizeOwned> {
     attr: T::VersionedOwned,
     builtin: u32,
 }
@@ -47,10 +47,12 @@ impl<T: Default + Versionize + Serialize + DeserializeOwned> Versionize for MySt
         };
         MyStructVersionsDispatch::V1(ver)
     }
+}
 
+impl<T: Default + VersionizeOwned + Serialize + DeserializeOwned> VersionizeOwned for MyStruct<T> {
     type VersionedOwned = MyStructVersionsDispatchOwned<T>;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         let ver = MyStructVersionOwned {
             attr: self.attr.versionize_owned(),
             builtin: self.builtin,
@@ -59,7 +61,7 @@ impl<T: Default + Versionize + Serialize + DeserializeOwned> Versionize for MySt
     }
 }
 
-impl<T: Default + Versionize + Unversionize + Serialize + DeserializeOwned> Unversionize
+impl<T: Default + VersionizeOwned + Unversionize + Serialize + DeserializeOwned> Unversionize
     for MyStruct<T>
 {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
@@ -83,7 +85,7 @@ enum MyStructVersionsDispatch<'vers, T: 'vers + Default + Versionize> {
 }
 
 #[derive(Serialize, Deserialize)]
-enum MyStructVersionsDispatchOwned<T: Default + Versionize> {
+enum MyStructVersionsDispatchOwned<T: Default + VersionizeOwned> {
     V0(MyStructV0),
     V1(MyStructVersionOwned<T>),
 }

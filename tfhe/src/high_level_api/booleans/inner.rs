@@ -6,7 +6,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::integer::BooleanBlock;
 use crate::Device;
 use serde::{Deserializer, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 /// Enum that manages the current inner representation of a boolean.
 pub(in crate::high_level_api) enum InnerBoolean {
@@ -53,7 +53,7 @@ impl<'de> serde::Deserialize<'de> for InnerBoolean {
 // Only CPU data are serialized so we only versionize the CPU type.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct InnerBooleanVersionOwned(
-    <crate::integer::BooleanBlock as Versionize>::VersionedOwned,
+    <crate::integer::BooleanBlock as VersionizeOwned>::VersionedOwned,
 );
 
 impl Versionize for InnerBoolean {
@@ -61,15 +61,18 @@ impl Versionize for InnerBoolean {
 
     fn versionize(&self) -> Self::Versioned<'_> {
         let data = self.on_cpu();
-        let versioned = data.versionize_owned();
+        let versioned = data.into_owned().versionize_owned();
         InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(versioned))
     }
-
+}
+impl VersionizeOwned for InnerBoolean {
     type VersionedOwned = InnerBooleanVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         let cpu_data = self.on_cpu();
-        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(cpu_data.versionize_owned()))
+        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(
+            cpu_data.into_owned().versionize_owned(),
+        ))
     }
 }
 

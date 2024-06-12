@@ -1,4 +1,4 @@
-use tfhe_versionable::{Unversionize, Versionize};
+use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
 
 use crate::backward_compatibility::keys::{
     CompressedServerKeyVersions, ServerKeyVersioned, ServerKeyVersionedOwned,
@@ -141,7 +141,7 @@ pub struct ServerKeyVersion<'vers> {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ServerKeyVersionOwned {
-    pub(crate) integer_key: <IntegerServerKey as Versionize>::VersionedOwned,
+    pub(crate) integer_key: <IntegerServerKey as VersionizeOwned>::VersionedOwned,
 }
 
 impl Versionize for ServerKey {
@@ -152,12 +152,14 @@ impl Versionize for ServerKey {
             integer_key: self.key.versionize(),
         })
     }
+}
 
+impl VersionizeOwned for ServerKey {
     type VersionedOwned = ServerKeyVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         ServerKeyVersionedOwned::V0(ServerKeyVersionOwned {
-            integer_key: self.key.versionize_owned(),
+            integer_key: (*self.key).clone().versionize_owned(),
         })
     }
 }
