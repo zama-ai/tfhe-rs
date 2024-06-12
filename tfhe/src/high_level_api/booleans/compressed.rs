@@ -1,3 +1,4 @@
+use crate::backward_compatibility::booleans::CompressedFheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::integer::BooleanBlock;
@@ -7,6 +8,7 @@ use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
 use crate::shortint::CompressedCiphertext;
 use crate::{ClientKey, FheBool, FheBoolConformanceParams};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Compressed [FheBool]
 ///
@@ -29,7 +31,8 @@ use serde::{Deserialize, Serialize};
 /// let decrypted: bool = decompressed.decrypt(&client_key);
 /// assert_eq!(decrypted, true);
 /// ```
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedFheBoolVersions)]
 pub enum CompressedFheBool {
     Seeded(CompressedCiphertext),
     ModulusSwitched(CompressedModulusSwitchedCiphertext),

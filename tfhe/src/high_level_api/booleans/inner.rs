@@ -1,9 +1,11 @@
+use crate::backward_compatibility::booleans::InnerBooleanVersionedOwned;
 use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
 use crate::integer::BooleanBlock;
 use crate::Device;
 use serde::{Deserializer, Serializer};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
 /// Enum that manages the current inner representation of a boolean.
 pub(in crate::high_level_api) enum InnerBoolean {
@@ -44,6 +46,41 @@ impl<'de> serde::Deserialize<'de> for InnerBoolean {
         let mut deserialized = Self::Cpu(crate::integer::BooleanBlock::deserialize(deserializer)?);
         deserialized.move_to_device_of_server_key_if_set();
         Ok(deserialized)
+    }
+}
+
+// Only CPU data are serialized so we only versionize the CPU type.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct InnerBooleanVersionOwned(
+    <crate::integer::BooleanBlock as Versionize>::VersionedOwned,
+);
+
+impl Versionize for InnerBoolean {
+    type Versioned<'vers> = InnerBooleanVersionedOwned;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        let data = self.on_cpu();
+        let versioned = data.versionize_owned();
+        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(versioned))
+    }
+
+    type VersionedOwned = InnerBooleanVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        let cpu_data = self.on_cpu();
+        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(cpu_data.versionize_owned()))
+    }
+}
+
+impl Unversionize for InnerBoolean {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        match versioned {
+            InnerBooleanVersionedOwned::V0(v0) => {
+                let mut unversioned = Self::Cpu(crate::integer::BooleanBlock::unversionize(v0.0)?);
+                unversioned.move_to_device_of_server_key_if_set();
+                Ok(unversioned)
+            }
+        }
     }
 }
 
