@@ -35,6 +35,8 @@ pub(crate) const VERSION_TRAIT_NAME: &str = crate_full_path!("Version");
 pub(crate) const DISPATCH_TRAIT_NAME: &str = crate_full_path!("VersionsDispatch");
 pub(crate) const VERSIONIZE_TRAIT_NAME: &str = crate_full_path!("Versionize");
 pub(crate) const UNVERSIONIZE_TRAIT_NAME: &str = crate_full_path!("Unversionize");
+pub(crate) const VERSIONIZE_VEC_TRAIT_NAME: &str = crate_full_path!("VersionizeVec");
+pub(crate) const UNVERSIONIZE_VEC_TRAIT_NAME: &str = crate_full_path!("UnversionizeVec");
 pub(crate) const UNVERSIONIZE_ERROR_NAME: &str = crate_full_path!("UnversionizeError");
 
 pub(crate) const SERIALIZE_TRAIT_NAME: &str = "::serde::Serialize";
@@ -98,7 +100,9 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
         DISPATCH_TRAIT_NAME,
         &[
             VERSIONIZE_TRAIT_NAME,
+            VERSIONIZE_VEC_TRAIT_NAME,
             UNVERSIONIZE_TRAIT_NAME,
+            UNVERSIONIZE_VEC_TRAIT_NAME,
             SERIALIZE_TRAIT_NAME,
             DESERIALIZE_OWNED_TRAIT_NAME
         ],
@@ -180,6 +184,8 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
 
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
     let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
+    let versionize_vec_trait: Path = parse_const_str(VERSIONIZE_VEC_TRAIT_NAME);
+    let unversionize_vec_trait: Path = parse_const_str(UNVERSIONIZE_VEC_TRAIT_NAME);
 
     let mut versionize_generics = trait_generics.clone();
     for bound in attributes.versionize_bounds() {
@@ -192,11 +198,29 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         syn_unwrap!(add_type_param_bound(&mut unversionize_generics, bound));
     }
 
+    // Add Generics for the `VersionizeVec` and `UnversionizeVec` traits
+    let mut versionize_vec_generics = versionize_generics.clone();
+    syn_unwrap!(add_trait_bound(
+        &mut versionize_vec_generics,
+        VERSIONIZE_TRAIT_NAME
+    ));
+    let mut unversionize_vec_generics = unversionize_generics.clone();
+    syn_unwrap!(add_trait_bound(
+        &mut unversionize_vec_generics,
+        UNVERSIONIZE_TRAIT_NAME
+    ));
+
+    // split generics so they can be used inside the generated code
     let (_, _, ref_where_clause) = ref_generics.split_for_impl();
     let (versionize_impl_generics, _, versionize_where_clause) =
         versionize_generics.split_for_impl();
     let (unversionize_impl_generics, _, unversionize_where_clause) =
         unversionize_generics.split_for_impl();
+
+    let (versionize_vec_impl_generics, _, versionize_vec_where_clause) =
+        versionize_vec_generics.split_for_impl();
+    let (unversionize_vec_impl_generics, _, unversionize_vec_where_clause) =
+        unversionize_vec_generics.split_for_impl();
 
     // If we want to apply a conversion before the call to versionize we need to use the "owned"
     // alternative of the dispatch enum to be able to store the conversion result.
@@ -243,6 +267,31 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
             }
         }
 
+        impl #versionize_vec_impl_generics #versionize_vec_trait for #input_ident #ty_generics
+        #versionize_vec_where_clause
+        {
+            type VersionedSlice<#lifetime> = Vec<<Self as #versionize_trait>::Versioned<#lifetime>> #ref_where_clause;
+
+            fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+                slice.iter().map(|val| val.versionize()).collect()
+            }
+
+            type VersionedVec = Vec<<Self as #versionize_trait>::VersionedOwned> #owned_where_clause;
+
+            fn versionize_vec(slice: &[Self]) -> Self::VersionedVec {
+                slice.iter().map(|val| val.versionize_owned()).collect()
+            }
+        }
+
+        impl #unversionize_vec_impl_generics #unversionize_vec_trait for #input_ident #ty_generics
+        #unversionize_vec_where_clause {
+            fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, #unversionize_error> {
+                versioned
+                .into_iter()
+                .map(|versioned| <Self as #unversionize_trait>::unversionize(versioned))
+                .collect()
+            }
+        }
     }
     .into()
 }
