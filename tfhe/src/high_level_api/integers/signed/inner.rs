@@ -1,3 +1,4 @@
+use crate::backward_compatibility::integers::SignedRadixCiphertextVersionedOwned;
 use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{self, with_thread_local_cuda_stream};
@@ -7,6 +8,7 @@ use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::Device;
 use serde::{Deserializer, Serializer};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
 pub(crate) enum RadixCiphertext {
     Cpu(crate::integer::SignedRadixCiphertext),
@@ -59,6 +61,44 @@ impl<'de> serde::Deserialize<'de> for RadixCiphertext {
         )?);
         deserialized.move_to_device_of_server_key_if_set();
         Ok(deserialized)
+    }
+}
+
+// Only CPU data are serialized so we only versionize the CPU type.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct RadixCiphertextVersionOwned(
+    <crate::integer::SignedRadixCiphertext as Versionize>::VersionedOwned,
+);
+
+impl Versionize for RadixCiphertext {
+    type Versioned<'vers> = SignedRadixCiphertextVersionedOwned;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        let data = self.on_cpu();
+        let versioned = data.versionize_owned();
+        SignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(versioned))
+    }
+
+    type VersionedOwned = SignedRadixCiphertextVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        let cpu_data = self.on_cpu();
+        SignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(
+            cpu_data.versionize_owned(),
+        ))
+    }
+}
+
+impl Unversionize for RadixCiphertext {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        match versioned {
+            SignedRadixCiphertextVersionedOwned::V0(v0) => {
+                let mut unversioned =
+                    Self::Cpu(crate::integer::SignedRadixCiphertext::unversionize(v0.0)?);
+                unversioned.move_to_device_of_server_key_if_set();
+                Ok(unversioned)
+            }
+        }
     }
 }
 
