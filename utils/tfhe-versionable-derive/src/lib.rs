@@ -34,8 +34,10 @@ pub(crate) const LIFETIME_NAME: &str = "'vers";
 pub(crate) const VERSION_TRAIT_NAME: &str = crate_full_path!("Version");
 pub(crate) const DISPATCH_TRAIT_NAME: &str = crate_full_path!("VersionsDispatch");
 pub(crate) const VERSIONIZE_TRAIT_NAME: &str = crate_full_path!("Versionize");
-pub(crate) const UNVERSIONIZE_TRAIT_NAME: &str = crate_full_path!("Unversionize");
+pub(crate) const VERSIONIZE_OWNED_TRAIT_NAME: &str = crate_full_path!("VersionizeOwned");
+pub(crate) const VERSIONIZE_SLICE_TRAIT_NAME: &str = crate_full_path!("VersionizeSlice");
 pub(crate) const VERSIONIZE_VEC_TRAIT_NAME: &str = crate_full_path!("VersionizeVec");
+pub(crate) const UNVERSIONIZE_TRAIT_NAME: &str = crate_full_path!("Unversionize");
 pub(crate) const UNVERSIONIZE_VEC_TRAIT_NAME: &str = crate_full_path!("UnversionizeVec");
 pub(crate) const UNVERSIONIZE_ERROR_NAME: &str = crate_full_path!("UnversionizeError");
 
@@ -103,6 +105,7 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
         &[
             VERSIONIZE_TRAIT_NAME,
             VERSIONIZE_VEC_TRAIT_NAME,
+            VERSIONIZE_SLICE_TRAIT_NAME,
             UNVERSIONIZE_TRAIT_NAME,
             UNVERSIONIZE_VEC_TRAIT_NAME,
             SERIALIZE_TRAIT_NAME,
@@ -187,8 +190,10 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     ));
 
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
+    let versionize_owned_trait: Path = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
     let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
     let versionize_vec_trait: Path = parse_const_str(VERSIONIZE_VEC_TRAIT_NAME);
+    let versionize_slice_trait: Path = parse_const_str(VERSIONIZE_SLICE_TRAIT_NAME);
     let unversionize_vec_trait: Path = parse_const_str(UNVERSIONIZE_VEC_TRAIT_NAME);
 
     let mut versionize_generics = trait_generics.clone();
@@ -203,10 +208,16 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     }
 
     // Add Generics for the `VersionizeVec` and `UnversionizeVec` traits
+    let mut versionize_slice_generics = versionize_generics.clone();
+    syn_unwrap!(add_trait_bound(
+        &mut versionize_slice_generics,
+        VERSIONIZE_TRAIT_NAME
+    ));
+
     let mut versionize_vec_generics = versionize_generics.clone();
     syn_unwrap!(add_trait_bound(
         &mut versionize_vec_generics,
-        VERSIONIZE_TRAIT_NAME
+        VERSIONIZE_OWNED_TRAIT_NAME
     ));
     let mut unversionize_vec_generics = unversionize_generics.clone();
     syn_unwrap!(add_trait_bound(
@@ -221,6 +232,8 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let (unversionize_impl_generics, _, unversionize_where_clause) =
         unversionize_generics.split_for_impl();
 
+    let (versionize_slice_impl_generics, _, versionize_slice_where_clause) =
+        versionize_slice_generics.split_for_impl();
     let (versionize_vec_impl_generics, _, versionize_vec_where_clause) =
         versionize_vec_generics.split_for_impl();
     let (unversionize_vec_impl_generics, _, unversionize_vec_where_clause) =
@@ -253,15 +266,19 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
             fn versionize(&self) -> Self::Versioned<'_> {
                 #versionize_body
             }
+        }
 
-            fn versionize_owned(&self) -> Self::VersionedOwned {
-                #versionize_body
-            }
-
+        #[automatically_derived]
+        impl #versionize_impl_generics #versionize_owned_trait for #input_ident #ty_generics
+        #versionize_where_clause
+        {
             type VersionedOwned =
             <#dispatch_enum_path #dispatch_generics as
             #dispatch_trait<#dispatch_target>>::Owned #owned_where_clause;
 
+            fn versionize_owned(self) -> Self::VersionedOwned {
+                #versionize_body
+            }
         }
 
         #[automatically_derived]
@@ -274,19 +291,24 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl #versionize_vec_impl_generics #versionize_vec_trait for #input_ident #ty_generics
-        #versionize_vec_where_clause
+        impl #versionize_slice_impl_generics #versionize_slice_trait for #input_ident #ty_generics
+        #versionize_slice_where_clause
         {
             type VersionedSlice<#lifetime> = Vec<<Self as #versionize_trait>::Versioned<#lifetime>> #ref_where_clause;
 
             fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
-                slice.iter().map(|val| val.versionize()).collect()
+                slice.iter().map(|val| #versionize_trait::versionize(val)).collect()
             }
+        }
 
-            type VersionedVec = Vec<<Self as #versionize_trait>::VersionedOwned> #owned_where_clause;
+        impl #versionize_vec_impl_generics #versionize_vec_trait for #input_ident #ty_generics
+        #versionize_vec_where_clause
+        {
 
-            fn versionize_vec(slice: &[Self]) -> Self::VersionedVec {
-                slice.iter().map(|val| val.versionize_owned()).collect()
+            type VersionedVec = Vec<<Self as #versionize_owned_trait>::VersionedOwned> #owned_where_clause;
+
+            fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+                vec.into_iter().map(|val| #versionize_owned_trait::versionize_owned(val)).collect()
             }
         }
 
@@ -321,6 +343,7 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
     let input_ident = &input.ident;
 
     let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
+    let versionize_owned_trait: Path = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
     let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
     let unversionize_error: Path = parse_const_str(UNVERSIONIZE_ERROR_NAME);
     let lifetime = Lifetime::new(LIFETIME_NAME, Span::call_site());
@@ -329,14 +352,18 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
         #[automatically_derived]
         impl #impl_generics #versionize_trait for #input_ident #ty_generics #where_clause {
             type Versioned<#lifetime> = &#lifetime Self;
-            type VersionedOwned = Self;
 
             fn versionize(&self) -> Self::Versioned<'_> {
                 self
             }
+        }
 
-            fn versionize_owned(&self) -> Self::VersionedOwned {
-                self.clone()
+        #[automatically_derived]
+        impl #impl_generics #versionize_owned_trait for #input_ident #ty_generics #where_clause {
+            type VersionedOwned = Self;
+
+            fn versionize_owned(self) -> Self::VersionedOwned {
+                self
             }
         }
 
