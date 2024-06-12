@@ -1,4 +1,7 @@
+use tfhe_versionable::Versionize;
+
 use super::inner::RadixCiphertext;
+use crate::backward_compatibility::integers::FheIntVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheUint, FheUintId, IntegerId};
@@ -30,8 +33,10 @@ pub trait FheIntId: IntegerId {}
 /// [FheInt8]: crate::high_level_api::FheUint8
 /// [FheInt16]: crate::high_level_api::FheInt16
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
+#[versionize(FheIntVersions)]
 pub struct FheInt<Id: FheIntId> {
+    //
     pub(in crate::high_level_api) ciphertext: RadixCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
 }
