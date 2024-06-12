@@ -1,5 +1,6 @@
 #[cfg(feature = "zk-pok-experimental")]
 use super::zk::{ProvenCompactFheInt, ProvenCompactFheIntList};
+use crate::high_level_api::backward_compatibility::integers::*;
 use crate::high_level_api::integers::signed::base::{FheInt, FheIntConformanceParams, FheIntId};
 use crate::high_level_api::integers::signed::compact::{
     CompactFheInt, CompactFheIntList, CompactFheIntListConformanceParams,
@@ -7,6 +8,7 @@ use crate::high_level_api::integers::signed::compact::{
 use crate::high_level_api::integers::signed::compressed::CompressedFheInt;
 use crate::high_level_api::IntegerId;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 macro_rules! static_int_type {
     // Defines a static integer type that uses
@@ -20,7 +22,8 @@ macro_rules! static_int_type {
         // Define the Id of the FheInt concrete/specialized type
         ::paste::paste! {
             #[doc = concat!("Id for the [FheInt", stringify!($num_bits), "] data type.")]
-            #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+            #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, Versionize)]
+            #[versionize([<FheInt $num_bits IdVersions>])]
             pub struct [<FheInt $num_bits Id>];
 
             impl IntegerId for [<FheInt $num_bits Id>] {

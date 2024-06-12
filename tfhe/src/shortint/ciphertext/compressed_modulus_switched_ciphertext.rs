@@ -1,6 +1,9 @@
+use tfhe_versionable::Versionize;
+
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+use crate::shortint::backward_compatibility::ciphertext::CompressedModulusSwitchedCiphertextVersions;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
@@ -29,7 +32,8 @@ use crate::shortint::{CarryModulus, MessageModulus};
 ///
 /// assert_eq!(clear, dec);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedCiphertextVersions)]
 pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) compressed_modulus_switched_lwe_ciphertext:
         CompressedModulusSwitchedLweCiphertext<u64>,
