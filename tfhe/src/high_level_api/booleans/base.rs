@@ -1,4 +1,5 @@
 use super::inner::InnerBoolean;
+use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
@@ -19,6 +20,7 @@ use crate::{Device, ServerKey};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
+use tfhe_versionable::Versionize;
 
 /// The FHE boolean data type.
 ///
@@ -43,7 +45,8 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 /// let clear_result = fhe_result.decrypt(&client_key);
 /// assert_eq!(clear_result, false);
 /// ```
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(FheBoolVersions)]
 pub struct FheBool {
     pub(in crate::high_level_api) ciphertext: InnerBoolean,
 }
