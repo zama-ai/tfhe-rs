@@ -9,7 +9,7 @@ use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::Device;
 use serde::{Deserializer, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 pub(crate) enum RadixCiphertext {
     Cpu(crate::integer::SignedRadixCiphertext),
@@ -68,7 +68,7 @@ impl<'de> serde::Deserialize<'de> for RadixCiphertext {
 // Only CPU data are serialized so we only versionize the CPU type.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct RadixCiphertextVersionOwned(
-    <crate::integer::SignedRadixCiphertext as Versionize>::VersionedOwned,
+    <crate::integer::SignedRadixCiphertext as VersionizeOwned>::VersionedOwned,
 );
 
 impl Versionize for RadixCiphertext {
@@ -76,16 +76,18 @@ impl Versionize for RadixCiphertext {
 
     fn versionize(&self) -> Self::Versioned<'_> {
         let data = self.on_cpu();
-        let versioned = data.versionize_owned();
+        let versioned = data.into_owned().versionize_owned();
         SignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(versioned))
     }
+}
 
+impl VersionizeOwned for RadixCiphertext {
     type VersionedOwned = SignedRadixCiphertextVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         let cpu_data = self.on_cpu();
         SignedRadixCiphertextVersionedOwned::V0(RadixCiphertextVersionOwned(
-            cpu_data.versionize_owned(),
+            cpu_data.into_owned().versionize_owned(),
         ))
     }
 }

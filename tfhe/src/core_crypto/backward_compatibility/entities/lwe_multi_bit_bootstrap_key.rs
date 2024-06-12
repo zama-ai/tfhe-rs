@@ -34,10 +34,10 @@ pub enum FourierLweMultiBitBootstrapKeyVersionedOwned {
     V0(FourierLweMultiBitBootstrapKeyVersionOwned),
 }
 
-impl<C: Container<Element = c64>> From<&FourierLweMultiBitBootstrapKey<C>>
+impl<C: Container<Element = c64>> From<FourierLweMultiBitBootstrapKey<C>>
     for FourierLweMultiBitBootstrapKeyVersionedOwned
 {
-    fn from(value: &FourierLweMultiBitBootstrapKey<C>) -> Self {
+    fn from(value: FourierLweMultiBitBootstrapKey<C>) -> Self {
         Self::V0(value.into())
     }
 }

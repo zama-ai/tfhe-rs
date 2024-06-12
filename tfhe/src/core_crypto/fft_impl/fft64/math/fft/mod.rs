@@ -20,7 +20,7 @@ use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 mod x86;
@@ -595,10 +595,12 @@ impl<C: Container<Element = c64>> Versionize for FourierPolynomialList<C> {
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
     }
+}
 
+impl<C: Container<Element = c64>> VersionizeOwned for FourierPolynomialList<C> {
     type VersionedOwned = FourierPolynomialListVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         self.into()
     }
 }

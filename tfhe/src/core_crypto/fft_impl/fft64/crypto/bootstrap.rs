@@ -24,7 +24,7 @@ use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
@@ -48,10 +48,10 @@ pub struct FourierLweBootstrapKeyVersion<'vers> {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct FourierLweBootstrapKeyVersionOwned {
     fourier: FourierPolynomialListVersionedOwned,
-    input_lwe_dimension: <LweDimension as Versionize>::VersionedOwned,
-    glwe_size: <GlweSize as Versionize>::VersionedOwned,
-    decomposition_base_log: <DecompositionBaseLog as Versionize>::VersionedOwned,
-    decomposition_level_count: <DecompositionLevelCount as Versionize>::VersionedOwned,
+    input_lwe_dimension: <LweDimension as VersionizeOwned>::VersionedOwned,
+    glwe_size: <GlweSize as VersionizeOwned>::VersionedOwned,
+    decomposition_base_log: <DecompositionBaseLog as VersionizeOwned>::VersionedOwned,
+    decomposition_level_count: <DecompositionLevelCount as VersionizeOwned>::VersionedOwned,
 }
 
 impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweBootstrapKey<C>>
@@ -68,10 +68,10 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweBootstrapKey<C>>
     }
 }
 
-impl<C: Container<Element = c64>> From<&FourierLweBootstrapKey<C>>
+impl<C: Container<Element = c64>> From<FourierLweBootstrapKey<C>>
     for FourierLweBootstrapKeyVersionOwned
 {
-    fn from(value: &FourierLweBootstrapKey<C>) -> Self {
+    fn from(value: FourierLweBootstrapKey<C>) -> Self {
         Self {
             fourier: value.fourier.versionize_owned(),
             input_lwe_dimension: value.input_lwe_dimension.versionize_owned(),
@@ -107,10 +107,12 @@ impl<C: Container<Element = c64>> Versionize for FourierLweBootstrapKey<C> {
     fn versionize(&self) -> Self::Versioned<'_> {
         self.into()
     }
+}
 
+impl<C: Container<Element = c64>> VersionizeOwned for FourierLweBootstrapKey<C> {
     type VersionedOwned = FourierLweBootstrapKeyVersionedOwned;
 
-    fn versionize_owned(&self) -> Self::VersionedOwned {
+    fn versionize_owned(self) -> Self::VersionedOwned {
         self.into()
     }
 }
