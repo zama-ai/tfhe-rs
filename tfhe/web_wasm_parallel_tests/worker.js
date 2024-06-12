@@ -240,7 +240,7 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
 
 async function compactPublicKeyZeroKnowledge() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
   );
 
   let config = TfheConfigBuilder.default()
@@ -492,7 +492,7 @@ async function compressedServerKeyBenchMessage2Carry2() {
 
 async function compactPublicKeyZeroKnowledgeBench() {
   let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M40,
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
   );
 
   let config = TfheConfigBuilder.default()
