@@ -1701,6 +1701,12 @@ mod cuda {
         rng_func: div_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_unsigned_overflowing_scalar_add,
+        display_name: unsigned_overflowing_scalar_add,
+        rng_func: default_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -1917,6 +1923,12 @@ mod cuda {
         rng_func: div_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unsigned_overflowing_scalar_add,
+        display_name: overflowing_scalar_add,
+        rng_func: default_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_neg,
@@ -1958,6 +1970,7 @@ mod cuda {
         cuda_unchecked_scalar_max,
         cuda_unchecked_scalar_min,
         cuda_unchecked_scalar_div_rem,
+        cuda_unchecked_unsigned_overflowing_scalar_add,
     );
 
     criterion_group!(
@@ -2006,6 +2019,7 @@ mod cuda {
         cuda_scalar_max,
         cuda_scalar_min,
         cuda_scalar_div_rem,
+        cuda_unsigned_overflowing_scalar_add,
     );
 
     fn cuda_bench_server_key_cast_function<F>(
