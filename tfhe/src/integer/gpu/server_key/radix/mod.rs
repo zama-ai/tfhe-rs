@@ -166,6 +166,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let is_trivial = ct.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO;
         let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
         let ciphertext = ct.as_mut();
         let num_blocks = ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
@@ -213,14 +214,21 @@ impl CudaServerKey {
                 );
             }
         };
+        let new_noise = if is_trivial {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        };
+
         ciphertext.info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(b.message_modulus.0 - 1);
-            b.noise_level = NoiseLevel::NOMINAL;
+            b.noise_level = new_noise;
         });
         carry_out.as_mut().info.blocks.iter_mut().for_each(|b| {
             b.degree = Degree::new(1);
-            b.noise_level = NoiseLevel::NOMINAL;
+            b.noise_level = new_noise;
         });
+
         carry_out
     }
 
