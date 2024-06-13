@@ -2,6 +2,7 @@
   "m6i.metal": 7.168,
   "hpc7a.96xlarge": 7.7252,
   "p3.2xlarge": 3.06,
+  "p3.8xlarge": 12.24,
   "p4d.24xlarge": 32.7726,
   "p5.48xlarge": 98.32,
   "rtx4090": 0.04,
