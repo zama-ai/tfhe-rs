@@ -100,7 +100,7 @@ else
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" == TRUE ]]; then
-    test_threads="$((num_cpu_threads * 1 / 2))"
+    test_threads="$((num_cpu_threads * 1 / 4))"
     doctest_threads="${num_cpu_threads}"
 else
     test_threads="${small_instance_n_threads}"
