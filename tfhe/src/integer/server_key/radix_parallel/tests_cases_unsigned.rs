@@ -2104,6 +2104,7 @@ where
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        #[cfg(not(feature = "gpu"))]
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 

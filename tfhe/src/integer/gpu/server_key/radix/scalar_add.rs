@@ -1,10 +1,12 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::scalar_addition_integer_radix_assign_async;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::prelude::CastInto;
+use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
@@ -193,5 +195,88 @@ impl CudaServerKey {
             self.scalar_add_assign_async(ct, scalar, streams);
         }
         streams.synchronize();
+    }
+
+    pub fn unsigned_overflowing_scalar_add<Scalar>(
+        &self,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        scalar: Scalar,
+        stream: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
+    where
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
+    {
+        let mut result;
+        unsafe {
+            result = ct_left.duplicate_async(stream);
+        }
+        let overflowed = self.unsigned_overflowing_scalar_add_assign(&mut result, scalar, stream);
+        (result, overflowed)
+    }
+
+    pub fn unsigned_overflowing_scalar_add_assign<Scalar>(
+        &self,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        scalar: Scalar,
+        stream: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
+    {
+        unsafe {
+            if !ct_left.block_carries_are_empty() {
+                self.full_propagate_assign_async(ct_left, stream);
+            }
+        }
+        self.unchecked_unsigned_overflowing_scalar_add_assign(ct_left, scalar, stream)
+    }
+
+    pub fn unchecked_unsigned_overflowing_scalar_add<Scalar>(
+        &self,
+        ct_left: &CudaUnsignedRadixCiphertext,
+        scalar: Scalar,
+        stream: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
+    where
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
+    {
+        let mut result;
+        unsafe {
+            result = ct_left.duplicate_async(stream);
+        }
+        let overflowed =
+            self.unchecked_unsigned_overflowing_scalar_add_assign(&mut result, scalar, stream);
+        (result, overflowed)
+    }
+
+    pub fn unchecked_unsigned_overflowing_scalar_add_assign<Scalar>(
+        &self,
+        ct_left: &mut CudaUnsignedRadixCiphertext,
+        scalar: Scalar,
+        stream: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Scalar: DecomposableInto<u8> + CastInto<u64>,
+    {
+        self.unchecked_scalar_add_assign(ct_left, scalar, stream);
+        let mut carry_out;
+        unsafe {
+            carry_out = self.propagate_single_carry_assign_async(ct_left, stream);
+        }
+
+        let num_scalar_blocks =
+            BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
+                .count();
+
+        if num_scalar_blocks > ct_left.ciphertext.d_blocks.0.lwe_ciphertext_count.0 {
+            let trivial: CudaUnsignedRadixCiphertext = self.create_trivial_radix(1, 1, stream);
+            CudaBooleanBlock::from_cuda_radix_ciphertext(trivial.ciphertext)
+        } else {
+            if ct_left.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO {
+                carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
+            }
+
+            CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext)
+        }
     }
 }
