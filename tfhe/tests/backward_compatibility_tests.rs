@@ -9,15 +9,8 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-#[cfg(feature = "shortint")]
-use backward_compatibility::shortint::{test_shortint_ciphertext, test_shortint_clientkey};
-use tfhe_backward_compat_data::load::DataFormat;
-use tfhe_backward_compat_data::{
-    data_dir, dir_for_version, TestFailure, TestMetadata, TestSuccess, Testcase,
-};
-
-#[cfg(feature = "shortint")]
-use backward_compatibility::shortint;
+use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat};
+use tfhe_backward_compat_data::{data_dir, dir_for_version, TestFailure, TestSuccess, Testcase};
 
 fn test_data_dir() -> PathBuf {
     // Try to load the test data from the user provided environment variable or default to a
@@ -37,9 +30,21 @@ fn test_data_dir() -> PathBuf {
     data_dir(root_dir)
 }
 
+trait TestedModule {
+    /// The name of the `.ron` file where the metadata for this module are stored
+    const METADATA_FILE: &'static str;
+
+    /// Run a testcase for this module
+    fn run_test<P: AsRef<Path>>(
+        base_dir: P,
+        testcase: &Testcase,
+        format: DataFormat,
+    ) -> Result<TestSuccess, TestFailure>;
+}
+
 /// Run a specific testcase. The testcase should be valid for the current version.
-fn run_test<P: AsRef<Path>>(
-    base_dir: P,
+fn run_test<M: TestedModule>(
+    base_dir: &Path,
     testcase: &Testcase,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
@@ -49,16 +54,7 @@ fn run_test<P: AsRef<Path>>(
     let mut test_dir = dir_for_version(base_dir, version);
     test_dir.push(module);
 
-    #[allow(unreachable_patterns)]
-    let test_result = match &testcase.metadata {
-        #[cfg(feature = "shortint")]
-        TestMetadata::ShortintCiphertext(test) => test_shortint_ciphertext(test, format, &test_dir),
-        #[cfg(feature = "shortint")]
-        TestMetadata::ShortintClientKey(test) => test_shortint_clientkey(test, format, &test_dir),
-        _ => {
-            panic!("missing feature, could not run test")
-        }
-    };
+    let test_result = M::run_test(test_dir, testcase, format);
 
     match &test_result {
         Ok(r) => println!("{}", r),
@@ -68,12 +64,45 @@ fn run_test<P: AsRef<Path>>(
     test_result
 }
 
+fn run_all_tests<M: TestedModule>(base_dir: &Path) -> Vec<Result<TestSuccess, TestFailure>> {
+    let meta = load_tests_metadata(base_dir.join(M::METADATA_FILE)).unwrap();
+
+    let mut results = Vec::new();
+
+    for testcase in meta {
+        if testcase.is_valid_for_version(env!("CARGO_PKG_VERSION")) {
+            let test_result = run_test::<M>(base_dir, &testcase, DataFormat::Cbor);
+            results.push(test_result);
+            let test_result = run_test::<M>(base_dir, &testcase, DataFormat::Bincode);
+            results.push(test_result)
+        }
+    }
+
+    results
+}
+
 #[test]
 #[cfg(feature = "shortint")]
 fn test_backward_compatibility_shortint() {
+    use backward_compatibility::shortint::Shortint;
+
     let base_dir = test_data_dir();
 
-    let results = shortint::test_shortint(base_dir);
+    let results = run_all_tests::<Shortint>(&base_dir);
+
+    if results.iter().any(|r| r.is_err()) {
+        panic!("Backward compatibility test failed")
+    }
+}
+
+#[test]
+#[cfg(feature = "integer")]
+fn test_backward_compatibility_hl() {
+    use backward_compatibility::high_level_api::Hl;
+
+    let base_dir = test_data_dir();
+
+    let results = run_all_tests::<Hl>(&base_dir);
 
     if results.iter().any(|r| r.is_err()) {
         panic!("Backward compatibility test failed")
