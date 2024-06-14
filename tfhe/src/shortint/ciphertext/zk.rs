@@ -138,7 +138,7 @@ impl ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::{ClientKey, CompactPublicKey};
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;

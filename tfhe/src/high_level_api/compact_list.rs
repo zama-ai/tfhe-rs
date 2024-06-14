@@ -372,7 +372,7 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     #[cfg(feature = "zk-pok-experimental")]
-    use crate::shortint::parameters::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
     #[cfg(feature = "zk-pok-experimental")]
     use crate::zk::CompactPkeCrs;
     use crate::{set_server_key, FheInt64, FheUint16, FheUint2, FheUint32};

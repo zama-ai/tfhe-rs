@@ -17,6 +17,7 @@ import init, {
   CompactCiphertextList,
   ProvenCompactCiphertextList,
   Shortint,
+  ShortintEncryptionKeyChoice,
 } from "./pkg/tfhe.js";
 
 const U32_MAX = 4294967295;
@@ -239,8 +240,22 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
 }
 
 async function compactPublicKeyZeroKnowledge() {
-  let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+  let block_params = Shortint.new_parameters(
+    888,
+    2,
+    2048,
+    Shortint.try_new_t_uniform(45),
+    Shortint.try_new_t_uniform(3),
+    23,
+    1,
+    4,
+    4,
+    4,
+    4,
+    5,
+    -64.105,
+    64,
+    ShortintEncryptionKeyChoice.Big,
   );
 
   let config = TfheConfigBuilder.default()
@@ -491,8 +506,23 @@ async function compressedServerKeyBenchMessage2Carry2() {
 }
 
 async function compactPublicKeyZeroKnowledgeBench() {
-  let block_params = new ShortintParameters(
-    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+  // This parameters set reproduce PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64
+  let block_params = Shortint.new_parameters(
+    888,
+    2,
+    2048,
+    Shortint.try_new_t_uniform(45),
+    Shortint.try_new_t_uniform(3),
+    23,
+    1,
+    4,
+    4,
+    4,
+    4,
+    5,
+    -64.105,
+    64,
+    ShortintEncryptionKeyChoice.Big,
   );
 
   let config = TfheConfigBuilder.default()
