@@ -454,11 +454,17 @@ impl CompactCiphertextList {
         let expanded_blocks = if is_packed {
             match unpacking_mode {
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
-                    if !self.is_compatible_with_unpacking_server_key(sks) {
-                        return Err(crate::Error::new(
-                            "This compact list is not conformant with the given server key"
-                                .to_string(),
-                        ));
+                    let degree = self.ct_list.degree;
+                    let mut conformance_params = sks.key.conformance_params();
+                    conformance_params.degree = degree;
+
+                    for ct in expanded_blocks.iter() {
+                        if !ct.is_conformant(&conformance_params) {
+                            return Err(crate::Error::new(
+                                "This compact list is not conformant with the given server key"
+                                    .to_string(),
+                            ));
+                        }
                     }
 
                     extract_message_and_carries(expanded_blocks, sks)
@@ -483,18 +489,12 @@ impl CompactCiphertextList {
         self.ct_list.size_bytes()
     }
 
-    pub fn is_compatible_with_unpacking_server_key(&self, sks: &ServerKey) -> bool {
-        let mut conformance_params = sks.key.conformance_params();
-        conformance_params.degree = self.ct_list.degree;
-
-        self.is_conformant_with_shortint_params(conformance_params)
-    }
-
     fn is_conformant_with_shortint_params(
         &self,
         shortint_params: CiphertextConformanceParams,
     ) -> bool {
         let mut num_blocks: usize = self.info.iter().copied().map(DataKind::num_blocks).sum();
+        // This expects packing, halve the number of blocks with enough capacity
         if shortint_params.degree.get()
             == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
         {
@@ -593,27 +593,36 @@ impl ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;
+    use crate::integer::key_switching_key::KeySwitchingKey;
     use crate::integer::parameters::{
         IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
     };
-    use crate::integer::{ClientKey, CompactPublicKey, RadixCiphertext, ServerKey};
-    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
+    use crate::integer::{
+        ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
+    };
+    use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
         let num_blocks = 4usize;
-        let modulus = (params.message_modulus.0 as u64)
+        let modulus = (pke_params.message_modulus.0 as u64)
             .checked_pow(num_blocks as u32)
             .unwrap();
 
-        let crs = CompactPkeCrs::from_shortint_params(params, 512).unwrap();
-        let cks = ClientKey::new(params);
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, 512).unwrap();
+        let cks = ClientKey::new(fhe_params);
         let sk = ServerKey::new_radix_server_key(&cks);
-        let pk = CompactPublicKey::new(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
 
         let msgs = (0..512)
             .map(|_| random::<u64>() % modulus)
@@ -629,7 +638,7 @@ mod tests {
                 crs.public_params(),
                 &pk,
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
-                IntegerCompactCiphertextListCastingMode::NoCasting,
+                IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
             )
             .unwrap();
 

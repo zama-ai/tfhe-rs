@@ -57,3 +57,11 @@ impl From<String> for Error {
 }
 
 impl std::error::Error for Error {}
+
+// This is useful to use infallible conversions as well as fallible ones in certain parts of the lib
+impl From<std::convert::Infallible> for Error {
+    fn from(_value: std::convert::Infallible) -> Self {
+        // This can never be reached
+        unreachable!()
+    }
+}

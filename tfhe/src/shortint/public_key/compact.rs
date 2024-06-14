@@ -81,14 +81,12 @@ impl CompactPrivateKey<Vec<u64>> {
     }
 }
 
-impl<'key, C: Container<Element = u64>> TryFrom<&'key CompactPrivateKey<C>>
+impl<'key, C: Container<Element = u64>> From<&'key CompactPrivateKey<C>>
     for CompactPrivateKey<&'key [u64]>
 {
-    type Error = crate::Error;
-
     #[inline(always)]
-    fn try_from(value: &'key CompactPrivateKey<C>) -> Result<Self, Self::Error> {
-        Ok(value.as_view())
+    fn from(value: &'key CompactPrivateKey<C>) -> Self {
+        value.as_view()
     }
 }
 
@@ -155,18 +153,20 @@ fn to_plaintext_iterator(
 }
 
 impl CompactPublicKey {
-    pub fn new<'data, C>(compact_private_key: C) -> Self
+    pub fn new<'data, C, E>(compact_private_key: C) -> Self
     where
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = Error>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        Error: From<E>,
     {
         Self::try_new(compact_private_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new<'data, C>(input_key: C) -> Result<Self, Error>
+    pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, Error>
     where
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = Error>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        Error: From<E>,
     {
         let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
 

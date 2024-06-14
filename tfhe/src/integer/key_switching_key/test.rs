@@ -7,13 +7,10 @@ use crate::integer::{
     ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
-use crate::shortint::parameters::compact_public_key_only::{
-    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-};
+use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
-    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
-    MaxNoiseLevel, MessageModulus, PolynomialSize, ShortintKeySwitchingParameters,
+    ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
@@ -165,44 +162,9 @@ fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
 
 #[test]
 fn test_cpk_encrypt_cast_compute_ci_run_filter() {
-    pub const PARAM_PKE_MESSAGE_2_CARRY_2_132_64: CompactPublicKeyEncryptionParameters =
-        CompactPublicKeyEncryptionParameters {
-            encryption_lwe_dimension: LweDimension(1024),
-            encryption_noise_distribution: DynamicDistribution::new_t_uniform(42),
-            message_modulus: MessageModulus(4),
-            carry_modulus: CarryModulus(4),
-            ciphertext_modulus: CiphertextModulus::new_native(),
-            expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
-        };
-
-    pub const PARAM_FHE_MESSAGE_2_CARRY_2_132_64: ClassicPBSParameters = ClassicPBSParameters {
-        lwe_dimension: LweDimension(887),
-        glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
-        lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
-        glwe_noise_distribution: DynamicDistribution::new_t_uniform(15),
-        pbs_base_log: DecompositionBaseLog(22),
-        pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(3),
-        ks_level: DecompositionLevelCount(5),
-        message_modulus: MessageModulus(4),
-        carry_modulus: CarryModulus(4),
-        max_noise_level: MaxNoiseLevel::new(5),
-        log2_p_fail: -64.0,
-        ciphertext_modulus: CiphertextModulus::new_native(),
-        encryption_key_choice: EncryptionKeyChoice::Big,
-    };
-
-    pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_132_64: ShortintKeySwitchingParameters =
-        ShortintKeySwitchingParameters {
-            ks_level: DecompositionLevelCount(5),
-            ks_base_log: DecompositionBaseLog(3),
-            destination_key: EncryptionKeyChoice::Big,
-        };
-
-    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_132_64;
-    let param_fhe = PARAM_FHE_MESSAGE_2_CARRY_2_132_64;
-    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_132_64;
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     let num_block = 4usize;
 

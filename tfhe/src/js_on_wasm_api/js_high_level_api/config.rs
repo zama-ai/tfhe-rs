@@ -33,6 +33,17 @@ impl TfheConfigBuilder {
     }
 
     #[wasm_bindgen]
+    pub fn use_dedicated_compact_public_key_parameters(
+        self,
+        compact_public_key_parameters: &crate::js_on_wasm_api::shortint::ShortintCompactPublicKeyEncryptionParameters,
+    ) -> Self {
+        Self(self.0.use_dedicated_compact_public_key_parameters((
+            compact_public_key_parameters.compact_pke_params,
+            compact_public_key_parameters.casting_parameters,
+        )))
+    }
+
+    #[wasm_bindgen]
     pub fn build(self) -> TfheConfig {
         TfheConfig(self.0.build())
     }

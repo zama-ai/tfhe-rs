@@ -67,9 +67,27 @@ pub unsafe extern "C" fn config_builder_use_custom_parameters(
 
         let params: crate::shortint::ClassicPBSParameters =
             shortint_block_parameters.try_into().unwrap();
+
         let inner = Box::from_raw(*builder)
             .0
             .use_custom_parameters(params, None);
+        *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn use_dedicated_compact_public_key_parameters(
+    builder: *mut *mut ConfigBuilder,
+    compact_public_key_parameters: crate::c_api::shortint::parameters::ShortintCompactPublicKeyEncryptionParameters,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(builder).unwrap();
+
+        let inner = Box::from_raw(*builder)
+            .0
+            .use_dedicated_compact_public_key_parameters(
+                compact_public_key_parameters.try_into().unwrap(),
+            );
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }
