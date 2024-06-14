@@ -58,6 +58,26 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void **streams,
                                              uint32_t gpu_count,
                                              int8_t **mem_ptr_void);
 
+void scratch_cuda_apply_bivariate_lut_kb_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
+    void *input_lut, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
+
+void cuda_apply_bivariate_lut_kb_64(void **streams, uint32_t *gpu_indexes,
+                                    uint32_t gpu_count, void *output_radix_lwe,
+                                    void *input_radix_lwe_1,
+                                    void *input_radix_lwe_2, int8_t *mem_ptr,
+                                    void **ksks, void **bsks,
+                                    uint32_t num_blocks, uint32_t shift);
+
+void cleanup_cuda_apply_bivariate_lut_kb_64(void **streams,
+                                            uint32_t *gpu_indexes,
+                                            uint32_t gpu_count,
+                                            int8_t **mem_ptr_void);
+
 void scratch_cuda_full_propagation_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
