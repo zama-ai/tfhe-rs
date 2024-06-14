@@ -9,8 +9,9 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat};
-use tfhe_backward_compat_data::{data_dir, dir_for_version, TestFailure, TestSuccess, Testcase};
+use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat, TestFailure, TestResult};
+use tfhe_backward_compat_data::{data_dir, dir_for_version, TestType, Testcase};
+use tfhe_versionable::Unversionize;
 
 fn test_data_dir() -> PathBuf {
     // Try to load the test data from the user provided environment variable or default to a
@@ -30,16 +31,23 @@ fn test_data_dir() -> PathBuf {
     data_dir(root_dir)
 }
 
+fn load_and_unversionize<Data: Unversionize, P: AsRef<Path>, T: TestType>(
+    dir: P,
+    test: &T,
+    format: DataFormat,
+) -> Result<Data, TestFailure> {
+    let versioned = format.load_versioned_test(dir, test)?;
+
+    Data::unversionize(versioned).map_err(|e| test.failure(e, format))
+}
+
 trait TestedModule {
     /// The name of the `.ron` file where the metadata for this module are stored
     const METADATA_FILE: &'static str;
 
     /// Run a testcase for this module
-    fn run_test<P: AsRef<Path>>(
-        base_dir: P,
-        testcase: &Testcase,
-        format: DataFormat,
-    ) -> Result<TestSuccess, TestFailure>;
+    fn run_test<P: AsRef<Path>>(base_dir: P, testcase: &Testcase, format: DataFormat)
+        -> TestResult;
 }
 
 /// Run a specific testcase. The testcase should be valid for the current version.
@@ -47,7 +55,7 @@ fn run_test<M: TestedModule>(
     base_dir: &Path,
     testcase: &Testcase,
     format: DataFormat,
-) -> Result<TestSuccess, TestFailure> {
+) -> TestResult {
     let version = &testcase.tfhe_version_min;
     let module = &testcase.tfhe_module;
 
@@ -57,14 +65,15 @@ fn run_test<M: TestedModule>(
     let test_result = M::run_test(test_dir, testcase, format);
 
     match &test_result {
-        Ok(r) => println!("{}", r),
-        Err(r) => println!("{}", r),
+        TestResult::Success(r) => println!("{}", r),
+        TestResult::Failure(r) => println!("{}", r),
+        TestResult::Skipped(r) => println!("{}", r),
     }
 
     test_result
 }
 
-fn run_all_tests<M: TestedModule>(base_dir: &Path) -> Vec<Result<TestSuccess, TestFailure>> {
+fn run_all_tests<M: TestedModule>(base_dir: &Path) -> Vec<TestResult> {
     let meta = load_tests_metadata(base_dir.join(M::METADATA_FILE)).unwrap();
 
     let mut results = Vec::new();
@@ -90,7 +99,7 @@ fn test_backward_compatibility_shortint() {
 
     let results = run_all_tests::<Shortint>(&base_dir);
 
-    if results.iter().any(|r| r.is_err()) {
+    if results.iter().any(|r| r.is_failure()) {
         panic!("Backward compatibility test failed")
     }
 }
@@ -104,7 +113,7 @@ fn test_backward_compatibility_hl() {
 
     let results = run_all_tests::<Hl>(&base_dir);
 
-    if results.iter().any(|r| r.is_err()) {
+    if results.iter().any(|r| r.is_failure()) {
         panic!("Backward compatibility test failed")
     }
 }
