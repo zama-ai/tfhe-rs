@@ -35,7 +35,6 @@ impl CompactCiphertextList {
     ) -> crate::Result<CompactCiphertextListExpander> {
         self.0
             .expand(
-                // TODO check packing and casting modes
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
                 IntegerCompactCiphertextListCastingMode::NoCasting,
             )
@@ -64,7 +63,15 @@ impl CompactCiphertextList {
                 };
 
                 let casting_mode = if self.0.needs_casting() {
-                    todo!("TODO check packing and casting modes")
+                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                        cpu_key.cpk_casting_key().ok_or_else(|| {
+                            crate::Error::new(
+                                "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                    .to_string(),
+                            )
+                        })?,
+                    )
                 } else {
                     IntegerCompactCiphertextListCastingMode::NoCasting
                 };
@@ -101,23 +108,6 @@ impl ProvenCompactCiphertextList {
         CompactCiphertextListBuilder::new(pk)
     }
 
-    pub fn verify_and_expand_with_key(
-        &self,
-        public_params: &CompactPkePublicParams,
-        pk: &CompactPublicKey,
-        sks: &crate::ServerKey,
-    ) -> crate::Result<CompactCiphertextListExpander> {
-        // TODO check modes
-        self.0
-            .verify_and_expand(
-                public_params,
-                &pk.key.key,
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
-                IntegerCompactCiphertextListCastingMode::NoCasting,
-            )
-            .map(|expander| CompactCiphertextListExpander { inner: expander })
-    }
-
     pub fn verify_and_expand(
         &self,
         public_params: &CompactPkePublicParams,
@@ -146,7 +136,15 @@ impl ProvenCompactCiphertextList {
                 };
 
                 let casting_mode = if self.0.needs_casting() {
-                    todo!("TODO check packing and casting modes")
+                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                        cpu_key.cpk_casting_key().ok_or_else(|| {
+                            crate::Error::new(
+                                "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                    .to_string(),
+                            )
+                        })?,
+                    )
                 } else {
                     IntegerCompactCiphertextListCastingMode::NoCasting
                 };
@@ -412,8 +410,6 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     #[cfg(feature = "zk-pok-experimental")]
-    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64;
-    #[cfg(feature = "zk-pok-experimental")]
     use crate::zk::CompactPkeCrs;
     use crate::{set_server_key, FheInt64, FheUint16, FheUint2, FheUint32};
 
@@ -473,10 +469,80 @@ mod tests {
     #[cfg(feature = "zk-pok-experimental")]
     #[test]
     fn test_proven_compact_list() {
+        use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
         let config = crate::ConfigBuilder::with_custom_parameters(
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             None,
         )
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let pk = crate::CompactPublicKey::new(&ck);
+        let sks = crate::ServerKey::new(&ck);
+
+        set_server_key(sks);
+
+        // Intentionally low to that we test when multiple lists and proofs are needed
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+
+        let compact_list = ProvenCompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .push(-1i64)
+            .push(false)
+            .push_with_num_bits(3u32, 2)
+            .unwrap()
+            .build_with_proof_packed(crs.public_params(), ZkComputeLoad::Proof)
+            .unwrap();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list
+            .verify_and_expand(crs.public_params(), &pk)
+            .unwrap();
+
+        {
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+            let d: FheUint2 = expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d: u8 = d.decrypt(&ck);
+            assert_eq!(d, 3);
+
+            assert!(expander.get::<FheBool>(4).is_none());
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheInt64>(0).unwrap().is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+        }
+    }
+
+    #[cfg(feature = "zk-pok-experimental")]
+    #[test]
+    fn test_proven_compact_list_with_casting() {
+        use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            None,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ))
         .build();
 
         let ck = crate::ClientKey::generate(config);

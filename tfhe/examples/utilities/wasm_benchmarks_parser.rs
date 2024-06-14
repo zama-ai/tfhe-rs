@@ -8,45 +8,20 @@ use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::core_crypto::prelude::CiphertextModulus;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_NAME, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME,
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME, PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_NAME,
 };
 use tfhe::shortint::parameters::classic::compact_pk::{
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
-use tfhe::shortint::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweDimension, PolynomialSize, PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-};
-use tfhe::shortint::{
-    CarryModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
-    PBSParameters,
-};
+use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
+use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
 
 const BENCHMARK_NAME_PREFIX: &str = "wasm::";
-
-// TODO To remove once casting is available
-pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64: ClassicPBSParameters =
-    ClassicPBSParameters {
-        lwe_dimension: LweDimension(1024),
-        glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
-        lwe_noise_distribution: DynamicDistribution::new_t_uniform(41),
-        glwe_noise_distribution: DynamicDistribution::new_t_uniform(14),
-        pbs_base_log: DecompositionBaseLog(23),
-        pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(5),
-        ks_level: DecompositionLevelCount(4),
-        message_modulus: MessageModulus(4),
-        carry_modulus: CarryModulus(4),
-        max_noise_level: MaxNoiseLevel::new(5),
-        log2_p_fail: -66.873,
-        ciphertext_modulus: CiphertextModulus::new_native(),
-        encryption_key_choice: EncryptionKeyChoice::Small,
-    };
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -60,8 +35,8 @@ fn params_from_name(name: &str) -> ClassicPBSParameters {
         PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME => PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
         PARAM_MESSAGE_1_CARRY_1_KS_PBS_NAME => PARAM_MESSAGE_1_CARRY_1_KS_PBS,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_NAME => PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64" => {
-            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_NAME => {
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
         }
         _ => panic!("failed to get parameters for name '{name}'"),
     }

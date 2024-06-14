@@ -32,18 +32,30 @@ impl ServerKey {
     ) -> (
         crate::integer::ServerKey,
         Option<crate::integer::wopbs::WopbsKey>,
+        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
     ) {
-        let IntegerServerKey { key, wopbs_key } = (*self.key).clone();
+        let IntegerServerKey {
+            key,
+            wopbs_key,
+            cpk_key_switching_key_material,
+        } = (*self.key).clone();
 
-        (key, wopbs_key)
+        (key, wopbs_key, cpk_key_switching_key_material)
     }
 
     pub fn from_raw_parts(
         key: crate::integer::ServerKey,
         wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
+        cpk_key_switching_key_material: Option<
+            crate::integer::key_switching_key::KeySwitchingKeyMaterial,
+        >,
     ) -> Self {
         Self {
-            key: Arc::new(IntegerServerKey { key, wopbs_key }),
+            key: Arc::new(IntegerServerKey {
+                key,
+                wopbs_key,
+                cpk_key_switching_key_material,
+            }),
         }
     }
 }
@@ -120,13 +132,26 @@ impl CompressedServerKey {
         }
     }
 
-    pub fn into_raw_parts(self) -> crate::integer::CompressedServerKey {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::CompressedServerKey,
+        Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+    ) {
         self.integer_key.into_raw_parts()
     }
 
-    pub fn from_raw_parts(integer_key: crate::integer::CompressedServerKey) -> Self {
+    pub fn from_raw_parts(
+        integer_key: crate::integer::CompressedServerKey,
+        cpk_key_switching_key_material: Option<
+            crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial,
+        >,
+    ) -> Self {
         Self {
-            integer_key: IntegerCompressedServerKey::from_raw_parts(integer_key),
+            integer_key: IntegerCompressedServerKey::from_raw_parts(
+                integer_key,
+                cpk_key_switching_key_material,
+            ),
         }
     }
 

@@ -32,6 +32,8 @@ async function setup() {
     "compactPublicKeyBench32BitSmall",
     "compactPublicKeyBench256BitBig",
     "compactPublicKeyBench256BitSmall",
+    "compactPublicKeyWithCastingTest256Bit",
+    "compressedCompactPublicKeyWithCastingTest256Bit",
     "compressedServerKeyBenchMessage1Carry1",
     "compressedServerKeyBenchMessage2Carry2",
     "compactPublicKeyZeroKnowledgeBench",

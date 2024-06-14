@@ -8,20 +8,23 @@ impl CompactPkeCrs {
     ///
     /// This function assumes that packing will be applied during ZK proof.
     pub fn from_config(config: Config, max_bit_size: usize) -> crate::Result<Self> {
-        let parameters = config.inner.block_parameters;
+        let compact_encryption_parameters = config.public_key_encryption_parameters()?;
 
-        if parameters.carry_modulus().0 < parameters.message_modulus().0 {
+        if compact_encryption_parameters.carry_modulus.0
+            < compact_encryption_parameters.message_modulus.0
+        {
             return Err(Error::new(
-                "In order to build a packed compact ciphertext list, \
+                "In order to build a ZK-CRS for packed compact ciphertext list encryption, \
                 parameters must have CarryModulus >= MessageModulus"
                     .to_string(),
             ));
         }
 
-        let carry_and_message_bit_capacity =
-            (parameters.carry_modulus().0 * parameters.message_modulus().0).ilog2() as usize;
+        let carry_and_message_bit_capacity = (compact_encryption_parameters.carry_modulus.0
+            * compact_encryption_parameters.message_modulus.0)
+            .ilog2() as usize;
         let max_num_message = max_bit_size.div_ceil(carry_and_message_bit_capacity);
-        let crs = Self::from_shortint_params(config.inner.block_parameters, max_num_message)?;
+        let crs = Self::from_shortint_params(compact_encryption_parameters, max_num_message)?;
         Ok(crs)
     }
 }

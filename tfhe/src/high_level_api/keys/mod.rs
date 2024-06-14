@@ -7,6 +7,7 @@ mod key_switching_key;
 
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
+pub(crate) use inner::CompactPrivateKey;
 pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 #[cfg(feature = "gpu")]

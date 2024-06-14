@@ -13,7 +13,7 @@ fn gen_multi_keys_test_fresh_ci_run_filter() {
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
     let ksk = keys.key_switching_key();
 
-    assert_eq!(ksk.cast_rshift, 2);
+    assert_eq!(ksk.key_switching_key_material.cast_rshift, 2);
 
     // Message 0 Carry 0
     let cipher = ck1.encrypt(0);
@@ -71,7 +71,7 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
     let ck1 = keys.client_key_1();
     let ksk = keys.key_switching_key();
 
-    assert_eq!(ksk.cast_rshift, 4);
+    assert_eq!(ksk.key_switching_key_material.cast_rshift, 4);
 
     // Message 0 Carry 0
     let cipher = ck1.encrypt(0);
@@ -154,7 +154,7 @@ fn gen_multi_keys_test_no_shift_ci_run_filter() {
     ));
     let ksk = keys.key_switching_key();
 
-    assert_eq!(ksk.cast_rshift, 0);
+    assert_eq!(ksk.key_switching_key_material.cast_rshift, 0);
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
     let ksk = keys.key_switching_key();
 
-    assert_eq!(ksk.cast_rshift, -2);
+    assert_eq!(ksk.key_switching_key_material.cast_rshift, -2);
 
     // Message 0 Carry 0
     let cipher = ck1.unchecked_encrypt(0);

@@ -1,6 +1,7 @@
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
 use crate::shortint::parameters::classic::compact_pk::*;
+use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::*;

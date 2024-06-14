@@ -566,8 +566,7 @@ fn test_compact_public_key_big() {
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-            crate::shortint::parameters::classic::compact_pk
-            ::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+            crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
             None,
         )
         .build();

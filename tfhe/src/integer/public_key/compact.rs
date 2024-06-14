@@ -38,15 +38,13 @@ impl CompactPrivateKey<Vec<u64>> {
     }
 }
 
-impl<'key, C: Container<Element = u64>> TryFrom<&'key CompactPrivateKey<C>>
+impl<'key, C: Container<Element = u64>> From<&'key CompactPrivateKey<C>>
     for CompactPrivateKey<&'key [u64]>
 {
-    type Error = crate::Error;
-
-    fn try_from(value: &'key CompactPrivateKey<C>) -> Result<Self, Self::Error> {
-        Ok(Self {
+    fn from(value: &'key CompactPrivateKey<C>) -> Self {
+        Self {
             key: value.key().as_view(),
-        })
+        }
     }
 }
 
@@ -79,22 +77,28 @@ pub struct CompactPublicKey {
 }
 
 impl CompactPublicKey {
-    pub fn new<'data, C>(compact_private_key: C) -> Self
+    pub fn new<'data, C, E>(compact_private_key: C) -> Self
     where
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = crate::Error>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        crate::Error: From<E>,
     {
         Self::try_new(compact_private_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new<'data, C>(input_key: C) -> Result<Self, crate::Error>
+    pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, crate::Error>
     where
-        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = crate::Error>,
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        crate::Error: From<E>,
     {
         let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
 
-        let key = ShortintCompactPublicKey::new(&compact_private_key.key);
+        // Trait solver is having a hard time understanding what's happening (it sees we have an
+        // Infallible error type but still complains), give a nudge
+        let key = ShortintCompactPublicKey::new::<'_, _, std::convert::Infallible>(
+            &compact_private_key.key,
+        );
         Ok(Self { key })
     }
 
@@ -155,9 +159,25 @@ pub struct CompressedCompactPublicKey {
 }
 
 impl CompressedCompactPublicKey {
-    pub fn new(client_key: &ClientKey) -> Self {
-        let key = ShortintCompressedCompactPublicKey::new(&client_key.key);
-        Self { key }
+    pub fn new<'data, C, E>(compact_private_key: C) -> Self
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        crate::Error: From<E>,
+    {
+        Self::try_new(compact_private_key).expect(
+            "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
+        )
+    }
+
+    pub fn try_new<'data, C, E>(input_key: C) -> Result<Self, crate::Error>
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = E>,
+        crate::Error: From<E>,
+    {
+        let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
+
+        let key = ShortintCompressedCompactPublicKey::new(&compact_private_key.key);
+        Ok(Self { key })
     }
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.

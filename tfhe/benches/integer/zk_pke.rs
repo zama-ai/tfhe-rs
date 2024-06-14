@@ -8,36 +8,18 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::core_crypto::prelude::*;
+use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::{
     IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
 };
-use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
-use tfhe::shortint::ciphertext::MaxNoiseLevel;
-use tfhe::shortint::parameters::{
-    CarryModulus, ClassicPBSParameters, MessageModulus, PBSParameters,
-};
+use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
+use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::PBSParameters;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use utilities::{write_to_json, OperatorType};
-
-// TODO to remove once casting is available
-pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64: ClassicPBSParameters =
-    ClassicPBSParameters {
-        lwe_dimension: LweDimension(1024),
-        glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
-        lwe_noise_distribution: DynamicDistribution::new_t_uniform(41),
-        glwe_noise_distribution: DynamicDistribution::new_t_uniform(14),
-        pbs_base_log: DecompositionBaseLog(23),
-        pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(5),
-        ks_level: DecompositionLevelCount(4),
-        message_modulus: MessageModulus(4),
-        carry_modulus: CarryModulus(4),
-        max_noise_level: MaxNoiseLevel::new(5),
-        log2_p_fail: -66.873,
-        ciphertext_modulus: CiphertextModulus::new_native(),
-        encryption_key_choice: EncryptionKeyChoice::Small,
-    };
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -51,12 +33,20 @@ fn pke_zk_proof(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    for (param_name, param_pke) in [(
-        "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64",
-        PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64,
+    for (param_pke, _param_casting, param_fhe) in [(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )] {
-        let cks_pke = ClientKey::new(param_pke);
-        let pk = CompactPublicKey::new(&cks_pke);
+        let param_name = param_fhe.name();
+        let param_name = param_name.as_str();
+        let cks = ClientKey::new(param_fhe);
+        let sks = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(param_pke);
+        let pk = CompactPublicKey::new(&compact_private_key);
+        // Kept for consistency
+        let _casting_key =
+            KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), _param_casting);
 
         for bits in [640usize, 1280, 4096] {
             assert_eq!(bits % 64, 0);
@@ -88,7 +78,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                     })
                 });
 
-                let shortint_params: PBSParameters = param_pke.into();
+                let shortint_params: PBSParameters = param_fhe.into();
 
                 write_to_json::<u64, _>(
                     &bench_id,
@@ -120,13 +110,19 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         .open(results_file)
         .expect("cannot open results file");
 
-    for (param_name, param_pke) in [(
-        "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64",
-        PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64,
+    for (param_pke, param_casting, param_fhe) in [(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )] {
-        let cks_pke = ClientKey::new(param_pke);
-        let pk = CompactPublicKey::new(&cks_pke);
-        let sks = ServerKey::new_radix_server_key(&cks_pke);
+        let param_name = param_fhe.name();
+        let param_name = param_name.as_str();
+        let cks = ClientKey::new(param_fhe);
+        let sks = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(param_pke);
+        let pk = CompactPublicKey::new(&compact_private_key);
+        let casting_key =
+            KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), param_casting);
 
         for bits in [640usize, 1280, 4096] {
             assert_eq!(bits % 64, 0);
@@ -142,7 +138,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
             let public_params = crs.public_params();
 
-            let shortint_params: PBSParameters = param_pke.into();
+            let shortint_params: PBSParameters = param_fhe.into();
 
             let mut crs_data = vec![];
             public_params
@@ -183,7 +179,9 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 public_params,
                                 &pk,
                                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks),
-                                IntegerCompactCiphertextListCastingMode::NoCasting,
+                                IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                                    casting_key.as_view(),
+                                ),
                             )
                             .unwrap();
                     });

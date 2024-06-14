@@ -5,21 +5,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-int main(void) {
+int cpk_use_case(Config *config) {
   int ok = 0;
 
   // First, we create a ClientKey and a CompactPublicKey
   ClientKey *client_key = NULL;
+  ServerKey *server_key = NULL;
   CompactPublicKey *public_key = NULL;
   {
-    ConfigBuilder *builder;
-    Config *config;
-    ok = config_builder_default(&builder);
-    assert(ok == 0);
-    ok = config_builder_build(builder, &config);
+    ok = generate_keys(config, &client_key, &server_key);
     assert(ok == 0);
 
-    ok = client_key_generate(config, &client_key);
+    ok = set_server_key(server_key);
     assert(ok == 0);
 
     ok = compact_public_key_new(client_key, &public_key);
@@ -66,20 +63,20 @@ int main(void) {
     assert(ok == 0);
 
     size_t len = 0;
-    ok  = compact_ciphertext_list_expander_len(expander, &len);
+    ok = compact_ciphertext_list_expander_len(expander, &len);
     assert(ok == 0 && len == 4);
 
     // First, an example of getting the type in a slot
-    ok  = compact_ciphertext_list_expander_get_kind_of(expander, 0, &type);
+    ok = compact_ciphertext_list_expander_get_kind_of(expander, 0, &type);
     assert(ok == 0 && type == Type_FheUint32);
 
-    ok  = compact_ciphertext_list_expander_get_kind_of(expander, 1, &type);
+    ok = compact_ciphertext_list_expander_get_kind_of(expander, 1, &type);
     assert(ok == 0 && type == Type_FheInt64);
 
-    ok  = compact_ciphertext_list_expander_get_kind_of(expander, 2, &type);
+    ok = compact_ciphertext_list_expander_get_kind_of(expander, 2, &type);
     assert(ok == 0 && type == Type_FheBool);
 
-    ok  = compact_ciphertext_list_expander_get_kind_of(expander, 3, &type);
+    ok = compact_ciphertext_list_expander_get_kind_of(expander, 3, &type);
     assert(ok == 0 && type == Type_FheUint2);
 
     // Then how to get the values
@@ -124,7 +121,41 @@ int main(void) {
   fhe_bool_destroy(c);
   fhe_uint2_destroy(d);
   client_key_destroy(client_key);
+  server_key_destroy(server_key);
   compact_public_key_destroy(public_key);
   compact_ciphertext_list_destroy(compact_list);
+
+  return ok;
+}
+
+int main(void) {
+  int ok = 0;
+  {
+    ConfigBuilder *builder;
+    Config *config;
+    ok = config_builder_default(&builder);
+    assert(ok == 0);
+    ok = config_builder_build(builder, &config);
+    assert(ok == 0);
+    int ok = cpk_use_case(config);
+    assert(ok == 0);
+  }
+  {
+    ConfigBuilder *builder;
+    Config *config;
+    ok = config_builder_default(&builder);
+    assert(ok == 0);
+    ok = config_builder_use_custom_parameters(
+        &builder, SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    assert(ok == 0);
+    ok = use_dedicated_compact_public_key_parameters(
+        &builder, SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+    assert(ok == 0);
+    ok = config_builder_build(builder, &config);
+    assert(ok == 0);
+    int ok = cpk_use_case(config);
+    assert(ok == 0);
+  }
+
   return EXIT_SUCCESS;
 }

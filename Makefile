@@ -273,7 +273,7 @@ clippy_c_api: install_rs_check_toolchain
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
