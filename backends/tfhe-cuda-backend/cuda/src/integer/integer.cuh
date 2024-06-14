@@ -872,4 +872,34 @@ void host_apply_univariate_lut_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       num_blocks, mem);
 }
 
+template <typename Torus>
+void scratch_cuda_apply_bivariate_lut_kb(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int_radix_lut<Torus> **mem_ptr, Torus *input_lut, uint32_t num_radix_blocks,
+    int_radix_params params, bool allocate_gpu_memory) {
+
+  *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
+                                      1, num_radix_blocks, allocate_gpu_memory);
+  // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
+  // 0
+  cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(gpu_indexes[0], 0), input_lut,
+                           (params.glwe_dimension + 1) *
+                               params.polynomial_size * sizeof(Torus),
+                           streams[0], gpu_indexes[0]);
+  (*mem_ptr)->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+}
+
+template <typename Torus>
+void host_apply_bivariate_lut_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
+                                 uint32_t gpu_count, Torus *radix_lwe_out,
+                                 Torus *radix_lwe_in_1, Torus *radix_lwe_in_2,
+                                 int_radix_lut<Torus> *mem, Torus **ksks,
+                                 void **bsks, uint32_t num_blocks,
+                                 uint32_t shift) {
+
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in_1,
+      radix_lwe_in_2, bsks, ksks, num_blocks, mem, shift);
+}
+
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
