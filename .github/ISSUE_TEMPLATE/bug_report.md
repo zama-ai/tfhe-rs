@@ -20,7 +20,7 @@ Steps to reproduce the behaviour
 A clear and concise description of what you expected to happen.
 
 **Evidence**
-If applicable, add material to help explain your problem (e.g. screenshots, logs, artifacts, etc.).
+If applicable, add materials to help explain your problem (e.g. screenshots, logs, artifacts, etc.).
 
 **Configuration(please complete the following information):**
  - OS: [e.g. Ubuntu 20.04]
