@@ -38,6 +38,8 @@ enum COMPARISON_TYPE {
 };
 enum CMP_ORDERING { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
 
+enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
+
 extern "C" {
 void scratch_cuda_apply_univariate_lut_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
@@ -100,6 +102,14 @@ void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
     void *scalar_input, uint32_t lwe_dimension, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus);
+
+void scratch_cuda_generate_last_block_inner_propagation_kb_64_inplace(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t op_id,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
 void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
@@ -1113,6 +1123,48 @@ template <typename Torus> struct int_sc_prop_memory {
     delete luts_array;
     delete luts_carry_propagation_sum;
     delete message_acc;
+  }
+};
+
+template <typename Torus> struct int_last_block_inner_propagate_memory {
+
+  int_radix_lut<Torus> *last_block_inner_propagation_lut;
+  int_radix_params params;
+
+  int_last_block_inner_propagate_memory(
+      cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+      int_radix_params params, SIGNED_OPERATION op, uint32_t num_radix_blocks,
+      bool allocate_gpu_memory) {
+
+    auto message_modulus = params.message_modulus;
+    uint32_t bits_of_message =
+        static_cast<uint32_t>(std::log2(params.message_modulus));
+    Torus message_bit_mask = (1 << bits_of_message) - 1;
+    // declare lambda function for last_block_inner_propagation_lut generation
+    auto f_last_block_inner_propagation_lut =
+        [op, message_modulus, message_bit_mask,
+         bits_of_message](Torus lhs_block, Torus rhs_block) -> Torus {
+      if (op == SIGNED_OPERATION::SUBTRACTION) {
+        rhs_block = !rhs_block;
+      }
+
+      rhs_block = (rhs_block << 1) * message_bit_mask;
+      lhs_block = (lhs_block << 1) & message_bit_mask;
+
+      Torus whole_result = lhs_block + rhs_block;
+      Torus carry = whole_result >> bits_of_message;
+      Torus result = (whole_result & message_bit_mask) >> 1;
+
+      Torus propagation_result;
+      if (carry == 1) {
+        propagation_result = OUTPUT_CARRY::GENERATED;
+      } else if (result == ((message_modulus - 1) >> 1)) {
+        propagation_result = OUTPUT_CARRY::PROPAGATED;
+      } else {
+        propagation_result = OUTPUT_CARRY::NONE;
+      }
+      return propagation_result << bits_of_message;
+    };
   }
 };
 

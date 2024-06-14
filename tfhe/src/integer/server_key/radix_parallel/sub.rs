@@ -22,6 +22,7 @@ enum BorrowGeneration {
 
 // see [ServerKey::generate_last_block_inner_propagation]
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
 pub(crate) enum SignedOperation {
     Addition,
     Subtraction,
