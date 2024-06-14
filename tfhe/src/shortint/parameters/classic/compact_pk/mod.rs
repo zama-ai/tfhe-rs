@@ -2,10 +2,8 @@ use crate::shortint::parameters::classic::compact_pk::gaussian::p_fail_2_minus_6
     ks_pbs, pbs_ks,
 };
 use crate::shortint::ClassicPBSParameters;
-pub use tuniform::p_fail_2_minus_64::ks_pbs::*;
 
 pub mod gaussian;
-pub mod tuniform;
 
 pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 32] = [
     PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,

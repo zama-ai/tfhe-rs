@@ -545,7 +545,7 @@ impl ProvenCompactCiphertextList {
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;
     use crate::integer::{ClientKey, CompactPublicKey, RadixCiphertext, ServerKey};
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::test_parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 

@@ -456,7 +456,7 @@ test('hlapi_compact_ciphertext_list', (t) => {
 });
 
 test('hlapi_compact_ciphertext_list_with_proof', (t) => {
-    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64);
+    const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
     let config = TfheConfigBuilder.default()
         .use_custom_parameters(block_params)
         .build();

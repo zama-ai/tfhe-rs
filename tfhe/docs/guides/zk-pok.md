@@ -20,7 +20,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
     let params =
-        tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64;
+        tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let config = tfhe::ConfigBuilder::with_custom_parameters(params, None);
 
     let client_key = tfhe::ClientKey::generate(config.clone());
