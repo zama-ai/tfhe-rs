@@ -108,29 +108,29 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64:
     grouping_factor: LweBskGroupingFactor(4),
     deterministic_execution: false,
 };
-// p-fail = 2^-65.196, algorithmic cost ~ 92, 2-norm = 5
+// p-fail = 2^-64.605, algorithmic cost ~ 83, 2-norm = 5
 pub const PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(844),
+    lwe_dimension: LweDimension(842),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        2.9907869683339986e-06,
+        3.0957909745987987e-06,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         2.845267479601915e-15,
     )),
-    pbs_base_log: DecompositionBaseLog(21),
+    pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(3),
     ks_level: DecompositionLevelCount(5),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     max_noise_level: MaxNoiseLevel::new(5),
-    log2_p_fail: -65.196,
+    log2_p_fail: -64.605,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    grouping_factor: LweBskGroupingFactor(4),
+    grouping_factor: LweBskGroupingFactor(2),
     deterministic_execution: false,
 };
 
