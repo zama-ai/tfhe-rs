@@ -121,34 +121,36 @@ impl BooleanKeySwitchingParameters {
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(722),
-    glwe_dimension: GlweDimension(2),
+    lwe_dimension: LweDimension(811),
+    glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
+    #[allow(clippy::excessive_precision)]
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000013071021089943935,
+        5.2851456906764125e-06,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000004990272175010415,
+        9.315272083503367e-10,
     )),
-    pbs_base_log: DecompositionBaseLog(6),
-    pbs_level: DecompositionLevelCount(3),
+    pbs_base_log: DecompositionBaseLog(10),
+    pbs_level: DecompositionLevelCount(2),
     ks_base_log: DecompositionBaseLog(3),
-    ks_level: DecompositionLevelCount(4),
+    ks_level: DecompositionLevelCount(5),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
 pub const DEFAULT_PARAMETERS_KS_PBS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(664),
-    glwe_dimension: GlweDimension(2),
+    lwe_dimension: LweDimension(746),
+    glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
+    #[allow(clippy::excessive_precision)]
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00003808282923459771,
+        1.622209113562635e-05,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000004990272175010415,
+        9.315272083503367e-10,
     )),
-    pbs_base_log: DecompositionBaseLog(6),
-    pbs_level: DecompositionLevelCount(3),
+    pbs_base_log: DecompositionBaseLog(10),
+    pbs_level: DecompositionLevelCount(2),
     ks_base_log: DecompositionBaseLog(3),
     ks_level: DecompositionLevelCount(4),
     encryption_key_choice: EncryptionKeyChoice::Big,
@@ -158,14 +160,15 @@ pub const DEFAULT_PARAMETERS_KS_PBS: BooleanParameters = BooleanParameters {
 /// This parameter set ensures a probability of error upper-bounded by $2^{-165}$
 /// for for 128-bits of security.
 pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(767),
+    lwe_dimension: LweDimension(843),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
+    #[allow(clippy::excessive_precision)]
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.000005104350373791501,
+        3.0428362050688556e-06,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000000009313225746154785,
+        9.313225746198247e-10,
     )),
     pbs_base_log: DecompositionBaseLog(10),
     pbs_level: DecompositionLevelCount(2),
@@ -175,19 +178,20 @@ pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165: BooleanParameters = BooleanPara
 };
 
 pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(700),
-    glwe_dimension: GlweDimension(1),
+    lwe_dimension: LweDimension(776),
+    glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
+    #[allow(clippy::excessive_precision)]
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.0000196095987892077,
+        9.66750902600141e-06,
     )),
     glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        0.00000004990272175010415,
+        9.313225746198247e-10,
     )),
-    pbs_base_log: DecompositionBaseLog(5),
-    pbs_level: DecompositionLevelCount(4),
-    ks_base_log: DecompositionBaseLog(2),
-    ks_level: DecompositionLevelCount(7),
+    pbs_base_log: DecompositionBaseLog(10),
+    pbs_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(5),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
