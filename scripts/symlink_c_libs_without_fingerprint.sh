@@ -45,6 +45,11 @@ if [[ "${CARGO_PROFILE}" == "" ]]; then
     exit 1
 fi
 
+if [[ "${CARGO_PROFILE}" == "dev" ]]; then
+    # dev gets remapped
+    CARGO_PROFILE="debug"
+fi
+
 UNAME="$(uname)"
 if [[ "${UNAME}" != "Linux" && "${UNAME}" != "Darwin" ]]; then
     echo "This script is compatible with Linux and macOS and may not work for your system"

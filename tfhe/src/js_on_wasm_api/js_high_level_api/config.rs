@@ -28,8 +28,16 @@ impl TfheConfigBuilder {
     pub fn use_custom_parameters(
         self,
         block_parameters: &crate::js_on_wasm_api::shortint::ShortintParameters,
+        compact_public_key_parameters: Option<
+            crate::js_on_wasm_api::shortint::ShortintCompactPublicKeyEncryptionParameters,
+        >,
     ) -> Self {
-        Self(self.0.use_custom_parameters(block_parameters.0, None))
+        let compact_pke_params =
+            compact_public_key_parameters.map(|p| (p.compact_pke_params, p.casting_parameters));
+        Self(
+            self.0
+                .use_custom_parameters(block_parameters.0, None, compact_pke_params),
+        )
     }
 
     #[wasm_bindgen]

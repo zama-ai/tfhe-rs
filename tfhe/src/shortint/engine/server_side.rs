@@ -184,6 +184,35 @@ impl ShortintEngine {
         )
     }
 
+    pub(crate) fn new_seeded_key_switching_key(
+        &mut self,
+        input_secret_key: &SecretEncryptionKey<&[u64]>,
+        output_client_key: &ClientKey,
+        params: ShortintKeySwitchingParameters,
+    ) -> SeededLweKeyswitchKeyOwned<u64> {
+        let (output_secret_key, encryption_noise) = match params.destination_key {
+            EncryptionKeyChoice::Big => (
+                output_client_key.large_lwe_secret_key(),
+                output_client_key.parameters.glwe_noise_distribution(),
+            ),
+            EncryptionKeyChoice::Small => (
+                output_client_key.small_lwe_secret_key(),
+                output_client_key.parameters.lwe_noise_distribution(),
+            ),
+        };
+
+        // Creation of the key switching key
+        allocate_and_generate_new_seeded_lwe_keyswitch_key(
+            &input_secret_key.lwe_secret_key,
+            &output_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            encryption_noise,
+            output_client_key.parameters.ciphertext_modulus(),
+            &mut self.seeder,
+        )
+    }
+
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
         // Plaintext Max Value
         let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;

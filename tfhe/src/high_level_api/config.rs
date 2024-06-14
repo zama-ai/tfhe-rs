@@ -6,6 +6,15 @@ pub struct Config {
     pub(crate) inner: IntegerConfig,
 }
 
+impl Config {
+    pub fn public_key_encryption_parameters(
+        &self,
+    ) -> Result<crate::shortint::parameters::CompactPublicKeyEncryptionParameters, crate::Error>
+    {
+        self.inner.public_key_encryption_parameters()
+    }
+}
+
 /// The builder to create your config
 ///
 /// The configuration is needed to select parameters you wish to use for these types
@@ -53,13 +62,21 @@ impl ConfigBuilder {
     pub fn with_custom_parameters<P>(
         block_parameters: P,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+        dedicated_compact_public_key_parameters: Option<(
+            crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
+            crate::shortint::parameters::ShortintKeySwitchingParameters,
+        )>,
     ) -> Self
     where
         P: Into<crate::shortint::PBSParameters>,
     {
         Self {
             config: Config {
-                inner: IntegerConfig::new(block_parameters.into(), wopbs_block_parameters),
+                inner: IntegerConfig::new(
+                    block_parameters.into(),
+                    wopbs_block_parameters,
+                    dedicated_compact_public_key_parameters,
+                ),
             },
         }
     }
@@ -68,11 +85,19 @@ impl ConfigBuilder {
         mut self,
         block_parameters: P,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+        dedicated_compact_public_key_parameters: Option<(
+            crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
+            crate::shortint::parameters::ShortintKeySwitchingParameters,
+        )>,
     ) -> Self
     where
         P: Into<crate::shortint::PBSParameters>,
     {
-        self.config.inner = IntegerConfig::new(block_parameters.into(), wopbs_block_parameters);
+        self.config.inner = IntegerConfig::new(
+            block_parameters.into(),
+            wopbs_block_parameters,
+            dedicated_compact_public_key_parameters,
+        );
         self
     }
 

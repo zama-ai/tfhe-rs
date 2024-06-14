@@ -1,8 +1,10 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::verify_lwe_ciphertext;
 use crate::shortint::ciphertext::CompactCiphertextList;
-use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
-use crate::shortint::{Ciphertext, CompactPublicKey, EncryptionKeyChoice};
+use crate::shortint::parameters::{
+    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+};
+use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -11,22 +13,17 @@ impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
     ///
     /// max_num_message is how many message a single proof can prove
-    pub fn from_shortint_params(
-        params: impl Into<crate::shortint::PBSParameters>,
-        max_num_message: usize,
-    ) -> crate::Result<Self> {
-        let params = params.into();
-        let (size, noise_distribution) = match params.encryption_key_choice() {
-            EncryptionKeyChoice::Big => {
-                let size = params
-                    .glwe_dimension()
-                    .to_equivalent_lwe_dimension(params.polynomial_size());
-                (size, params.glwe_noise_distribution())
-            }
-            EncryptionKeyChoice::Small => (params.lwe_dimension(), params.lwe_noise_distribution()),
-        };
+    pub fn from_shortint_params<P>(params: P, max_num_message: usize) -> crate::Result<Self>
+    where
+        P: TryInto<CompactPublicKeyEncryptionParameters, Error = crate::Error>,
+    {
+        let params: CompactPublicKeyEncryptionParameters = params.try_into()?;
+        let (size, noise_distribution) = (
+            params.encryption_lwe_dimension,
+            params.encryption_noise_distribution,
+        );
 
-        let mut plaintext_modulus = (params.message_modulus().0 * params.carry_modulus().0) as u64;
+        let mut plaintext_modulus = (params.message_modulus.0 * params.carry_modulus.0) as u64;
         // Our plaintext modulus does not take into account the bit of padding
         plaintext_modulus *= 2;
 
@@ -35,7 +32,7 @@ impl CompactPkeCrs {
                 size,
                 max_num_message,
                 noise_distribution,
-                params.ciphertext_modulus(),
+                params.ciphertext_modulus,
                 plaintext_modulus,
                 &mut engine.random_generator,
             )

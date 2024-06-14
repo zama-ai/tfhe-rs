@@ -189,9 +189,11 @@ fn main() -> Result<(), std::io::Error> {
         Some(2) => ConfigBuilder::with_custom_parameters(
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             None,
+            None,
         ),
         Some(3) => ConfigBuilder::with_custom_parameters(
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            None,
             None,
         ),
         Some(v) => {

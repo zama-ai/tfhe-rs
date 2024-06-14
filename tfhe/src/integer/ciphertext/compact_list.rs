@@ -451,11 +451,17 @@ impl CompactCiphertextList {
         let expanded_blocks = if is_packed {
             match unpacking_mode {
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
-                    if !self.is_compatible_with_unpacking_server_key(sks) {
-                        return Err(crate::Error::new(
-                            "This compact list is not conformant with the given server key"
-                                .to_string(),
-                        ));
+                    let degree = self.ct_list.degree;
+                    let mut conformance_params = sks.key.conformance_params();
+                    conformance_params.degree = degree;
+
+                    for ct in expanded_blocks.iter() {
+                        if !ct.is_conformant(&conformance_params) {
+                            return Err(crate::Error::new(
+                                "This compact list is not conformant with the given server key"
+                                    .to_string(),
+                            ));
+                        }
                     }
 
                     extract_message_and_carries(expanded_blocks, sks)
@@ -480,18 +486,12 @@ impl CompactCiphertextList {
         self.ct_list.size_bytes()
     }
 
-    pub fn is_compatible_with_unpacking_server_key(&self, sks: &ServerKey) -> bool {
-        let mut conformance_params = sks.key.conformance_params();
-        conformance_params.degree = self.ct_list.degree;
-
-        self.is_conformant_with_shortint_params(conformance_params)
-    }
-
     fn is_conformant_with_shortint_params(
         &self,
         shortint_params: CiphertextConformanceParams,
     ) -> bool {
         let mut num_blocks: usize = self.info.iter().copied().map(DataKind::num_blocks).sum();
+        // This expects packing, halve the number of blocks with enough capacity
         if shortint_params.degree.get()
             == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
         {

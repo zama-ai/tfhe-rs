@@ -16,7 +16,7 @@ int main(void) {
   ConfigBuilder *builder;
   status = config_builder_default(&builder);
   assert(status == 0);
-  status = config_builder_use_custom_parameters(&builder, params);
+  status = config_builder_use_custom_parameters(&builder, params, NULL);
   assert(status == 0);
 
   Config *config;

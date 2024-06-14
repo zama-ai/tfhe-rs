@@ -2,7 +2,10 @@
 //!
 //! - [KeySwitchingKey] allows switching the keys of a ciphertext, from a cleitn key to another.
 
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
+use crate::core_crypto::prelude::{
+    decompress_seeded_lwe_keyswitch_key, keyswitch_lwe_ciphertext, ActivatedRandomGenerator,
+    LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned,
+};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKey;
 use crate::shortint::engine::ShortintEngine;
@@ -10,11 +13,21 @@ use crate::shortint::parameters::{
     EncryptionKeyChoice, NoiseLevel, PBSOrder, ShortintKeySwitchingParameters,
 };
 use crate::shortint::server_key::apply_programmable_bootstrap;
-use crate::shortint::{Ciphertext, ClientKey, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod test;
+
+// This is used to have the ability to build a keyswitching key without owning the ServerKey
+// It is a bit of a hack, but at this point it seems ok
+pub(crate) struct KeySwitchingKeyBuildHelper<'keys> {
+    pub(crate) key_switching_key: LweKeyswitchKeyOwned<u64>,
+    pub(crate) dest_server_key: &'keys ServerKey,
+    pub(crate) src_server_key: Option<&'keys ServerKey>,
+    pub(crate) cast_rshift: i8,
+    pub(crate) destination_key: EncryptionKeyChoice,
+}
 
 /// A structure containing the casting public key.
 ///
@@ -29,6 +42,26 @@ pub struct KeySwitchingKey {
     pub destination_key: EncryptionKeyChoice,
 }
 
+impl<'keys> From<KeySwitchingKeyBuildHelper<'keys>> for KeySwitchingKey {
+    fn from(value: KeySwitchingKeyBuildHelper) -> Self {
+        let KeySwitchingKeyBuildHelper {
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+            destination_key,
+        } = value;
+
+        Self {
+            key_switching_key,
+            dest_server_key: dest_server_key.to_owned(),
+            src_server_key: src_server_key.map(ToOwned::to_owned),
+            cast_rshift,
+            destination_key,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct KeySwitchingKeyView<'keys> {
     pub(crate) key_switching_key: &'keys LweKeyswitchKeyOwned<u64>,
@@ -38,33 +71,10 @@ pub struct KeySwitchingKeyView<'keys> {
     pub destination_key: EncryptionKeyChoice,
 }
 
-impl KeySwitchingKey {
-    /// Generate a casting key. This can cast to several kinds of keys (shortint, integer, hlapi),
-    /// depending on input.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    /// };
-    /// use tfhe::shortint::prelude::*;
-    /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
-    ///
-    /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new(
-    ///     (&ck1, Some(&sk1)),
-    ///     (&ck2, &sk2),
-    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
-    /// );
-    /// ```
-    pub fn new<'input_key, InputEncryptionKey>(
-        input_key_pair: (InputEncryptionKey, Option<&ServerKey>),
-        output_key_pair: (&ClientKey, &ServerKey),
+impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
+    pub(crate) fn new<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&'keys ServerKey>),
+        output_key_pair: (&'keys ClientKey, &'keys ServerKey),
         params: ShortintKeySwitchingParameters,
     ) -> Self
     where
@@ -102,11 +112,47 @@ impl KeySwitchingKey {
         // Pack the keys in the casting key set:
         Self {
             key_switching_key,
-            dest_server_key: output_key_pair.1.clone(),
-            src_server_key: input_key_pair.1.cloned(),
+            dest_server_key: output_key_pair.1,
+            src_server_key: input_key_pair.1,
             cast_rshift: nb_bits_output - nb_bits_input,
             destination_key: params.destination_key,
         }
+    }
+}
+
+impl KeySwitchingKey {
+    /// Generate a casting key. This can cast to several kinds of keys (shortint, integer, hlapi),
+    /// depending on input.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    /// };
+    /// use tfhe::shortint::prelude::*;
+    /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
+    ///
+    /// // Generate the client keys and server keys:
+    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// // Generate the server key:
+    /// let ksk = KeySwitchingKey::new(
+    ///     (&ck1, Some(&sk1)),
+    ///     (&ck2, &sk2),
+    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    /// );
+    /// ```
+    pub fn new<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&ServerKey>),
+        output_key_pair: (&ClientKey, &ServerKey),
+        params: ShortintKeySwitchingParameters,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKey<&'input_key [u64]>>,
+    {
+        KeySwitchingKeyBuildHelper::new(input_key_pair, output_key_pair, params).into()
     }
 
     pub fn as_view(&self) -> KeySwitchingKeyView<'_> {
@@ -269,6 +315,33 @@ impl KeySwitchingKey {
 }
 
 impl<'keys> KeySwitchingKeyView<'keys> {
+    /// Deconstruct a [`KeySwitchingKeyView`] into its constituents.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        &'keys LweKeyswitchKeyOwned<u64>,
+        &'keys ServerKey,
+        Option<&'keys ServerKey>,
+        i8,
+        EncryptionKeyChoice,
+    ) {
+        let Self {
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+            destination_key,
+        } = self;
+
+        (
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+            destination_key,
+        )
+    }
+
     /// Construct a [`KeySwitchingKeyView`] from its constituents.
     ///
     /// # Panics
@@ -283,7 +356,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     /// does not match the output
     /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
     /// provided [`LweKeyswitchKeyOwned`].
-    pub fn try_new(
+    pub fn from_raw_parts(
         key_switching_key: &'keys LweKeyswitchKeyOwned<u64>,
         dest_server_key: &'keys ServerKey,
         src_server_key: Option<&'keys ServerKey>,
@@ -492,5 +565,137 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         };
 
         ret
+    }
+}
+// This is used to have the ability to build a keyswitching key without owning the ServerKey
+// It is a bit of a hack, but at this point it seems ok
+pub(crate) struct CompressedKeySwitchingKeyBuildHelper<'keys> {
+    pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
+    pub(crate) dest_server_key: &'keys CompressedServerKey,
+    pub(crate) src_server_key: Option<&'keys CompressedServerKey>,
+    pub(crate) cast_rshift: i8,
+    pub(crate) destination_key: EncryptionKeyChoice,
+}
+
+/// A structure containing the casting public key.
+///
+/// The casting key is generated by the client and is meant to be published: the client
+/// sends it to the server so it can cast from one set of parameters to another.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompressedKeySwitchingKey {
+    pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
+    pub(crate) dest_server_key: CompressedServerKey,
+    pub(crate) src_server_key: Option<CompressedServerKey>,
+    pub cast_rshift: i8,
+    pub destination_key: EncryptionKeyChoice,
+}
+
+impl<'keys> From<CompressedKeySwitchingKeyBuildHelper<'keys>> for CompressedKeySwitchingKey {
+    fn from(value: CompressedKeySwitchingKeyBuildHelper) -> Self {
+        let CompressedKeySwitchingKeyBuildHelper {
+            key_switching_key,
+            dest_server_key,
+            src_server_key,
+            cast_rshift,
+            destination_key,
+        } = value;
+
+        Self {
+            key_switching_key,
+            dest_server_key: dest_server_key.to_owned(),
+            src_server_key: src_server_key.map(ToOwned::to_owned),
+            cast_rshift,
+            destination_key,
+        }
+    }
+}
+
+impl<'keys> CompressedKeySwitchingKeyBuildHelper<'keys> {
+    pub(crate) fn new<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&'keys CompressedServerKey>),
+        output_key_pair: (&'keys ClientKey, &'keys CompressedServerKey),
+        params: ShortintKeySwitchingParameters,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKey<&'input_key [u64]>>,
+    {
+        let input_secret_key: SecretEncryptionKey<&[u64]> = input_key_pair.0.into();
+
+        // Creation of the key switching key
+        let key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
+            engine.new_seeded_key_switching_key(&input_secret_key, output_key_pair.0, params)
+        });
+
+        let full_message_modulus_input =
+            input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
+        let full_message_modulus_output = output_key_pair.0.parameters.carry_modulus().0
+            * output_key_pair.0.parameters.message_modulus().0;
+        assert!(
+            full_message_modulus_input.is_power_of_two()
+                && full_message_modulus_output.is_power_of_two(),
+            "Cannot create casting key if the full messages moduli are not a power of 2"
+        );
+        if full_message_modulus_input > full_message_modulus_output {
+            assert!(
+                input_key_pair.1.is_some(),
+                "Trying to build a shortint::KeySwitchingKey \
+                going from a large modulus {full_message_modulus_input} \
+                to a smaller modulus {full_message_modulus_output} \
+                without providing a source ServerKey, this is not supported"
+            );
+        }
+
+        let nb_bits_input: i8 = full_message_modulus_input.ilog2().try_into().unwrap();
+        let nb_bits_output: i8 = full_message_modulus_output.ilog2().try_into().unwrap();
+
+        // Pack the keys in the casting key set:
+        Self {
+            key_switching_key,
+            dest_server_key: output_key_pair.1,
+            src_server_key: input_key_pair.1,
+            cast_rshift: nb_bits_output - nb_bits_input,
+            destination_key: params.destination_key,
+        }
+    }
+}
+
+impl CompressedKeySwitchingKey {
+    pub fn new<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&CompressedServerKey>),
+        output_key_pair: (&ClientKey, &CompressedServerKey),
+        params: ShortintKeySwitchingParameters,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKey<&'input_key [u64]>>,
+    {
+        CompressedKeySwitchingKeyBuildHelper::new(input_key_pair, output_key_pair, params).into()
+    }
+
+    pub fn decompress(&self) -> KeySwitchingKey {
+        KeySwitchingKey {
+            key_switching_key: {
+                let cksk = &self.key_switching_key;
+                let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
+                    0u64,
+                    cksk.decomposition_base_log(),
+                    cksk.decomposition_level_count(),
+                    cksk.input_key_lwe_dimension(),
+                    cksk.output_key_lwe_dimension(),
+                    cksk.ciphertext_modulus(),
+                );
+                decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+                    &mut decompressed_ksk,
+                    cksk,
+                );
+                decompressed_ksk
+            },
+            dest_server_key: self.dest_server_key.decompress(),
+            src_server_key: self
+                .src_server_key
+                .as_ref()
+                .map(CompressedServerKey::decompress),
+            cast_rshift: self.cast_rshift,
+            destination_key: self.destination_key,
+        }
     }
 }

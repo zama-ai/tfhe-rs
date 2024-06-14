@@ -155,9 +155,23 @@ pub struct CompressedCompactPublicKey {
 }
 
 impl CompressedCompactPublicKey {
-    pub fn new(client_key: &ClientKey) -> Self {
-        let key = ShortintCompressedCompactPublicKey::new(&client_key.key);
-        Self { key }
+    pub fn new<'data, C>(compact_private_key: C) -> Self
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = crate::Error>,
+    {
+        Self::try_new(compact_private_key).expect(
+            "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
+        )
+    }
+
+    pub fn try_new<'data, C>(input_key: C) -> Result<Self, crate::Error>
+    where
+        C: TryInto<CompactPrivateKey<&'data [u64]>, Error = crate::Error>,
+    {
+        let compact_private_key: CompactPrivateKey<&[u64]> = input_key.try_into()?;
+
+        let key = ShortintCompressedCompactPublicKey::new(&compact_private_key.key);
+        Ok(Self { key })
     }
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.

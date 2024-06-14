@@ -2,6 +2,8 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::shortint::parameters::classic::compact_pk::*;
+use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
 use wasm_bindgen::prelude::*;
@@ -29,6 +31,14 @@ pub struct Shortint {}
 
 #[wasm_bindgen]
 pub struct ShortintParameters(pub(crate) crate::shortint::ClassicPBSParameters);
+
+#[wasm_bindgen]
+pub struct ShortintCompactPublicKeyEncryptionParameters {
+    pub(crate) compact_pke_params:
+        crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters,
+    pub(crate) casting_parameters:
+        crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
+}
 
 #[wasm_bindgen]
 impl ShortintParameters {
@@ -182,6 +192,26 @@ pub struct ShortintNoiseDistribution(
     pub(crate) crate::core_crypto::commons::math::random::DynamicDistribution<u64>,
 );
 
+#[wasm_bindgen]
+#[allow(non_camel_case_types)]
+pub enum ShortintCompactPublicKeyEncryptionParametersName {
+    SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+}
+
+#[wasm_bindgen]
+impl ShortintCompactPublicKeyEncryptionParameters {
+    #[allow(clippy::needless_pass_by_value)]
+    #[wasm_bindgen(constructor)]
+    pub fn new(name: ShortintCompactPublicKeyEncryptionParametersName) -> Self {
+        match name {
+            ShortintCompactPublicKeyEncryptionParametersName::SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64 => Self {
+                compact_pke_params: PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                casting_parameters: PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            }
+        }
+    }
+}
+
 macro_rules! expose_predefined_parameters {
     (
         $(
@@ -316,6 +346,8 @@ expose_predefined_parameters! {
     PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+    // FHE params for CPK + Cast use cas
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     // Aliases to remove eventually
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,

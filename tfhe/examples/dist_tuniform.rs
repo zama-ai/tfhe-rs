@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     my_params.glwe_noise_distribution = DynamicDistribution::new_t_uniform(10);
 
     let config = ConfigBuilder::default()
-        .use_custom_parameters(my_params, None)
+        .use_custom_parameters(my_params, None, None)
         .build();
 
     let (keys, server_keys) = generate_keys(config);

@@ -1,6 +1,9 @@
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
-use crate::shortint::parameters::{CarryModulus, MessageModulus, ShortintParameterSet};
+use crate::shortint::parameters::{
+    CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
+    ShortintParameterSet,
+};
 use crate::shortint::KeySwitchingKeyView;
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -83,6 +86,14 @@ impl CompactPublicKeyEncryptionParameters {
     }
 }
 
+impl TryFrom<&Self> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: &Self) -> Result<Self, Self::Error> {
+        Ok(*value)
+    }
+}
+
 impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
     type Error = Error;
 
@@ -113,3 +124,40 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
         )
     }
 }
+
+impl TryFrom<ClassicPBSParameters> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: ClassicPBSParameters) -> Result<Self, Self::Error> {
+        let params: PBSParameters = value.into();
+        params.try_into()
+    }
+}
+
+impl TryFrom<MultiBitPBSParameters> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: MultiBitPBSParameters) -> Result<Self, Self::Error> {
+        let params: PBSParameters = value.into();
+        params.try_into()
+    }
+}
+
+impl TryFrom<PBSParameters> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: PBSParameters) -> Result<Self, Self::Error> {
+        let params: ShortintParameterSet = value.into();
+        params.try_into()
+    }
+}
+
+pub const PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompactPublicKeyEncryptionParameters =
+    CompactPublicKeyEncryptionParameters {
+        encryption_lwe_dimension: LweDimension(1024),
+        encryption_noise_distribution: DynamicDistribution::new_t_uniform(42),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+    };

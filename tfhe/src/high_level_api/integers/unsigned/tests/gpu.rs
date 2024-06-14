@@ -9,7 +9,7 @@ use crate::{set_server_key, ClientKey, ConfigBuilder};
 fn setup_gpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params
         .map_or_else(ConfigBuilder::default, |p| {
-            ConfigBuilder::with_custom_parameters(p.into(), None)
+            ConfigBuilder::with_custom_parameters(p.into(), None, None)
         })
         .build();
 

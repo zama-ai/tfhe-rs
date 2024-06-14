@@ -33,7 +33,8 @@ use crate::shortint::ciphertext::MaxDegree;
 pub use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::p_fail_2_minus_64::{ks_pbs, pbs_ks};
 pub use compact_public_key_only::{
-    CompactCiphertextListExpansionKind, ShortintCompactCiphertextListCastingMode,
+    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
+    ShortintCompactCiphertextListCastingMode,
 };
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
@@ -827,3 +828,23 @@ pub const PARAM_SMALL_MESSAGE_1_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_1_
 pub const PARAM_SMALL_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
 pub const PARAM_SMALL_MESSAGE_3_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_3_PBS_KS;
 pub const PARAM_SMALL_MESSAGE_4_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_4_PBS_KS;
+
+// Remove once David PR is merged
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
+    ClassicPBSParameters {
+        lwe_dimension: LweDimension(887),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(15),
+        pbs_base_log: DecompositionBaseLog(22),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        max_noise_level: MaxNoiseLevel::new(5),
+        log2_p_fail: -64.0,
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+    };

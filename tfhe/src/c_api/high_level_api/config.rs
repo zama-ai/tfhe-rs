@@ -61,15 +61,31 @@ pub unsafe extern "C" fn config_builder_clone(
 pub unsafe extern "C" fn config_builder_use_custom_parameters(
     builder: *mut *mut ConfigBuilder,
     shortint_block_parameters: crate::c_api::shortint::parameters::ShortintPBSParameters,
+    compact_public_key_parameters: *const crate::c_api::shortint::parameters::ShortintCompactPublicKeyEncryptionParameters,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(builder).unwrap();
 
         let params: crate::shortint::ClassicPBSParameters =
             shortint_block_parameters.try_into().unwrap();
-        let inner = Box::from_raw(*builder)
-            .0
-            .use_custom_parameters(params, None);
+
+        let compact_public_key_parameters = if compact_public_key_parameters.is_null() {
+            None
+        } else {
+            let p = *(get_ref_checked(compact_public_key_parameters).unwrap());
+            let p: (
+                crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
+                crate::shortint::parameters::ShortintKeySwitchingParameters,
+            ) = p.try_into().unwrap();
+
+            Some(p)
+        };
+
+        let inner = Box::from_raw(*builder).0.use_custom_parameters(
+            params,
+            None,
+            compact_public_key_parameters,
+        );
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }

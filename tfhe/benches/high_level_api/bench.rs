@@ -108,12 +108,8 @@ bench_type!(FheUint64);
 bench_type!(FheUint128);
 
 fn main() {
-    let config = ConfigBuilder::with_custom_parameters(
-        //        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        None,
-    )
-    .build();
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS, None, None).build();
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
 

@@ -280,6 +280,7 @@ fn test_multi_bit_rotate() {
         .use_custom_parameters(
             crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             None,
+            None,
         )
         .build();
     fhe_int64_rotate(config);
@@ -368,6 +369,7 @@ fn test_multi_div_rem() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
             crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            None,
             None,
         )
         .build();
@@ -546,7 +548,7 @@ fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
             crate::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            None,
+            None,None
         )
         .build();
     let (client_key, _) = generate_keys(config);
@@ -568,7 +570,7 @@ fn test_compact_public_key_small() {
         .use_custom_parameters(
             crate::shortint::parameters::classic::compact_pk
             ::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
-            None,
+            None,None
         )
         .build();
     let (client_key, _) = generate_keys(config);
@@ -646,8 +648,11 @@ fn test_leading_trailing_zeros_ones() {
 #[test]
 fn test_safe_deserialize_conformant_fhe_int32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        block_params,
+        None,
+        None,
+    ));
     set_server_key(server_key.clone());
 
     let clear_a = random::<i32>();
@@ -668,8 +673,11 @@ fn test_safe_deserialize_conformant_fhe_int32() {
 #[test]
 fn test_safe_deserialize_conformant_compressed_fhe_int32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        block_params,
+        None,
+        None,
+    ));
     set_server_key(server_key.clone());
 
     let clear_a = random::<i32>();

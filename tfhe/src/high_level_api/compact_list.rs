@@ -35,7 +35,6 @@ impl CompactCiphertextList {
     ) -> crate::Result<CompactCiphertextListExpander> {
         self.0
             .expand(
-                // TODO check packing and casting modes
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
                 IntegerCompactCiphertextListCastingMode::NoCasting,
             )
@@ -64,7 +63,15 @@ impl CompactCiphertextList {
                 };
 
                 let casting_mode = if self.0.needs_casting() {
-                    todo!("TODO check packing and casting modes")
+                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                        cpu_key.cpk_casting_key().ok_or_else(|| {
+                            crate::Error::new(
+                                "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                    .to_string(),
+                            )
+                        })?,
+                    )
                 } else {
                     IntegerCompactCiphertextListCastingMode::NoCasting
                 };
@@ -101,23 +108,6 @@ impl ProvenCompactCiphertextList {
         CompactCiphertextListBuilder::new(pk)
     }
 
-    pub fn verify_and_expand_with_key(
-        &self,
-        public_params: &CompactPkePublicParams,
-        pk: &CompactPublicKey,
-        sks: &crate::ServerKey,
-    ) -> crate::Result<CompactCiphertextListExpander> {
-        // TODO check modes
-        self.0
-            .verify_and_expand(
-                public_params,
-                &pk.key.key,
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
-                IntegerCompactCiphertextListCastingMode::NoCasting,
-            )
-            .map(|expander| CompactCiphertextListExpander { inner: expander })
-    }
-
     pub fn verify_and_expand(
         &self,
         public_params: &CompactPkePublicParams,
@@ -146,7 +136,15 @@ impl ProvenCompactCiphertextList {
                 };
 
                 let casting_mode = if self.0.needs_casting() {
-                    todo!("TODO check packing and casting modes")
+                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                        cpu_key.cpk_casting_key().ok_or_else(|| {
+                            crate::Error::new(
+                                "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                    .to_string(),
+                            )
+                        })?,
+                    )
                 } else {
                     IntegerCompactCiphertextListCastingMode::NoCasting
                 };
@@ -486,6 +484,7 @@ mod tests {
     fn test_proven_compact_list() {
         let config = crate::ConfigBuilder::with_custom_parameters(
             PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+            None,
             None,
         )
         .build();

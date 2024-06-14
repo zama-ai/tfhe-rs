@@ -114,7 +114,7 @@ fn main() {
     let params_2 = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
     
     let (client_key, server_key) = generate_keys(
-        ConfigBuilder::with_custom_parameters(params_1, None).build()
+        ConfigBuilder::with_custom_parameters(params_1, None, None).build()
     );
     
     let conformance_params_1 = FheUint8ConformanceParams::from(params_1);

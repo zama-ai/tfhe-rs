@@ -4,18 +4,21 @@ use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUin
 use crate::integer::U256;
 use crate::safe_deserialization::safe_deserialize_conformant;
 use crate::shortint::parameters::classic::compact_pk::*;
+use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
-    CompressedFheUint16, CompressedFheUint256, CompressedFheUint32, CompressedPublicKey, FheInt16,
-    FheInt32, FheInt8, FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams,
+    CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256, CompressedFheUint32,
+    CompressedPublicKey, CompressedServerKey, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16,
+    FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
 
 fn setup_cpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params
         .map_or_else(ConfigBuilder::default, |p| {
-            ConfigBuilder::with_custom_parameters(p.into(), None)
+            ConfigBuilder::with_custom_parameters(p.into(), None, None)
         })
         .build();
 
@@ -105,7 +108,7 @@ fn test_uint32_shift() {
 #[test]
 fn test_uint32_shift_multibit() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None)
+        .use_custom_parameters(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None, None)
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -193,7 +196,7 @@ fn test_decompressed_public_key_encrypt() {
 #[test]
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, None)
+        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, None, None)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -211,7 +214,7 @@ fn test_compact_public_key_big() {
 #[test]
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS, None)
+        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS, None, None)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -397,8 +400,11 @@ fn test_sum() {
 #[test]
 fn test_safe_deserialize_conformant_fhe_uint32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        block_params,
+        None,
+        None,
+    ));
     set_server_key(server_key.clone());
 
     let clear_a = random::<u32>();
@@ -418,8 +424,11 @@ fn test_safe_deserialize_conformant_fhe_uint32() {
 #[test]
 fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        block_params,
+        None,
+        None,
+    ));
     set_server_key(server_key.clone());
 
     let clear_a = random::<u32>();
@@ -441,8 +450,11 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
 #[test]
 fn test_safe_deserialize_conformant_compact_fhe_uint32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    let (client_key, server_key) =
-        generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        block_params,
+        None,
+        None,
+    ));
     set_server_key(server_key);
     let pk = CompactPublicKey::new(&client_key);
 
@@ -472,4 +484,107 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
     }
 
     assert!(deserialized_a.is_conformant(&params));
+}
+
+#[test]
+fn test_cpk_encrypt_cast_compute_hl() {
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+    let num_block = 4usize;
+
+    assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
+    assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
+
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+
+    let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+        param_fhe,
+        None,
+        Some((param_pke_only, param_ksk)),
+    ));
+    set_server_key(server_key);
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u64 = rng.gen_range(0..modulus);
+
+    let pk = CompactPublicKey::new(&client_key);
+
+    // Encrypt a value and cast
+    let mut builder = CompactCiphertextList::builder(&pk);
+    let list = builder
+        .push_with_num_bits(input_msg, 8)
+        .unwrap()
+        .build_packed();
+
+    let expander = list.expand().unwrap();
+    let ct1_extracted_and_cast = expander.get::<FheUint8>(0).unwrap().unwrap();
+
+    let sanity_cast: u64 = ct1_extracted_and_cast.decrypt(&client_key);
+    assert_eq!(sanity_cast, input_msg);
+
+    let multiplier = rng.gen_range(0..modulus);
+
+    // Classical AP: DP, KS, PBS
+    let mul = &ct1_extracted_and_cast * multiplier as u8;
+
+    // High level decryption and test
+    let clear: u64 = mul.decrypt(&client_key);
+    assert_eq!(clear, (input_msg * multiplier) % modulus);
+}
+
+#[test]
+fn test_compressed_cpk_encrypt_cast_compute_hl() {
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+    let num_block = 4usize;
+
+    assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
+    assert_eq!(param_pke_only.carry_modulus, param_fhe.carry_modulus);
+
+    let modulus = param_fhe.message_modulus.0.pow(num_block as u32) as u64;
+
+    let config =
+        ConfigBuilder::with_custom_parameters(param_fhe, None, Some((param_pke_only, param_ksk)))
+            .build();
+    let client_key = ClientKey::generate(config);
+    let compressed_server_key = CompressedServerKey::new(&client_key);
+    let server_key = compressed_server_key.decompress();
+
+    set_server_key(server_key);
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let input_msg: u64 = rng.gen_range(0..modulus);
+
+    let compressed_pk = CompressedCompactPublicKey::new(&client_key);
+    let pk = compressed_pk.decompress();
+
+    // Encrypt a value and cast
+    let mut builder = CompactCiphertextList::builder(&pk);
+    let list = builder
+        .push_with_num_bits(input_msg, 8)
+        .unwrap()
+        .build_packed();
+
+    let expander = list.expand().unwrap();
+    let ct1_extracted_and_cast = expander.get::<FheUint8>(0).unwrap().unwrap();
+
+    let sanity_cast: u64 = ct1_extracted_and_cast.decrypt(&client_key);
+    assert_eq!(sanity_cast, input_msg);
+
+    let multiplier = rng.gen_range(0..modulus);
+
+    // Classical AP: DP, KS, PBS
+    let mul = &ct1_extracted_and_cast * multiplier as u8;
+
+    // High level decryption and test
+    let clear: u64 = mul.decrypt(&client_key);
+    assert_eq!(clear, (input_msg * multiplier) % modulus);
 }

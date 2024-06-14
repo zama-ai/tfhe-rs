@@ -1,6 +1,8 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
-use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::high_level_api::keys::{
+    CastingKeyMaterial, CompressedCastingKeyMaterial, IntegerCompressedServerKey, IntegerServerKey,
+};
 use std::sync::Arc;
 
 use super::ClientKey;
@@ -32,18 +34,28 @@ impl ServerKey {
     ) -> (
         crate::integer::ServerKey,
         Option<crate::integer::wopbs::WopbsKey>,
+        Option<CastingKeyMaterial>,
     ) {
-        let IntegerServerKey { key, wopbs_key } = (*self.key).clone();
+        let IntegerServerKey {
+            key,
+            wopbs_key,
+            cpk_casting_key_material,
+        } = (*self.key).clone();
 
-        (key, wopbs_key)
+        (key, wopbs_key, cpk_casting_key_material)
     }
 
     pub fn from_raw_parts(
         key: crate::integer::ServerKey,
         wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
+        cpk_casting_key_material: Option<CastingKeyMaterial>,
     ) -> Self {
         Self {
-            key: Arc::new(IntegerServerKey { key, wopbs_key }),
+            key: Arc::new(IntegerServerKey {
+                key,
+                wopbs_key,
+                cpk_casting_key_material,
+            }),
         }
     }
 }
@@ -120,13 +132,24 @@ impl CompressedServerKey {
         }
     }
 
-    pub fn into_raw_parts(self) -> crate::integer::CompressedServerKey {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::CompressedServerKey,
+        Option<CompressedCastingKeyMaterial>,
+    ) {
         self.integer_key.into_raw_parts()
     }
 
-    pub fn from_raw_parts(integer_key: crate::integer::CompressedServerKey) -> Self {
+    pub fn from_raw_parts(
+        integer_key: crate::integer::CompressedServerKey,
+        cpk_casting_key_material: Option<CompressedCastingKeyMaterial>,
+    ) -> Self {
         Self {
-            integer_key: IntegerCompressedServerKey::from_raw_parts(integer_key),
+            integer_key: IntegerCompressedServerKey::from_raw_parts(
+                integer_key,
+                cpk_casting_key_material,
+            ),
         }
     }
 

@@ -8,3 +8,21 @@ pub struct SecretEncryptionKey<KeyCont: Container<Element = u64>> {
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
 }
+
+impl<'key, C: Container<Element = u64>> From<&'key SecretEncryptionKey<C>>
+    for SecretEncryptionKey<&'key [u64]>
+{
+    fn from(value: &'key SecretEncryptionKey<C>) -> Self {
+        let SecretEncryptionKey {
+            lwe_secret_key,
+            message_modulus,
+            carry_modulus,
+        } = value;
+
+        Self {
+            lwe_secret_key: lwe_secret_key.as_view(),
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+        }
+    }
+}

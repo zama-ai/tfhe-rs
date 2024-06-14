@@ -3,6 +3,8 @@ pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
+pub use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+pub use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 pub use crate::shortint::parameters::*;
 use std::os::raw::c_int;
 
@@ -122,6 +124,130 @@ impl ShortintPBSParameters {
         }
     }
 }
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ShortintCompactCiphertextListCastingParameters {
+    pub ks_base_log: usize,
+    pub ks_level: usize,
+    pub destination_key: ShortintEncryptionKeyChoice,
+}
+
+impl From<ShortintCompactCiphertextListCastingParameters>
+    for crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters
+{
+    fn from(value: ShortintCompactCiphertextListCastingParameters) -> Self {
+        Self {
+            ks_base_log: DecompositionBaseLog(value.ks_base_log),
+            ks_level: DecompositionLevelCount(value.ks_level),
+            destination_key: value.destination_key.into(),
+        }
+    }
+}
+
+impl From<crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters>
+    for ShortintCompactCiphertextListCastingParameters
+{
+    fn from(
+        rust_params: crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
+    ) -> Self {
+        Self::convert(rust_params)
+    }
+}
+
+impl ShortintCompactCiphertextListCastingParameters {
+    const fn convert(
+        rust_params: crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
+    ) -> Self {
+        Self {
+            ks_base_log: rust_params.ks_base_log.0,
+            ks_level: rust_params.ks_level.0,
+            destination_key: ShortintEncryptionKeyChoice::convert(rust_params.destination_key),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ShortintCompactPublicKeyEncryptionParameters {
+    pub encryption_lwe_dimension: usize,
+    pub encryption_noise_distribution: crate::c_api::core_crypto::DynamicDistribution,
+    pub message_modulus: usize,
+    pub carry_modulus: usize,
+    pub modulus_power_of_2_exponent: usize,
+    // Normally the CompactPublicKeyEncryptionParameters has an additional field expansion_kind,
+    // but it's only used to manage different kind of parameters internally, for the C API
+    // these parameters will always require casting, as they alwasy require casting we add a field
+    // for the casting parameters here.
+    pub casting_parameters: ShortintCompactCiphertextListCastingParameters,
+}
+
+impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
+    for crate::shortint::parameters::CompactPublicKeyEncryptionParameters
+{
+    type Error = &'static str;
+
+    fn try_from(
+        c_params: ShortintCompactPublicKeyEncryptionParameters,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            encryption_lwe_dimension: LweDimension(c_params.encryption_lwe_dimension),
+            encryption_noise_distribution: c_params.encryption_noise_distribution.try_into()?,
+            message_modulus: MessageModulus(c_params.message_modulus),
+            carry_modulus: CarryModulus(c_params.carry_modulus),
+            ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
+                c_params.modulus_power_of_2_exponent,
+            )?,
+            expansion_kind:
+                crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting,
+        })
+    }
+}
+
+impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
+    for (
+        crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
+        crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
+    )
+{
+    type Error = &'static str;
+
+    fn try_from(value: ShortintCompactPublicKeyEncryptionParameters) -> Result<Self, Self::Error> {
+        Ok((value.try_into()?, value.casting_parameters.into()))
+    }
+}
+
+impl ShortintCompactPublicKeyEncryptionParameters {
+    const fn convert(
+        rust_params: (
+            crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
+            crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
+        ),
+    ) -> Self {
+        let compact_pke_params = rust_params.0;
+        let casting_parameters = rust_params.1;
+        Self {
+            encryption_lwe_dimension: compact_pke_params.encryption_lwe_dimension.0,
+            encryption_noise_distribution: compact_pke_params
+                .encryption_noise_distribution
+                .convert_to_c(),
+            message_modulus: compact_pke_params.message_modulus.0,
+            carry_modulus: compact_pke_params.carry_modulus.0,
+            modulus_power_of_2_exponent: convert_modulus(compact_pke_params.ciphertext_modulus),
+            casting_parameters: ShortintCompactCiphertextListCastingParameters::convert(
+                casting_parameters,
+            ),
+        }
+    }
+}
+
+#[no_mangle]
+pub static SHORTINT_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
+    ShortintCompactPublicKeyEncryptionParameters =
+    ShortintCompactPublicKeyEncryptionParameters::convert((
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ));
 
 macro_rules! expose_as_shortint_pbs_parameters(
     (
@@ -263,6 +389,8 @@ expose_as_shortint_pbs_parameters!(
     PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS_TUNIFORM_2M64,
+    // FHE params for CPK + Cast use cas
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     // Aliases to remove eventually
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,

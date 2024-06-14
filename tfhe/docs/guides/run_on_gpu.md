@@ -133,7 +133,7 @@ Finally, the client decrypts the results using:
 **TFHE-rs** allows to leverage the high number of threads given by a GPU. To maximize the number of GPU threads, update your configuration accordingly:
 
 ```Rust
-let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
+let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None, None).build();
 ```
 
 Here's the complete example:
@@ -145,7 +145,7 @@ use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS
 
 fn main() {
 
-    let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None).build();
+    let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS, None, None).build();
 
     let client_key= ClientKey::generate(config);
     let compressed_server_key = CompressedServerKey::new(&client_key);

@@ -675,8 +675,11 @@ mod cpu {
     #[test]
     fn test_safe_deserialize_conformant_fhe_bool() {
         let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+            block_params,
+            None,
+            None,
+        ));
         set_server_key(server_key.clone());
 
         let clear_a = random::<bool>();
@@ -697,8 +700,11 @@ mod cpu {
     #[test]
     fn test_safe_deserialize_conformant_compressed_fhe_bool() {
         let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::with_custom_parameters(block_params, None));
+        let (client_key, server_key) = generate_keys(ConfigBuilder::with_custom_parameters(
+            block_params,
+            None,
+            None,
+        ));
         set_server_key(server_key.clone());
         let clear_a = random::<bool>();
         let a = CompressedFheBool::encrypt(clear_a, &client_key);
