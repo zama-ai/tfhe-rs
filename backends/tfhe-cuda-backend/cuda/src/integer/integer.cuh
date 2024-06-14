@@ -872,4 +872,16 @@ void host_apply_univariate_lut_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       num_blocks, mem);
 }
 
+template <typename Torus>
+void scratch_cuda_generate_last_block_inner_propagation_kb_inplace(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    SIGNED_OPERATION op, int_last_block_inner_propagate_memory<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    bool allocate_gpu_memory) {
+
+  *mem_ptr = new int_last_block_inner_propagate_memory<Torus>(
+      streams, gpu_indexes, gpu_count, params, op, num_radix_blocks,
+      allocate_gpu_memory);
+}
+
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

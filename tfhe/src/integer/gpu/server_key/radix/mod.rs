@@ -14,8 +14,10 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     apply_univariate_lut_kb_async, full_propagate_assign_async,
-    propagate_single_carry_assign_async, CudaServerKey, PBSType,
+    generate_last_block_inner_propagation_assign_async, propagate_single_carry_assign_async,
+    CudaServerKey, PBSType,
 };
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::fill_accumulator;
 use crate::shortint::server_key::LookupTableOwned;
@@ -877,6 +879,74 @@ impl CudaServerKey {
                 <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(
                     signed_res.into_inner(),
                 )
+            }
+        }
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronized
+    pub(crate) unsafe fn generate_last_block_inner_propagation_assign_async<T>(
+        &self,
+        result: &mut T,
+        lhs: &T,
+        rhs: &T,
+        op: SignedOperation,
+        streams: &CudaStreams,
+    ) where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let num_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                let key = d_bsk;
+                generate_last_block_inner_propagation_assign_async(
+                    streams,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &lhs.as_ref().d_blocks.0.d_vec,
+                    &rhs.as_ref().d_blocks.0.d_vec,
+                    op,
+                    &key.d_vec,
+                    &self.key_switching_key.d_vec,
+                    key.input_lwe_dimension(),
+                    key.glwe_dimension(),
+                    key.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    key.decomp_level_count(),
+                    key.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multi_bit_bsk) => {
+                let key = d_multi_bit_bsk;
+                generate_last_block_inner_propagation_assign_async(
+                    streams,
+                    &mut result.as_mut().d_blocks.0.d_vec,
+                    &lhs.as_ref().d_blocks.0.d_vec,
+                    &rhs.as_ref().d_blocks.0.d_vec,
+                    op,
+                    &key.d_vec,
+                    &self.key_switching_key.d_vec,
+                    key.input_lwe_dimension(),
+                    key.glwe_dimension(),
+                    key.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    key.decomp_level_count(),
+                    key.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    key.grouping_factor,
+                );
             }
         }
     }

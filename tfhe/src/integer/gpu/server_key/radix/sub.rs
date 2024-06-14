@@ -4,12 +4,14 @@ use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCi
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
@@ -439,5 +441,32 @@ impl CudaServerKey {
             .after_overflowing_sub(&rhs.as_ref().info);
 
         (ct_res, ct_overflowed)
+    }
+
+    pub fn generate_last_block_inner_propagation<T: CudaIntegerRadixCiphertext>(
+        &self,
+        lhs: &T,
+        rhs: &T,
+        op: SignedOperation,
+        streams: &CudaStreams,
+    ) -> T {
+        let mut result = self.create_trivial_zero_radix(1, streams);
+
+        self.generate_last_block_inner_propagation_assign(&mut result, lhs, rhs, op, streams);
+
+        result
+    }
+
+    pub fn generate_last_block_inner_propagation_assign<T: CudaIntegerRadixCiphertext>(
+        &self,
+        result: &mut T,
+        lhs: &T,
+        rhs: &T,
+        op: SignedOperation,
+        streams: &CudaStreams,
+    ) {
+        unsafe {
+            self.generate_last_block_inner_propagation_assign_async(result, lhs, rhs, op, streams);
+        }
     }
 }

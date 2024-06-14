@@ -1170,4 +1170,46 @@ extern "C" {
         mem_ptr: *mut *mut i8,
     );
 
+    pub fn scratch_cuda_generate_last_block_inner_propagation_kb_64_inplace(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        op: i8,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_generate_last_block_inner_propagation_kb_64_inplace(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        result: *mut c_void,
+        lhs: *const c_void,
+        rhs: *const c_void,
+        mem_ptr: *mut i8,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
+        num_blocks: u32,
+    );
+
+    pub fn cleanup_generate_last_block_inner_propagation(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
+
 } // extern "C"
