@@ -81,8 +81,8 @@ if uname -a | grep "arm64"; then
         n_threads_big=1
     fi
 else
-    # Keys are 4.7 gigs at max, test machine has 64 gigs of RAM
-    n_threads_big=13
+    # Keys are 4.7 gigs at max, test machine has 512 gigs of RAM, keep some headroom
+    n_threads_big=100
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
@@ -187,7 +187,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
         --package "${tfhe_package}" \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
-        --test-threads "$(${nproc_bin})" \
+        --test-threads "${n_threads_big}" \
         -E "${filter_expression}"
 
     if [[ "${multi_bit}" == "" ]]; then
@@ -196,7 +196,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
             --package "${tfhe_package}" \
             --features="${ARCH_FEATURE}",shortint,internal-keycache \
             --doc \
-            -- --test-threads="$(${nproc_bin})" shortint::
+            -- --test-threads="${n_threads_big}" shortint::
     fi
 fi
 

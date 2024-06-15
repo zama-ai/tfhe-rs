@@ -10,6 +10,9 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  # We clear the cache to reduce memory pressure because of the numerous processes of cargo
+  # nextest
+  TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
