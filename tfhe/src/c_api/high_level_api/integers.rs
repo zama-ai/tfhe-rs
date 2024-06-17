@@ -746,6 +746,30 @@ pub unsafe extern "C" fn compact_fhe_uint160_list_try_encrypt_with_compact_publi
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn compact_fhe_uint2048_list_try_encrypt_with_compact_public_key_u2048(
+    input: *const U2048,
+    input_len: usize,
+    public_key: *const CompactPublicKey,
+    result: *mut *mut CompactFheUint2048List,
+) -> c_int {
+    catch_panic(|| {
+        let public_key = get_ref_checked(public_key).unwrap();
+
+        let slc = ::std::slice::from_raw_parts(input, input_len);
+        let values = slc
+            .iter()
+            .copied()
+            .map(crate::integer::bigint::U2048::from)
+            .collect::<Vec<_>>();
+        let inner =
+            <crate::high_level_api::CompactFheUint160List>::try_encrypt(&values, &public_key.0)
+                .unwrap();
+
+        *result = Box::into_raw(Box::new(CompactFheUint2048List(inner)));
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn compact_fhe_uint256_list_try_encrypt_with_compact_public_key_u256(
     input: *const U256,
     input_len: usize,
