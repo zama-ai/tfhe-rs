@@ -762,7 +762,7 @@ pub unsafe extern "C" fn compact_fhe_uint2048_list_try_encrypt_with_compact_publ
             .map(crate::integer::bigint::U2048::from)
             .collect::<Vec<_>>();
         let inner =
-            <crate::high_level_api::CompactFheUint160List>::try_encrypt(&values, &public_key.0)
+            <crate::high_level_api::CompactFheUint2048List>::try_encrypt(&values, &public_key.0)
                 .unwrap();
 
         *result = Box::into_raw(Box::new(CompactFheUint2048List(inner)));
