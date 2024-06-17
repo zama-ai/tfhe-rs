@@ -1539,7 +1539,7 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_div_rem,
-        display_name: div_rem
+        display_name: div_mod
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
@@ -1702,7 +1702,19 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_div_rem,
-        display_name: div_rem,
+        display_name: div_mod,
+        rng_func: div_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_div,
+        display_name: div,
+        rng_func: div_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_rem,
+        display_name: modulo,
         rng_func: div_scalar
     );
 
@@ -1748,7 +1760,17 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: div_rem,
-        display_name: div_rem
+        display_name: div_mod
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: div,
+        display_name: div
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: rem,
+        display_name: modulo
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
@@ -1862,6 +1884,18 @@ mod cuda {
     );
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_rotate_left,
+        display_name: rotate_left,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_rotate_right,
+        display_name: rotate_right,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_bitand,
         display_name: bitand,
         rng_func: default_scalar
@@ -1929,7 +1963,19 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_div_rem,
-        display_name: div_rem,
+        display_name: div_mod,
+        rng_func: div_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_div,
+        display_name: div,
+        rng_func: div_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_rem,
+        display_name: modulo,
         rng_func: div_scalar
     );
 
@@ -1948,6 +1994,8 @@ mod cuda {
         cuda_unchecked_bitnot,
         cuda_unchecked_mul,
         cuda_unchecked_div_rem,
+        //cuda_unchecked_div,
+        //cuda_unchecked_rem,
         cuda_unchecked_sub,
         cuda_unchecked_unsigned_overflowing_sub,
         cuda_unchecked_unsigned_overflowing_add,
@@ -1980,7 +2028,9 @@ mod cuda {
         cuda_unchecked_scalar_lt,
         cuda_unchecked_scalar_max,
         cuda_unchecked_scalar_min,
-        cuda_unchecked_scalar_div_rem,
+        //cuda_unchecked_scalar_div_rem,
+        cuda_unchecked_scalar_div,
+        cuda_unchecked_scalar_rem,
         cuda_unchecked_unsigned_overflowing_scalar_add,
     );
 
@@ -1993,6 +2043,8 @@ mod cuda {
         cuda_add,
         cuda_mul,
         cuda_div_rem,
+        //cuda_div,
+        //cuda_rem,
         cuda_eq,
         cuda_ne,
         cuda_ge,
@@ -2019,6 +2071,8 @@ mod cuda {
         cuda_scalar_mul,
         cuda_scalar_left_shift,
         cuda_scalar_right_shift,
+        cuda_scalar_rotate_left,
+        cuda_scalar_rotate_right,
         cuda_scalar_bitand,
         cuda_scalar_bitor,
         cuda_scalar_bitxor,
@@ -2030,7 +2084,9 @@ mod cuda {
         cuda_scalar_lt,
         cuda_scalar_max,
         cuda_scalar_min,
-        cuda_scalar_div_rem,
+        //cuda_scalar_div_rem,
+        cuda_scalar_div,
+        cuda_scalar_rem,
         cuda_unsigned_overflowing_scalar_add,
     );
 
