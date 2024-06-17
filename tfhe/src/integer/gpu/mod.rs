@@ -20,10 +20,9 @@ pub enum BitOpType {
     And = 0,
     Or = 1,
     Xor = 2,
-    Not = 3,
-    ScalarAnd = 4,
-    ScalarOr = 5,
-    ScalarXor = 6,
+    ScalarAnd = 3,
+    ScalarOr = 4,
+    ScalarXor = 5,
 }
 
 #[allow(dead_code)]
@@ -486,80 +485,6 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function
 /// as soon as synchronization is required
-pub unsafe fn unchecked_bitnot_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
-    streams: &CudaStreams,
-    radix_lwe_left: &mut CudaVec<T>,
-    bootstrapping_key: &CudaVec<B>,
-    keyswitch_key: &CudaVec<T>,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
-) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_left.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
-    );
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_radix_bitop_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        big_lwe_dimension.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        BitOpType::Not as u32,
-        true,
-    );
-    cuda_bitnot_integer_radix_ciphertext_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        radix_lwe_left.as_mut_c_ptr(0),
-        radix_lwe_left.as_c_ptr(0),
-        mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        num_blocks,
-    );
-    cleanup_cuda_integer_bitop(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes.as_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-}
 
 #[allow(clippy::too_many_arguments)]
 /// # Safety

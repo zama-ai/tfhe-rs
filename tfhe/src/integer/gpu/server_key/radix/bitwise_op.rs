@@ -1,10 +1,13 @@
+use crate::core_crypto::gpu::algorithms::{
+    cuda_lwe_ciphertext_negate_assign, cuda_lwe_ciphertext_plaintext_add_assign,
+};
+use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    unchecked_bitnot_integer_radix_kb_assign_async, unchecked_bitop_integer_radix_kb_assign_async,
-    BitOpType, CudaServerKey, PBSType,
+    unchecked_bitop_integer_radix_kb_assign_async, BitOpType, CudaServerKey, PBSType,
 };
 
 impl CudaServerKey {
@@ -68,60 +71,26 @@ impl CudaServerKey {
         ct: &mut T,
         stream: &CudaStreams,
     ) {
-        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
+        cuda_lwe_ciphertext_negate_assign(&mut ct.as_mut().d_blocks, stream);
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_bitnot_integer_radix_kb_assign_async(
-                    stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_bitnot_integer_radix_kb_assign_async(
-                    stream,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                );
-            }
-        }
+        let ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+
+        let scalar = self.message_modulus.0 as u8 - 1;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let shift_plaintext = u64::from(scalar) * delta;
+
+        let scalar_vector = vec![shift_plaintext; ct_blocks];
+        let mut d_decomposed_scalar =
+            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream, 0);
+        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), stream, 0);
+
+        cuda_lwe_ciphertext_plaintext_add_assign(
+            &mut ct.as_mut().d_blocks,
+            &d_decomposed_scalar,
+            stream,
+        );
+        ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
 
     pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(

@@ -20,10 +20,9 @@ enum BITOP_TYPE {
   BITAND = 0,
   BITOR = 1,
   BITXOR = 2,
-  BITNOT = 3,
-  SCALAR_BITAND = 4,
-  SCALAR_BITOR = 5,
-  SCALAR_BITXOR = 6,
+  SCALAR_BITAND = 3,
+  SCALAR_BITOR = 4,
+  SCALAR_BITXOR = 5,
 };
 
 enum COMPARISON_TYPE {
@@ -214,11 +213,6 @@ void cuda_bitop_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void *lwe_array_1, void *lwe_array_2, int8_t *mem_ptr,
     void **bsks, void **ksks, uint32_t lwe_ciphertext_count);
-
-void cuda_bitnot_integer_radix_ciphertext_kb_64(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array_out, void *lwe_array_in, int8_t *mem_ptr, void **bsks,
-    void **ksks, uint32_t lwe_ciphertext_count);
 
 void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
@@ -2920,20 +2914,6 @@ template <typename Torus> struct int_bitop_buffer {
             streams[0], gpu_indexes[0], lut->get_lut(gpu_indexes[0], 0),
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, lut_bivariate_f);
-        lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
-      }
-      break;
-    case BITNOT:
-      lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                     num_radix_blocks, allocate_gpu_memory);
-      {
-        auto lut_not_f = [params](Torus x) -> Torus {
-          return (~x) % params.message_modulus;
-        };
-        generate_device_accumulator<Torus>(
-            streams[0], gpu_indexes[0], lut->get_lut(gpu_indexes[0], 0),
-            params.glwe_dimension, params.polynomial_size,
-            params.message_modulus, params.carry_modulus, lut_not_f);
         lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
       }
       break;

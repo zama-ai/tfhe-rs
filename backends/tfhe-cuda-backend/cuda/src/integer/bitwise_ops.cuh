@@ -27,19 +27,6 @@ host_integer_radix_bitop_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 }
 
 template <typename Torus>
-__host__ void host_integer_radix_bitnot_kb(
-    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    Torus *lwe_array_out, Torus *lwe_array_in, int_bitop_buffer<Torus> *mem_ptr,
-    void **bsks, Torus **ksks, uint32_t num_radix_blocks) {
-
-  auto lut = mem_ptr->lut;
-
-  integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks, ksks,
-      num_radix_blocks, lut);
-}
-
-template <typename Torus>
 __host__ void scratch_cuda_integer_radix_bitop_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_bitop_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
