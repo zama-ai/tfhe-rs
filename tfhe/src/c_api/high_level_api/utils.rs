@@ -291,10 +291,36 @@ macro_rules! impl_safe_serialize_on_type {
                 })
             }
         }
+    }
+}
+
+macro_rules! impl_safe_serialize_versioned_on_type {
+    ($wrapper_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_serialize_versioned>](
+                sself: *const $wrapper_type,
+                result: *mut crate::c_api::buffer::DynamicBuffer,
+                serialized_size_limit: u64,
+            ) -> ::std::os::raw::c_int {
+                crate::c_api::utils::catch_panic(|| {
+                    crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+                    let mut buffer = vec![];
+
+                    let sself = crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+                    crate::high_level_api::safe_serialize_versioned(&sself.0, &mut buffer, serialized_size_limit)
+                        .unwrap();
+
+                    *result = buffer.into();
+                })
+            }
+        }
     };
 }
 
-pub(crate) use impl_safe_serialize_on_type;
+pub(crate) use {impl_safe_serialize_on_type, impl_safe_serialize_versioned_on_type};
 
 macro_rules! impl_safe_deserialize_conformant_integer {
     ($wrapper_type:ty, $conformance_param_type:ty) => {
@@ -348,7 +374,61 @@ macro_rules! impl_safe_deserialize_conformant_integer {
     };
 }
 
-pub(crate) use impl_safe_deserialize_conformant_integer;
+macro_rules! impl_safe_deserialize_conformant_versioned_integer {
+    ($wrapper_type:ty, $conformance_param_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            /// Deserializes safely, and checks that the resulting ciphertext
+            /// is in compliance with the shape of ciphertext that the `server_key` expects.
+            ///
+            /// This function can only deserialize, types which have been serialized and versioned
+            /// by a `safe_serialize_versioned` function.
+            ///
+            /// - `serialized_size_limit`: size limit (in number of byte) of the serialized object
+            ///    (to avoid out of memory attacks)
+            /// - `server_key`: ServerKey used in the conformance check
+            /// - `result`: pointer where resulting deserialized object needs to be stored.
+            ///    * cannot be NULL
+            ///    * (*result) will point the deserialized object on success, else NULL
+            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_deserialize_conformant_versioned>](
+                buffer_view: crate::c_api::buffer::DynamicBufferView,
+                serialized_size_limit: u64,
+                server_key: *const crate::c_api::high_level_api::keys::ServerKey,
+                result: *mut *mut $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                ::paste::paste! {
+                     crate::c_api::utils::catch_panic(|| {
+                        crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+                        let sk = crate::c_api::utils::get_ref_checked(server_key).unwrap();
+
+                        let buffer_view: &[u8] = buffer_view.as_slice();
+
+                        // First fill the result with a null ptr so that if we fail and the return code is not
+                        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+                        *result = std::ptr::null_mut();
+
+                        let params = $crate::high_level_api::$conformance_param_type::from(&sk.0);
+                        let inner = $crate::safe_deserialization::safe_deserialize_conformant_versioned(
+                                buffer_view,
+                                serialized_size_limit,
+                                &params,
+                            )
+                            .unwrap();
+
+                        let heap_allocated_object = Box::new($wrapper_type(inner));
+
+                        *result = Box::into_raw(heap_allocated_object);
+                    })
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use {
+    impl_safe_deserialize_conformant_integer, impl_safe_deserialize_conformant_versioned_integer,
+};
 
 macro_rules! impl_binary_fn_on_type {
     // More general binary fn case,
