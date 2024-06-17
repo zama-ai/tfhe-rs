@@ -100,7 +100,8 @@ else
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" == TRUE ]]; then
-    test_threads="$((num_cpu_threads * 1 / 4))"
+    # Big test instances have 512 GB of RAM, 4.7 GB keys, keep some headroom
+    test_threads=100
     doctest_threads="${num_cpu_threads}"
 else
     test_threads="${small_instance_n_threads}"
