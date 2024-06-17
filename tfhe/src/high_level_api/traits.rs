@@ -182,3 +182,5 @@ pub trait OverflowingMul<Rhs> {
 
     fn overflowing_mul(self, rhs: Rhs) -> (Self::Output, FheBool);
 }
+
+pub trait FheId: Copy + Default {}

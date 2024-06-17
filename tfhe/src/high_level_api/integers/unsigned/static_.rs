@@ -2,7 +2,7 @@ use crate::high_level_api::integers::unsigned::base::{
     FheUint, FheUintConformanceParams, FheUintId,
 };
 use crate::high_level_api::integers::unsigned::compressed::CompressedFheUint;
-use crate::high_level_api::integers::IntegerId;
+use crate::high_level_api::integers::{FheId, IntegerId};
 use serde::{Deserialize, Serialize};
 
 macro_rules! static_int_type {
@@ -25,6 +25,8 @@ macro_rules! static_int_type {
                     $num_bits
                 }
             }
+
+            impl FheId for [<FheUint $num_bits Id>] { }
 
             impl FheUintId for [<FheUint $num_bits Id>] { }
         }

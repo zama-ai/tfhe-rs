@@ -15,6 +15,7 @@ expand_pub_use_fhe_type!(
 pub(in crate::high_level_api) use signed::FheIntId;
 pub(in crate::high_level_api) use unsigned::FheUintId;
 // These are pub-exported so that their doc can appear in generated rust docs
+use crate::high_level_api::traits::FheId;
 use crate::shortint::MessageModulus;
 pub use signed::{CompressedFheInt, FheInt};
 pub use unsigned::{CompressedFheUint, FheUint};
@@ -26,7 +27,7 @@ mod unsigned;
 /// Trait to mark ID type for integers
 // The 'static restrains implementor from holding non-static refs
 // which is ok as it is meant to be impld by zero sized types.
-pub trait IntegerId: Copy + Default + 'static {
+pub trait IntegerId: FheId + Default + 'static {
     fn num_bits() -> usize;
 
     fn num_blocks(message_modulus: MessageModulus) -> usize {
