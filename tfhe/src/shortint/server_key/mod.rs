@@ -755,7 +755,7 @@ impl ServerKey {
                         &self.bootstrapping_key,
                         &ciphertext_buffers.buffer_lwe_after_ks,
                         &mut ct.ct,
-                        acc,
+                        &acc.acc,
                         buffers,
                     );
                 }
@@ -764,7 +764,7 @@ impl ServerKey {
                         &self.bootstrapping_key,
                         &ct.ct,
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        acc,
+                        &acc.acc,
                         buffers,
                     );
 
@@ -1463,13 +1463,13 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey,
     in_buffer: &LweCiphertext<InputCont>,
     out_buffer: &mut LweCiphertext<OutputCont>,
-    acc: &LookupTableOwned,
+    acc: &GlweCiphertext<Vec<u64>>,
     buffers: &mut ComputationBuffers,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
 {
-    let mut glwe_out = acc.acc.clone();
+    let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
     apply_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
 

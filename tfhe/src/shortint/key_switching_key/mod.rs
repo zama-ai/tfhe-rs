@@ -565,7 +565,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                 &self.dest_server_key.bootstrapping_key,
                                 &wrong_key_ct.ct,
                                 &mut output.ct,
-                                &acc,
+                                &acc.acc,
                                 buffers,
                             );
                         });
