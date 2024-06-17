@@ -75,6 +75,8 @@ impl<T: ?Sized + IndexMut<usize>> IndexMut<usize> for OneBased<T> {
     }
 }
 
+pub type Affine<Zp, Group> = <Group as CurveGroupOps<Zp>>::Affine;
+
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, CanonicalSerialize, CanonicalDeserialize,
 )]
@@ -83,8 +85,8 @@ impl<T: ?Sized + IndexMut<usize>> IndexMut<usize> for OneBased<T> {
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
 struct GroupElements<G: Curve> {
-    g_list: OneBased<Vec<G::G1>>,
-    g_hat_list: OneBased<Vec<G::G2>>,
+    g_list: OneBased<Vec<Affine<G::Zp, G::G1>>>,
+    g_hat_list: OneBased<Vec<Affine<G::Zp, G::G2>>>,
     message_len: usize,
 }
 
@@ -98,9 +100,9 @@ impl<G: Curve> GroupElements<G> {
 
                 for i in 0..2 * message_len {
                     if i == message_len {
-                        g_list.push(G::G1::ZERO);
+                        g_list.push(G::G1::ZERO.normalize());
                     } else {
-                        g_list.push(g_cur);
+                        g_list.push(g_cur.normalize());
                     }
                     g_cur = g_cur.mul_scalar(alpha);
                 }
@@ -111,22 +113,22 @@ impl<G: Curve> GroupElements<G> {
                 let mut g_hat_list = Vec::with_capacity(message_len);
                 let mut g_hat_cur = G::G2::GENERATOR.mul_scalar(alpha);
                 for _ in 0..message_len {
-                    g_hat_list.push(g_hat_cur);
-                    g_hat_cur = (g_hat_cur).mul_scalar(alpha);
+                    g_hat_list.push(g_hat_cur.normalize());
+                    g_hat_cur = g_hat_cur.mul_scalar(alpha);
                 }
                 g_hat_list
             },
         );
 
-        Self {
-            g_list: OneBased::new(g_list),
-            g_hat_list: OneBased::new(g_hat_list),
-            message_len,
-        }
+        Self::from_vec(g_list, g_hat_list)
     }
 
-    pub fn from_vec(g_list: Vec<G::G1>, g_hat_list: Vec<G::G2>) -> Self {
+    pub fn from_vec(
+        g_list: Vec<Affine<G::Zp, G::G1>>,
+        g_hat_list: Vec<Affine<G::Zp, G::G2>>,
+    ) -> Self {
         let message_len = g_hat_list.len();
+
         Self {
             g_list: OneBased::new(g_list),
             g_hat_list: OneBased::new(g_hat_list),

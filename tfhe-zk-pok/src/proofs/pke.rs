@@ -1,3 +1,6 @@
+// TODO: refactor copy-pasted code in proof/verify
+// TODO: ask about metadata in hashing functions
+
 use super::*;
 use core::marker::PhantomData;
 use rayon::prelude::*;
@@ -22,8 +25,8 @@ pub struct PublicParams<G: Curve> {
 impl<G: Curve> PublicParams<G> {
     #[allow(clippy::too_many_arguments)]
     pub fn from_vec(
-        g_list: Vec<G::G1>,
-        g_hat_list: Vec<G::G2>,
+        g_list: Vec<Affine<G::Zp, G::G1>>,
+        g_hat_list: Vec<Affine<G::Zp, G::G2>>,
         big_d: usize,
         n: usize,
         d: usize,
@@ -246,12 +249,12 @@ pub fn prove<G: Curve>(
             let mut dot = 0i128;
             for j in 0..d {
                 let b = if i + j < d {
-                    b[d - j - i - 1]
+                    b[d - j - i - 1] as i128
                 } else {
-                    b[2 * d - j - i - 1].wrapping_neg()
+                    -(b[2 * d - j - i - 1] as i128)
                 };
 
-                dot += r[d - j - 1] as i128 * b as i128;
+                dot += r[d - j - 1] as i128 * b;
             }
 
             *r2 += dot;
@@ -293,8 +296,9 @@ pub fn prove<G: Curve>(
 
     let mut c_hat = g_hat.mul_scalar(gamma);
     for j in 1..big_d + 1 {
-        let term = if w[j] { g_hat_list[j] } else { G::G2::ZERO };
-        c_hat += term;
+        if w[j] {
+            c_hat += G::G2::projective(g_hat_list[j]);
+        }
     }
 
     let x_bytes = &*[
@@ -337,7 +341,7 @@ pub fn prove<G: Curve>(
     compute_a_theta::<G>(theta0, d, a, k, b, &mut a_theta, t, delta, b_i, b_r, q);
 
     let mut t = vec![G::Zp::ZERO; n];
-    G::Zp::hash(
+    G::Zp::hash_128bit(
         &mut t,
         &[
             &(1..n + 1)
@@ -356,6 +360,7 @@ pub fn prove<G: Curve>(
         &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
     );
     let [delta_eq, delta_y] = delta;
+    let delta = [delta_eq, delta_y, delta_theta];
 
     let mut poly_0 = vec![G::Zp::ZERO; n + 1];
     let mut poly_1 = vec![G::Zp::ZERO; big_d + 1];
@@ -394,10 +399,11 @@ pub fn prove<G: Curve>(
         t_theta += theta0[d + i] * G::Zp::from_i64(c2[i]);
     }
 
-    let mut poly = G::Zp::poly_sub(
-        &G::Zp::poly_mul(&poly_0, &poly_1),
-        &G::Zp::poly_mul(&poly_2, &poly_3),
+    let mul = rayon::join(
+        || G::Zp::poly_mul(&poly_0, &poly_1),
+        || G::Zp::poly_mul(&poly_2, &poly_3),
     );
+    let mut poly = G::Zp::poly_sub(&mul.0, &mul.1);
     if poly.len() > n + 1 {
         poly[n + 1] -= t_theta * delta_theta;
     }
@@ -418,6 +424,7 @@ pub fn prove<G: Curve>(
                     }
             })
             .collect::<Vec<_>>();
+
         let c_h = G::G1::multi_mul_scalar(&g_list.0[..n], &scalars);
 
         let mut z = G::Zp::ZERO;
@@ -497,6 +504,7 @@ pub fn prove<G: Curve>(
         }
 
         let mut q = vec![G::Zp::ZERO; n];
+        // https://en.wikipedia.org/wiki/Polynomial_long_division#Pseudocode
         for i in (0..n).rev() {
             poly[i] = poly[i] + z * poly[i + 1];
             q[i] = poly[i + 1];
@@ -570,6 +578,10 @@ fn compute_a_theta<G: Curve>(
 
     let theta1 = &theta0[..d];
     let theta2 = &theta0[d..];
+
+    let a = a.iter().map(|x| G::Zp::from_i64(*x)).collect::<Vec<_>>();
+    let b = b.iter().map(|x| G::Zp::from_i64(*x)).collect::<Vec<_>>();
+
     {
         let a_theta = &mut a_theta[..d];
         a_theta
@@ -579,27 +591,24 @@ fn compute_a_theta<G: Curve>(
                 let mut dot = G::Zp::ZERO;
 
                 for j in 0..d {
-                    let a = if i <= j {
-                        a[j - i]
+                    if i <= j {
+                        dot += a[j - i] * theta1[j];
                     } else {
-                        a[d + j - i].wrapping_neg()
-                    };
-
-                    dot += G::Zp::from_i64(a) * theta1[j];
+                        dot -= a[(d + j) - i] * theta1[j];
+                    }
                 }
 
                 for j in 0..k {
-                    let b = if i + j < d {
-                        b[d - i - j - 1]
+                    if i + j < d {
+                        dot += b[d - i - j - 1] * theta2[j];
                     } else {
-                        b[2 * d - i - j - 1].wrapping_neg()
+                        dot -= b[2 * d - i - j - 1] * theta2[j];
                     };
-
-                    dot += G::Zp::from_i64(b) * theta2[j];
                 }
                 *a_theta_i = dot;
             });
     }
+
     let a_theta = &mut a_theta[d..];
 
     let step = t.ilog2() as usize;
@@ -726,7 +735,7 @@ pub fn verify<G: Curve>(
     }
 
     let mut t = vec![G::Zp::ZERO; n];
-    G::Zp::hash(
+    G::Zp::hash_128bit(
         &mut t,
         &[
             &(1..n + 1)
@@ -745,6 +754,7 @@ pub fn verify<G: Curve>(
         &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
     );
     let [delta_eq, delta_y] = delta;
+    let delta = [delta_eq, delta_y, delta_theta];
 
     if let (Some(pi_kzg), Some(c_hat_t), Some(c_h)) = (pi_kzg, c_hat_t, c_h) {
         let mut z = G::Zp::ZERO;
@@ -789,7 +799,11 @@ pub fn verify<G: Curve>(
         if e(pi, G::G2::GENERATOR)
             != e(c_y.mul_scalar(delta_y) + c_h, c_hat)
                 - e(c_y.mul_scalar(delta_eq), c_hat_t)
-                - e(g_list[1], g_hat_list[n]).mul_scalar(t_theta * delta_theta)
+                - e(
+                    G::G1::projective(g_list[1]),
+                    G::G2::projective(g_hat_list[n]),
+                )
+                .mul_scalar(t_theta * delta_theta)
         {
             return Err(());
         }
@@ -822,13 +836,17 @@ pub fn verify<G: Curve>(
 
         if e(c_h - G::G1::GENERATOR.mul_scalar(p_h), G::G2::GENERATOR)
             + e(G::G1::GENERATOR, c_hat_t - G::G2::GENERATOR.mul_scalar(p_t)).mul_scalar(w)
-            == e(pi_kzg, g_hat_list[1] - G::G2::GENERATOR.mul_scalar(z))
+            == e(
+                pi_kzg,
+                G::G2::projective(g_hat_list[1]) - G::G2::GENERATOR.mul_scalar(z),
+            )
         {
             Ok(())
         } else {
             Err(())
         }
     } else {
+        // PERF: rewrite as multi_mul_scalar?
         let (term0, term1) = rayon::join(
             || {
                 let p = c_y.mul_scalar(delta_y)
@@ -839,7 +857,7 @@ pub fn verify<G: Curve>(
                             if i < big_d + 1 {
                                 factor += delta_theta * a_theta[i - 1];
                             }
-                            g_list[n + 1 - i].mul_scalar(factor)
+                            G::G1::projective(g_list[n + 1 - i]).mul_scalar(factor)
                         })
                         .sum::<G::G1>();
                 let q = c_hat;
@@ -849,14 +867,14 @@ pub fn verify<G: Curve>(
                 let p = c_y;
                 let q = (1..n + 1)
                     .into_par_iter()
-                    .map(|i| g_hat_list[i].mul_scalar(delta_eq * t[i]))
+                    .map(|i| G::G2::projective(g_hat_list[i]).mul_scalar(delta_eq * t[i]))
                     .sum::<G::G2>();
                 e(p, q)
             },
         );
         let term2 = {
-            let p = g_list[1];
-            let q = g_hat_list[n];
+            let p = G::G1::projective(g_list[1]);
+            let q = G::G2::projective(g_hat_list[n]);
             e(p, q)
         };
 

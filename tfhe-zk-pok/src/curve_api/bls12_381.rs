@@ -39,6 +39,39 @@ mod g1 {
     #[derive(
         Copy,
         Clone,
+        Debug,
+        PartialEq,
+        Eq,
+        Serialize,
+        Deserialize,
+        Hash,
+        CanonicalSerialize,
+        CanonicalDeserialize,
+    )]
+    #[repr(transparent)]
+    pub struct G1Affine {
+        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
+        pub(crate) inner: ark_bls12_381::g1::G1Affine,
+    }
+
+    impl G1Affine {
+        pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G1 {
+            // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
+            G1 {
+                inner: ark_bls12_381::g1::G1Projective::msm(
+                    unsafe {
+                        &*(bases as *const [G1Affine] as *const [ark_bls12_381::g1::G1Affine])
+                    },
+                    unsafe { &*(scalars as *const [Zp] as *const [ark_bls12_381::Fr]) },
+                )
+                .unwrap(),
+            }
+        }
+    }
+
+    #[derive(
+        Copy,
+        Clone,
         PartialEq,
         Eq,
         Serialize,
@@ -182,6 +215,39 @@ mod g2 {
     #[derive(
         Copy,
         Clone,
+        Debug,
+        PartialEq,
+        Eq,
+        Serialize,
+        Deserialize,
+        Hash,
+        CanonicalSerialize,
+        CanonicalDeserialize,
+    )]
+    #[repr(transparent)]
+    pub struct G2Affine {
+        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
+        pub(crate) inner: ark_bls12_381::g2::G2Affine,
+    }
+
+    impl G2Affine {
+        pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G2 {
+            // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
+            G2 {
+                inner: ark_bls12_381::g2::G2Projective::msm(
+                    unsafe {
+                        &*(bases as *const [G2Affine] as *const [ark_bls12_381::g2::G2Affine])
+                    },
+                    unsafe { &*(scalars as *const [Zp] as *const [ark_bls12_381::Fr]) },
+                )
+                .unwrap(),
+            }
+        }
+    }
+
+    #[derive(
+        Copy,
+        Clone,
         PartialEq,
         Eq,
         Serialize,
@@ -193,7 +259,7 @@ mod g2 {
     #[repr(transparent)]
     pub struct G2 {
         #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
-        pub(super) inner: ark_bls12_381::G2Projective,
+        pub(crate) inner: ark_bls12_381::G2Projective,
     }
 
     impl fmt::Debug for G2 {
@@ -640,6 +706,25 @@ mod zp {
                 *value = Zp::from_raw_u64x6(bytes.map(u64::from_le_bytes));
             }
         }
+
+        pub fn hash_128bit(values: &mut [Zp], data: &[&[u8]]) {
+            use sha3::digest::{ExtendableOutput, Update, XofReader};
+
+            let mut hasher = sha3::Shake256::default();
+            for data in data {
+                hasher.update(data);
+            }
+            let mut reader = hasher.finalize_xof();
+
+            for value in values {
+                let mut bytes = [0u8; 2 * 8];
+                reader.read(&mut bytes);
+                let limbs: [u64; 2] = unsafe { core::mem::transmute(bytes) };
+                *value = Zp {
+                    inner: BigInt([limbs[0], limbs[1], 0, 0]).into(),
+                };
+            }
+        }
     }
 
     impl Add for Zp {
@@ -714,8 +799,8 @@ mod zp {
     }
 }
 
-pub use g1::G1;
-pub use g2::G2;
+pub use g1::{G1Affine, G1};
+pub use g2::{G2Affine, G2};
 pub use gt::Gt;
 pub use zp::Zp;
 
