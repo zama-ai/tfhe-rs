@@ -9,7 +9,9 @@ impl_destroy_on_type!(FheBool);
 impl_clone_on_type!(FheBool);
 impl_serialize_deserialize_on_type!(FheBool);
 impl_safe_serialize_on_type!(FheBool);
+impl_safe_serialize_versioned_on_type!(FheBool);
 impl_safe_deserialize_conformant_integer!(FheBool, FheBoolConformanceParams);
+impl_safe_deserialize_conformant_versioned_integer!(FheBool, FheBoolConformanceParams);
 
 impl_binary_fn_on_type!(FheBool => bitand, bitor, bitxor);
 impl_binary_assign_fn_on_type!(FheBool => bitand_assign,  bitor_assign, bitxor_assign);
@@ -48,7 +50,9 @@ impl_destroy_on_type!(CompressedFheBool);
 impl_clone_on_type!(CompressedFheBool);
 impl_serialize_deserialize_on_type!(CompressedFheBool);
 impl_safe_serialize_on_type!(CompressedFheBool);
+impl_safe_serialize_versioned_on_type!(CompressedFheBool);
 impl_safe_deserialize_conformant_integer!(CompressedFheBool, FheBoolConformanceParams);
+impl_safe_deserialize_conformant_versioned_integer!(CompressedFheBool, FheBoolConformanceParams);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheBool{crate::high_level_api::CompressedFheBool}, bool);
 
 #[no_mangle]
@@ -83,7 +87,9 @@ impl_destroy_on_type!(CompactFheBool);
 impl_clone_on_type!(CompactFheBool);
 impl_serialize_deserialize_on_type!(CompactFheBool);
 impl_safe_serialize_on_type!(CompactFheBool);
+impl_safe_serialize_versioned_on_type!(CompactFheBool);
 impl_safe_deserialize_conformant_integer!(CompactFheBool, FheBoolConformanceParams);
+impl_safe_deserialize_conformant_versioned_integer!(CompactFheBool, FheBoolConformanceParams);
 impl_try_encrypt_with_compact_public_key_on_type!(CompactFheBool{crate::high_level_api::CompactFheBool}, bool);
 
 #[no_mangle]
@@ -105,7 +111,9 @@ impl_destroy_on_type!(CompactFheBoolList);
 impl_clone_on_type!(CompactFheBoolList);
 impl_serialize_deserialize_on_type!(CompactFheBoolList);
 impl_safe_serialize_on_type!(CompactFheBoolList);
+impl_safe_serialize_versioned_on_type!(CompactFheBoolList);
 impl_safe_deserialize_conformant_integer_list!(CompactFheBoolList);
+impl_safe_deserialize_conformant_versioned_integer_list!(CompactFheBoolList);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheBoolList{crate::high_level_api::CompactFheBoolList}, bool);
 
 #[no_mangle]
