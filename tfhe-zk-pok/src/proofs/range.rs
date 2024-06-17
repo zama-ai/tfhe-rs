@@ -6,7 +6,10 @@ pub struct PublicParams<G: Curve> {
 }
 
 impl<G: Curve> PublicParams<G> {
-    pub fn from_vec(g_list: Vec<G::G1>, g_hat_list: Vec<G::G2>) -> Self {
+    pub fn from_vec(
+        g_list: Vec<Affine<G::Zp, G::G1>>,
+        g_hat_list: Vec<Affine<G::Zp, G::G2>>,
+    ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),
         }
@@ -54,7 +57,8 @@ pub fn commit<G: Curve>(
     let g_hat = G::G2::GENERATOR;
 
     let r = G::Zp::rand(rng);
-    let v_hat = g_hat.mul_scalar(r) + public.g_lists.g_hat_list[1].mul_scalar(G::Zp::from_u64(x));
+    let v_hat = g_hat.mul_scalar(r)
+        + G::G2::projective(public.g_lists.g_hat_list[1]).mul_scalar(G::Zp::from_u64(x));
 
     (PublicCommit { l, v_hat }, PrivateCommit { x, r })
 }
@@ -87,7 +91,7 @@ pub fn prove<G: Curve>(
         let mut c = g_hat.mul_scalar(gamma);
         for j in 1..l + 1 {
             let term = if x_bits[j] != 0 {
-                g_hat_list[j]
+                G::G2::projective(g_hat_list[j])
             } else {
                 G::G2::ZERO
             };
@@ -96,13 +100,13 @@ pub fn prove<G: Curve>(
         c
     };
 
-    let mut proof_x = -g_list[n].mul_scalar(r);
+    let mut proof_x = -G::G1::projective(g_list[n]).mul_scalar(r);
     for i in 1..l + 1 {
-        let mut term = g_list[n + 1 - i].mul_scalar(gamma);
+        let mut term = G::G1::projective(g_list[n + 1 - i]).mul_scalar(gamma);
         for j in 1..l + 1 {
             if j != i {
                 let term_inner = if x_bits[j] != 0 {
-                    g_list[n + 1 - i + j]
+                    G::G1::projective(g_list[n + 1 - i + j])
                 } else {
                     G::G1::ZERO
                 };
@@ -124,7 +128,7 @@ pub fn prove<G: Curve>(
     let y = OneBased(y);
     let mut c_y = g.mul_scalar(gamma_y);
     for j in 1..l + 1 {
-        c_y += g_list[n + 1 - j].mul_scalar(y[j] * G::Zp::from_u64(x_bits[j]));
+        c_y += G::G1::projective(g_list[n + 1 - j]).mul_scalar(y[j] * G::Zp::from_u64(x_bits[j]));
     }
 
     let y_bytes = &*(1..n + 1)
@@ -145,11 +149,11 @@ pub fn prove<G: Curve>(
 
     let mut proof_eq = G::G1::ZERO;
     for i in 1..n + 1 {
-        let mut numerator = g_list[n + 1 - i].mul_scalar(gamma);
+        let mut numerator = G::G1::projective(g_list[n + 1 - i]).mul_scalar(gamma);
         for j in 1..n + 1 {
             if j != i {
                 let term = if x_bits[j] != 0 {
-                    g_list[n + 1 - i + j]
+                    G::G1::projective(g_list[n + 1 - i + j])
                 } else {
                     G::G1::ZERO
                 };
@@ -158,10 +162,11 @@ pub fn prove<G: Curve>(
         }
         numerator = numerator.mul_scalar(t[i] * y[i]);
 
-        let mut denominator = g_list[i].mul_scalar(gamma_y);
+        let mut denominator = G::G1::projective(g_list[i]).mul_scalar(gamma_y);
         for j in 1..n + 1 {
             if j != i {
-                denominator += g_list[n + 1 - j + i].mul_scalar(y[j] * G::Zp::from_u64(x_bits[j]));
+                denominator += G::G1::projective(g_list[n + 1 - j + i])
+                    .mul_scalar(y[j] * G::Zp::from_u64(x_bits[j]));
             }
         }
         denominator = denominator.mul_scalar(t[i]);
@@ -171,14 +176,16 @@ pub fn prove<G: Curve>(
 
     let mut proof_y = g.mul_scalar(gamma_y);
     for j in 1..n + 1 {
-        proof_y -= g_list[n + 1 - j].mul_scalar(y[j] * G::Zp::from_u64(1 - x_bits[j]));
+        proof_y -=
+            G::G1::projective(g_list[n + 1 - j]).mul_scalar(y[j] * G::Zp::from_u64(1 - x_bits[j]));
     }
     proof_y = proof_y.mul_scalar(gamma);
     for i in 1..n + 1 {
-        let mut term = g_list[i].mul_scalar(gamma_y);
+        let mut term = G::G1::projective(g_list[i]).mul_scalar(gamma_y);
         for j in 1..n + 1 {
             if j != i {
-                term -= g_list[n + 1 - j + i].mul_scalar(y[j] * G::Zp::from_u64(1 - x_bits[j]));
+                term -= G::G1::projective(g_list[n + 1 - j + i])
+                    .mul_scalar(y[j] * G::Zp::from_u64(1 - x_bits[j]));
             }
         }
         let term = if x_bits[i] != 0 { term } else { G::G1::ZERO };
@@ -202,7 +209,8 @@ pub fn prove<G: Curve>(
     let mut proof_v = G::G1::ZERO;
     for i in 2..n + 1 {
         proof_v += G::G1::mul_scalar(
-            g_list[n + 1 - i].mul_scalar(r) + g_list[n + 2 - i].mul_scalar(G::Zp::from_u64(x)),
+            G::G1::projective(g_list[n + 1 - i]).mul_scalar(r)
+                + G::G1::projective(g_list[n + 2 - i]).mul_scalar(G::Zp::from_u64(x)),
             s[i],
         );
     }
@@ -300,7 +308,7 @@ pub fn verify<G: Curve>(
         let numerator = {
             let mut p = c_y.mul_scalar(delta_y);
             for i in 1..n + 1 {
-                let g = g_list[n + 1 - i];
+                let g = G::G1::projective(g_list[n + 1 - i]);
                 if i <= l {
                     p += g.mul_scalar(delta_x * G::Zp::from_u64(1 << (i - 1)));
                 }
@@ -309,16 +317,16 @@ pub fn verify<G: Curve>(
             e(p, c_hat)
         };
         let denominator_0 = {
-            let mut p = g_list[n].mul_scalar(delta_x);
+            let mut p = G::G1::projective(g_list[n]).mul_scalar(delta_x);
             for i in 2..n + 1 {
-                p -= g_list[n + 1 - i].mul_scalar(delta_v * s[i]);
+                p -= G::G1::projective(g_list[n + 1 - i]).mul_scalar(delta_v * s[i]);
             }
             e(p, v_hat)
         };
         let denominator_1 = {
             let mut q = G::G2::ZERO;
             for i in 1..n + 1 {
-                q += g_hat_list[i].mul_scalar(delta_eq * t[i]);
+                q += G::G2::projective(g_hat_list[i]).mul_scalar(delta_eq * t[i]);
             }
             e(c_y, q)
         };

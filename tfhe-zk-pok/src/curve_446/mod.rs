@@ -466,8 +466,8 @@ pub mod g1 {
     use ark_ec::bls12::Bls12Config;
     use ark_ec::models::CurveConfig;
     use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
-    use ark_ec::{bls12, AffineRepr, Group};
-    use ark_ff::{Field, MontFp, One, PrimeField, Zero};
+    use ark_ec::{bls12, AdditiveGroup, AffineRepr, PrimeGroup};
+    use ark_ff::{MontFp, One, PrimeField, Zero};
     use ark_serialize::{Compress, SerializationError};
     use core::ops::Neg;
 
@@ -631,7 +631,7 @@ pub mod g2 {
     use ark_ec::models::CurveConfig;
     use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
     use ark_ec::{bls12, AffineRepr};
-    use ark_ff::{MontFp, Zero};
+    use ark_ff::MontFp;
     use ark_serialize::{Compress, SerializationError};
 
     pub type G2Affine = bls12::G2Affine<super::Config>;

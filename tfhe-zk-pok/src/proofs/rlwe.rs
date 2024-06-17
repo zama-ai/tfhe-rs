@@ -19,8 +19,8 @@ pub struct PublicParams<G: Curve> {
 
 impl<G: Curve> PublicParams<G> {
     pub fn from_vec(
-        g_list: Vec<G::G1>,
-        g_hat_list: Vec<G::G2>,
+        g_list: Vec<Affine<G::Zp, G::G1>>,
+        g_hat_list: Vec<Affine<G::Zp, G::G2>>,
         d: usize,
         big_n: usize,
         big_m: usize,
@@ -268,7 +268,11 @@ pub fn prove<G: Curve>(
 
     let mut c_hat = g_hat.mul_scalar(gamma);
     for j in 1..big_d + 1 {
-        let term = if w[j] { g_hat_list[j] } else { G::G2::ZERO };
+        let term = if w[j] {
+            G::G2::projective(g_hat_list[j])
+        } else {
+            G::G2::ZERO
+        };
         c_hat += term;
     }
 
@@ -763,7 +767,11 @@ pub fn verify<G: Curve>(
         if e(pi, G::G2::GENERATOR)
             != e(c_y.mul_scalar(delta_y) + c_h, c_hat)
                 - e(c_y.mul_scalar(delta_eq), c_hat_t)
-                - e(g_list[1], g_hat_list[n]).mul_scalar(t_theta * delta_theta)
+                - e(
+                    G::G1::projective(g_list[1]),
+                    G::G2::projective(g_hat_list[n]),
+                )
+                .mul_scalar(t_theta * delta_theta)
         {
             return Err(());
         }
@@ -796,7 +804,10 @@ pub fn verify<G: Curve>(
 
         if e(c_h - G::G1::GENERATOR.mul_scalar(p_h), G::G2::GENERATOR)
             + e(G::G1::GENERATOR, c_hat_t - G::G2::GENERATOR.mul_scalar(p_t)).mul_scalar(w)
-            == e(pi_kzg, g_hat_list[1] - G::G2::GENERATOR.mul_scalar(z))
+            == e(
+                pi_kzg,
+                G::G2::projective(g_hat_list[1]) - G::G2::GENERATOR.mul_scalar(z),
+            )
         {
             Ok(())
         } else {
@@ -813,7 +824,7 @@ pub fn verify<G: Curve>(
                             if i < big_d + 1 {
                                 factor += delta_theta * a_theta[i - 1];
                             }
-                            g_list[n + 1 - i].mul_scalar(factor)
+                            G::G1::projective(g_list[n + 1 - i]).mul_scalar(factor)
                         })
                         .sum::<G::G1>();
                 let q = c_hat;
@@ -823,14 +834,14 @@ pub fn verify<G: Curve>(
                 let p = c_y;
                 let q = (1..n + 1)
                     .into_par_iter()
-                    .map(|i| g_hat_list[i].mul_scalar(delta_eq * t[i]))
+                    .map(|i| G::G2::projective(g_hat_list[i]).mul_scalar(delta_eq * t[i]))
                     .sum::<G::G2>();
                 e(p, q)
             },
         );
         let term2 = {
-            let p = g_list[1];
-            let q = g_hat_list[n];
+            let p = G::G1::projective(g_list[1]);
+            let q = G::G2::projective(g_hat_list[n]);
             e(p, q)
         };
 

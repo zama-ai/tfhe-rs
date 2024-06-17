@@ -12,15 +12,15 @@ description = "tfhe-zk-pok: An implementation of zero-knowledge proofs of encryp
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ark-bls12-381 = "0.4.0"
-ark-ec = "0.4.2"
-ark-ff = "0.4.2"
-ark-poly = "0.4.2"
+ark-bls12-381 = { package = "tfhe-ark-bls12-381", version = "0.4.0" }
+ark-ec = { package = "tfhe-ark-ec", version = "0.4.2" }
+ark-ff = { package = "tfhe-ark-ff", version = "0.4.3" }
+ark-poly = { package = "tfhe-ark-poly", version = "0.4.2" }
+ark-serialize = { version = "0.4.2" }
 rand = "0.8.5"
 rayon = "1.8.0"
 sha3 = "0.10.8"
 serde = { version = "~1.0", features = ["derive"] }
-ark-serialize = { version = "0.4.2" }
 zeroize = "1.7.0"
 
 [dev-dependencies]

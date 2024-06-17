@@ -6,7 +6,10 @@ pub struct PublicParams<G: Curve> {
 }
 
 impl<G: Curve> PublicParams<G> {
-    pub fn from_vec(g_list: Vec<G::G1>, g_hat_list: Vec<G::G2>) -> Self {
+    pub fn from_vec(
+        g_list: Vec<Affine<G::Zp, G::G1>>,
+        g_hat_list: Vec<Affine<G::Zp, G::G2>>,
+    ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),
         }
@@ -55,7 +58,7 @@ pub fn commit<G: Curve>(
 
     let mut c = g.mul_scalar(gamma);
     for j in 1..n + 1 {
-        let term = public.g_lists.g_list[j].mul_scalar(G::Zp::from_u64(m[j]));
+        let term = G::G1::projective(public.g_lists.g_list[j]).mul_scalar(G::Zp::from_u64(m[j]));
         c += term;
     }
 
@@ -80,11 +83,11 @@ pub fn prove<G: Curve>(
     let gamma = private.gamma;
     let g_list = &public.0.g_lists.g_list;
 
-    let mut pi = g_list[n + 1 - i].mul_scalar(gamma);
+    let mut pi = G::G1::projective(g_list[n + 1 - i]).mul_scalar(gamma);
     for j in 1..n + 1 {
         if i != j {
             let term = if m[j] & 1 == 1 {
-                g_list[n + 1 - i + j]
+                G::G1::projective(g_list[n + 1 - i + j])
             } else {
                 G::G1::ZERO
             };
@@ -110,8 +113,13 @@ pub fn verify<G: Curve>(
     let n = public.0.g_lists.message_len;
     let i = index + 1;
 
-    let lhs = e(c, g_hat_list[n + 1 - i]);
-    let rhs = e(proof.pi, g_hat) + (e(g_list[1], g_hat_list[n])).mul_scalar(G::Zp::from_u64(mi));
+    let lhs = e(c, G::G2::projective(g_hat_list[n + 1 - i]));
+    let rhs = e(proof.pi, g_hat)
+        + (e(
+            G::G1::projective(g_list[1]),
+            G::G2::projective(g_hat_list[n]),
+        ))
+        .mul_scalar(G::Zp::from_u64(mi));
 
     if lhs == rhs {
         Ok(())

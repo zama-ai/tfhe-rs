@@ -1,4 +1,4 @@
-use ark_ec::{CurveGroup, Group, VariableBaseMSM};
+use ark_ec::{AdditiveGroup as Group, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, Field, MontFp, Zero};
 use ark_poly::univariate::DensePolynomial;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
@@ -37,6 +37,8 @@ impl<T: fmt::Display + PartialEq + Field> fmt::Debug for MontIntDisplay<'_, T> {
     }
 }
 
+pub mod msm;
+
 pub mod bls12_381;
 pub mod bls12_446;
 
@@ -44,6 +46,7 @@ pub trait FieldOps:
     Copy
     + Send
     + Sync
+    + core::fmt::Debug
     + core::ops::AddAssign<Self>
     + core::ops::SubAssign<Self>
     + core::ops::Add<Self, Output = Self>
@@ -62,6 +65,7 @@ pub trait FieldOps:
     fn to_bytes(self) -> impl AsRef<[u8]>;
     fn rand(rng: &mut dyn rand::RngCore) -> Self;
     fn hash(values: &mut [Self], data: &[&[u8]]);
+    fn hash_128bit(values: &mut [Self], data: &[&[u8]]);
     fn poly_mul(p: &[Self], q: &[Self]) -> Vec<Self>;
     fn poly_sub(p: &[Self], q: &[Self]) -> Vec<Self> {
         use core::iter::zip;
@@ -113,10 +117,22 @@ pub trait CurveGroupOps<Zp>:
     const GENERATOR: Self;
     const BYTE_SIZE: usize;
 
+    type Affine: Copy
+        + Send
+        + Sync
+        + core::fmt::Debug
+        + serde::Serialize
+        + for<'de> serde::Deserialize<'de>
+        + CanonicalSerialize
+        + CanonicalDeserialize;
+
+    fn projective(affine: Self::Affine) -> Self;
+
     fn mul_scalar(self, scalar: Zp) -> Self;
-    fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> Self;
+    fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[Zp]) -> Self;
     fn to_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
+    fn normalize(self) -> Self::Affine;
 }
 
 pub trait PairingGroupOps<Zp, G1, G2>:
@@ -164,6 +180,9 @@ impl FieldOps for bls12_381::Zp {
     fn hash(values: &mut [Self], data: &[&[u8]]) {
         Self::hash(values, data)
     }
+    fn hash_128bit(values: &mut [Self], data: &[&[u8]]) {
+        Self::hash_128bit(values, data)
+    }
 
     fn poly_mul(p: &[Self], q: &[Self]) -> Vec<Self> {
         let p = p.iter().map(|x| x.inner).collect();
@@ -182,13 +201,20 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
     const ZERO: Self = Self::ZERO;
     const GENERATOR: Self = Self::GENERATOR;
     const BYTE_SIZE: usize = Self::BYTE_SIZE;
+    type Affine = bls12_381::G1Affine;
+
+    fn projective(affine: Self::Affine) -> Self {
+        Self {
+            inner: affine.inner.into(),
+        }
+    }
 
     fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
-    fn multi_mul_scalar(bases: &[Self], scalars: &[bls12_381::Zp]) -> Self {
-        Self::multi_mul_scalar(bases, scalars)
+    fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_381::Zp]) -> Self {
+        Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
     fn to_bytes(self) -> impl AsRef<[u8]> {
@@ -197,6 +223,12 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
 
     fn double(self) -> Self {
         self.double()
+    }
+
+    fn normalize(self) -> Self::Affine {
+        Self::Affine {
+            inner: self.inner.into_affine(),
+        }
     }
 }
 
@@ -204,13 +236,20 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
     const ZERO: Self = Self::ZERO;
     const GENERATOR: Self = Self::GENERATOR;
     const BYTE_SIZE: usize = Self::BYTE_SIZE;
+    type Affine = bls12_381::G2Affine;
+
+    fn projective(affine: Self::Affine) -> Self {
+        Self {
+            inner: affine.inner.into(),
+        }
+    }
 
     fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
-    fn multi_mul_scalar(bases: &[Self], scalars: &[bls12_381::Zp]) -> Self {
-        Self::multi_mul_scalar(bases, scalars)
+    fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_381::Zp]) -> Self {
+        Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
     fn to_bytes(self) -> impl AsRef<[u8]> {
@@ -219,6 +258,12 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
 
     fn double(self) -> Self {
         self.double()
+    }
+
+    fn normalize(self) -> Self::Affine {
+        Self::Affine {
+            inner: self.inner.into_affine(),
+        }
     }
 }
 
@@ -254,6 +299,9 @@ impl FieldOps for bls12_446::Zp {
     fn hash(values: &mut [Self], data: &[&[u8]]) {
         Self::hash(values, data)
     }
+    fn hash_128bit(values: &mut [Self], data: &[&[u8]]) {
+        Self::hash_128bit(values, data)
+    }
 
     fn poly_mul(p: &[Self], q: &[Self]) -> Vec<Self> {
         let p = p.iter().map(|x| x.inner).collect();
@@ -272,13 +320,21 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
     const ZERO: Self = Self::ZERO;
     const GENERATOR: Self = Self::GENERATOR;
     const BYTE_SIZE: usize = Self::BYTE_SIZE;
+    type Affine = bls12_446::G1Affine;
+
+    fn projective(affine: Self::Affine) -> Self {
+        Self {
+            inner: affine.inner.into(),
+        }
+    }
 
     fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
-    fn multi_mul_scalar(bases: &[Self], scalars: &[bls12_446::Zp]) -> Self {
-        Self::multi_mul_scalar(bases, scalars)
+    fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
+        msm::msm_wnaf_g1_446(bases, scalars)
+        // Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
     fn to_bytes(self) -> impl AsRef<[u8]> {
@@ -287,6 +343,12 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
 
     fn double(self) -> Self {
         self.double()
+    }
+
+    fn normalize(self) -> Self::Affine {
+        Self::Affine {
+            inner: self.inner.into_affine(),
+        }
     }
 }
 
@@ -294,13 +356,20 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
     const ZERO: Self = Self::ZERO;
     const GENERATOR: Self = Self::GENERATOR;
     const BYTE_SIZE: usize = Self::BYTE_SIZE;
+    type Affine = bls12_446::G2Affine;
+
+    fn projective(affine: Self::Affine) -> Self {
+        Self {
+            inner: affine.inner.into(),
+        }
+    }
 
     fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
-    fn multi_mul_scalar(bases: &[Self], scalars: &[bls12_446::Zp]) -> Self {
-        Self::multi_mul_scalar(bases, scalars)
+    fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
+        Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
     fn to_bytes(self) -> impl AsRef<[u8]> {
@@ -309,6 +378,12 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
 
     fn double(self) -> Self {
         self.double()
+    }
+
+    fn normalize(self) -> Self::Affine {
+        Self::Affine {
+            inner: self.inner.into_affine(),
+        }
     }
 }
 
