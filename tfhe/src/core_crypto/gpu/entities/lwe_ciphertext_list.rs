@@ -61,14 +61,12 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
 
         // Copy to the GPU
         let h_input = h_ct.as_view().into_container();
-        let mut d_vec = CudaVec::new(
+        let mut d_vec = CudaVec::new_async(
             lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
             streams,
             0,
         );
-        unsafe {
-            d_vec.copy_from_cpu_async(h_input.as_ref(), streams, 0);
-        }
+        d_vec.copy_from_cpu_async(h_input.as_ref(), streams, 0);
         let cuda_lwe_list = CudaLweList {
             d_vec,
             lwe_ciphertext_count,
