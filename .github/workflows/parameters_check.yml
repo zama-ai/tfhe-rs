@@ -24,6 +24,7 @@ jobs:
         with:
           repository: malb/lattice-estimator
           path: lattice_estimator
+          ref: e9f6a48b5995a89d17745da21f64fa9da821f5e5
 
       - name: Install Sage
         run: |
