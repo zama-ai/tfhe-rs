@@ -10,7 +10,7 @@ sys.path.insert(1, 'lattice-estimator')
 from estimator import *
 
 
-model = RC.BDGL16
+model = RC.MATZOV
 
 def check_security(filename):
     """
