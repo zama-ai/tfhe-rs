@@ -69,7 +69,7 @@ expand_pub_use_fhe_type!(
     };
 );
 
-pub use safe_serialize::safe_serialize;
+pub use safe_serialize::{safe_serialize, safe_serialize_versioned};
 
 mod config;
 mod global_state;
@@ -100,6 +100,7 @@ pub enum Device {
 pub mod safe_serialize {
     use crate::named::Named;
     use serde::Serialize;
+    use tfhe_versionable::Versionize;
 
     pub fn safe_serialize<T>(
         a: &T,
@@ -110,6 +111,18 @@ pub mod safe_serialize {
         T: Named + Serialize,
     {
         crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn safe_serialize_versioned<T>(
+        a: &T,
+        writer: impl std::io::Write,
+        serialized_size_limit: u64,
+    ) -> Result<(), String>
+    where
+        T: Named + Versionize,
+    {
+        crate::safe_deserialization::safe_serialize_versioned(a, writer, serialized_size_limit)
             .map_err(|err| err.to_string())
     }
 }
