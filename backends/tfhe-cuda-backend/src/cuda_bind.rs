@@ -629,18 +629,6 @@ extern "C" {
         num_blocks: u32,
     );
 
-    pub fn cuda_bitnot_integer_radix_ciphertext_kb_64(
-        streams: *const *mut c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        radix_lwe_out: *mut c_void,
-        radix_lwe_in: *const c_void,
-        mem_ptr: *mut i8,
-        bsks: *const *mut c_void,
-        ksks: *const *mut c_void,
-        num_blocks: u32,
-    );
-
     pub fn cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
