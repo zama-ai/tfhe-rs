@@ -285,9 +285,17 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support overflowing_sub yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner_result = cuda_key.key.unsigned_overflowing_sub(
+                    &self.ciphertext.on_gpu(),
+                    &other.ciphertext.on_gpu(),
+                    streams,
+                );
+                (
+                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
+                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
+                )
+            }),
         })
     }
 }
