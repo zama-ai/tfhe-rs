@@ -143,7 +143,7 @@ impl ServerKey {
                         &self.bootstrapping_key,
                         &ct,
                         &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        acc,
+                        &acc.acc,
                         buffers,
                     );
                 }

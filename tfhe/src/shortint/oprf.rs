@@ -125,7 +125,13 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             let (_, buffers) = engine.get_buffers(self);
 
-            apply_programmable_bootstrap(&self.bootstrapping_key, &seeded, &mut ct, &acc, buffers);
+            apply_programmable_bootstrap(
+                &self.bootstrapping_key,
+                &seeded,
+                &mut ct,
+                &acc.acc,
+                buffers,
+            );
         });
 
         lwe_ciphertext_plaintext_add_assign(&mut ct, Plaintext((p - 1) * delta / 2));
