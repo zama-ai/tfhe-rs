@@ -1402,7 +1402,7 @@ mod cuda {
 
             let param_name = param.name();
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                 let gpu_sks = CudaServerKey::new(&cks, &stream);
@@ -1525,6 +1525,11 @@ mod cuda {
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_bitxor,
         display_name: bitxor
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: unchecked_bitnot,
+        display_name: bitnot
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
@@ -1771,6 +1776,11 @@ mod cuda {
         display_name: bitxor
     );
 
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: bitnot,
+        display_name: bitnot
+    );
+
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: gt,
         display_name: greater_than
@@ -1935,6 +1945,7 @@ mod cuda {
         cuda_unchecked_bitand,
         cuda_unchecked_bitor,
         cuda_unchecked_bitxor,
+        cuda_unchecked_bitnot,
         cuda_unchecked_mul,
         cuda_unchecked_div_rem,
         cuda_unchecked_sub,
@@ -1993,6 +2004,7 @@ mod cuda {
         cuda_bitand,
         cuda_bitor,
         cuda_bitxor,
+        cuda_bitnot,
         cuda_default_if_then_else,
         cuda_left_shift,
         cuda_right_shift,
