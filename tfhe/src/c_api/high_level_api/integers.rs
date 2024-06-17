@@ -306,8 +306,14 @@ macro_rules! create_integer_wrapper_type {
 
         impl_safe_serialize_on_type!($name);
 
+        impl_safe_serialize_versioned_on_type!($name);
+
         ::paste::paste! {
             impl_safe_deserialize_conformant_integer!($name, [<$name ConformanceParams>]);
+        }
+
+        ::paste::paste! {
+            impl_safe_deserialize_conformant_versioned_integer!($name, [<$name ConformanceParams>]);
         }
 
         define_all_cast_into_for_integer_type!($name);
@@ -326,8 +332,11 @@ macro_rules! create_integer_wrapper_type {
 
             impl_safe_serialize_on_type!([<Compressed $name>]);
 
+            impl_safe_serialize_versioned_on_type!([<Compressed $name>]);
+
             impl_safe_deserialize_conformant_integer!([<Compressed $name>],  [<$name ConformanceParams>]);
 
+            impl_safe_deserialize_conformant_versioned_integer!([<Compressed $name>],  [<$name ConformanceParams>]);
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compressed_ $name:snake _decompress>](
