@@ -1,12 +1,16 @@
 //! Module containing the definition of the GlweCiphertextList.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::glwe_ciphertext_list::GlweCiphertextListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`GLWE ciphertexts`](`crate::core_crypto::entities::GlweCiphertext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GlweCiphertextListVersions)]
 pub struct GlweCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,
