@@ -1,5 +1,8 @@
 //! Module containing the definition of the GgswCiphertext.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::ggsw_ciphertext::GgswCiphertextVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -156,7 +159,8 @@ use crate::core_crypto::entities::*;
 /// [`GLWE decryption
 /// algorithm`](`crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext`)
 /// on one of the GLWE ciphertexts contained in the GLev ciphertext.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GgswCiphertextVersions)]
 pub struct GgswCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,
