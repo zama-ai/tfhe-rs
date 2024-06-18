@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`LwePackingKeyswitchKey`].
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::glwe_ciphertext::glwe_ciphertext_size;
@@ -10,7 +13,8 @@ use crate::core_crypto::entities::glwe_ciphertext_list::{
 /// A keyswitching key allowing to keyswitch [`an LWE ciphertext`](super::LweCiphertext) to
 /// [`a GLWE ciphertext`](super::GlweCiphertext) allowing to pack several LWE ciphertexts into a
 /// GLWE ciphertext.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LwePackingKeyswitchKeyVersions)]
 pub struct LwePackingKeyswitchKey<C: Container>
 where
     C::Element: UnsignedInteger,

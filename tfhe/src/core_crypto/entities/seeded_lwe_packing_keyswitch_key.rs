@@ -1,13 +1,17 @@
 //! Module containing the definition of the [`SeededLwePackingKeyswitchKey`].
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A [`seeded LWE packing keyswitch key`](`SeededLwePackingKeyswitchKey`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededLwePackingKeyswitchKeyVersions)]
 pub struct SeededLwePackingKeyswitchKey<C: Container>
 where
     C::Element: UnsignedInteger,
