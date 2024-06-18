@@ -133,6 +133,12 @@ jobs:
           --name-suffix avx512 \
           --throughput
 
+      - name: Parse CRS sizes results
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe/pke_zk_crs_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          --key-sizes \
+          --append-results
+
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         with:

@@ -178,8 +178,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &input_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_noise_distribution.unwrap(),
-            params.ciphertext_modulus.unwrap(), /* TODO Remplacer en utilisant celui du
-                                                 * CryptoParametersRecord */
+            params.ciphertext_modulus.unwrap(),
             &mut encryption_generator,
         );
 
