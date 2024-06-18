@@ -4,6 +4,9 @@
 mod utilities;
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 use tfhe::core_crypto::prelude::*;
 use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
 use tfhe::shortint::ciphertext::MaxNoiseLevel;
@@ -32,6 +35,12 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64: ClassicPBSPar
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
     };
+
+fn write_result(file: &mut File, name: &str, value: usize) {
+    let line = format!("{name},{value}\n");
+    let error_message = format!("cannot write {name} result into file");
+    file.write_all(line.as_bytes()).expect(&error_message);
+}
 
 fn pke_zk_proof(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("pke_zk_proof");
@@ -96,11 +105,17 @@ fn pke_zk_proof(c: &mut Criterion) {
 
 criterion_group!(zk_proof, pke_zk_proof);
 
-fn pke_zk_verify(c: &mut Criterion) {
+fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
     let mut bench_group = c.benchmark_group("pke_zk_verify");
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
+
+    File::create(results_file).expect("create results file failed");
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(results_file)
+        .expect("cannot open results file");
 
     for (param_name, param_pke) in [(
         "PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_TUNIFORM_2M64",
@@ -124,6 +139,25 @@ fn pke_zk_verify(c: &mut Criterion) {
                 CompactPkeCrs::from_shortint_params(param_pke, num_block * fhe_uint_count).unwrap();
             let public_params = crs.public_params();
 
+            let shortint_params: PBSParameters = param_pke.into();
+
+            let mut crs_data = vec![];
+            public_params
+                .serialize_with_mode(&mut crs_data, Compress::No)
+                .unwrap();
+            let test_name = format!("crs_sizes_{param_name}_{bits}_bits_packed");
+
+            write_result(&mut file, &test_name, crs_data.len());
+            write_to_json::<u64, _>(
+                &test_name,
+                shortint_params,
+                param_name,
+                "pke_zk_crs",
+                &OperatorType::Atomic,
+                0,
+                vec![],
+            );
+
             for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
                 let zk_load = match compute_load {
                     ZkComputeLoad::Proof => "compute_load_proof",
@@ -145,8 +179,6 @@ fn pke_zk_verify(c: &mut Criterion) {
                     });
                 });
 
-                let shortint_params: PBSParameters = param_pke.into();
-
                 write_to_json::<u64, _>(
                     &bench_id,
                     shortint_params,
@@ -163,6 +195,10 @@ fn pke_zk_verify(c: &mut Criterion) {
     bench_group.finish()
 }
 
-criterion_group!(zk_verify, pke_zk_verify);
+pub fn zk_verify() {
+    let results_file = Path::new("pke_zk_crs_sizes.csv");
+    let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
+    pke_zk_verify(&mut criterion, results_file);
+}
 
 criterion_main!(zk_verify);
