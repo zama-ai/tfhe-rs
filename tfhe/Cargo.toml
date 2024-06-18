@@ -227,6 +227,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-erc20"
+path = "benches/high_level_api/erc20.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "keygen"
 path = "benches/keygen/bench.rs"
 harness = false
