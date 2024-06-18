@@ -1,5 +1,8 @@
 //! Module containing the definition of the LwePrivateFunctionalPackingKeyswitchKey.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key::LwePrivateFunctionalPackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::generators::EncryptionRandomGeneratorForkConfig;
 use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
@@ -7,7 +10,8 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// An [`LWE private functional packing keyswitch key`](`LwePrivateFunctionalPackingKeyswitchKey`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LwePrivateFunctionalPackingKeyswitchKeyVersions)]
 pub struct LwePrivateFunctionalPackingKeyswitchKey<C: Container>
 where
     C::Element: UnsignedInteger,

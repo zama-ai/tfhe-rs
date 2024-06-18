@@ -1,22 +1,14 @@
 use std::path::Path;
 
-use tfhe::backward_compatibility::{
-    booleans::{CompactFheBool, CompactFheBoolList},
-    integers::{CompactFheInt8, CompactFheInt8List, CompactFheUint8, CompactFheUint8List},
-};
-use tfhe::prelude::{FheDecrypt, FheEncrypt};
+use tfhe::backward_compatibility::integers::CompactFheUint8;
+use tfhe::prelude::FheDecrypt;
 use tfhe::shortint::PBSParameters;
-use tfhe::{
-    set_server_key, ClientKey, CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8,
-    CompressedFheUint8, CompressedPublicKey, CompressedServerKey, FheUint8,
-};
+use tfhe::{set_server_key, ClientKey, CompressedFheUint8};
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    HlBoolCiphertextListTest, HlBoolCiphertextTest, HlCiphertextListTest, HlCiphertextTest,
-    HlClientKeyTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextListTest,
-    HlSignedCiphertextTest, TestMetadata, TestParameterSet, TestType, Testcase,
+    HlCiphertextTest, HlClientKeyTest, TestMetadata, TestParameterSet, TestType, Testcase,
 };
 use tfhe_versionable::Unversionize;
 
@@ -81,7 +73,7 @@ pub fn test_hl_clientkey(
     let test_params = load_hl_params(&test.parameters);
 
     let key: ClientKey = load_and_unversionize(dir, test, format)?;
-    let (integer_key, _) = key.into_raw_parts();
+    let (integer_key, _, _, _) = key.into_raw_parts();
     let key_params = integer_key.parameters();
 
     if test_params != key_params {

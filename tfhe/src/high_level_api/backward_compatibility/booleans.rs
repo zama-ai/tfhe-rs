@@ -34,7 +34,8 @@ pub enum CompactFheBoolListVersions {
     V0(CompactFheBoolList),
 }
 
-// Basic support for deprecated compact list, to be able to load them and convert them to something else
+// Basic support for deprecated compact list, to be able to load them and convert them to something
+// else
 
 #[derive(Versionize)]
 #[versionize(CompactFheBoolVersions)]

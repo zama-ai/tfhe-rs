@@ -1,9 +1,7 @@
-use crate::{
-    core_crypto::prelude::LweCompactCiphertextListOwned,
-    shortint::{
-        ciphertext::*, parameters::CompactCiphertextListExpansionKind, CarryModulus, MessageModulus,
-    },
-};
+use crate::core_crypto::prelude::LweCompactCiphertextListOwned;
+use crate::shortint::ciphertext::*;
+use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+use crate::shortint::{CarryModulus, MessageModulus};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
