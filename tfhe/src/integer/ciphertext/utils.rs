@@ -1,5 +1,6 @@
 use super::{BooleanBlock, IntegerRadixCiphertext};
-use crate::{integer::backward_compatibility::ciphertext::DataKindVersions, shortint::Ciphertext};
+use crate::integer::backward_compatibility::ciphertext::DataKindVersions;
+use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 

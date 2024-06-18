@@ -2,10 +2,9 @@
 
 use tfhe_versionable::{Versionize, VersionsDispatch};
 
-use crate::{
-    high_level_api::integers::*, integer::ciphertext::DataKind, prelude::ParameterSetConformant,
-    CompactCiphertextList, Error,
-};
+use crate::high_level_api::integers::*;
+use crate::integer::ciphertext::DataKind;
+use crate::{CompactCiphertextList, Error};
 use serde::{Deserialize, Serialize};
 
 // Manual impl
@@ -69,7 +68,8 @@ pub enum CompactFheUintListVersions<Id: FheUintId> {
     V0(CompactFheUintList<Id>),
 }
 
-// Basic support for deprecated compact list, to be able to load them and convert them to something else
+// Basic support for deprecated compact list, to be able to load them and convert them to something
+// else
 
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheIntVersions)]
@@ -85,7 +85,8 @@ where
 {
     /// Expand to a [FheInt]
     pub fn expand(mut self) -> Result<FheInt<Id>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type info
+        // This compact list might have been loaded from an homogenous compact list without type
+        // info
         self.list
             .0
             .info
@@ -114,7 +115,8 @@ where
 {
     /// Expand to a Vec<[FheInt]>
     pub fn expand(mut self) -> Result<Vec<FheInt<Id>>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type info
+        // This compact list might have been loaded from an homogenous compact list without type
+        // info
         self.list
             .0
             .info
@@ -150,7 +152,8 @@ where
 {
     /// Expand to a [FheUint]
     pub fn expand(mut self) -> Result<FheUint<Id>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type info
+        // This compact list might have been loaded from an homogenous compact list without type
+        // info
         self.list
             .0
             .info
@@ -180,7 +183,8 @@ where
 {
     /// Expand to a Vec<[FheUint]>
     pub fn expand(mut self) -> Result<Vec<FheUint<Id>>, Error> {
-        // This compact list might have been loaded from an homogenous compact list without type info
+        // This compact list might have been loaded from an homogenous compact list without type
+        // info
         self.list
             .0
             .info
