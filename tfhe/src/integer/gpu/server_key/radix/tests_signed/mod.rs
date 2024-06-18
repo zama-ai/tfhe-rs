@@ -8,6 +8,7 @@ pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
+pub(crate) mod test_scalar_div_mod;
 pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
@@ -207,6 +208,46 @@ where
         let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For unchecked/default binary functions with one scalar input and two encrypted outputs
+impl<'a, F>
+    FunctionExecutor<
+        (&'a SignedRadixCiphertext, i64),
+        (SignedRadixCiphertext, SignedRadixCiphertext),
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        i64,
+        &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a SignedRadixCiphertext, i64),
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
+
+        let (gpu_result_1, gpu_result_2) =
+            (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
+
+        (
+            gpu_result_1.to_signed_radix_ciphertext(&context.streams),
+            gpu_result_2.to_signed_radix_ciphertext(&context.streams),
+        )
     }
 }
 

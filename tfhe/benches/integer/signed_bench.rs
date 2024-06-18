@@ -1834,6 +1834,12 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: unchecked_signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -2046,6 +2052,12 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: signed_scalar_div_rem,
+        display_name: div_rem,
+        rng_func: div_scalar
+    );
+
     criterion_group!(
         unchecked_cuda_ops,
         cuda_unchecked_add,
@@ -2090,6 +2102,7 @@ mod cuda {
         cuda_unchecked_scalar_le,
         cuda_unchecked_scalar_min,
         cuda_unchecked_scalar_max,
+        cuda_unchecked_signed_scalar_div_rem,
     );
 
     criterion_group!(
@@ -2137,6 +2150,7 @@ mod cuda {
         cuda_scalar_le,
         cuda_scalar_min,
         cuda_scalar_max,
+        cuda_signed_scalar_div_rem,
     );
 
     fn cuda_bench_server_key_signed_cast_function<F>(

@@ -565,4 +565,76 @@ impl CudaServerKey {
         };
         stream.synchronize();
     }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_scalar_right_shift_logical_assign_async<Scalar, T>(
+        &self,
+        ct: &mut T,
+        shift: Scalar,
+        stream: &CudaStreams,
+    ) where
+        Scalar: CastFrom<u32>,
+        u32: CastFrom<Scalar>,
+        T: CudaIntegerRadixCiphertext,
+    {
+        let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
+                    stream,
+                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    u32::cast_from(shift),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    lwe_ciphertext_count.0 as u32,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async(
+                    stream,
+                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    u32::cast_from(shift),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                );
+            }
+        }
+    }
 }

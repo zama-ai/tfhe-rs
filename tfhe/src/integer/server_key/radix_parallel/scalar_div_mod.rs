@@ -135,6 +135,7 @@ pub trait SignedReciprocable:
     type DoublePrecision: DecomposableInto<u8>
         + ScalarMultiplier
         + CastFrom<<Self::Unsigned as Reciprocable>::DoublePrecision>
+        + CastInto<u64>
         + std::fmt::Debug;
 
     fn wrapping_abs(self) -> Self;
