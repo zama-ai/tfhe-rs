@@ -79,7 +79,20 @@ else()
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 
-# in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
+# Check if the DEBUG flag is defined
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  # Debug mode
+  message("Compiling in Debug mode")
+  add_definitions(-DDEBUG)
+  set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O0 -G -g")
+else()
+  # Release mode
+  message("Compiling in Release mode")
+  set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
+endif()
+
+# in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
+# nvtx when profiling -lnvToolsExt
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
