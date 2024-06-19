@@ -3,15 +3,27 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct PublicParams<G: Curve> {
     g_lists: GroupElements<G>,
+    hash: [u8; HASH_METADATA_LEN_BYTES],
+    hash_s: [u8; HASH_METADATA_LEN_BYTES],
+    hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
 }
 
 impl<G: Curve> PublicParams<G> {
     pub fn from_vec(
         g_list: Vec<Affine<G::Zp, G::G1>>,
         g_hat_list: Vec<Affine<G::Zp, G::G2>>,
+        hash: [u8; HASH_METADATA_LEN_BYTES],
+        hash_s: [u8; HASH_METADATA_LEN_BYTES],
+        hash_t: [u8; HASH_METADATA_LEN_BYTES],
+        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),
+            hash,
+            hash_s,
+            hash_t,
+            hash_agg,
         }
     }
 }
@@ -45,6 +57,10 @@ pub fn crs_gen<G: Curve>(max_nbits: usize, rng: &mut dyn RngCore) -> PublicParam
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(max_nbits, alpha),
+        hash: core::array::from_fn(|_| rng.gen()),
+        hash_s: core::array::from_fn(|_| rng.gen()),
+        hash_t: core::array::from_fn(|_| rng.gen()),
+        hash_agg: core::array::from_fn(|_| rng.gen()),
     }
 }
 
@@ -70,7 +86,13 @@ pub fn prove<G: Curve>(
 ) -> Proof<G> {
     let &PrivateCommit { x, r } = private_commit;
     let &PublicCommit { l, v_hat } = public.1;
-    let PublicParams { g_lists } = public.0;
+    let PublicParams {
+        g_lists,
+        hash,
+        hash_s,
+        hash_t,
+        hash_agg,
+    } = public.0;
     let n = g_lists.message_len;
 
     let g_list = &g_lists.g_list;
@@ -123,7 +145,7 @@ pub fn prove<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
+        &[hash, v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
     );
     let y = OneBased(y);
     let mut c_y = g.mul_scalar(gamma_y);
@@ -139,6 +161,7 @@ pub fn prove<G: Curve>(
     G::Zp::hash(
         &mut t,
         &[
+            hash_t,
             y_bytes,
             v_hat.to_bytes().as_ref(),
             c_hat.to_bytes().as_ref(),
@@ -197,6 +220,7 @@ pub fn prove<G: Curve>(
         G::Zp::hash(
             core::slice::from_mut(s),
             &[
+                hash_s,
                 &i.to_le_bytes(),
                 v_hat.to_bytes().as_ref(),
                 c_hat.to_bytes().as_ref(),
@@ -219,6 +243,7 @@ pub fn prove<G: Curve>(
     G::Zp::hash(
         &mut delta,
         &[
+            hash_agg,
             v_hat.to_bytes().as_ref(),
             c_hat.to_bytes().as_ref(),
             c_y.to_bytes().as_ref(),
@@ -245,7 +270,13 @@ pub fn verify<G: Curve>(
 ) -> Result<(), ()> {
     let e = G::Gt::pairing;
     let &PublicCommit { l, v_hat } = public.1;
-    let PublicParams { g_lists } = public.0;
+    let PublicParams {
+        g_lists,
+        hash,
+        hash_s,
+        hash_t,
+        hash_agg,
+    } = public.0;
     let n = g_lists.message_len;
 
     let g_list = &g_lists.g_list;
@@ -258,7 +289,7 @@ pub fn verify<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
+        &[hash, v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
     );
     let y = OneBased(y);
 
@@ -270,6 +301,7 @@ pub fn verify<G: Curve>(
     G::Zp::hash(
         &mut t,
         &[
+            hash_t,
             y_bytes,
             v_hat.to_bytes().as_ref(),
             c_hat.to_bytes().as_ref(),
@@ -282,6 +314,7 @@ pub fn verify<G: Curve>(
     G::Zp::hash(
         &mut delta,
         &[
+            hash_agg,
             v_hat.to_bytes().as_ref(),
             c_hat.to_bytes().as_ref(),
             c_y.to_bytes().as_ref(),
@@ -294,6 +327,7 @@ pub fn verify<G: Curve>(
         G::Zp::hash(
             core::slice::from_mut(s),
             &[
+                hash_s,
                 &i.to_le_bytes(),
                 v_hat.to_bytes().as_ref(),
                 c_hat.to_bytes().as_ref(),

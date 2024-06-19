@@ -15,9 +15,16 @@ pub struct PublicParams<G: Curve> {
     big_m: usize,
     b_i: u64,
     q: u64,
+    hash: [u8; HASH_METADATA_LEN_BYTES],
+    hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+    hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
+    hash_z: [u8; HASH_METADATA_LEN_BYTES],
+    hash_w: [u8; HASH_METADATA_LEN_BYTES],
 }
 
 impl<G: Curve> PublicParams<G> {
+    #[allow(clippy::too_many_arguments)]
     pub fn from_vec(
         g_list: Vec<Affine<G::Zp, G::G1>>,
         g_hat_list: Vec<Affine<G::Zp, G::G2>>,
@@ -26,6 +33,12 @@ impl<G: Curve> PublicParams<G> {
         big_m: usize,
         b_i: u64,
         q: u64,
+        hash: [u8; HASH_METADATA_LEN_BYTES],
+        hash_t: [u8; HASH_METADATA_LEN_BYTES],
+        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+        hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
+        hash_z: [u8; HASH_METADATA_LEN_BYTES],
+        hash_w: [u8; HASH_METADATA_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),
@@ -34,6 +47,12 @@ impl<G: Curve> PublicParams<G> {
             big_m,
             b_i,
             q,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
         }
     }
 }
@@ -86,6 +105,12 @@ pub fn crs_gen<G: Curve>(
         big_m,
         b_i,
         q,
+        hash: core::array::from_fn(|_| rng.gen()),
+        hash_t: core::array::from_fn(|_| rng.gen()),
+        hash_agg: core::array::from_fn(|_| rng.gen()),
+        hash_lmap: core::array::from_fn(|_| rng.gen()),
+        hash_z: core::array::from_fn(|_| rng.gen()),
+        hash_w: core::array::from_fn(|_| rng.gen()),
     }
 }
 
@@ -189,6 +214,12 @@ pub fn prove<G: Curve>(
         big_m,
         b_i,
         q,
+        ref hash,
+        ref hash_t,
+        ref hash_agg,
+        ref hash_lmap,
+        ref hash_z,
+        ref hash_w,
     } = public.0;
     let g_list = &g_lists.g_list;
     let g_hat_list = &g_lists.g_hat_list;
@@ -298,7 +329,7 @@ pub fn prove<G: Curve>(
     .collect::<Box<_>>();
 
     let mut y = vec![G::Zp::ZERO; n];
-    G::Zp::hash(&mut y, &[x_bytes, c_hat.to_bytes().as_ref()]);
+    G::Zp::hash(&mut y, &[hash, x_bytes, c_hat.to_bytes().as_ref()]);
     let y = OneBased(y);
 
     let scalars = (n + 1 - big_d..n + 1)
@@ -310,6 +341,7 @@ pub fn prove<G: Curve>(
     G::Zp::hash(
         &mut t,
         &[
+            hash_t,
             &(1..n + 1)
                 .flat_map(|i| y[i].to_bytes().as_ref().to_vec())
                 .collect::<Box<_>>(),
@@ -323,7 +355,12 @@ pub fn prove<G: Curve>(
     let mut theta_bar = vec![G::Zp::ZERO; big_n * d + 1];
     G::Zp::hash(
         &mut theta_bar,
-        &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            hash_lmap,
+            x_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let theta = (0..big_n * d + 1).map(|k| theta_bar[k]).collect::<Box<_>>();
     let theta0 = theta[..big_n * d].to_vec().into_boxed_slice();
@@ -402,7 +439,12 @@ pub fn prove<G: Curve>(
     let mut delta = [G::Zp::ZERO; 2];
     G::Zp::hash(
         &mut delta,
-        &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            hash_agg,
+            x_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let [delta_eq, delta_y] = delta;
     let mut poly_0 = vec![G::Zp::ZERO; n + 1];
@@ -466,6 +508,7 @@ pub fn prove<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut z),
             &[
+                hash_z,
                 x_bytes,
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
@@ -505,6 +548,7 @@ pub fn prove<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut w),
             &[
+                hash_w,
                 x_bytes,
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
@@ -588,6 +632,12 @@ pub fn verify<G: Curve>(
         big_m,
         b_i,
         q,
+        ref hash,
+        ref hash_t,
+        ref hash_agg,
+        ref hash_lmap,
+        ref hash_z,
+        ref hash_w,
     } = public.0;
     let g_list = &g_lists.g_list;
     let g_hat_list = &g_lists.g_hat_list;
@@ -623,18 +673,24 @@ pub fn verify<G: Curve>(
     let mut delta = [G::Zp::ZERO; 2];
     G::Zp::hash(
         &mut delta,
-        &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            hash_agg,
+            x_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let [delta_eq, delta_y] = delta;
 
     let mut y = vec![G::Zp::ZERO; n];
-    G::Zp::hash(&mut y, &[x_bytes, c_hat.to_bytes().as_ref()]);
+    G::Zp::hash(&mut y, &[hash, x_bytes, c_hat.to_bytes().as_ref()]);
     let y = OneBased(y);
 
     let mut t = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut t,
         &[
+            hash_t,
             &(1..n + 1)
                 .flat_map(|i| y[i].to_bytes().as_ref().to_vec())
                 .collect::<Box<_>>(),
@@ -648,7 +704,12 @@ pub fn verify<G: Curve>(
     let mut theta_bar = vec![G::Zp::ZERO; big_n * d + 1];
     G::Zp::hash(
         &mut theta_bar,
-        &[x_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            hash_lmap,
+            x_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let theta = (0..big_n * d + 1).map(|k| theta_bar[k]).collect::<Box<_>>();
     let theta0 = theta[..big_n * d].to_vec().into_boxed_slice();
@@ -729,6 +790,7 @@ pub fn verify<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut z),
             &[
+                hash_z,
                 x_bytes,
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
@@ -780,6 +842,7 @@ pub fn verify<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut w),
             &[
+                hash_w,
                 x_bytes,
                 c_hat.to_bytes().as_ref(),
                 c_y.to_bytes().as_ref(),
