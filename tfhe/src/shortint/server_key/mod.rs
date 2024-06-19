@@ -1178,6 +1178,9 @@ impl ServerKey {
     }
 
     fn trivial_pbs_many_lut(&self, ct: &Ciphertext, lut: &ManyLookupTableOwned) -> Vec<Ciphertext> {
+        #[cfg(feature = "pbs-stats")]
+        let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
+
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;

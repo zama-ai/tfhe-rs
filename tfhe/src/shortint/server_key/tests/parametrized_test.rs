@@ -321,19 +321,50 @@ where
         for _ in 0..per_fn_tests {
             let clear_0 = rng.gen::<u64>() % effective_msg_modulus;
 
-            let ctxt_0 = cks.encrypt(clear_0);
+            // Test on real ciphertext
+            {
+                #[cfg(feature = "pbs-stats")]
+                crate::reset_pbs_count();
 
-            let vec_res = sks.apply_many_lookup_table(&ctxt_0, &acc);
+                let ctxt_0 = cks.encrypt(clear_0);
+                let vec_res = sks.apply_many_lookup_table(&ctxt_0, &acc);
 
-            for (fn_idx, (res, function)) in vec_res.iter().zip(functions).enumerate() {
-                let dec = cks.decrypt(res);
-                let function_eval = function(clear_0);
+                for (fn_idx, (res, function)) in vec_res.iter().zip(functions).enumerate() {
+                    let dec = cks.decrypt(res);
+                    let function_eval = function(clear_0);
 
-                assert_eq!(
-                    dec, function_eval,
-                    "Evaluation of function #{fn_idx} on {clear_0} failed, \
-                    got {dec}, expected {function_eval}",
-                );
+                    assert_eq!(
+                        dec, function_eval,
+                        "Evaluation of function #{fn_idx} on {clear_0} failed, \
+                        got {dec}, expected {function_eval}",
+                    );
+                }
+
+                #[cfg(feature = "pbs-stats")]
+                assert_eq!(crate::get_pbs_count(), 1, "Invalid PBS Count");
+            }
+
+            // Test on a trivial
+            {
+                #[cfg(feature = "pbs-stats")]
+                crate::reset_pbs_count();
+
+                let ctxt_0 = sks.create_trivial(clear_0);
+                let vec_res = sks.apply_many_lookup_table(&ctxt_0, &acc);
+
+                for (fn_idx, (res, function)) in vec_res.iter().zip(functions).enumerate() {
+                    let dec = cks.decrypt(res);
+                    let function_eval = function(clear_0);
+
+                    assert_eq!(
+                        dec, function_eval,
+                        "Evaluation of function #{fn_idx} on {clear_0} failed, \
+                        got {dec}, expected {function_eval}",
+                    );
+                }
+
+                #[cfg(feature = "pbs-stats")]
+                assert_eq!(crate::get_pbs_count(), 1, "Invalid PBS Count");
             }
         }
     }
