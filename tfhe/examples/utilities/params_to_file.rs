@@ -2,26 +2,26 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
-use tfhe::core_crypto::commons::dispersion::StandardDev;
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
+use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
+use tfhe::shortint::parameters::classic::gaussian::ALL_PARAMETER_VEC_GAUSSIAN;
 use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
 use tfhe::shortint::parameters::{
-    ShortintParameterSet, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-    PARAM_MESSAGE_2_CARRY_2_PBS_KS, PARAM_MESSAGE_3_CARRY_3_PBS_KS, PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+    ShortintParameterSet, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 
-pub trait ParamDetails {
+pub trait ParamDetails<T: UnsignedInteger> {
     fn lwe_dimension(&self) -> LweDimension;
     fn glwe_dimension(&self) -> GlweDimension;
-    fn lwe_std_dev(&self) -> StandardDev;
-    fn glwe_std_dev(&self) -> StandardDev;
+    fn lwe_noise_distribution(&self) -> DynamicDistribution<T>;
+    fn glwe_noise_distribution(&self) -> DynamicDistribution<T>;
     fn polynomial_size(&self) -> PolynomialSize;
     fn log_ciphertext_modulus(&self) -> usize;
 }
 
-impl ParamDetails for BooleanParameters {
+impl ParamDetails<u32> for BooleanParameters {
     fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension
     }
@@ -30,11 +30,11 @@ impl ParamDetails for BooleanParameters {
         self.glwe_dimension
     }
 
-    fn lwe_std_dev(&self) -> StandardDev {
-        self.lwe_noise_distribution.gaussian_std_dev()
+    fn lwe_noise_distribution(&self) -> DynamicDistribution<u32> {
+        self.lwe_noise_distribution
     }
-    fn glwe_std_dev(&self) -> StandardDev {
-        self.glwe_noise_distribution.gaussian_std_dev()
+    fn glwe_noise_distribution(&self) -> DynamicDistribution<u32> {
+        self.glwe_noise_distribution
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
@@ -46,7 +46,7 @@ impl ParamDetails for BooleanParameters {
     }
 }
 
-impl ParamDetails for ShortintParameterSet {
+impl ParamDetails<u64> for ShortintParameterSet {
     fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension()
     }
@@ -55,11 +55,11 @@ impl ParamDetails for ShortintParameterSet {
         self.glwe_dimension()
     }
 
-    fn lwe_std_dev(&self) -> StandardDev {
-        self.lwe_noise_distribution().gaussian_std_dev()
+    fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        self.lwe_noise_distribution()
     }
-    fn glwe_std_dev(&self) -> StandardDev {
-        self.glwe_noise_distribution().gaussian_std_dev()
+    fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        self.glwe_noise_distribution()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
@@ -75,27 +75,61 @@ impl ParamDetails for ShortintParameterSet {
 ///Function to print in the lattice_estimator format the parameters
 /// Format:   LWE.Parameters(n=722, q=2^32, Xs=ND.UniformMod(2),
 /// Xe=ND.DiscreteGaussian(56139.60810663548), tag='test_lattice_estimator')
-pub fn format_lwe_parameters_to_lattice_estimator<T: ParamDetails + NamedParam>(
+pub fn format_lwe_parameters_to_lattice_estimator<
+    U: UnsignedInteger,
+    T: ParamDetails<U> + NamedParam,
+>(
     param: &T,
 ) -> String {
-    let modular_std_dev = param.log_ciphertext_modulus() as f64 + param.lwe_std_dev().0.log2();
+    let name = param.name();
 
-    format!(
-        "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
-        param.name(), param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), param.name())
+    match param.lwe_noise_distribution() {
+        DynamicDistribution::Gaussian(distrib) => {
+            let modular_std_dev =
+                param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
+
+            format!(
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
+                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), name)
+        }
+        DynamicDistribution::TUniform(distrib) => {
+            format!(
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
+                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), name)
+        }
+    }
 }
 
 ///Function to print in the lattice_estimator format the parameters
 /// Format: LWE.Parameters(n=722, q=2^32, Xs=ND.UniformMod(2),
 /// Xe=ND.DiscreteGaussian(56139.60810663548), tag='test_lattice_estimator')
-pub fn format_glwe_parameters_to_lattice_estimator<T: ParamDetails + NamedParam>(
+pub fn format_glwe_parameters_to_lattice_estimator<
+    U: UnsignedInteger,
+    T: ParamDetails<U> + NamedParam,
+>(
     param: &T,
 ) -> String {
-    let modular_std_dev = param.log_ciphertext_modulus() as f64 + param.glwe_std_dev().0.log2();
+    let name = param.name();
 
-    format!(
-        "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
-        param.name(), param.glwe_dimension().0*param.polynomial_size().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), param.name())
+    match param.glwe_noise_distribution() {
+        DynamicDistribution::Gaussian(distrib) => {
+            let modular_std_dev =
+                param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
+
+            format!(
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
+                name, param.glwe_dimension().0 * param.polynomial_size().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), name)
+        }
+        DynamicDistribution::TUniform(distrib) => {
+            format!(
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
+                name, param.glwe_dimension().0 * param.polynomial_size().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), name)
+        }
+    }
+}
+
+fn tuniform_equivalent_gaussian_std_dev<U: UnsignedInteger>(distribution: &TUniform<U>) -> f64 {
+    f64::sqrt((2_f64.powf(2.0 * distribution.bound_log2() as f64 + 1_f64) + 1_f64) / 6_f64)
 }
 
 fn write_file(file: &mut File, filename: &Path, line: impl Into<String>) {
@@ -104,7 +138,10 @@ fn write_file(file: &mut File, filename: &Path, line: impl Into<String>) {
         .expect(&error_message);
 }
 
-fn write_all_params_in_file<T: ParamDetails + Copy + NamedParam>(filename: &str, params: &[T]) {
+fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + NamedParam>(
+    filename: &str,
+    params: &[T],
+) {
     let path = Path::new(filename);
     File::create(path).expect("create results file failed");
     let mut file = OpenOptions::new()
@@ -146,16 +183,10 @@ fn main() {
         &VEC_BOOLEAN_PARAM,
     );
 
-    let classic_params_small = vec![
-        PARAM_MESSAGE_1_CARRY_1_PBS_KS,
-        PARAM_MESSAGE_2_CARRY_2_PBS_KS,
-        PARAM_MESSAGE_3_CARRY_3_PBS_KS,
-        PARAM_MESSAGE_4_CARRY_4_PBS_KS,
-    ];
     let all_classic_pbs = [
-        ALL_PARAMETER_VEC.to_vec(),
+        ALL_PARAMETER_VEC_GAUSSIAN.to_vec(),
         ALL_PARAMETER_VEC_COMPACT_PK.to_vec(),
-        classic_params_small,
+        vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64],
     ]
     .concat();
     let classic_pbs = all_classic_pbs
