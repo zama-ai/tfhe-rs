@@ -1,3 +1,6 @@
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
@@ -15,7 +18,8 @@ use crate::shortint::MessageModulus;
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::CompactPublicKey;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList(crate::integer::ciphertext::CompactCiphertextList);
 
 impl Named for CompactCiphertextList {
