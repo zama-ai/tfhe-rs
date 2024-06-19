@@ -22,14 +22,14 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 4;
     /// let scalar = 40;
@@ -132,14 +132,14 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
     /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 4;
     /// let scalar = 40;

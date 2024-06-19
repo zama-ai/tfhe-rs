@@ -45,12 +45,12 @@ macro_rules! define_gpu_scalar_comparison_test_functions {
             }
 
             create_gpu_parametrized_test!([<integer_unchecked_scalar_ $comparison_name _ $clear_type:lower>]{
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
                 PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
                 PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             });
             create_gpu_parametrized_test!([<integer_default_scalar_ $comparison_name$clear_type:lower>]{
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
                 PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
                 PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             });
@@ -224,22 +224,22 @@ where
 }
 
 create_gpu_parametrized_test!(integer_unchecked_scalar_min_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_unchecked_scalar_max_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_scalar_min_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });
 create_gpu_parametrized_test!(integer_scalar_max_u256 {
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
     PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 });

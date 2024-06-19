@@ -51,11 +51,10 @@ impl Default for ParamsAndNumBlocksIter {
         } else {
             // FIXME One set of parameter is tested since we want to benchmark only quickest
             // operations.
-            let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-                // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
-                // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
-            ];
+            #[cfg(feature = "gpu")]
+            let params = vec![PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS.into()];
+            #[cfg(not(feature = "gpu"))]
+            let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
 
             let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {

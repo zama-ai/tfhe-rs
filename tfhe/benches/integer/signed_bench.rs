@@ -11,11 +11,14 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
-#[cfg(feature = "gpu")]
-use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-#[cfg(not(feature = "gpu"))]
-use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+use tfhe::shortint::parameters::*;
+// #[cfg(feature = "gpu")]
+// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+// #[cfg(feature = "gpu")]
+// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
+// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+// #[cfg(not(feature = "gpu"))]
+// use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
     let clearlow = rng.gen::<u128>();
@@ -49,12 +52,10 @@ impl Default for ParamsAndNumBlocksIter {
         } else {
             // FIXME One set of parameter is tested since we want to benchmark only quickest
             // operations.
-            let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-                // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
-                // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
-            ];
-
+            #[cfg(feature = "gpu")]
+            let params = vec![PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS.into()];
+            #[cfg(not(feature = "gpu"))]
+            let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
             let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
             Self {
                 params_and_bit_sizes,

@@ -27,13 +27,13 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
     ///
     /// let msg_1 = 12;
     /// let msg_2 = 10;
@@ -109,14 +109,14 @@ impl CudaServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
     ///
     /// let msg_1 = 128;
     /// let msg_2 = 99;
@@ -167,14 +167,14 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS, size, &streams);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
