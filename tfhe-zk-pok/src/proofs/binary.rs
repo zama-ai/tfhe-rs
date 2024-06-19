@@ -3,15 +3,24 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct PublicParams<G: Curve> {
     g_lists: GroupElements<G>,
+    hash: [u8; HASH_METADATA_LEN_BYTES],
+    hash_t: [u8; HASH_METADATA_LEN_BYTES],
+    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
 }
 
 impl<G: Curve> PublicParams<G> {
     pub fn from_vec(
         g_list: Vec<Affine<G::Zp, G::G1>>,
         g_hat_list: Vec<Affine<G::Zp, G::G2>>,
+        hash: [u8; HASH_METADATA_LEN_BYTES],
+        hash_t: [u8; HASH_METADATA_LEN_BYTES],
+        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),
+            hash,
+            hash_t,
+            hash_agg,
         }
     }
 }
@@ -43,6 +52,9 @@ pub fn crs_gen<G: Curve>(message_len: usize, rng: &mut dyn RngCore) -> PublicPar
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(message_len, alpha),
+        hash: core::array::from_fn(|_| rng.gen()),
+        hash_t: core::array::from_fn(|_| rng.gen()),
+        hash_agg: core::array::from_fn(|_| rng.gen()),
     }
 }
 
@@ -90,7 +102,7 @@ pub fn prove<G: Curve>(
     let g_list = &public.0.g_lists.g_list;
 
     let mut y = OneBased(vec![G::Zp::ZERO; n]);
-    G::Zp::hash(&mut y.0, &[c_hat.to_bytes().as_ref()]);
+    G::Zp::hash(&mut y.0, &[&public.0.hash, c_hat.to_bytes().as_ref()]);
 
     let mut c_y = g.mul_scalar(gamma_y);
     for j in 1..n + 1 {
@@ -103,13 +115,22 @@ pub fn prove<G: Curve>(
     let mut t = OneBased(vec![G::Zp::ZERO; n]);
     G::Zp::hash(
         &mut t.0,
-        &[y_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            &public.0.hash_t,
+            y_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
 
     let mut delta = [G::Zp::ZERO; 2];
     G::Zp::hash(
         &mut delta,
-        &[c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            &public.0.hash_agg,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let [delta_eq, delta_y] = delta;
 
@@ -170,7 +191,7 @@ pub fn verify<G: Curve>(
     let c_y = proof.c_y;
 
     let mut y = OneBased(vec![G::Zp::ZERO; n]);
-    G::Zp::hash(&mut y.0, &[c_hat.to_bytes().as_ref()]);
+    G::Zp::hash(&mut y.0, &[&public.0.hash, c_hat.to_bytes().as_ref()]);
 
     let y_bytes = &*(1..n + 1)
         .flat_map(|i| y[i].to_bytes().as_ref().to_vec())
@@ -178,13 +199,22 @@ pub fn verify<G: Curve>(
     let mut t = OneBased(vec![G::Zp::ZERO; n]);
     G::Zp::hash(
         &mut t.0,
-        &[y_bytes, c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            &public.0.hash_t,
+            y_bytes,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
 
     let mut delta = [G::Zp::ZERO; 2];
     G::Zp::hash(
         &mut delta,
-        &[c_hat.to_bytes().as_ref(), c_y.to_bytes().as_ref()],
+        &[
+            &public.0.hash_agg,
+            c_hat.to_bytes().as_ref(),
+            c_y.to_bytes().as_ref(),
+        ],
     );
     let [delta_eq, delta_y] = delta;
 

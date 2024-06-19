@@ -1,10 +1,9 @@
 use crate::curve_api::{Curve, CurveGroupOps, FieldOps, PairingGroupOps};
-
 use ark_serialize::{
     CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
 };
 use core::ops::{Index, IndexMut};
-use rand::RngCore;
+use rand::{Rng, RngCore};
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 #[repr(transparent)]
@@ -136,6 +135,8 @@ impl<G: Curve> GroupElements<G> {
         }
     }
 }
+
+pub const HASH_METADATA_LEN_BYTES: usize = 256;
 
 pub mod binary;
 pub mod index;
