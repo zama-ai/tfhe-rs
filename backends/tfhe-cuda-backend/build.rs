@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -54,6 +55,12 @@ fn main() {
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
 
+        let use_nvtools = env::var("USE_NVTOOLS").unwrap_or_else(|_| "false".to_string());
+
+        // Conditionally include the nvToolsExt library based on the environment variable
+        if use_nvtools == "true" {
+            println!("cargo:rustc-link-lib=nvToolsExt");
+        }
         let header_path = "wrapper.h";
         let headers = vec![
             "wrapper.h",
