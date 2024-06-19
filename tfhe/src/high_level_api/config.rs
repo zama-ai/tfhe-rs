@@ -1,4 +1,5 @@
 use crate::high_level_api::keys::IntegerConfig;
+use crate::shortint::parameters::list_compression::CompressionParameters;
 
 /// The config type
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -34,6 +35,12 @@ impl ConfigBuilder {
     #[doc(hidden)]
     pub fn enable_function_evaluation(mut self) -> Self {
         self.config.inner.enable_wopbs();
+        self
+    }
+
+    pub fn enable_compression(mut self, compression_parameters: CompressionParameters) -> Self {
+        self.config.inner.enable_compression(compression_parameters);
+
         self
     }
 
