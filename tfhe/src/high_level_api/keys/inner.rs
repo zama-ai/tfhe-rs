@@ -2,6 +2,11 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
+use crate::shortint::list_compression::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
+    DecompressionKey,
+};
+use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 use crate::Error;
 use concrete_csprng::seeders::Seed;
@@ -17,6 +22,7 @@ pub(crate) struct IntegerConfig {
         crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
         crate::shortint::parameters::ShortintKeySwitchingParameters,
     )>,
+    pub(crate) compression_parameters: Option<CompressionParameters>,
 }
 
 impl IntegerConfig {
@@ -32,6 +38,7 @@ impl IntegerConfig {
             block_parameters,
             wopbs_block_parameters,
             dedicated_compact_public_key_parameters,
+            compression_parameters: None,
         }
     }
 
@@ -40,6 +47,7 @@ impl IntegerConfig {
             block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
             wopbs_block_parameters: None,
             dedicated_compact_public_key_parameters: None,
+            compression_parameters: None,
         }
     }
 
@@ -48,6 +56,7 @@ impl IntegerConfig {
             block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS.into(),
             wopbs_block_parameters: None,
             dedicated_compact_public_key_parameters: None,
+            compression_parameters: None,
         }
     }
 
@@ -58,6 +67,10 @@ impl IntegerConfig {
         };
 
         self.wopbs_block_parameters = Some(wopbs_block_parameters);
+    }
+
+    pub fn enable_compression(&mut self, compression_parameters: CompressionParameters) {
+        self.compression_parameters = Some(compression_parameters);
     }
 
     pub fn public_key_encryption_parameters(
@@ -82,6 +95,7 @@ pub(crate) struct IntegerClientKey {
     pub(crate) key: crate::integer::ClientKey,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
     pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<CompressionPrivateKeys>,
 }
 
 impl IntegerClientKey {
@@ -93,7 +107,13 @@ impl IntegerClientKey {
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters.into());
+
+        let compression_key = config
+            .compression_parameters
+            .map(|params| cks.new_compression_private_key(params));
+
         let key = crate::integer::ClientKey::from(cks);
+
         let dedicated_compact_private_key = config
             .dedicated_compact_public_key_parameters
             .map(|p| (crate::integer::CompactPrivateKey::new(p.0), p.1));
@@ -101,6 +121,7 @@ impl IntegerClientKey {
             key,
             wopbs_block_parameters: config.wopbs_block_parameters,
             dedicated_compact_private_key,
+            compression_key,
         }
     }
 
@@ -111,13 +132,20 @@ impl IntegerClientKey {
         crate::integer::ClientKey,
         Option<crate::shortint::WopbsParameters>,
         Option<CompactPrivateKey>,
+        Option<CompressionPrivateKeys>,
     ) {
         let Self {
             key,
             wopbs_block_parameters,
             dedicated_compact_private_key,
+            compression_key,
         } = self;
-        (key, wopbs_block_parameters, dedicated_compact_private_key)
+        (
+            key,
+            wopbs_block_parameters,
+            dedicated_compact_private_key,
+            compression_key,
+        )
     }
 
     /// Construct a, [`IntegerClientKey`] from its constituents.
@@ -129,6 +157,7 @@ impl IntegerClientKey {
         key: crate::integer::ClientKey,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
         dedicated_compact_private_key: Option<CompactPrivateKey>,
+        compression_key: Option<CompressionPrivateKeys>,
     ) -> Self {
         let shortint_cks: &crate::shortint::ClientKey = key.as_ref();
         if let Some(wop_params) = wopbs_block_parameters.as_ref() {
@@ -165,6 +194,7 @@ impl IntegerClientKey {
             key,
             wopbs_block_parameters,
             dedicated_compact_private_key,
+            compression_key,
         }
     }
 
@@ -179,14 +209,22 @@ impl From<IntegerConfig> for IntegerClientKey {
             (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
+
         let key = crate::integer::ClientKey::new(config.block_parameters);
+
         let dedicated_compact_private_key = config
             .dedicated_compact_public_key_parameters
             .map(|p| (crate::integer::CompactPrivateKey::new(p.0), p.1));
+
+        let compression_key = config
+            .compression_parameters
+            .map(|params| key.key.new_compression_private_key(params));
+
         Self {
             key,
             wopbs_block_parameters: config.wopbs_block_parameters,
             dedicated_compact_private_key,
+            compression_key,
         }
     }
 }
@@ -201,11 +239,23 @@ pub struct IntegerServerKey {
     // will create views when required
     pub(crate) cpk_key_switching_key_material:
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressionKey>,
+    pub(crate) decompression_key: Option<DecompressionKey>,
 }
 
 impl IntegerServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
         let cks = &client_key.key;
+
+        let (compression_key, decompression_key) = client_key.compression_key.as_ref().map_or_else(
+            || (None, None),
+            |a| {
+                let (compression_key, decompression_key) =
+                    cks.key.new_compression_decompression_keys(a);
+                (Some(compression_key), Some(decompression_key))
+            },
+        );
+
         let base_integer_key = crate::integer::ServerKey::new_radix_server_key(cks);
         let wopbs_key = client_key
             .wopbs_block_parameters
@@ -213,6 +263,7 @@ impl IntegerServerKey {
             .map(|wopbs_params| {
                 crate::integer::wopbs::WopbsKey::new_wopbs_key(cks, &base_integer_key, wopbs_params)
             });
+
         let cpk_key_switching_key_material =
             client_key
                 .dedicated_compact_private_key
@@ -231,6 +282,8 @@ impl IntegerServerKey {
             key: base_integer_key,
             wopbs_key,
             cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
         }
     }
 
@@ -260,6 +313,8 @@ pub struct IntegerCompressedServerKey {
     pub(crate) key: crate::integer::CompressedServerKey,
     pub(crate) cpk_key_switching_key_material:
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressedCompressionKey>,
+    pub(crate) decompression_key: Option<CompressedDecompressionKey>,
 }
 
 impl IntegerCompressedServerKey {
@@ -274,6 +329,7 @@ impl IntegerCompressedServerKey {
                    to create a CompressedServerKey.
                    "
         );
+
         let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(cks);
 
         let cpk_key_switching_key_material =
@@ -291,9 +347,26 @@ impl IntegerCompressedServerKey {
                     build_helper.into()
                 });
 
+        let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(cks);
+
+        let (compression_key, decompression_key) =
+            client_key
+                .compression_key
+                .as_ref()
+                .map_or((None, None), |compression_private_key| {
+                    let (compression_keys, decompression_keys) = client_key
+                        .key
+                        .key
+                        .new_compressed_compression_decompression_keys(compression_private_key);
+
+                    (Some(compression_keys), Some(decompression_keys))
+                });
+
         Self {
             key,
             cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
         }
     }
 
@@ -302,8 +375,15 @@ impl IntegerCompressedServerKey {
     ) -> (
         crate::integer::CompressedServerKey,
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+        Option<CompressedCompressionKey>,
+        Option<CompressedDecompressionKey>,
     ) {
-        (self.key, self.cpk_key_switching_key_material)
+        (
+            self.key,
+            self.cpk_key_switching_key_material,
+            self.compression_key,
+            self.decompression_key,
+        )
     }
 
     pub fn from_raw_parts(
@@ -311,20 +391,36 @@ impl IntegerCompressedServerKey {
         cpk_key_switching_key_material: Option<
             crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial,
         >,
+        compression_key: Option<CompressedCompressionKey>,
+        decompression_key: Option<CompressedDecompressionKey>,
     ) -> Self {
         Self {
             key,
             cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
         }
     }
 
     pub(in crate::high_level_api) fn decompress(&self) -> IntegerServerKey {
+        let compression_key = self
+            .compression_key
+            .as_ref()
+            .map(CompressedCompressionKey::decompress);
+
+        let decompression_key = self
+            .decompression_key
+            .as_ref()
+            .map(CompressedDecompressionKey::decompress);
+
         IntegerServerKey {
             key: self.key.decompress(),
             wopbs_key: None,
             cpk_key_switching_key_material: self.cpk_key_switching_key_material.as_ref().map(
                 crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial::decompress,
             ),
+            compression_key,
+            decompression_key,
         }
     }
 }

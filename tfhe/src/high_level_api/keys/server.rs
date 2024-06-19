@@ -1,6 +1,9 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::shortint::list_compression::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
+};
 use std::sync::Arc;
 
 use super::ClientKey;
@@ -33,14 +36,24 @@ impl ServerKey {
         crate::integer::ServerKey,
         Option<crate::integer::wopbs::WopbsKey>,
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+        Option<CompressionKey>,
+        Option<DecompressionKey>,
     ) {
         let IntegerServerKey {
             key,
             wopbs_key,
             cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
         } = (*self.key).clone();
 
-        (key, wopbs_key, cpk_key_switching_key_material)
+        (
+            key,
+            wopbs_key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        )
     }
 
     pub fn from_raw_parts(
@@ -49,12 +62,16 @@ impl ServerKey {
         cpk_key_switching_key_material: Option<
             crate::integer::key_switching_key::KeySwitchingKeyMaterial,
         >,
+        compression_key: Option<CompressionKey>,
+        decompression_key: Option<DecompressionKey>,
     ) -> Self {
         Self {
             key: Arc::new(IntegerServerKey {
                 key,
                 wopbs_key,
                 cpk_key_switching_key_material,
+                compression_key,
+                decompression_key,
             }),
         }
     }
@@ -137,6 +154,8 @@ impl CompressedServerKey {
     ) -> (
         crate::integer::CompressedServerKey,
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+        Option<CompressedCompressionKey>,
+        Option<CompressedDecompressionKey>,
     ) {
         self.integer_key.into_raw_parts()
     }
@@ -146,11 +165,15 @@ impl CompressedServerKey {
         cpk_key_switching_key_material: Option<
             crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial,
         >,
+        compression_key: Option<CompressedCompressionKey>,
+        decompression_key: Option<CompressedDecompressionKey>,
     ) -> Self {
         Self {
             integer_key: IntegerCompressedServerKey::from_raw_parts(
                 integer_key,
                 cpk_key_switching_key_material,
+                compression_key,
+                decompression_key,
             ),
         }
     }
