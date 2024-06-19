@@ -8,7 +8,7 @@ void scratch_cuda_integer_radix_cmux_kb_64(
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch cmux")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -21,6 +21,7 @@ void scratch_cuda_integer_radix_cmux_kb_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_cmux_buffer<uint64_t> **)mem_ptr, predicate_lut_f,
       lwe_ciphertext_count, params, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(
@@ -31,20 +32,22 @@ void cuda_cmux_integer_radix_ciphertext_kb_64(
     CudaRadixCiphertextFFI const *lwe_array_false, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
-
+  PUSH_RANGE("cmux")
   host_integer_radix_cmux_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array_out,
       lwe_condition, lwe_array_true, lwe_array_false,
       (int_cmux_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       ms_noise_reduction_key);
+  POP_RANGE()
 }
 
 void cleanup_cuda_integer_radix_cmux(void *const *streams,
                                      uint32_t const *gpu_indexes,
                                      uint32_t gpu_count,
                                      int8_t **mem_ptr_void) {
-
+  PUSH_RANGE("cleanup cmux")
   int_cmux_buffer<uint64_t> *mem_ptr =
       (int_cmux_buffer<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }

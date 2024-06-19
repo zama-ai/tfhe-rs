@@ -13,6 +13,7 @@
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
+#include "utils/helper_profile.cuh"
 #include "utils/kernel_dimensions.cuh"
 #include <algorithm>
 #include <functional>
@@ -499,6 +500,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int_radix_lut<Torus> *lut, uint32_t num_radix_blocks) {
+  PUSH_RANGE("apply lut")
   // apply_lookup_table
   auto params = lut->params;
   auto pbs_type = params.pbs_type;
@@ -596,6 +598,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -606,6 +609,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int_radix_lut<Torus> *lut, uint32_t num_many_lut, uint32_t lut_stride) {
+  PUSH_RANGE("apply many lut")
   // apply_lookup_table
   auto params = lut->params;
   auto pbs_type = params.pbs_type;
@@ -699,6 +703,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -710,7 +715,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int_radix_lut<Torus> *lut, uint32_t num_radix_blocks, uint32_t shift) {
-
+  PUSH_RANGE("apply bivar lut")
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
@@ -814,6 +819,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
+  POP_RANGE()
 }
 
 // Rotates the slice in-place such that the first mid elements of the slice move
@@ -995,7 +1001,7 @@ void generate_device_accumulator_bivariate(
     uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
     std::function<Torus(Torus, Torus)> f) {
-
+  PUSH_RANGE("gen bivar lut acc")
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
@@ -1013,6 +1019,7 @@ void generate_device_accumulator_bivariate(
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
+  POP_RANGE()
 }
 
 /*
@@ -1092,11 +1099,12 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
                                  uint32_t message_modulus,
                                  uint32_t carry_modulus,
                                  std::function<Torus(Torus)> f) {
-
+  PUSH_RANGE("gen lut acc")
   generate_device_accumulator_with_encoding(
       stream, gpu_index, acc, degree, max_degree, glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, message_modulus,
       carry_modulus, f);
+  POP_RANGE()
 }
 
 /*
@@ -1112,7 +1120,7 @@ void generate_many_lut_device_accumulator(
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
     std::vector<std::function<Torus(Torus)>> &functions) {
-
+  PUSH_RANGE("gen many lut acc")
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
@@ -1129,6 +1137,7 @@ void generate_many_lut_device_accumulator(
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
+  POP_RANGE()
 }
 
 // This function is used to perform step 1 of Thomas' new carry propagation
@@ -1803,6 +1812,7 @@ void host_propagate_single_carry(
     void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t requested_flag, uint32_t uses_carry) {
+  PUSH_RANGE("propagate sc")
   auto num_radix_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
@@ -1891,6 +1901,7 @@ void host_propagate_single_carry(
         streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks, bsks, ksks,
         ms_noise_reduction_key, message_extract, num_radix_blocks);
   }
+  POP_RANGE()
 }
 
 // This function perform the three steps of Thomas' new carry propagation
@@ -1904,6 +1915,7 @@ void host_add_and_propagate_single_carry(
     void *const *bsks, Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t requested_flag, uint32_t uses_carry) {
+  PUSH_RANGE("add & propagate sc")
   if (lhs_array->num_radix_blocks != rhs_array->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
   if (lhs_array->lwe_dimension != rhs_array->lwe_dimension ||
@@ -2026,6 +2038,7 @@ void host_add_and_propagate_single_carry(
         streams, gpu_indexes, gpu_count, lhs_array, prepared_blocks, bsks, ksks,
         ms_noise_reduction_key, mem->lut_message_extract, num_radix_blocks);
   }
+  POP_RANGE()
 }
 
 template <typename Torus>

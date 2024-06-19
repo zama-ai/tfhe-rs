@@ -52,7 +52,7 @@ void scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch propagate sc")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -62,6 +62,7 @@ void scratch_cuda_propagate_single_carry_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       requested_flag, uses_carry, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
@@ -72,7 +73,7 @@ void scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch add & propagate sc")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -82,6 +83,7 @@ void scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       requested_flag, uses_carry, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void scratch_cuda_integer_overflowing_sub_kb_64_inplace(
@@ -92,7 +94,7 @@ void scratch_cuda_integer_overflowing_sub_kb_64_inplace(
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t compute_overflow,
     bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch overflow sub")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
@@ -102,6 +104,7 @@ void scratch_cuda_integer_overflowing_sub_kb_64_inplace(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_borrow_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       compute_overflow, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void cuda_propagate_single_carry_kb_64_inplace(
@@ -140,38 +143,45 @@ void cuda_integer_overflowing_sub_kb_64_inplace(
     void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t compute_overflow, uint32_t uses_input_borrow) {
-
+  PUSH_RANGE("overflow sub")
   host_integer_overflowing_sub<uint64_t>(
       (cudaStream_t const *)streams, gpu_indexes, gpu_count, lhs_array,
       lhs_array, rhs_array, overflow_block, input_borrow,
       (int_borrow_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks,
       ms_noise_reduction_key, compute_overflow, uses_input_borrow);
+  POP_RANGE()
 }
 
 void cleanup_cuda_propagate_single_carry(void *const *streams,
                                          uint32_t const *gpu_indexes,
                                          uint32_t gpu_count,
                                          int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup propagate sc")
   int_sc_prop_memory<uint64_t> *mem_ptr =
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 
 void cleanup_cuda_add_and_propagate_single_carry(void *const *streams,
                                                  uint32_t const *gpu_indexes,
                                                  uint32_t gpu_count,
                                                  int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup add & propagate sc")
   int_sc_prop_memory<uint64_t> *mem_ptr =
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 void cleanup_cuda_integer_overflowing_sub(void *const *streams,
                                           uint32_t const *gpu_indexes,
                                           uint32_t gpu_count,
                                           int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup overflow sub")
   int_borrow_prop_memory<uint64_t> *mem_ptr =
       (int_borrow_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 
 void scratch_cuda_apply_univariate_lut_kb_64(
@@ -182,7 +192,7 @@ void scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch univar lut")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -194,6 +204,7 @@ void scratch_cuda_apply_univariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void scratch_cuda_apply_many_univariate_lut_kb_64(
@@ -205,7 +216,7 @@ void scratch_cuda_apply_many_univariate_lut_kb_64(
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint32_t num_many_lut, uint64_t lut_degree, bool allocate_gpu_memory,
     bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch many lut")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -217,6 +228,7 @@ void scratch_cuda_apply_many_univariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       num_many_lut, lut_degree, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void cuda_apply_univariate_lut_kb_64(
@@ -237,8 +249,10 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void *const *streams,
                                              uint32_t const *gpu_indexes,
                                              uint32_t gpu_count,
                                              int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup univar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 
 void cuda_apply_many_univariate_lut_kb_64(
@@ -263,7 +277,7 @@ void scratch_cuda_apply_bivariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch bivar lut")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -275,6 +289,7 @@ void scratch_cuda_apply_bivariate_lut_kb_64(
       (int_radix_lut<uint64_t> **)mem_ptr,
       static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
       lut_degree, allocate_gpu_memory);
+  POP_RANGE()
 }
 
 void cuda_apply_bivariate_lut_kb_64(
@@ -297,8 +312,10 @@ void cleanup_cuda_apply_bivariate_lut_kb_64(void *const *streams,
                                             uint32_t const *gpu_indexes,
                                             uint32_t gpu_count,
                                             int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup bivar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 
 void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(

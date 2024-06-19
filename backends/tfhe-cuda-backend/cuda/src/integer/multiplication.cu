@@ -73,7 +73,7 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     uint32_t pbs_level, uint32_t ks_base_log, uint32_t ks_level,
     uint32_t grouping_factor, uint32_t num_radix_blocks, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch mul")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           polynomial_size * glwe_dimension, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
@@ -97,6 +97,7 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
           "Supported N's are powers of two in the interval [256..16384].")
   }
+  POP_RANGE()
 }
 
 /*
@@ -134,7 +135,7 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
-
+  PUSH_RANGE("mul")
   switch (polynomial_size) {
   case 256:
     host_integer_mult_radix_kb<uint64_t, AmortizedDegree<256>>(
@@ -189,16 +190,18 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
           "Supported N's are powers of two in the interval [256..16384].")
   }
+  POP_RANGE()
 }
 
 void cleanup_cuda_integer_mult(void *const *streams,
                                uint32_t const *gpu_indexes, uint32_t gpu_count,
                                int8_t **mem_ptr_void) {
-
+  PUSH_RANGE("cleanup mul")
   int_mul_memory<uint64_t> *mem_ptr =
       (int_mul_memory<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
 }
 
 void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(

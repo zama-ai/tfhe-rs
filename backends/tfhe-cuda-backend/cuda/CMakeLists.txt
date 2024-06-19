@@ -88,7 +88,14 @@ else()
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 
-# in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
+# Check if the USE_NVTOOLS environment variable is set
+if(${USE_NVTOOLS})
+  message(STATUS "USE_NVTOOLS is enabled")
+  add_definitions(-DUSE_NVTOOLS)
+endif()
+
+# in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
+# nvtx when profiling -lnvToolsExt
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
