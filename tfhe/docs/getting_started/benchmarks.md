@@ -14,21 +14,6 @@ The following tables benchmark the execution time of some operation sets using `
 
 The next table shows the operation timings on CPU when all inputs are encrypted:
 
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
-| Negation (`-`)                                         | 55.2 ms    | 80.4 ms     | 104 ms      | 130 ms      | 161 ms       | 202 ms       |
-| Add / Sub (`+`,`-`)                                    | 57.7 ms    | 82.1 ms     | 105 ms      | 128 ms      | 155 ms       | 195 ms       |
-| Mul (`x`)                                              | 80.8 ms    | 149 ms      | 211 ms      | 366 ms      | 961 ms       | 3.2 s        |
-| Equal / Not Equal (`eq`, `ne`)                         | 31.9 ms    | 31.3 ms     | 48.7 ms     | 50.9 ms     | 51.4 ms      | 52.8 ms      |
-| Comparisons (`ge`, `gt`, `le`, `lt`)                   | 48.1 ms    | 68.4 ms     | 83.2 ms     | 102 ms      | 121 ms       | 145 ms       |
-| Max / Min (`max`,`min`)                                | 81.1 ms    | 96.4 ms     | 114 ms      | 133 ms      | 154 ms       | 198 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 15.9 ms    | 16.1 ms     | 16.7 ms     | 17.8 ms     | 19.1 ms      | 21.9 ms      |
-| Div / Rem (`/`, `%`)                                   | 613 ms     | 1.56 s      | 3.73 s      | 8.83 s      | 20.6 s       | 53.8 s       |
-| Left / Right Shifts (`<<`, `>>`)                       | 88.1 ms    | 108 ms      | 133 ms      | 160 ms      | 199 ms       | 403 ms       |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 83.6 ms    | 101 ms      | 127 ms      | 158 ms      | 198 ms       | 402 ms       |
-| Leading / Trailing zeros/ones                          | 85.7 ms    | 135 ms      | 151 ms      | 206 ms      | 250 ms       | 308 ms       |
-| Log2                                                   | 98.0 ms    | 151 ms      | 173 ms      | 231 ms      | 279 ms       | 333 ms       |
-
 | Operation \ Size                                       |  `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
 | ------------------------------------------------------ |  ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
 | Negation (`-`)                                         |  65.1 ms    | 97.0 ms     | 116 ms      | 141 ms      | 186 ms       | 227 ms       |
@@ -46,19 +31,6 @@ The next table shows the operation timings on CPU when all inputs are encrypted:
 
 
 The next table shows the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
-
-| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
-| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
-| Add / Sub (`+`,`-`)                                    | 61.7 ms    | 81.0 ms     | 99.3 ms     | 117 ms      | 144 ms       | 189 ms       |
-| Mul (`x`)                                              | 62.7 ms    | 133 ms      | 173 ms      | 227 ms      | 371 ms       | 917 ms       |
-| Equal / Not Equal (`eq`, `ne`)                         | 33.2 ms    | 32.2 ms     | 31.4 ms     | 49.1 ms     | 49.8 ms      | 51.6 ms      |
-| Comparisons (`ge`, `gt`, `le`, `lt`)                   | 32.1 ms    | 51.9 ms     | 70.8 ms     | 89.2 ms     | 110 ms       | 130 ms       |
-| Max / Min (`max`,`min`)                                | 69.9 ms    | 88.8 ms     | 107 ms      | 130 ms      | 153 ms       | 188 ms       |
-| Bitwise operations (`&`, `\|`, `^`)                    | 16.1 ms    | 16.3 ms     | 17.2 ms     | 18.2 ms     | 19.6 ms      | 22.1 ms      |
-| Div (`/`)                                              | 160 ms     | 194 ms      | 275 ms      | 391 ms      | 749 ms       | 2.02 s       |
-| Rem (`%`)                                              | 281 ms     | 404 ms      | 533 ms      | 719 ms      | 1.18 s       | 2.76 s       |
-| Left / Right Shifts (`<<`, `>>`)                       | 16.0 ms    | 16.2 ms     | 16.7 ms     | 17.9 ms     | 19.2 ms      | 21.8 ms      |
-| Left / Right Rotations (`left_rotate`, `right_rotate`) | 16.4 ms    | 16.6 ms     | 17.2 ms     | 18.4 ms     | 19.7 ms      | 22.2 ms      |
 
 | Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
 |--------------------------------------------------------|------------|-------------|-------------|-------------|--------------|--------------|
