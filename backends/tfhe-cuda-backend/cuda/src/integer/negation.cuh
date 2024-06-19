@@ -116,10 +116,11 @@ __host__ void scratch_cuda_integer_overflowing_sub_kb(
     uint32_t gpu_count, int_overflowing_sub_memory<Torus> **mem_ptr,
     uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
     bool allocate_ms_array) {
-
+  PUSH_RANGE("scratch overflowing sub")
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory,
       allocate_ms_array);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -134,7 +135,7 @@ __host__ void host_integer_overflowing_sub(
     Torus *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t compute_overflow, uint32_t uses_input_borrow) {
-
+  PUSH_RANGE("overflowing sub")
   if (output->num_radix_blocks != input_left->num_radix_blocks ||
       output->num_radix_blocks != input_right->num_radix_blocks)
     PANIC("Cuda error: lwe_array_in and output num radix blocks must be "
@@ -165,6 +166,7 @@ __host__ void host_integer_overflowing_sub(
       streams, gpu_indexes, gpu_count, output, overflow_block, input_borrow,
       (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
       ms_noise_reduction_key, num_groups, compute_overflow, uses_input_borrow);
+  POP_RANGE()
 }
 
 #endif

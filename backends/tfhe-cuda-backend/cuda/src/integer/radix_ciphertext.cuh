@@ -4,6 +4,7 @@
 #include "device.h"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
+#include "utils/helper_profile.cuh"
 #include "utils/kernel_dimensions.cuh"
 
 template <typename Torus>
@@ -12,6 +13,7 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         CudaRadixCiphertextFFI *radix,
                                         const uint32_t num_radix_blocks,
                                         const uint32_t lwe_dimension) {
+  PUSH_RANGE("create zero radix ct");
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
@@ -25,6 +27,7 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
   }
+  POP_RANGE();
 }
 
 template <typename Torus>
@@ -73,6 +76,7 @@ void copy_radix_ciphertext_slice_async(
     const uint32_t output_end_lwe_index,
     const CudaRadixCiphertextFFI *input_radix,
     const uint32_t input_start_lwe_index, const uint32_t input_end_lwe_index) {
+  PUSH_RANGE("copy radix slice");
   if (output_radix->lwe_dimension != input_radix->lwe_dimension)
     PANIC("Cuda error: input lwe dimension should be equal to output lwe "
           "dimension")
@@ -116,6 +120,7 @@ void copy_radix_ciphertext_slice_async(
     output_radix->noise_levels[i + output_start_lwe_index] =
         input_radix->noise_levels[i + input_start_lwe_index];
   }
+  POP_RANGE();
 }
 
 template <typename Torus>
