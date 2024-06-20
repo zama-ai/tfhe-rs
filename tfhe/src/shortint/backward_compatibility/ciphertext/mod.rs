@@ -25,3 +25,24 @@ pub enum DegreeVersions {
 pub enum CiphertextVersions {
     V0(Ciphertext),
 }
+
+#[derive(VersionsDispatch)]
+pub enum CompactCiphertextListVersions {
+    V0(CompactCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedCiphertextVersions {
+    V0(CompressedCiphertext),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedModulusSwitchedCiphertextVersions {
+    V0(CompressedModulusSwitchedCiphertext),
+}
+
+#[derive(VersionsDispatch)]
+#[allow(dead_code)]
+pub(crate) enum InternalCompressedModulusSwitchedCiphertextVersions {
+    V0(InternalCompressedModulusSwitchedCiphertext),
+}

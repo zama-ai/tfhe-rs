@@ -5,6 +5,7 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
+use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 use crate::shortint::parameters::compact_public_key_only::CompactCiphertextListCastingMode;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
@@ -12,8 +13,10 @@ use crate::shortint::parameters::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
     pub ct_list: LweCompactCiphertextListOwned<u64>,
     pub degree: Degree,

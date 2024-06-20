@@ -1,10 +1,13 @@
 //! Module containing the definition of the [`LweCompactCiphertextList`] a space efficient
 //! encryption of a list of LWE ciphertexts.
 
+use tfhe_versionable::Versionize;
+
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::{
     expand_lwe_compact_ciphertext_list, par_expand_lwe_compact_ciphertext_list,
 };
+use crate::core_crypto::backward_compatibility::entities::lwe_compact_ciphertext_list::LweCompactCiphertextListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -15,7 +18,8 @@ use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 ///
 /// See section 4 of the public key construction described in <https://eprint.iacr.org/2023/603> by
 /// M. Joye.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweCompactCiphertextListVersions)]
 pub struct LweCompactCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

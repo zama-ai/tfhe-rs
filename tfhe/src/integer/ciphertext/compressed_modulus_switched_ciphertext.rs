@@ -1,4 +1,11 @@
+use tfhe_versionable::Versionize;
+
 use crate::conformance::ParameterSetConformant;
+use crate::integer::backward_compatibility::ciphertext::{
+    CompressedModulusSwitchedRadixCiphertextGenericVersions,
+    CompressedModulusSwitchedRadixCiphertextVersions,
+    CompressedModulusSwitchedSignedRadixCiphertextVersions,
+};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, MaxDegree};
 use crate::shortint::parameters::Degree;
@@ -29,7 +36,8 @@ use crate::shortint::parameters::Degree;
 ///
 /// assert_eq!(clear, dec);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedRadixCiphertextVersions)]
 pub struct CompressedModulusSwitchedRadixCiphertext(
     pub(crate) CompressedModulusSwitchedRadixCiphertextGeneric,
 );
@@ -68,7 +76,8 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
 ///
 /// assert_eq!(clear, dec);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedSignedRadixCiphertextVersions)]
 pub struct CompressedModulusSwitchedSignedRadixCiphertext(
     pub(crate) CompressedModulusSwitchedRadixCiphertextGeneric,
 );
@@ -81,7 +90,8 @@ impl ParameterSetConformant for CompressedModulusSwitchedSignedRadixCiphertext {
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedRadixCiphertextGenericVersions)]
 pub(crate) struct CompressedModulusSwitchedRadixCiphertextGeneric {
     pub paired_blocks: Vec<CompressedModulusSwitchedCiphertext>,
     pub last_block: Option<CompressedModulusSwitchedCiphertext>,

@@ -1,8 +1,10 @@
 use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertextVersions;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 use itertools::Itertools;
+use tfhe_versionable::Versionize;
 
 /// An object to store a ciphertext using less memory
 /// The ciphertext is applied a modulus switch as done in the multi bit PBS.
@@ -163,7 +165,8 @@ use itertools::Itertools;
 ///
 /// assert_eq!(decompression_result, input_message);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedMultiBitLweCiphertextVersions)]
 pub struct CompressedModulusSwitchedMultiBitLweCiphertext<
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
 > {

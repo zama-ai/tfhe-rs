@@ -1,5 +1,9 @@
+use tfhe_versionable::Versionize;
+
 use self::packed_integers::PackedIntegers;
+
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertextVersions;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 
@@ -56,7 +60,8 @@ use crate::core_crypto::prelude::*;
 ///     0
 /// );
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedLweCiphertextVersions)]
 pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedInteger> {
     packed_integers: PackedIntegers<Scalar>,
     lwe_dimension: LweDimension,

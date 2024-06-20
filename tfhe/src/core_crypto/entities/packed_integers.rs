@@ -1,6 +1,10 @@
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::packed_integers::PackedIntegersVersions;
 use crate::core_crypto::prelude::*;
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PackedIntegersVersions)]
 pub struct PackedIntegers<Scalar: UnsignedInteger> {
     pub(super) packed_coeffs: Vec<Scalar>,
     pub(super) log_modulus: CiphertextModulusLog,

@@ -1,16 +1,21 @@
 use super::super::parameters::RadixCiphertextConformanceParams;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::integer::backward_compatibility::ciphertext::{
+    BaseCrtCiphertextVersions, BaseRadixCiphertextVersions, BaseSignedRadixCiphertextVersions,
+};
 use crate::integer::block_decomposition::{BlockRecomposer, RecomposableFrom};
 use crate::integer::client_key::{sign_extend_partial_number, RecomposableSignedInteger};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Structure containing a ciphertext in radix decomposition
 /// holding an unsigned value.
-#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug, Versionize)]
+#[versionize(BaseRadixCiphertextVersions)]
 pub struct BaseRadixCiphertext<Block> {
     /// The blocks are stored from LSB to MSB
     pub(crate) blocks: Vec<Block>,
@@ -110,7 +115,8 @@ impl RadixCiphertext {
 
 /// Structure containing a ciphertext in radix decomposition
 /// holding a signed value.
-#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug, Versionize)]
+#[versionize(BaseSignedRadixCiphertextVersions)]
 pub struct BaseSignedRadixCiphertext<Block> {
     /// The blocks are stored from LSB to MSB
     pub(crate) blocks: Vec<Block>,
@@ -214,7 +220,8 @@ impl SignedRadixCiphertext {
 ///
 /// For this CRT decomposition, each block is encrypted using
 /// the same parameters.
-#[derive(Serialize, Clone, Deserialize)]
+#[derive(Serialize, Clone, Deserialize, Versionize)]
+#[versionize(BaseCrtCiphertextVersions)]
 pub struct BaseCrtCiphertext<Block> {
     pub(crate) blocks: Vec<Block>,
     pub(crate) moduli: Vec<u64>,

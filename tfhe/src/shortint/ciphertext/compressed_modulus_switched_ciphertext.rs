@@ -1,8 +1,14 @@
+use tfhe_versionable::Versionize;
+
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
 use crate::core_crypto::prelude::LweCiphertextParameters;
+use crate::shortint::backward_compatibility::ciphertext::{
+    CompressedModulusSwitchedCiphertextVersions,
+    InternalCompressedModulusSwitchedCiphertextVersions,
+};
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
@@ -31,7 +37,8 @@ use crate::shortint::{CarryModulus, MessageModulus};
 ///
 /// assert_eq!(clear, dec);
 /// ```
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchedCiphertextVersions)]
 pub struct CompressedModulusSwitchedCiphertext {
     pub(crate) compressed_modulus_switched_lwe_ciphertext:
         InternalCompressedModulusSwitchedCiphertext,
@@ -54,7 +61,8 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(InternalCompressedModulusSwitchedCiphertextVersions)]
 pub(crate) enum InternalCompressedModulusSwitchedCiphertext {
     Classic(CompressedModulusSwitchedLweCiphertext<u64>),
     MultiBit(CompressedModulusSwitchedMultiBitLweCiphertext<u64>),
