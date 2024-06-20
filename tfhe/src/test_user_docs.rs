@@ -62,6 +62,7 @@ mod test_cpu_doc {
         guides_trivial_ciphertext
     );
     doctest!("../docs/guides/zk-pok.md", guides_zk_pok);
+    doctest!("../docs/guides/data_versioning.md", guides_data_versioning);
 
     // REFERENCES
 

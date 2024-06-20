@@ -28,7 +28,7 @@
 * [Rust configuration](guides/rust\_configuration.md)
 * [GPU acceleration](guides/run\_on\_gpu.md)
 * [Overflow detection](guides/overflow\_operations.md)
-* [Data migration to newer versions of TFHE-rs](guides/migrate\_data.md)
+* [Data versioning for cross-version compatibility](guides/data\_versioning.md)
 * [Public key encryption](guides/public\_key.md)
 * [Zero-knowledge proofs](guides/zk-pok.md)
 * [Generic trait bounds](guides/trait\_bounds.md)
