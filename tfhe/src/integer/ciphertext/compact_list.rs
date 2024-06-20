@@ -1,4 +1,4 @@
-use super::IntegerRadixCiphertext;
+use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -7,7 +7,7 @@ use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::{
     IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
 };
-use crate::integer::{BooleanBlock, CompactPublicKey, ServerKey};
+use crate::integer::{CompactPublicKey, ServerKey};
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
@@ -35,22 +35,6 @@ fn extract_message_and_carries(packed_blocks: Vec<Ciphertext>, sks: &ServerKey) 
             [low_block, high_block]
         })
         .collect::<Vec<_>>()
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DataKind {
-    Unsigned(usize),
-    Signed(usize),
-    Boolean,
-}
-
-impl DataKind {
-    pub fn num_blocks(self) -> usize {
-        match self {
-            Self::Unsigned(n) | Self::Signed(n) => n,
-            Self::Boolean => 1,
-        }
-    }
 }
 
 pub trait Compactable {
@@ -251,49 +235,6 @@ impl CompactCiphertextListBuilder {
             ct_list,
             info: self.info.clone(),
         })
-    }
-}
-
-pub trait Expandable: Sized {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self>;
-}
-
-impl<T> Expandable for T
-where
-    T: IntegerRadixCiphertext,
-{
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
-        match (kind, T::IS_SIGNED) {
-            (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => {
-                Ok(T::from_blocks(blocks.to_vec()))
-            }
-            (DataKind::Boolean, _) => {
-                let signed_or_unsigned_str = if T::IS_SIGNED { "signed" } else { "unsigned" };
-                Err(crate::Error::new(format!(
-                    "Tried to expand a {signed_or_unsigned_str} radix while boolean is stored"
-                )))
-            }
-            (DataKind::Unsigned(_), true) => Err(crate::Error::new(
-                "Tried to expand a signed radix while an unsigned radix is stored".to_string(),
-            )),
-            (DataKind::Signed(_), false) => Err(crate::Error::new(
-                "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
-            )),
-        }
-    }
-}
-
-impl Expandable for BooleanBlock {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
-        match kind {
-            DataKind::Unsigned(_) => Err(crate::Error::new(
-                "Tried to expand a boolean block while an unsigned radix was stored".to_string(),
-            )),
-            DataKind::Signed(_) => Err(crate::Error::new(
-                "Tried to expand a boolean block while a signed radix was stored".to_string(),
-            )),
-            DataKind::Boolean => Ok(Self::new_unchecked(blocks[0].clone())),
-        }
     }
 }
 
