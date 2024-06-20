@@ -1,5 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::panic_if_any_block_is_not_clean_or_trivial;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -375,8 +376,8 @@ where
 
     // empty LUT test
     {
-        let expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
-        let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
+        let expected_degrees = ExpectedDegrees::new(Degree::new(0), 1);
+        let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::ZERO, 1);
 
         let empty_lut = MatchValues::new(vec![]).unwrap();
         let inputs = [
@@ -385,6 +386,9 @@ where
         ];
         for ct in inputs {
             let (result, is_ok) = executor.execute((&ct, &empty_lut));
+
+            // If the LUT is empty, the output has 1 block
+            assert_eq!(result.blocks.len(), 1);
 
             assert!(result.is_trivial());
             assert!(is_ok.is_trivial());
@@ -399,11 +403,27 @@ where
         }
     }
 
-    let expected_degrees = ExpectedDegrees::new(
-        Degree::new(cks.parameters().message_modulus().0 - 1),
-        NB_CTXT,
-    );
-    let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
+    // LUT with only 1 possible output value, that requires more block than the input
+    {
+        let block_msg_modulus = cks.parameters().message_modulus().0 as u64;
+
+        let vec = (0..block_msg_modulus)
+            .map(|input| (input, u64::MAX))
+            .collect::<Vec<_>>();
+        let lut = MatchValues::new(vec).unwrap();
+
+        let inputs = [cks.encrypt(rng.gen_range(0..block_msg_modulus))];
+        for ct in inputs {
+            let (result, is_ok) = executor.execute((&ct, &lut));
+
+            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+
+            assert!(result.blocks.len() > ct.blocks.len());
+
+            assert_eq!(cks.decrypt::<u64>(&result), u64::MAX);
+            assert!(cks.decrypt_bool(&is_ok));
+        }
+    }
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
@@ -433,10 +453,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        expected_degrees.panic_if_any_is_greater(&result);
-        expected_noise_level.panic_if_any_is_greater(&result);
+        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level, NoiseLevel::NOMINAL);
 
@@ -473,12 +490,6 @@ where
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
-
-    let expected_degrees = ExpectedDegrees::new(
-        Degree::new(cks.parameters().message_modulus().0 - 1),
-        NB_CTXT,
-    );
-    let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
@@ -517,10 +528,7 @@ where
         assert_eq!(result, result_2, "Failed determinism test");
         assert_eq!(is_ok, is_ok_2, "Failed determinism test");
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        expected_degrees.panic_if_any_is_greater(&result);
-        expected_noise_level.panic_if_any_is_greater(&result);
+        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level, NoiseLevel::NOMINAL);
 
@@ -555,23 +563,24 @@ where
 
     // empty LUT test
     {
-        let expected_degrees = ExpectedDegrees::new(
-            Degree::new(cks.parameters().message_modulus().0 - 1),
-            NB_CTXT,
-        );
-        let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::ZERO, NB_CTXT);
-
         let empty_lut = MatchValues::new(vec![]).unwrap();
         let inputs = [
             cks.encrypt(rng.gen_range(0..modulus)),
             sks.create_trivial_radix(rng.gen_range(0..modulus), NB_CTXT),
         ];
         let default_value = rng.gen_range(0..modulus);
+        let expected_len = sks.num_blocks_to_represent_unsigned_value(default_value);
+
         for ct in inputs {
             let result = executor.execute((&ct, &empty_lut, default_value));
 
-            assert!(result.is_trivial());
+            assert_eq!(result.blocks.len(), expected_len);
 
+            let expected_degrees = ExpectedDegrees::new(
+                Degree::new(cks.parameters().message_modulus().0 - 1),
+                expected_len,
+            );
+            let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::ZERO, expected_len);
             expected_degrees.panic_if_any_is_greater(&result);
             expected_noise_level.panic_if_any_is_not_equal(&result);
 
@@ -579,11 +588,29 @@ where
         }
     }
 
-    let expected_degrees = ExpectedDegrees::new(
-        Degree::new(cks.parameters().message_modulus().0 - 1),
-        NB_CTXT,
-    );
-    let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
+    // LUT with only 1 possible output value, that requires more block than the input
+    {
+        let block_msg_modulus = cks.parameters().message_modulus().0 as u64;
+
+        let vec = (0..block_msg_modulus)
+            .map(|input| (input, u64::MAX))
+            .collect::<Vec<_>>();
+        let lut = MatchValues::new(vec).unwrap();
+
+        let inputs = [cks.encrypt(rng.gen_range(0..block_msg_modulus))];
+        for ct in inputs {
+            let result = executor.execute((&ct, &lut, u64::MAX));
+
+            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+
+            assert_eq!(
+                result.blocks.len(),
+                sks.num_blocks_to_represent_unsigned_value(u64::MAX)
+            );
+
+            assert_eq!(cks.decrypt::<u64>(&result), u64::MAX);
+        }
+    }
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
@@ -614,11 +641,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let result = executor.execute((&ct, &lut, clear_default));
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        expected_degrees.panic_if_any_is_greater(&result);
-        expected_noise_level.panic_if_any_is_greater(&result);
-
+        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);
@@ -645,12 +668,6 @@ where
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks.clone());
-
-    let expected_degrees = ExpectedDegrees::new(
-        Degree::new(cks.parameters().message_modulus().0 - 1),
-        NB_CTXT,
-    );
-    let expected_noise_level = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
 
     // We want to split test in half,
     // one half where the lut contains the clear, the other half where it does not
@@ -689,11 +706,7 @@ where
         let result_2 = executor.execute((&ct, &lut, clear_default));
         assert_eq!(result, result_2, "Failed determinism test");
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        expected_degrees.panic_if_any_is_greater(&result);
-        expected_noise_level.panic_if_any_is_greater(&result);
-
+        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);

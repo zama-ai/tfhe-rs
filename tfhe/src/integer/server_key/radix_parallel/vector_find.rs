@@ -58,6 +58,9 @@ impl ServerKey {
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
     ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
+    ///
     /// Returns a boolean block that encrypts `true` if the input `ct`
     /// matched one of the possible inputs
     pub fn unchecked_match_value_parallelized<Clear>(
@@ -70,13 +73,10 @@ impl ServerKey {
     {
         if matches.0.is_empty() {
             return (
-                self.create_trivial_radix(0, ct.blocks.len()),
+                self.create_trivial_radix(0, 1),
                 self.create_trivial_boolean_block(false),
             );
         }
-
-        let num_bits_in_message = self.message_modulus().0.ilog2();
-        let num_blocks = ct.blocks.len();
 
         let selectors = self
             .compute_equality_selectors(ct, matches.0.par_iter().map(|(input, _output)| *input));
@@ -90,13 +90,8 @@ impl ServerKey {
             .expect("luts is not empty at this point")
             .1;
 
-        let num_bits_to_represent_output_value = if max_output_value == Clear::MAX {
-            Clear::BITS
-        } else {
-            (max_output_value + Clear::ONE).ceil_ilog2() as usize
-        };
         let num_blocks_to_represent_values =
-            num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize);
+            self.num_blocks_to_represent_unsigned_value(max_output_value);
 
         let possible_results_to_be_aggregated = self.create_possible_results(
             num_blocks_to_represent_values,
@@ -112,7 +107,7 @@ impl ServerKey {
             // Thus, in that case, the returned value is always 0 regardless of ct's value,
             // but we still have to see if the input matched something
             (
-                self.create_trivial_radix(0, ct.blocks.len()),
+                self.create_trivial_radix(0, num_blocks_to_represent_values),
                 BooleanBlock::new_unchecked(
                     self.is_at_least_one_comparisons_block_true(selectors2),
                 ),
@@ -122,7 +117,7 @@ impl ServerKey {
                 || {
                     let result: RadixCiphertext =
                         self.aggregate_one_hot_vector(possible_results_to_be_aggregated);
-                    self.cast_to_unsigned(result, num_blocks)
+                    self.cast_to_unsigned(result, num_blocks_to_represent_values)
                 },
                 || {
                     BooleanBlock::new_unchecked(
@@ -137,6 +132,9 @@ impl ServerKey {
     ///
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
+    ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
     ///
     /// Returns a boolean block that encrypts `true` if the input `ct`
     /// matched one of the possible inputs
@@ -159,6 +157,9 @@ impl ServerKey {
     ///
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
+    ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
     ///
     /// Returns a boolean block that encrypts `true` if the input `ct`
     /// matched one of the possible inputs
@@ -184,6 +185,10 @@ impl ServerKey {
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
     ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
+    ///
+    ///
     /// If none of the input matched the `ct` then, `ct` will encrypt the
     /// value given to `or_value`
     pub fn unchecked_match_value_or_parallelized<Clear>(
@@ -196,22 +201,32 @@ impl ServerKey {
         Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
     {
         if matches.0.is_empty() {
-            return self.create_trivial_radix(or_value, ct.blocks.len());
+            return self.create_trivial_radix(
+                or_value,
+                self.num_blocks_to_represent_unsigned_value(or_value),
+            );
         }
         let (result, selected) = self.unchecked_match_value_parallelized(ct, matches);
 
+        // The result must have as many block to represent either the result of the match or the
+        // or_value
+        let num_blocks_to_represent_or_value =
+            self.num_blocks_to_represent_unsigned_value(or_value);
+        let num_blocks = result.blocks.len().max(num_blocks_to_represent_or_value);
+        let or_value = self.create_trivial_radix(or_value, num_blocks);
+        let result = self.cast_to_unsigned(result, num_blocks);
+
         // Note, this could be slightly faster when we have scalar if then_else
-        self.unchecked_if_then_else_parallelized(
-            &selected,
-            &result,
-            &self.create_trivial_radix(or_value, ct.blocks.len()),
-        )
+        self.unchecked_if_then_else_parallelized(&selected, &result, &or_value)
     }
 
     /// `map` an input value to an output value
     ///
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
+    ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
     ///
     /// If none of the input matched the `ct` then, `ct` will encrypt the
     /// value given to `or_value`
@@ -234,6 +249,9 @@ impl ServerKey {
     ///
     /// - Input values are not required to span all possible values that
     /// ` ct` could hold.
+    ///
+    /// - The output radix has a number of blocks that depends on the maximum possible output value
+    ///   from the `MatchValues`
     ///
     /// If none of the input matched the `ct` then, `ct` will encrypt the
     /// value given to `or_value`
