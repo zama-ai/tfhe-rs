@@ -417,3 +417,25 @@ impl<T: UnversionizeVec> Unversionize for AVec<T> {
 }
 
 impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for AVec<T> {}
+
+impl<T: Versionize, U: Versionize> Versionize for (T, U) {
+    type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>) where T: 'vers, U: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        (self.0.versionize(), self.1.versionize())
+    }
+
+    type VersionedOwned = (T::VersionedOwned, U::VersionedOwned);
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        (self.0.versionize_owned(), self.1.versionize_owned())
+    }
+}
+
+impl<T: Unversionize, U: Unversionize> Unversionize for (T, U) {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok((T::unversionize(versioned.0)?, U::unversionize(versioned.1)?))
+    }
+}
+
+impl<T: NotVersioned, U: NotVersioned> NotVersioned for (T, U) {}
