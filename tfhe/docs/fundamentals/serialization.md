@@ -169,3 +169,5 @@ fn main() {
     ).is_ok());
 }
 ```
+
+You can combine this serialization/deserialization feature with the [data versioning](../guides/data\_versioning.md) feature by using the `safe_serialize_versioned` and `safe_deserialize_conformant_versioned` functions.
