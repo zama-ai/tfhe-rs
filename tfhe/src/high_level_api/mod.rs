@@ -56,17 +56,18 @@ pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
+pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
 pub use safe_serialize::safe_serialize;
 
+mod booleans;
+mod compressed_ciphertext_list;
 mod config;
+mod errors;
 mod global_state;
+mod integers;
 mod keys;
 mod traits;
 mod utils;
-
-mod booleans;
-mod errors;
-mod integers;
 
 pub mod array;
 mod compact_list;
