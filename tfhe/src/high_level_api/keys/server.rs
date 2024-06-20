@@ -1,3 +1,8 @@
+use tfhe_versionable::{Unversionize, Versionize};
+
+use crate::backward_compatibility::keys::{
+    CompressedServerKeyVersions, ServerKeyVersioned, ServerKeyVersionedOwned,
+};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 
 use std::sync::Arc;
@@ -99,6 +104,48 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
     }
 }
 
+#[derive(serde::Serialize)]
+pub struct ServerKeyVersion<'vers> {
+    pub(crate) integer_key: <IntegerServerKey as Versionize>::Versioned<'vers>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ServerKeyVersionOwned {
+    pub(crate) integer_key: <IntegerServerKey as Versionize>::VersionedOwned,
+}
+
+impl Versionize for ServerKey {
+    type Versioned<'vers> = ServerKeyVersioned<'vers>;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        ServerKeyVersioned::V0(ServerKeyVersion {
+            integer_key: self.key.versionize(),
+        })
+    }
+
+    type VersionedOwned = ServerKeyVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        ServerKeyVersionedOwned::V0(ServerKeyVersionOwned {
+            integer_key: self.key.versionize_owned(),
+        })
+    }
+}
+
+impl Unversionize for ServerKey {
+    fn unversionize(
+        versioned: Self::VersionedOwned,
+    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
+        match versioned {
+            ServerKeyVersionedOwned::V0(v0) => {
+                IntegerServerKey::unversionize(v0.integer_key).map(|unversioned| Self {
+                    key: Arc::new(unversioned),
+                })
+            }
+        }
+    }
+}
+
 /// Compressed ServerKey
 ///
 /// A CompressedServerKey takes much less disk space / memory space than a
@@ -107,7 +154,8 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
 /// It has to be decompressed into a ServerKey in order to be usable.
 ///
 /// Once decompressed, it is not possible to recompress the key.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedServerKeyVersions)]
 pub struct CompressedServerKey {
     pub(crate) integer_key: IntegerCompressedServerKey,
 }

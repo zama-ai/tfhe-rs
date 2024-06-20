@@ -7,6 +7,7 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
+use super::backward_compatibility::client_key::ClientKeyVersions;
 use super::block_decomposition::{DecomposableInto, RecomposableFrom};
 use super::ciphertext::{
     CompressedRadixCiphertext, CompressedSignedRadixCiphertext, RadixCiphertext,
@@ -27,6 +28,7 @@ use crate::shortint::{
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 pub trait RecomposableSignedInteger:
     RecomposableFrom<u64>
@@ -82,7 +84,8 @@ where
 ///
 /// Using this key, for both decompositions, each block will
 /// use the same crypto parameters.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]
+#[versionize(ClientKeyVersions)]
 pub struct ClientKey {
     pub(crate) key: ShortintClientKey,
 }

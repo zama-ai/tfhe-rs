@@ -1,13 +1,17 @@
 //! Module containing the definition of the SeededGlweCiphertext.
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::seeded_glwe_ciphertext::SeededGlweCiphertextVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A [`seeded GLWE ciphertext`](`SeededGlweCiphertext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededGlweCiphertextVersions)]
 pub struct SeededGlweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

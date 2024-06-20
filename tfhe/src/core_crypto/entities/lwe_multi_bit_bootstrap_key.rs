@@ -1,13 +1,22 @@
 //! Module containing the definition of the [`LweMultiBitBootstrapKey`].
 
+use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
+    FourierLweMultiBitBootstrapKeyVersioned, FourierLweMultiBitBootstrapKeyVersionedOwned,
+    LweMultiBitBootstrapKeyVersions,
+};
+use crate::core_crypto::backward_compatibility::fft_impl::{
+    FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweMultiBitBootstrapKeyVersions)]
 pub struct LweMultiBitBootstrapKey<C: Container>
 where
     C::Element: UnsignedInteger,
@@ -322,6 +331,96 @@ pub struct FourierLweMultiBitBootstrapKey<C: Container<Element = c64>> {
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
+}
+
+#[derive(serde::Serialize)]
+pub struct FourierLweMultiBitBootstrapKeyVersion<'vers> {
+    fourier: FourierPolynomialListVersioned<'vers>,
+    input_lwe_dimension: <LweDimension as Versionize>::Versioned<'vers>,
+    glwe_size: <GlweSize as Versionize>::Versioned<'vers>,
+    decomposition_base_log: <DecompositionBaseLog as Versionize>::Versioned<'vers>,
+    decomposition_level_count: <DecompositionLevelCount as Versionize>::Versioned<'vers>,
+    grouping_factor: <LweBskGroupingFactor as Versionize>::Versioned<'vers>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FourierLweMultiBitBootstrapKeyVersionOwned {
+    fourier: FourierPolynomialListVersionedOwned,
+    input_lwe_dimension: <LweDimension as Versionize>::VersionedOwned,
+    glwe_size: <GlweSize as Versionize>::VersionedOwned,
+    decomposition_base_log: <DecompositionBaseLog as Versionize>::VersionedOwned,
+    decomposition_level_count: <DecompositionLevelCount as Versionize>::VersionedOwned,
+    grouping_factor: <LweBskGroupingFactor as Versionize>::VersionedOwned,
+}
+
+impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweMultiBitBootstrapKey<C>>
+    for FourierLweMultiBitBootstrapKeyVersion<'vers>
+{
+    fn from(value: &'vers FourierLweMultiBitBootstrapKey<C>) -> Self {
+        FourierLweMultiBitBootstrapKeyVersion {
+            fourier: value.fourier.versionize(),
+            input_lwe_dimension: value.input_lwe_dimension.versionize(),
+            glwe_size: value.glwe_size.versionize(),
+            decomposition_base_log: value.decomposition_base_log.versionize(),
+            decomposition_level_count: value.decomposition_level_count.versionize(),
+            grouping_factor: value.grouping_factor.versionize(),
+        }
+    }
+}
+
+impl<C: Container<Element = c64>> From<&FourierLweMultiBitBootstrapKey<C>>
+    for FourierLweMultiBitBootstrapKeyVersionOwned
+{
+    fn from(value: &FourierLweMultiBitBootstrapKey<C>) -> Self {
+        Self {
+            fourier: value.fourier.versionize_owned(),
+            input_lwe_dimension: value.input_lwe_dimension.versionize_owned(),
+            glwe_size: value.glwe_size.versionize_owned(),
+            decomposition_base_log: value.decomposition_base_log.versionize_owned(),
+            decomposition_level_count: value.decomposition_level_count.versionize_owned(),
+            grouping_factor: value.grouping_factor.versionize_owned(),
+        }
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweMultiBitBootstrapKeyVersionOwned>
+    for FourierLweMultiBitBootstrapKey<C>
+{
+    type Error = UnversionizeError;
+    fn try_from(value: FourierLweMultiBitBootstrapKeyVersionOwned) -> Result<Self, Self::Error> {
+        Ok(Self {
+            fourier: FourierPolynomialList::unversionize(value.fourier)?,
+            input_lwe_dimension: LweDimension::unversionize(value.input_lwe_dimension)?,
+            glwe_size: GlweSize::unversionize(value.glwe_size)?,
+            decomposition_base_log: DecompositionBaseLog::unversionize(
+                value.decomposition_base_log,
+            )?,
+            decomposition_level_count: DecompositionLevelCount::unversionize(
+                value.decomposition_level_count,
+            )?,
+            grouping_factor: LweBskGroupingFactor::unversionize(value.grouping_factor)?,
+        })
+    }
+}
+
+impl<C: Container<Element = c64>> Versionize for FourierLweMultiBitBootstrapKey<C> {
+    type Versioned<'vers> = FourierLweMultiBitBootstrapKeyVersioned<'vers> where C: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.into()
+    }
+
+    type VersionedOwned = FourierLweMultiBitBootstrapKeyVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        self.into()
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> Unversionize for FourierLweMultiBitBootstrapKey<C> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Self::try_from(versioned)
+    }
 }
 
 pub type FourierLweMultiBitBootstrapKeyOwned = FourierLweMultiBitBootstrapKey<ABox<[c64]>>;

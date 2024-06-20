@@ -1,12 +1,16 @@
 //! Module containing the definition of the [`LweCiphertextList`].
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext_list::LweCiphertextListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweCiphertextListVersions)]
 pub struct LweCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

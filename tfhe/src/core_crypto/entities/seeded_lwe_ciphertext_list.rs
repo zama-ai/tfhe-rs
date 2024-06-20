@@ -1,6 +1,9 @@
 //! Module containing the definition of the [`SeededLweCiphertextList`].
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::seeded_lwe_ciphertext_list::SeededLweCiphertextListVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -8,7 +11,8 @@ use crate::core_crypto::entities::*;
 
 /// A seeded list containing
 /// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededLweCiphertextListVersions)]
 pub struct SeededLweCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

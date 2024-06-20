@@ -1,5 +1,6 @@
 //! Module with the definition of the compressed PublicKey.
 use crate::core_crypto::entities::*;
+use crate::shortint::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, PBSOrder};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
@@ -7,8 +8,11 @@ use crate::shortint::ClientKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+use tfhe_versionable::Versionize;
+
 /// A structure containing a compressed public key.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedPublicKeyVersions)]
 pub struct CompressedPublicKey {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
