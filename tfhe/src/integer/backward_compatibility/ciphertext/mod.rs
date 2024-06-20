@@ -1,4 +1,4 @@
-use tfhe_versionable::VersionsDispatch;
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
@@ -22,9 +22,27 @@ pub enum BaseCrtCiphertextVersions<Block> {
     V0(BaseCrtCiphertext<Block>),
 }
 
+#[derive(Version)]
+pub struct CompactCiphertextListV0 {
+    pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
+    pub(crate) num_blocks_per_integer: usize,
+}
+
+impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
+    fn upgrade(self) -> Result<CompactCiphertextList, String> {
+        println!("WARNING: Upgrading from old CompactCiphertextList with no sign information. Trying to guess type or defaulting to unsigned");
+        let radix_count =
+            self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer;
+        let info = vec![DataKind::Unsigned(self.num_blocks_per_integer); radix_count];
+
+        Ok(CompactCiphertextList::from_raw_parts(self.ct_list, info))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
-    V0(CompactCiphertextList),
+    V0(CompactCiphertextListV0),
+    V1(CompactCiphertextList),
 }
 
 #[derive(VersionsDispatch)]

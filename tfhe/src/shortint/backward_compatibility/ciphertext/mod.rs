@@ -1,5 +1,10 @@
-use crate::shortint::ciphertext::*;
-use tfhe_versionable::VersionsDispatch;
+use crate::{
+    core_crypto::prelude::LweCompactCiphertextListOwned,
+    shortint::{
+        ciphertext::*, parameters::CompactCiphertextListExpansionKind, CarryModulus, MessageModulus,
+    },
+};
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
 pub enum MaxNoiseLevelVersions {
@@ -24,6 +29,29 @@ pub enum DegreeVersions {
 #[derive(VersionsDispatch)]
 pub enum CiphertextVersions {
     V0(Ciphertext),
+}
+
+#[derive(Version)]
+pub struct CompactCiphertextListV0 {
+    pub ct_list: LweCompactCiphertextListOwned<u64>,
+    pub degree: Degree,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub pbs_order: PBSOrder,
+    pub noise_level: NoiseLevel,
+}
+
+impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
+    fn upgrade(self) -> Result<CompactCiphertextList, String> {
+        Ok(CompactCiphertextList {
+            ct_list: self.ct_list,
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            expansion_kind: CompactCiphertextListExpansionKind::NoCasting(self.pbs_order),
+            noise_level: self.noise_level,
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
