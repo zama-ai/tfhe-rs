@@ -20,7 +20,7 @@ use crate::CompactPublicKey;
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
-pub struct CompactCiphertextList(crate::integer::ciphertext::CompactCiphertextList);
+pub struct CompactCiphertextList(pub(crate) crate::integer::ciphertext::CompactCiphertextList);
 
 impl Named for CompactCiphertextList {
     const NAME: &'static str = "high_level_api::CompactCiphertextList";

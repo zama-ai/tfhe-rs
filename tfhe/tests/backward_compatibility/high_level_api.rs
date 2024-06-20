@@ -1,12 +1,14 @@
 use std::path::Path;
 
+use tfhe::backward_compatibility::{
+    booleans::{CompactFheBool, CompactFheBoolList},
+    integers::{CompactFheInt8, CompactFheInt8List, CompactFheUint8, CompactFheUint8List},
+};
 use tfhe::prelude::{FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
 use tfhe::{
-    set_server_key, ClientKey, CompactFheBool, CompactFheBoolList, CompactFheInt8,
-    CompactFheInt8List, CompactFheUint8, CompactFheUint8List, CompressedCompactPublicKey,
-    CompressedFheBool, CompressedFheInt8, CompressedFheUint8, CompressedPublicKey,
-    CompressedServerKey, FheUint8,
+    set_server_key, ClientKey, CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8,
+    CompressedFheUint8, CompressedPublicKey, CompressedServerKey, FheUint8,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -49,7 +51,7 @@ pub fn test_hl_ciphertext(
         compressed.decompress()
     } else if test.compact {
         let compact: CompactFheUint8 = load_and_unversionize(dir, test, format)?;
-        compact.expand()
+        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
