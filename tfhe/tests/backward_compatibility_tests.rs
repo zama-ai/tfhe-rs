@@ -103,3 +103,17 @@ fn test_backward_compatibility_shortint() {
         panic!("Backward compatibility test failed")
     }
 }
+
+#[test]
+#[cfg(feature = "integer")]
+fn test_backward_compatibility_hl() {
+    use backward_compatibility::high_level_api::Hl;
+
+    let base_dir = test_data_dir();
+
+    let results = run_all_tests::<Hl>(&base_dir);
+
+    if results.iter().any(|r| r.is_failure()) {
+        panic!("Backward compatibility test failed")
+    }
+}
