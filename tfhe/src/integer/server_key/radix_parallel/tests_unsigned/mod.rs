@@ -279,6 +279,44 @@ where
     }
 }
 
+/// Panics if a block is not either a clean block (see [panic_if_any_block_is_not_clean])
+/// or if it not trivial
+#[track_caller]
+fn panic_if_any_block_is_not_clean_or_trivial<C>(ct: &RadixCiphertext, cks: &C)
+where
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let cks = cks.as_ref();
+
+    let max_degree_acceptable = cks.key.parameters.message_modulus().0 - 1;
+
+    for (i, block) in ct.blocks.iter().enumerate() {
+        if block.is_trivial() {
+            continue;
+        }
+        assert_eq!(
+            block.noise_level,
+            NoiseLevel::NOMINAL,
+            "Block at index {i} has a non nominal noise level: {:?}",
+            block.noise_level
+        );
+
+        assert!(
+            block.degree.get() <= max_degree_acceptable,
+            "Block at index {i} has a degree {:?} that exceeds the maximum ({}) for a clean block",
+            block.degree,
+            max_degree_acceptable
+        );
+
+        let block_value = cks.key.decrypt_message_and_carry(block);
+        assert!(
+            block_value <= block.degree.get() as u64,
+            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
+            block.degree
+        );
+    }
+}
+
 /// Little struct meant to reduce test boilerplate and increase readability
 struct ExpectedValues<T> {
     values: Vec<T>,
@@ -325,23 +363,6 @@ impl ExpectedNoiseLevels {
             assert_eq!(
                 block.noise_level, expected_noise,
                 "Block at index {i} has noise level {:?}, but {expected_noise:?} was expected",
-                block.noise_level
-            );
-        }
-    }
-
-    #[track_caller]
-    fn panic_if_any_is_greater(&self, ct: &RadixCiphertext) {
-        assert_eq!(self.values.len(), ct.blocks.len());
-        for (i, (block, expected_noise)) in ct
-            .blocks
-            .iter()
-            .zip(self.values.iter().copied())
-            .enumerate()
-        {
-            assert!(
-                block.noise_level <= expected_noise,
-                "Block at index {i} has noise level {:?}, but something less or equal (<=) than {expected_noise:?} was expected",
                 block.noise_level
             );
         }
