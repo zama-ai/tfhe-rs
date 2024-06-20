@@ -3,7 +3,7 @@ use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, MaxDegree};
 use crate::shortint::parameters::Degree;
 
-/// An object to store a ciphertext in little memory.
+/// An object to store a ciphertext using less memory.
 /// Decompressing it requires a PBS
 ///
 /// # Example
@@ -42,7 +42,7 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
     }
 }
 
-/// An object to store a signed ciphertext in little memory.
+/// An object to store a signed ciphertext using less memory.
 /// Decompressing it requires a PBS
 ///
 /// # Example

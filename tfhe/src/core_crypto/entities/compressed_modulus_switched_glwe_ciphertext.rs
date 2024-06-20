@@ -3,7 +3,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 
-/// An object to store a ciphertext in little memory
+/// An object to store a ciphertext using less memory
 /// The modulus of the ciphertext is decreased by rounding and the result is stored in a compact way
 /// The uncompacted result can be used as the input of a blind rotation to recover a low noise lwe
 /// ciphertext

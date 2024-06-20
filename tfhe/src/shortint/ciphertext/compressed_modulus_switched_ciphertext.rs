@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::LweCiphertextParameters;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};
 
-/// An object to store a ciphertext in little memory.
+/// An object to store a ciphertext using less memory.
 /// Decompressing it requires a PBS
 ///
 /// # Example
