@@ -138,3 +138,5 @@ pub mod zk;
 
 pub use error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub use tfhe_versionable::{Unversionize, Versionize};
