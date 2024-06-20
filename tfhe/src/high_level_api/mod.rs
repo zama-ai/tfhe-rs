@@ -25,6 +25,7 @@ macro_rules! expand_pub_use_fhe_type(
 
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::oprf::SignedRandomizationSpec;
+pub use crate::integer::server_key::MatchValues;
 pub use config::{Config, ConfigBuilder};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 

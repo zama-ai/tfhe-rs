@@ -1,15 +1,17 @@
 use super::inner::RadixCiphertext;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
+use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::{global_state, Device};
-use crate::integer::block_decomposition::RecomposableFrom;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
+use crate::integer::server_key::MatchValues;
 use crate::named::Named;
+use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
 use crate::{FheBool, ServerKey};
@@ -474,6 +476,138 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support checked_ilog2 yet");
+            }
+        })
+    }
+
+    /// `match` an input value to an output value
+    ///
+    /// - Input values are not required to span all possible values that
+    ///  `self` could hold. And the output type can be different.
+    ///
+    /// Returns a FheBool that encrypts `true` if the input `self`
+    /// matched one of the possible inputs
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{
+    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    /// };
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(17u16, &client_key);
+    ///
+    /// let match_values = MatchValues::new(vec![
+    ///     (0u16, 3u16),
+    ///     (1u16, 3u16),
+    ///     (2u16, 3u16),
+    ///     (17u16, 25u16),
+    /// ])
+    /// .unwrap();
+    /// let (result, matched): (FheUint8, _) = a.match_value(&match_values)
+    ///     .unwrap(); // All possible output values fit in a u8
+    ///
+    /// let matched = matched.decrypt(&client_key);
+    /// assert_eq!(matched, true);
+    ///
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 25u16)
+    /// ```
+    pub fn match_value<Clear, OutId>(
+        &self,
+        matches: &MatchValues<Clear>,
+    ) -> crate::Result<(FheUint<OutId>, FheBool)>
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        OutId: FheUintId,
+    {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let (result, matched) = cpu_key
+                    .pbs_key()
+                    .match_value_parallelized(&self.ciphertext.on_cpu(), matches);
+                let target_num_blocks = OutId::num_blocks(cpu_key.message_modulus());
+                if target_num_blocks >= result.blocks.len() {
+                    let result = cpu_key
+                        .pbs_key()
+                        .cast_to_unsigned(result, target_num_blocks);
+                    Ok((FheUint::new(result), FheBool::new(matched)))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support match_value yet");
+            }
+        })
+    }
+
+    /// `match` an input value to an output value
+    ///
+    /// - Input values are not required to span all possible values that
+    ///  `self` could hold. And the output type can be different.
+    ///
+    /// If none of the input matched the `self` then, `self` will encrypt the
+    /// value given to `or_value`
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{
+    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    /// };
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(17u16, &client_key);
+    ///
+    /// let match_values = MatchValues::new(vec![
+    ///     (0u16, 3u16), // map 0 to 3
+    ///     (1u16, 234u16),
+    ///     (2u16, 123u16),
+    /// ])
+    /// .unwrap();
+    /// let result: FheUint8 = a.match_value_or(&match_values, 25u16)
+    ///     .unwrap(); // All possible output values fit on a u8
+    ///
+    /// let decrypted: u16 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 25u16)
+    /// ```
+    pub fn match_value_or<Clear, OutId>(
+        &self,
+        matches: &MatchValues<Clear>,
+        or_value: Clear,
+    ) -> crate::Result<FheUint<OutId>>
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        OutId: FheUintId,
+    {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key.pbs_key().match_value_or_parallelized(
+                    &self.ciphertext.on_cpu(),
+                    matches,
+                    or_value,
+                );
+                let target_num_blocks = OutId::num_blocks(cpu_key.message_modulus());
+                if target_num_blocks >= result.blocks.len() {
+                    let result = cpu_key
+                        .pbs_key()
+                        .cast_to_unsigned(result, target_num_blocks);
+                    Ok(FheUint::new(result))
+                } else {
+                    Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
+                }
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support match_value_or yet");
             }
         })
     }
