@@ -12,7 +12,7 @@ Data serialized this way can be loaded with the `unversionize` function. Note th
 
 [dependencies]
 # ...
-tfhe = { version = "0.6.3", features = ["integer","x86_64-unix"]}
+tfhe = { version = "0.6.4", features = ["integer","x86_64-unix"]}
 tfhe-versionable = "0.1.0"
 bincode = "1.3.3"
 ```
