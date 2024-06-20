@@ -10,7 +10,7 @@ In **TFHE-rs**, compressible entities are prefixed with `Compressed`. For instan
 
 In the following example code, we use the `bincode` crate dependency to serialize in a binary format and compare serialized sizes.
 
-## Compressed ciphertexts
+## Ciphertexts compressed at encryption time
 
 This example shows how to compress a ciphertext encrypting messages over 16 bits:
 
@@ -38,6 +38,85 @@ fn main() {
 
     let clear_decompressed: u16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
+}
+```
+
+## Ciphertexts compressed after computation
+
+You can compress ciphertexts at any time, even after performing multiple homomorphic operations.
+
+To compress many ciphertexts of different types, use a list:
+
+**Single list**: Compressing several ciphertexts with a single list achieves a better compression ratio.
+**Multiple lists**: While you use multiple lists (for example, to compress ciphertexts at different times), this approach takes more space.
+
+The following example shows how to compress and decompress a list containing 4 messages: one 32-bits integer, one 64-bit integer, one boolean, and one 2-bit integer.
+
+```rust
+use tfhe::prelude::*;
+use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use tfhe::{
+    set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
+    FheInt64, FheUint16, FheUint2, FheUint32,
+};
+
+fn main() {
+    let config = tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, None)
+        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+        .build();
+
+    let ck = tfhe::ClientKey::generate(config);
+    let sk = tfhe::ServerKey::new(&ck);
+
+    set_server_key(sk);
+
+    let ct1 = FheUint32::encrypt(17_u32, &ck);
+
+    let ct2 = FheInt64::encrypt(-1i64, &ck);
+
+    let ct3 = FheBool::encrypt(false, &ck);
+
+    let ct4 = FheUint2::encrypt(3u8, &ck);
+
+    let compressed_list = CompressedCiphertextListBuilder::new()
+        .push(ct1)
+        .push(ct2)
+        .push(ct3)
+        .push(ct4)
+        .build()
+        .unwrap();
+
+    let serialized = bincode::serialize(&compressed_list).unwrap();
+
+    println!("Serialized size: {} bytes", serialized.len());
+
+    let compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
+
+    
+    let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+    let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
+    let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+    let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+
+    let a: u32 = a.decrypt(&ck);
+    assert_eq!(a, 17);
+    let b: i64 = b.decrypt(&ck);
+    assert_eq!(b, -1);
+    let c = c.decrypt(&ck);
+    assert!(!c);
+    let d: u8 = d.decrypt(&ck);
+    assert_eq!(d, 3);
+
+    // Out of bound index 
+    assert!(compressed_list.get::<FheBool>(4).unwrap().is_none());
+
+    // Incorrect type
+    assert!(compressed_list.get::<FheInt64>(0).is_err());
+
+    // Correct type but wrong number of bits
+    assert!(compressed_list.get::<FheUint16>(0).is_err());
+    
 }
 ```
 
