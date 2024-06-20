@@ -1,8 +1,10 @@
 use super::{BooleanBlock, IntegerRadixCiphertext};
-use crate::shortint::Ciphertext;
+use crate::{integer::backward_compatibility::ciphertext::DataKindVersions, shortint::Ciphertext};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(DataKindVersions)]
 pub enum DataKind {
     Unsigned(usize),
     Signed(usize),

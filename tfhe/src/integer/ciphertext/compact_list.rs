@@ -1,6 +1,7 @@
 use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::Numeric;
+use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
@@ -12,6 +13,7 @@ use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
@@ -292,7 +294,8 @@ impl CompactCiphertextListExpander {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
     pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
     // Integers stored can have a heterogeneous number of blocks and signedness

@@ -4,13 +4,16 @@ use super::common::*;
 use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
+use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure representing a compressed shortint ciphertext.
 /// It is used to homomorphically evaluate a shortint circuits.
 /// Internally, it uses a LWE ciphertext.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCiphertextVersions)]
 pub struct CompressedCiphertext {
     pub ct: SeededLweCiphertext<u64>,
     pub degree: Degree,
