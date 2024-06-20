@@ -13,7 +13,7 @@ use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 
 fn extract_message_and_carries(packed_blocks: Vec<Ciphertext>, sks: &ServerKey) -> Vec<Ciphertext> {
@@ -203,7 +203,7 @@ impl CompactCiphertextListBuilder {
         })
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn build_with_proof(
         &self,
         public_params: &CompactPkePublicParams,
@@ -221,7 +221,7 @@ impl CompactCiphertextListBuilder {
         })
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
@@ -506,7 +506,7 @@ impl CompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProvenCompactCiphertextList {
     pub(crate) ct_list: crate::shortint::ciphertext::ProvenCompactCiphertextList,
@@ -515,7 +515,7 @@ pub struct ProvenCompactCiphertextList {
     pub(crate) info: Vec<DataKind>,
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 impl ProvenCompactCiphertextList {
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
@@ -589,7 +589,7 @@ impl ProvenCompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;

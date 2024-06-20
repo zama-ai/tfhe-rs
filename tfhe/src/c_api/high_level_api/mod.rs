@@ -14,7 +14,7 @@ pub mod u2048;
 pub mod u256;
 pub mod u512;
 mod utils;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 mod zk;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]

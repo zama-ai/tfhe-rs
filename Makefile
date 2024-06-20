@@ -289,7 +289,7 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok-experimental \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
@@ -368,21 +368,21 @@ symlink_c_libs_without_fingerprint:
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok-experimental,$(FORWARD_COMPAT_FEATURE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok-experimental,gpu \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,gpu \
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok-experimental,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
 	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
@@ -391,7 +391,7 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok-experimental
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
@@ -399,7 +399,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory,+mutable-globals" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok-experimental \
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
 		-Z build-std=panic_abort,std
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
@@ -407,7 +407,7 @@ build_node_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=nodejs \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok-experimental
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
 
 .PHONY: build_concrete_csprng # Build concrete_csprng
 build_concrete_csprng: install_rs_build_toolchain
@@ -417,10 +417,10 @@ build_concrete_csprng: install_rs_build_toolchain
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok-experimental -p $(TFHE_SPEC) -- core_crypto::
+		--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok -p $(TFHE_SPEC) -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-			--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok-experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
+			--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
@@ -591,7 +591,7 @@ test_integer_cov: install_rs_check_toolchain install_tarpaulin
 .PHONY: test_high_level_api # Run all the tests for high_level_api
 test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok-experimental -p $(TFHE_SPEC) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,zk-pok -p $(TFHE_SPEC) \
 		-- high_level_api::
 
 test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
@@ -602,14 +602,14 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok-experimental \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p $(TFHE_SPEC) \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
 test_user_doc_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu,zk-pok-experimental -p $(TFHE_SPEC) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
 		-- test_user_docs::
 
 .PHONY: test_fhe_strings # Run tests for fhe_strings example
@@ -648,7 +648,7 @@ test_concrete_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
 
-.PHONY: test_zk_pok # Run tfhe-zk-pok-experimental tests
+.PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok
@@ -814,7 +814,7 @@ bench_integer_zk: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,zk-pok-experimental,nightly-avx512 \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,zk-pok,nightly-avx512 \
 	-p $(TFHE_SPEC) --
 
 .PHONY: bench_shortint # Run benchmarks for shortint

@@ -13,7 +13,7 @@ use crate::integer::parameters::{
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::shortint::{Ciphertext, MessageModulus};
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::{CompactPublicKey, FheBool, FheInt, FheUint};
 
@@ -93,16 +93,16 @@ impl ParameterSetConformant for CompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProvenCompactCiphertextList(crate::integer::ciphertext::ProvenCompactCiphertextList);
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 impl Named for ProvenCompactCiphertextList {
     const NAME: &'static str = "high_level_api::ProvenCompactCiphertextList";
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 impl ProvenCompactCiphertextList {
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
@@ -393,7 +393,7 @@ impl CompactCiphertextListBuilder {
             .expect("Internal error, invalid parameters should not have been allowed")
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
@@ -409,7 +409,7 @@ impl CompactCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     use crate::zk::CompactPkeCrs;
     use crate::{set_server_key, FheInt64, FheUint16, FheUint2, FheUint32};
 
@@ -466,7 +466,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     #[test]
     fn test_proven_compact_list() {
         use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -528,7 +528,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     #[test]
     fn test_proven_compact_list_with_casting() {
         use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;

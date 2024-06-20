@@ -7,7 +7,7 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
@@ -284,7 +284,7 @@ pub struct ShortintEngine {
     /// A seeder that can be called to generate 128 bits seeds, useful to create new
     /// [`EncryptionRandomGenerator`] to encrypt seeded types.
     pub(crate) seeder: DeterministicSeeder<ActivatedRandomGenerator>,
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub(crate) random_generator: RandomGenerator<ActivatedRandomGenerator>,
     pub(crate) computation_buffers: ComputationBuffers,
     ciphertext_buffers: Memory,
@@ -329,7 +329,7 @@ impl ShortintEngine {
                 deterministic_seeder.seed(),
                 &mut deterministic_seeder,
             ),
-            #[cfg(feature = "zk-pok-experimental")]
+            #[cfg(feature = "zk-pok")]
             random_generator: RandomGenerator::new(deterministic_seeder.seed()),
             seeder: deterministic_seeder,
             computation_buffers: ComputationBuffers::default(),

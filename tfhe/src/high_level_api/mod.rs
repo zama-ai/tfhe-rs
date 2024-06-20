@@ -51,7 +51,7 @@ expand_pub_use_fhe_type!(
 );
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub use compact_list::ProvenCompactCiphertextList;
 pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
@@ -72,7 +72,7 @@ mod compact_list;
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 mod zk;
 
 /// Devices supported by tfhe-rs

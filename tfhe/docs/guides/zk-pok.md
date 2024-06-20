@@ -5,7 +5,7 @@ This document explains how to implement the zero-knowledge proofs function for c
 **TFHE-rs** can generate zero-knowledge proofs to verify that the compact public key encryption process is correct. In other words, **TFHE-rs** generates the proof without revealing any information other than the already known range of the encrypted message. This technique is derived from [Libert’s work](https://eprint.iacr.org/2023/800).
 
 {% hint style="info" %}
-You can enable this feature using the flag: `--features=zk-pok-experimental` when building **TFHE-rs**.
+You can enable this feature using the flag: `--features=zk-pok` when building **TFHE-rs**.
 {% endhint %}
 
 Using this feature is straightforward: during encryption, the client generates the proof, and the server validates it before conducting any homomorphic computations. The following example demonstrates how a client can encrypt and prove a ciphertext, and how a server can verify the ciphertext and compute it:

@@ -27,7 +27,7 @@ pub mod lwe_programmable_bootstrapping;
 pub mod lwe_public_key_generation;
 pub mod lwe_secret_key_generation;
 pub mod lwe_wopbs;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub mod lwe_zero_knowledge_verification;
 pub mod misc;
 pub mod polynomial_algorithms;
@@ -75,7 +75,7 @@ pub use lwe_programmable_bootstrapping::*;
 pub use lwe_public_key_generation::*;
 pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub use lwe_zero_knowledge_verification::*;
 pub use seeded_ggsw_ciphertext_decompression::*;
 pub use seeded_ggsw_ciphertext_list_decompression::*;

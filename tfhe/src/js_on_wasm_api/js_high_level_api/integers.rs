@@ -3,7 +3,7 @@ use crate::high_level_api::prelude::*;
 use crate::integer::bigint::{StaticUnsignedBigInt, U1024, U2048, U512};
 use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::js_on_wasm_api::js_high_level_api::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
 use js_sys::BigInt;
@@ -669,7 +669,7 @@ pub struct CompactCiphertextListExpander(crate::high_level_api::CompactCiphertex
 #[wasm_bindgen]
 pub struct CompactCiphertextList(crate::high_level_api::CompactCiphertextList);
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[wasm_bindgen]
 pub struct ProvenCompactCiphertextList(crate::high_level_api::ProvenCompactCiphertextList);
 
@@ -732,7 +732,7 @@ impl CompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[wasm_bindgen]
 impl ProvenCompactCiphertextList {
     #[wasm_bindgen]
@@ -948,7 +948,7 @@ impl CompactCiphertextListBuilder {
         })
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
