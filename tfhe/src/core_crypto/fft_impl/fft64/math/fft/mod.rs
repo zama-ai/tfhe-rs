@@ -1,4 +1,7 @@
 use super::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
+use crate::core_crypto::backward_compatibility::fft_impl::{
+    FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
+};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
@@ -17,6 +20,7 @@ use std::mem::{align_of, size_of};
 use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize};
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 mod x86;
@@ -582,6 +586,26 @@ impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
             .as_mut()
             .chunks_exact_mut(self.polynomial_size.to_fourier_polynomial_size().0)
             .map(move |slice| FourierPolynomial { data: slice })
+    }
+}
+
+impl<C: Container<Element = c64>> Versionize for FourierPolynomialList<C> {
+    type Versioned<'vers> = FourierPolynomialListVersioned<'vers> where C: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.into()
+    }
+
+    type VersionedOwned = FourierPolynomialListVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        self.into()
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> Unversionize for FourierPolynomialList<C> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(versioned.into())
     }
 }
 

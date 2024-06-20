@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`LwePublicKey`].
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_public_key::LwePublicKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -20,7 +23,8 @@ use crate::core_crypto::entities::*;
 /// An LWE public key contains $m$ LWE encryptions of 0 under a secret key
 /// $\vec{s}\in\mathbb{Z}\_q^n$ where $n$ is the LWE dimension of the ciphertexts contained in the
 /// public key.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LwePublicKeyVersions)]
 pub struct LwePublicKey<C: Container>
 where
     C::Element: UnsignedInteger,

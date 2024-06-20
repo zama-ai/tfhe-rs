@@ -1,6 +1,9 @@
 //! Module containing the definition of the [`SeededLweCompactPublicKey`].
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
+use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -10,7 +13,8 @@ use crate::core_crypto::entities::*;
 ///
 /// Implementation of the public key construction described in <https://eprint.iacr.org/2023/603> by
 /// M. Joye.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededLweCompactPublicKeyVersions)]
 pub struct SeededLweCompactPublicKey<C: Container>
 where
     C::Element: UnsignedInteger,

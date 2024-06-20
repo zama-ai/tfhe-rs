@@ -11,8 +11,8 @@ pub use key_switching_key::KeySwitchingKey;
 pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 #[cfg(feature = "gpu")]
 pub use server::CudaServerKey;
-pub(crate) use server::InternalServerKey;
 pub use server::{CompressedServerKey, ServerKey};
+pub(crate) use server::{InternalServerKey, ServerKeyVersion, ServerKeyVersionOwned};
 
 pub(in crate::high_level_api) use inner::{
     IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,

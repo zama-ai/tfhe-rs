@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`LweCompactPublicKey`].
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_compact_public_key::LweCompactPublicKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -8,7 +11,8 @@ use crate::core_crypto::entities::*;
 ///
 /// Implementation of the public key construction described in <https://eprint.iacr.org/2023/603> by
 /// M. Joye.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweCompactPublicKeyVersions)]
 pub struct LweCompactPublicKey<C: Container>
 where
     C::Element: UnsignedInteger,

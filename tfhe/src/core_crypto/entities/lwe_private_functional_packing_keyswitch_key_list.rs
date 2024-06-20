@@ -1,12 +1,16 @@
 //! Module containing the definition of the LwePrivateFunctionalPackingKeyswitchKeyList.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_private_functional_packing_keyswitch_key_list::LwePrivateFunctionalPackingKeyswitchKeyListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing [`LWE private functional packing keyswitch
 /// keys`](`crate::core_crypto::entities::LwePrivateFunctionalPackingKeyswitchKey`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LwePrivateFunctionalPackingKeyswitchKeyListVersions)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container>
 where
     C::Element: UnsignedInteger,

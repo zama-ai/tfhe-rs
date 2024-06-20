@@ -18,6 +18,9 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use super::backward_compatibility::wopbs::WopbsKeyVersions;
 
 #[derive(Debug)]
 pub enum WopbsKeyCreationError {
@@ -40,7 +43,8 @@ impl std::fmt::Display for WopbsKeyCreationError {
 mod test;
 
 // Struct for WoPBS based on the private functional packing keyswitch.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(WopbsKeyVersions)]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,

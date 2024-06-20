@@ -1,3 +1,6 @@
+use crate::core_crypto::backward_compatibility::commons::math::random::{
+    CompressionSeedVersioned, CompressionSeedVersionedOwned,
+};
 use crate::core_crypto::commons::math::random::{
     Distribution, Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
@@ -28,12 +31,35 @@ pub mod serialization_proxy {
 }
 
 pub(crate) use serialization_proxy::*;
+use tfhe_versionable::{Unversionize, Versionize};
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 /// New type to manage seeds used for compressed/seeded types.
 pub struct CompressionSeed {
     #[serde(with = "SeedSerdeDef")]
     pub seed: Seed,
+}
+
+impl Versionize for CompressionSeed {
+    type Versioned<'vers> = CompressionSeedVersioned<'vers>;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.into()
+    }
+
+    type VersionedOwned = CompressionSeedVersionedOwned;
+
+    fn versionize_owned(&self) -> Self::VersionedOwned {
+        (*self).into()
+    }
+}
+
+impl Unversionize for CompressionSeed {
+    fn unversionize(
+        versioned: Self::VersionedOwned,
+    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
+        Ok(versioned.into())
+    }
 }
 
 impl From<Seed> for CompressionSeed {

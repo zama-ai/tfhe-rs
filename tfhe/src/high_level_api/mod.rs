@@ -81,6 +81,8 @@ mod errors;
 mod integers;
 
 pub mod array;
+pub mod backward_compatibility;
+
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;
