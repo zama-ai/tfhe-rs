@@ -57,7 +57,7 @@ pub use compact_list::{
     CompactCiphertextList, CompactCiphertextListBuilder, CompactCiphertextListExpander,
 };
 pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
-pub use safe_serialize::safe_serialize;
+pub use safe_serialize::{safe_serialize, safe_serialize_versioned};
 
 mod booleans;
 mod compressed_ciphertext_list;
@@ -121,6 +121,7 @@ pub enum FheTypes {
 pub mod safe_serialize {
     use crate::named::Named;
     use serde::Serialize;
+    use tfhe_versionable::Versionize;
 
     pub fn safe_serialize<T>(
         a: &T,
@@ -131,6 +132,18 @@ pub mod safe_serialize {
         T: Named + Serialize,
     {
         crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
+            .map_err(|err| err.to_string())
+    }
+
+    pub fn safe_serialize_versioned<T>(
+        a: &T,
+        writer: impl std::io::Write,
+        serialized_size_limit: u64,
+    ) -> Result<(), String>
+    where
+        T: Named + Versionize,
+    {
+        crate::safe_deserialization::safe_serialize_versioned(a, writer, serialized_size_limit)
             .map_err(|err| err.to_string())
     }
 }
