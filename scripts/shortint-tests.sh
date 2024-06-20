@@ -120,7 +120,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
         --cargo-profile "${cargo_profile}" \
         --package "${tfhe_package}" \
         --profile ci \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache,zk-pok-experimental \
+        --features="${ARCH_FEATURE}",shortint,internal-keycache,zk-pok \
         --test-threads "${n_threads_small}" \
         -E "${filter_expression_small_params}"
 

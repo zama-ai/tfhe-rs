@@ -110,7 +110,7 @@ mod js_on_wasm_api;
     feature = "shortint",
     feature = "boolean",
     feature = "integer",
-    feature = "zk-pok-experimental"
+    feature = "zk-pok"
 ))]
 mod test_user_docs;
 
@@ -132,7 +132,7 @@ pub mod conformance;
 pub mod named;
 
 pub mod error;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub mod zk;
 
 pub use error::{Error, ErrorKind};

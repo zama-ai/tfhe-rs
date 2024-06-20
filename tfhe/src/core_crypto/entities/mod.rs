@@ -58,7 +58,7 @@ pub use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     FourierGgswCiphertext, FourierGgswCiphertextList, FourierGgswLevelMatrix, FourierGgswLevelRow,
 };
 pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub use crate::zk::*;
 pub use cleartext::*;
 pub use compressed_modulus_switched_lwe_ciphertext::*;

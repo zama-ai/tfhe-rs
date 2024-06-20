@@ -12,7 +12,7 @@ use crate::c_api::high_level_api::u256::U256;
 use crate::c_api::high_level_api::utils::{
     impl_destroy_on_type, impl_serialize_deserialize_on_type, CApiIntegerType,
 };
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::c_api::high_level_api::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
 use std::ffi::c_int;
@@ -24,11 +24,11 @@ pub struct CompactCiphertextList(crate::high_level_api::CompactCiphertextList);
 impl_destroy_on_type!(CompactCiphertextList);
 impl_serialize_deserialize_on_type!(CompactCiphertextList);
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub struct ProvenCompactCiphertextList(crate::high_level_api::ProvenCompactCiphertextList);
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 impl_destroy_on_type!(ProvenCompactCiphertextList);
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 impl_serialize_deserialize_on_type!(ProvenCompactCiphertextList);
 
 #[no_mangle]
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_packed(
     })
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[no_mangle]
 pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed(
     builder: *const CompactCiphertextListBuilder,
@@ -167,7 +167,7 @@ pub unsafe extern "C" fn compact_ciphertext_list_expand(
     })
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[no_mangle]
 pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
     compact_list: *const ProvenCompactCiphertextList,

@@ -67,7 +67,7 @@ pub mod wopbs;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 pub use ciphertext::ProvenCompactCiphertextList;
 
 pub use bigint::i256::I256;

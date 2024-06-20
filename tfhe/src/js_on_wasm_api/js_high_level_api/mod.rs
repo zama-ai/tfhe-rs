@@ -5,7 +5,7 @@ pub(crate) mod integers;
 // using Self does not work well with #[wasm_bindgen] macro
 #[allow(clippy::use_self)]
 pub(crate) mod keys;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 mod zk;
 
 pub(crate) fn into_js_error<E: std::fmt::Debug>(e: E) -> wasm_bindgen::JsError {

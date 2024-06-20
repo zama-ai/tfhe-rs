@@ -92,7 +92,7 @@ shortint = ["dep:sha3"]
 integer = ["shortint"]
 internal-keycache = ["dep:lazy_static", "dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend"]
-zk-pok-experimental = ["dep:tfhe-zk-pok"]
+zk-pok = ["dep:tfhe-zk-pok"]
 
 pbs-stats = []
 
@@ -150,7 +150,7 @@ aarch64-unix = ["aarch64", "seeder_unix"]
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu"]
+features = ["x86_64-unix", "boolean", "shortint", "integer", "gpu", "zk-pok"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
@@ -223,7 +223,7 @@ required-features = ["integer", "internal-keycache"]
 name = "zk-pke-bench"
 path = "benches/integer/zk_pke.rs"
 harness = false
-required-features = ["integer", "zk-pok-experimental", "internal-keycache"]
+required-features = ["integer", "zk-pok", "internal-keycache"]
 
 [[bench]]
 name = "hlapi"

@@ -1,9 +1,9 @@
 use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::test_tools;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use rand::Rng;
 
 #[cfg(not(tarpaulin))]
@@ -996,7 +996,7 @@ create_parametrized_test!(lwe_compact_public_encrypt_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     params: ClassicTestParams<Scalar>,
 ) where
@@ -1093,12 +1093,12 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     }
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 create_parametrized_test!(lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[test]
 fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
     use rand::Rng;

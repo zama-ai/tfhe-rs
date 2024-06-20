@@ -4,14 +4,14 @@ use crate::core_crypto::prelude::{
     Container, LweCiphertextCount, LweCompactCiphertextListOwned, LweCompactPublicKeyOwned,
     LweSecretKey, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -244,7 +244,7 @@ impl CompactPublicKey {
         Self { key, parameters }
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn encrypt_and_prove(
         &self,
         message: u64,
@@ -358,7 +358,7 @@ impl CompactPublicKey {
         }
     }
 
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     pub fn encrypt_and_prove_slice(
         &self,
         messages: &[u64],

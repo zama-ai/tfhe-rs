@@ -5,7 +5,7 @@ pub enum ErrorKind {
     Message(String),
     /// The zero knowledge proof and the content it is supposed to prove
     /// failed to correctly prove
-    #[cfg(feature = "zk-pok-experimental")]
+    #[cfg(feature = "zk-pok")]
     InvalidZkProof,
 }
 
@@ -30,7 +30,7 @@ impl Display for Error {
             ErrorKind::Message(msg) => {
                 write!(f, "{msg}")
             }
-            #[cfg(feature = "zk-pok-experimental")]
+            #[cfg(feature = "zk-pok")]
             ErrorKind::InvalidZkProof => {
                 write!(f, "The zero knowledge proof and the content it is supposed to prove were not valid")
             }

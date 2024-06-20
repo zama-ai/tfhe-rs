@@ -5,7 +5,7 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::commons::math::random::{
     ActivatedRandomGenerator, Distribution, RandomGenerable, RandomGenerator, Uniform,
@@ -15,7 +15,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 use tfhe_zk_pok::proofs::pke::{commit, prove};
 
 /// Convenience function to share the core logic of the LWE encryption between all functions needing
@@ -1693,17 +1693,17 @@ where
 /// These are needed by the zero-knowledge proof
 struct CompactPublicKeyRandomVectors<Scalar> {
     // This is 'r'
-    #[cfg_attr(not(feature = "zk-pok-experimental"), allow(unused))]
+    #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
     binary_random_vector: Vec<Scalar>,
     // This is e1
-    #[cfg_attr(not(feature = "zk-pok-experimental"), allow(unused))]
+    #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
     mask_noise: Vec<Scalar>,
     // This is e2
-    #[cfg_attr(not(feature = "zk-pok-experimental"), allow(unused))]
+    #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
     body_noise: Vec<Scalar>,
 }
 
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 fn verify_zero_knowledge_preconditions<Scalar, KeyCont, MaskDistribution, BodyDistribution>(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     ciphertext_count: LweCiphertextCount,
@@ -2080,7 +2080,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// // Check we recovered the original message
 /// assert_eq!(cleartext, msg.0);
 /// ```
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[allow(clippy::too_many_arguments)]
 pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     Scalar,
@@ -2570,7 +2570,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// // Check we recovered the original messages
 /// assert_eq!(&cleartexts, output_plaintext_list.as_ref());
 /// ```
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[allow(clippy::too_many_arguments)]
 pub fn encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     Scalar,
@@ -3090,7 +3090,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// // Check we recovered the original messages
 /// assert_eq!(&cleartexts, output_plaintext_list.as_ref());
 /// ```
-#[cfg(feature = "zk-pok-experimental")]
+#[cfg(feature = "zk-pok")]
 #[allow(clippy::too_many_arguments)]
 pub fn par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     Scalar,

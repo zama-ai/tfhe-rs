@@ -155,7 +155,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --cargo-profile "${cargo_profile}" \
     --package "${tfhe_package}" \
     --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok-experimental,"${avx512_feature}" \
+    --features="${ARCH_FEATURE}",integer,internal-keycache,zk-pok,"${avx512_feature}" \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
