@@ -20,8 +20,8 @@ pub use signed::{CompressedFheInt, FheInt};
 pub use unsigned::{CompressedFheUint, FheUint};
 
 pub mod oprf;
-mod signed;
-mod unsigned;
+pub(super) mod signed;
+pub(super) mod unsigned;
 
 /// Trait to mark ID type for integers
 // The 'static restrains implementor from holding non-static refs

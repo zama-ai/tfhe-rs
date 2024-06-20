@@ -62,6 +62,7 @@ mod config;
 mod global_state;
 mod keys;
 mod traits;
+mod utils;
 
 mod booleans;
 mod errors;

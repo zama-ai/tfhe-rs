@@ -2,7 +2,6 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
-use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
@@ -10,12 +9,11 @@ use crate::integer::parameters::{
     CompactCiphertextListConformanceParams, IntegerCompactCiphertextListCastingMode,
     IntegerCompactCiphertextListUnpackingMode,
 };
-use crate::integer::BooleanBlock;
 use crate::named::Named;
-use crate::shortint::{Ciphertext, MessageModulus};
+use crate::shortint::MessageModulus;
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
-use crate::{CompactPublicKey, FheBool, FheInt, FheUint};
+use crate::CompactPublicKey;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CompactCiphertextList(crate::integer::ciphertext::CompactCiphertextList);
@@ -156,99 +154,6 @@ impl ProvenCompactCiphertextList {
             #[cfg(feature = "gpu")]
             Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
         })
-    }
-}
-
-fn num_bits_of_blocks(blocks: &[Ciphertext]) -> u32 {
-    blocks
-        .iter()
-        .map(|block| block.message_modulus.0.ilog2())
-        .sum::<u32>()
-}
-
-impl<Id: FheUintId> Expandable for FheUint<Id> {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
-        match kind {
-            DataKind::Unsigned(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                if stored_num_bits == Id::num_bits() {
-                    Ok(Self::new(crate::integer::RadixCiphertext::from(
-                        blocks.to_vec(),
-                    )))
-                } else {
-                    Err(crate::Error::new(format!(
-                        "Tried to expand a FheUint{} while a FheUint{} is stored in this slot",
-                        Id::num_bits(),
-                        stored_num_bits
-                    )))
-                }
-            }
-            DataKind::Signed(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                Err(crate::Error::new(format!(
-                    "Tried to expand a FheUint{} while a FheInt{} is stored in this slot",
-                    Id::num_bits(),
-                    stored_num_bits
-                )))
-            }
-            DataKind::Boolean => Err(crate::Error::new(format!(
-                "Tried to expand a FheUint{} while a FheBool is stored in this slot",
-                Id::num_bits(),
-            ))),
-        }
-    }
-}
-
-impl<Id: FheIntId> Expandable for FheInt<Id> {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
-        match kind {
-            DataKind::Unsigned(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                Err(crate::Error::new(format!(
-                    "Tried to expand a FheInt{} while a FheUint{} is stored in this slot",
-                    Id::num_bits(),
-                    stored_num_bits
-                )))
-            }
-            DataKind::Signed(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                if stored_num_bits == Id::num_bits() {
-                    Ok(Self::new(crate::integer::SignedRadixCiphertext::from(
-                        blocks.to_vec(),
-                    )))
-                } else {
-                    Err(crate::Error::new(format!(
-                        "Tried to expand a FheInt{} while a FheInt{} is stored in this slot",
-                        Id::num_bits(),
-                        stored_num_bits
-                    )))
-                }
-            }
-            DataKind::Boolean => Err(crate::Error::new(format!(
-                "Tried to expand a FheUint{} while a FheBool is stored in this slot",
-                Id::num_bits(),
-            ))),
-        }
-    }
-}
-
-impl Expandable for FheBool {
-    fn from_expanded_blocks(blocks: &[Ciphertext], kind: DataKind) -> crate::Result<Self> {
-        match kind {
-            DataKind::Unsigned(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                Err(crate::Error::new(format!(
-                    "Tried to expand a FheBool while a FheUint{stored_num_bits} is stored in this slot",
-                )))
-            }
-            DataKind::Signed(_) => {
-                let stored_num_bits = num_bits_of_blocks(blocks) as usize;
-                Err(crate::Error::new(format!(
-                    "Tried to expand a FheBool while a FheInt{stored_num_bits} is stored in this slot",
-                )))
-            }
-            DataKind::Boolean => Ok(Self::new(BooleanBlock::new_unchecked(blocks[0].clone()))),
-        }
     }
 }
 
@@ -411,7 +316,7 @@ mod tests {
     use crate::prelude::*;
     #[cfg(feature = "zk-pok")]
     use crate::zk::CompactPkeCrs;
-    use crate::{set_server_key, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
 
     #[test]
     fn test_compact_list() {
