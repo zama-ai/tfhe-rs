@@ -239,7 +239,8 @@ impl<T: AssociatedType> AssociatingTrait<T> {
             // If these lints doesn't trigger on the orginal type, we don't want them to trigger
             // on the generated one
             clippy::upper_case_acronyms,
-            clippy::large_enum_variant
+            clippy::large_enum_variant,
+            clippy::struct_field_names
         )
         ]};
 
