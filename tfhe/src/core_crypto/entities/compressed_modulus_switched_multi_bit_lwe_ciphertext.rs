@@ -4,7 +4,7 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 use itertools::Itertools;
 
-/// An object to store a ciphertext in little memory
+/// An object to store a ciphertext using less memory
 /// The ciphertext is applied a modulus switch as done in the multi bit PBS.
 /// It is then stored in a compact way.
 /// The uncompacted result must go through a multi bit PBS to
