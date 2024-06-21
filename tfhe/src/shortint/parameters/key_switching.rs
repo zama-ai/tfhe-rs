@@ -1,10 +1,13 @@
+use crate::shortint::backward_compatibility::parameters::key_switching::ShortintKeySwitchingParametersVersions;
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A set of cryptographic parameters for homomorphic Shortint key switching.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(ShortintKeySwitchingParametersVersions)]
 pub struct ShortintKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,

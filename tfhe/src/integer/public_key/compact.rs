@@ -1,4 +1,7 @@
 use crate::core_crypto::commons::traits::Container;
+use crate::integer::backward_compatibility::public_key::{
+    CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
+};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
@@ -9,8 +12,10 @@ use crate::shortint::{
     CompressedCompactPublicKey as ShortintCompressedCompactPublicKey,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompactPrivateKeyVersions)]
 pub struct CompactPrivateKey<C: Container<Element = u64>> {
     pub(crate) key: ShortintCompactPrivateKey<C>,
 }
@@ -71,7 +76,8 @@ impl<'key, C: Container<Element = u64>> From<&'key CompactPrivateKey<C>>
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(crate) key: ShortintCompactPublicKey,
 }
@@ -153,7 +159,8 @@ impl CompactPublicKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCompactPublicKeyVersions)]
 pub struct CompressedCompactPublicKey {
     pub(crate) key: ShortintCompressedCompactPublicKey,
 }

@@ -1,11 +1,15 @@
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
+use crate::shortint::backward_compatibility::parameters::list_compression::CompressionParametersVersions;
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     PolynomialSize,
 };
 use std::fmt::Debug;
 
-#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressionParametersVersions)]
 pub struct CompressionParameters {
     pub br_level: DecompositionLevelCount,
     pub br_base_log: DecompositionBaseLog,

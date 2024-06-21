@@ -1,5 +1,6 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::high_level_api::backward_compatibility::keys::*;
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::list_compression::{
@@ -11,10 +12,12 @@ use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 use crate::Error;
 use concrete_csprng::seeders::Seed;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 // Clippy complained that fields end in _parameters, :roll_eyes:
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(IntegerConfigVersions)]
 #[allow(clippy::struct_field_names)]
-#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
     pub(crate) block_parameters: crate::shortint::PBSParameters,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
@@ -85,12 +88,13 @@ impl IntegerConfig {
     }
 }
 
-pub(crate) type CompactPrivateKey = (
+pub type CompactPrivateKey = (
     crate::integer::CompactPrivateKey<Vec<u64>>,
     crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
 );
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(IntegerClientKeyVersions)]
 pub(crate) struct IntegerClientKey {
     pub(crate) key: crate::integer::ClientKey,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
@@ -229,7 +233,8 @@ impl From<IntegerConfig> for IntegerClientKey {
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(IntegerServerKeyVersions)]
 pub struct IntegerServerKey {
     pub(crate) key: crate::integer::ServerKey,
     pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
@@ -308,7 +313,8 @@ impl IntegerServerKey {
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(IntegerCompressedServerKeyVersions)]
 pub struct IntegerCompressedServerKey {
     pub(crate) key: crate::integer::CompressedServerKey,
     pub(crate) cpk_key_switching_key_material:
@@ -425,7 +431,8 @@ impl IntegerCompressedServerKey {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(IntegerCompactPublicKeyVersions)]
 pub(in crate::high_level_api) struct IntegerCompactPublicKey {
     pub(in crate::high_level_api) key: CompactPublicKey,
 }
@@ -453,7 +460,8 @@ impl IntegerCompactPublicKey {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(IntegerCompressedCompactPublicKeyVersions)]
 pub(in crate::high_level_api) struct IntegerCompressedCompactPublicKey {
     pub(in crate::high_level_api) key: CompressedCompactPublicKey,
 }

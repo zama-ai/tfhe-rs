@@ -70,7 +70,9 @@ mod traits;
 mod utils;
 
 pub mod array;
+pub mod backward_compatibility;
 mod compact_list;
+
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;

@@ -1,9 +1,13 @@
+use super::backward_compatibility::key_switching_key::{
+    CompressedKeySwitchingKeyMaterialVersions, KeySwitchingKeyMaterialVersions,
+};
 use super::{ClientKey, CompressedServerKey, ServerKey};
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::IntegerCiphertext;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 #[cfg(test)]
 mod test;
@@ -36,7 +40,8 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(KeySwitchingKeyMaterialVersions)]
 pub struct KeySwitchingKeyMaterial {
     pub(crate) material: crate::shortint::key_switching_key::KeySwitchingKeyMaterial,
 }
@@ -191,7 +196,8 @@ impl<'keys> CompressedKeySwitchingKeyBuildHelper<'keys> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedKeySwitchingKeyMaterialVersions)]
 pub struct CompressedKeySwitchingKeyMaterial {
     pub(crate) material: crate::shortint::key_switching_key::CompressedKeySwitchingKeyMaterial,
 }

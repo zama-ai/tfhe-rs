@@ -1,5 +1,8 @@
 //! Module containing the definition of the [`LweKeyswitchKey`].
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::lwe_keyswitch_key::LweKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -73,7 +76,8 @@ use crate::core_crypto::entities::*;
 /// \sum\_{i=0}^{n\_{\mathsf{in}}-1} \mathsf{decompProduct}\left( a\_i , \overline{\mathsf{ct}\_i}
 /// \right)$
 /// 3. output $\mathsf{ct}\_{\mathsf{out}}$
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(LweKeyswitchKeyVersions)]
 pub struct LweKeyswitchKey<C: Container>
 where
     C::Element: UnsignedInteger,
