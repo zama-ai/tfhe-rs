@@ -53,12 +53,10 @@ pub enum CompressedSignedRadixCiphertextV0 {
 impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertextV0 {
     fn upgrade(self) -> Result<CompressedSignedRadixCiphertext, String> {
         match self {
-            CompressedSignedRadixCiphertextV0::Seeded(ct) => {
-                Ok(CompressedSignedRadixCiphertext::Seeded(ct))
-            }
+            Self::Seeded(ct) => Ok(CompressedSignedRadixCiphertext::Seeded(ct)),
 
             // Upgrade by decompressing and recompressing with the new scheme
-            CompressedSignedRadixCiphertextV0::ModulusSwitched(ct) => {
+            Self::ModulusSwitched(ct) => {
                 let upgraded = with_cpu_internal_keys(|sk| {
                     let blocks = ct
                         .blocks
@@ -91,10 +89,10 @@ pub enum CompressedRadixCiphertextV0 {
 impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
     fn upgrade(self) -> Result<CompressedRadixCiphertext, String> {
         match self {
-            CompressedRadixCiphertextV0::Seeded(ct) => Ok(CompressedRadixCiphertext::Seeded(ct)),
+            Self::Seeded(ct) => Ok(CompressedRadixCiphertext::Seeded(ct)),
 
             // Upgrade by decompressing and recompressing with the new scheme
-            CompressedRadixCiphertextV0::ModulusSwitched(ct) => {
+            Self::ModulusSwitched(ct) => {
                 let upgraded = with_cpu_internal_keys(|sk| {
                     let blocks = ct
                         .blocks

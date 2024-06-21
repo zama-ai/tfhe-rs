@@ -5,8 +5,6 @@ use tfhe_versionable::{Versionize, VersionsDispatch};
 
 use crate::high_level_api::booleans::InnerBooleanVersionOwned;
 use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
-use crate::integer::BooleanBlock;
-use crate::shortint::parameters::Degree;
 use crate::{CompactCiphertextList as HlCompactCiphertextList, CompressedFheBool, Error, FheBool};
 
 // Manual impl
