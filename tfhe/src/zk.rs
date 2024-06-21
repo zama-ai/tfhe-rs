@@ -37,7 +37,7 @@ pub struct CompactPkeCrs {
 impl CompactPkeCrs {
     /// Prepare and check the CRS parameters.
     ///
-    /// The output of this function can be used in [tfhe_zk_pok::proofs::pke::compute_crs_len].
+    /// The output of this function can be used in [tfhe_zk_pok::proofs::pke::compute_crs_params].
     pub fn prepare_crs_parameters<Scalar, NoiseDistribution>(
         lwe_dim: LweDimension,
         max_num_cleartext: usize,
