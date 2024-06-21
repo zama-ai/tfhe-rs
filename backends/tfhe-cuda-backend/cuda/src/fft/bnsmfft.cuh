@@ -294,9 +294,6 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
     __syncthreads();
   }
 
-  // compressed size = 8192 is actual polynomial size = 16384.
-  // from this size, twiddles can't fit in constant memory,
-  // so from here, butterfly operation access device memory.
   if constexpr (params::degree >= 8192) {
     // level 13
     tid = threadIdx.x;
@@ -307,7 +304,7 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
            (tid & (params::degree / 8192 - 1));
       i2 = i1 + params::degree / 8192;
 
-      w = negtwiddles13[twid_id];
+      w = negtwiddles[twid_id + 4096];
       u = A[i1];
       v = A[i2] * w;
 
@@ -351,10 +348,6 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
   // mapping in backward fft is reversed
   // butterfly operation is started from last level
 
-  // compressed size = 8192 is actual polynomial size = 16384.
-  // twiddles for this size can't fit in constant memory so
-  // butterfly operation for this level access device memory to fetch
-  // twiddles
   if constexpr (params::degree >= 8192) {
     // level 13
     tid = threadIdx.x;
@@ -365,7 +358,7 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
            (tid & (params::degree / 8192 - 1));
       i2 = i1 + params::degree / 8192;
 
-      w = negtwiddles13[twid_id];
+      w = negtwiddles[twid_id + 4096];
       u = A[i1] - A[i2];
 
       A[i1] += A[i2];
