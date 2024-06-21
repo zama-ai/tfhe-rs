@@ -6,6 +6,7 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
 };
 use crate::integer::BooleanBlock;
+use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 
 #[derive(VersionsDispatch)]
 pub enum BaseRadixCiphertextVersions<Block> {
@@ -30,9 +31,11 @@ pub struct CompactCiphertextListV0 {
 
 impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
     fn upgrade(self) -> Result<CompactCiphertextList, String> {
-        println!("WARNING: Upgrading from old CompactCiphertextList with no sign information. Trying to guess type or defaulting to unsigned");
         let radix_count =
             self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer;
+        // Since we can't guess the type of data here, we set them by default as unsigned integer.
+        // Since it this data comes from 0.6, if it is included in a homogeneous compact list it
+        // will be converted to the right type at expand time.
         let info = vec![DataKind::Unsigned(self.num_blocks_per_integer); radix_count];
 
         Ok(CompactCiphertextList::from_raw_parts(self.ct_list, info))
@@ -70,3 +73,11 @@ pub(crate) enum CompressedModulusSwitchedRadixCiphertextGenericVersions {
 pub enum BooleanBlockVersions {
     V0(BooleanBlock),
 }
+
+// Before 0.7 these types were just aliases, so they were not versioned. Strictly speakind, this is
+// a data breaking change since they cannot be loaded as-is
+pub type CompressedModulusSwitchedSignedRadixCiphertextTFHE06 =
+    BaseSignedRadixCiphertext<CompressedModulusSwitchedCiphertext>;
+
+pub type CompressedModulusSwitchedRadixCiphertextTFHE06 =
+    BaseRadixCiphertext<CompressedModulusSwitchedCiphertext>;

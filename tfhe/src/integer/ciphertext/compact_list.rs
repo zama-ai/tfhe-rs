@@ -359,12 +359,14 @@ impl CompactCiphertextList {
         ct_list: crate::shortint::ciphertext::CompactCiphertextList,
         info: Vec<DataKind>,
     ) -> Self {
+        let expected_lwe_count: usize = info.iter().copied().map(DataKind::num_blocks).sum();
+
         assert_eq!(
             ct_list.ct_list.lwe_ciphertext_count().0,
-            info.len(),
+            expected_lwe_count,
             "CompactCiphertextList LweCiphertextCount is expected \
-            to be equal to the info vec {} vs {:?}",
-            info.len(),
+            to be equal to the sum of blocks in the info vec {} vs {:?}",
+            expected_lwe_count,
             ct_list.ct_list.lwe_ciphertext_count()
         );
 

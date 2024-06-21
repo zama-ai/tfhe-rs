@@ -63,9 +63,9 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedLweCiphertextVersions)]
 pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedInteger> {
-    packed_integers: PackedIntegers<Scalar>,
-    lwe_dimension: LweDimension,
-    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    pub(crate) packed_integers: PackedIntegers<Scalar>,
+    pub(crate) lwe_dimension: LweDimension,
+    pub(crate) uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
 impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {

@@ -6,9 +6,9 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PackedIntegersVersions)]
 pub struct PackedIntegers<Scalar: UnsignedInteger> {
-    pub(super) packed_coeffs: Vec<Scalar>,
-    pub(super) log_modulus: CiphertextModulusLog,
-    pub(super) initial_len: usize,
+    pub(crate) packed_coeffs: Vec<Scalar>,
+    pub(crate) log_modulus: CiphertextModulusLog,
+    pub(crate) initial_len: usize,
 }
 
 impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {

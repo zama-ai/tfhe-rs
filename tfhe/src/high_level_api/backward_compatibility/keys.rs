@@ -73,14 +73,50 @@ pub(crate) enum IntegerClientKeyVersions {
     V1(IntegerClientKey),
 }
 
+#[derive(Version)]
+pub struct IntegerServerKeyV0 {
+    pub(crate) key: crate::integer::ServerKey,
+    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
+}
+
+impl Upgrade<IntegerServerKey> for IntegerServerKeyV0 {
+    fn upgrade(self) -> Result<IntegerServerKey, String> {
+        Ok(IntegerServerKey {
+            key: self.key,
+            wopbs_key: self.wopbs_key,
+            cpk_key_switching_key_material: None,
+            compression_key: None,
+            decompression_key: None,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
-    V0(IntegerServerKey),
+    V0(IntegerServerKeyV0),
+    V1(IntegerServerKey),
+}
+
+#[derive(Version)]
+pub struct IntegerCompressedServerKeyV0 {
+    pub(crate) key: crate::integer::CompressedServerKey,
+}
+
+impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV0 {
+    fn upgrade(self) -> Result<IntegerCompressedServerKey, String> {
+        Ok(IntegerCompressedServerKey {
+            key: self.key,
+            cpk_key_switching_key_material: None,
+            compression_key: None,
+            decompression_key: None,
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
-    V0(IntegerCompressedServerKey),
+    V0(IntegerCompressedServerKeyV0),
+    V1(IntegerCompressedServerKey),
 }
 
 #[derive(VersionsDispatch)]
