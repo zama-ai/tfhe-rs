@@ -359,18 +359,99 @@ impl CompactCiphertextList {
         ct_list: crate::shortint::ciphertext::CompactCiphertextList,
         info: Vec<DataKind>,
     ) -> Self {
-        let expected_lwe_count: usize = info.iter().copied().map(DataKind::num_blocks).sum();
+        let sself = Self { ct_list, info };
+        let expected_lwe_count: usize = {
+            let unpacked_expected_lwe_count: usize =
+                sself.info.iter().copied().map(DataKind::num_blocks).sum();
+            if sself.is_packed() {
+                unpacked_expected_lwe_count.div_ceil(2)
+            } else {
+                unpacked_expected_lwe_count
+            }
+        };
 
         assert_eq!(
-            ct_list.ct_list.lwe_ciphertext_count().0,
+            sself.ct_list.ct_list.lwe_ciphertext_count().0,
             expected_lwe_count,
             "CompactCiphertextList LweCiphertextCount is expected \
             to be equal to the sum of blocks in the info vec {} vs {:?}",
             expected_lwe_count,
-            ct_list.ct_list.lwe_ciphertext_count()
+            sself.ct_list.ct_list.lwe_ciphertext_count()
         );
 
-        Self { ct_list, info }
+        sself
+    }
+
+    /// Allows to change the info about the data kind store in the [`CompactCiphertextList`].
+    ///
+    /// This can be useful if you are loading an old version of the [`CompactCiphertextList`] which
+    /// did not store the metadata before.
+    ///
+    /// The user is responsible of ensuring data consistency as the library cannot do that
+    /// automatically. This can be a problem for boolean data if a block does not encrypt a 0 or a
+    /// 1.
+    ///
+    /// ```rust
+    /// use tfhe::integer::ciphertext::{
+    ///     CompactCiphertextList, DataKind, IntegerCompactCiphertextListCastingMode,
+    ///     IntegerCompactCiphertextListUnpackingMode, RadixCiphertext, SignedRadixCiphertext,
+    /// };
+    /// use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
+    /// use tfhe::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+    ///
+    /// let fhe_params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
+    ///
+    /// let num_blocks = 4usize;
+    ///
+    /// let cks = ClientKey::new(fhe_params);
+    /// let pk = CompactPublicKey::new(&cks);
+    ///
+    /// let mut compact_ct = CompactCiphertextList::builder(&pk).push(-1i8).build();
+    ///
+    /// let sanity_check_expander = compact_ct
+    ///     .expand(
+    ///         IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+    ///         IntegerCompactCiphertextListCastingMode::NoCasting,
+    ///     )
+    ///     .unwrap();
+    /// let sanity_expanded = sanity_check_expander
+    ///     .get::<SignedRadixCiphertext>(0)
+    ///     .unwrap()
+    ///     .unwrap();
+    /// let sanity_decrypted: i8 = cks.decrypt_signed_radix(&sanity_expanded);
+    /// assert_eq!(-1i8, sanity_decrypted);
+    ///
+    /// compact_ct
+    ///     .reinterpret_data(&[DataKind::Unsigned(num_blocks)])
+    ///     .unwrap();
+    ///
+    /// let expander = compact_ct
+    ///     .expand(
+    ///         IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+    ///         IntegerCompactCiphertextListCastingMode::NoCasting,
+    ///     )
+    ///     .unwrap();
+    ///
+    /// let expanded = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+    /// let decrypted: u8 = cks.decrypt_radix(&expanded);
+    /// // -1i8 == u8::MAX
+    /// assert_eq!(u8::MAX, decrypted);
+    /// ```
+    pub fn reinterpret_data(&mut self, info: &[DataKind]) -> Result<(), crate::Error> {
+        let current_lwe_count: usize = self.info.iter().copied().map(DataKind::num_blocks).sum();
+        let new_lwe_count: usize = info.iter().copied().map(DataKind::num_blocks).sum();
+
+        if current_lwe_count != new_lwe_count {
+            return Err(crate::Error::new(
+                "Unable to reintrepret CompactCiphertextList with information that does \
+                not have the same number blocks stored as the list being modified"
+                    .to_string(),
+            ));
+        }
+
+        self.info.copy_from_slice(info);
+
+        Ok(())
     }
 
     pub fn ciphertext_count(&self) -> usize {
