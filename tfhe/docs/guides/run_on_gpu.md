@@ -2,7 +2,7 @@
 
 This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU.
 
-**TFHE-rs** now supports a GPU backend with CUDA implementation, enabling integer arithmetics operations on encrypted data.
+**TFHE-rs** now supports a GPU backend with CUDA implementation, enabling integer arithmetic operations on encrypted data.
 
 ## Prerequisites
 
@@ -128,7 +128,7 @@ Finally, the client decrypts the results using:
     let decrypted_result: u8 = result.decrypt(&client_key);
 ```
 
-### Improving performance.
+### Improving performance
 
 **TFHE-rs** allows to leverage the high number of threads given by a GPU. To maximize the number of GPU threads, update your configuration accordingly:
 
@@ -174,7 +174,7 @@ fn main() {
 
 ## List of available operations
 
-The GPU backend includes the following operations:
+The GPU backend includes the following operations for both signed and unsigned encrypted integers:
 
 | name                  | symbol         | `Enc`/`Enc`                | `Enc`/ `Int`               |
 |-----------------------|----------------|----------------------------|----------------------------|
@@ -203,16 +203,27 @@ The GPU backend includes the following operations:
 | Cast (from src type)  | `cast_from`    | :heavy\_multiplication\_x: | N/A                        |
 | Ternary operator      | `select`       | :heavy\_check\_mark:       | :heavy\_multiplication\_x: |
 
-The equivalent signed operations are also available.
 
 {% hint style="info" %}
 All operations follow the same syntax than the one described in [here](../getting\_started/operations.md).
 {% endhint %}
 
+## Multi-GPU support
+
+TFHE-rs supports platforms with multiple GPUs with some restrictions at the moment:
+the platform should have NVLink support, and only GPUs that have peer access to GPU 0 via NVLink
+will be used for the computation. 
+Depending on the platform, this can restrict the number of GPUs used to perform the computation.
+
+There is **nothing to change in the code to execute on multiple GPUs**, when 
+they are available and have peer access to GPU 0 via NVLink. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
+
 ## Benchmarks
 
-All GPU benchmarks presented here were obtained on a single H100 GPU, and rely on the multithreaded PBS algorithm. The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.
+All GPU benchmarks presented here were obtained on H100 GPUs, and rely on the multithreaded PBS algorithm. The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.
 
+### 1xH100
+Below come the results for the execution on a single H100.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
 | Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
@@ -242,3 +253,35 @@ The following table shows the performance when the left input of the benchmarked
 | Rem (`%`)                                              | 90.0 ms    | 140 ms      | 250 ms      | 592 ms      | 1.75 s       | 6.06 s       |
 | Left / Right Shifts (`<<`, `>>`)                       | 4.82 ms    | 5.36 ms     | 6.38 ms     | 8.26 ms     | 15.3 ms      | 25.4 ms      |
 | Left / Right Rotations (`left_rotate`, `right_rotate`) | 4.81 ms    | 5.36 ms     | 6.30 ms     | 8.19 ms     | 15.3 ms      | 25.3 ms      |
+
+### 2xH100
+
+Below come the results for the execution on two H100's.
+The following table shows the performance when the inputs of the benchmarked operation are encrypted:
+
+| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
+| ------------------------------------------------------ | ---------- | ----------- | ----------- | ----------- | ------------ | ------------ |
+| Negation (`-`)                                         | 16.1 ms    | 20.3 ms     | 27.7 ms     | 38.2 ms     | 54.7 ms      | 83.0 ms      |
+| Add / Sub (`+`,`-`)                                    | 16.1 ms    | 20.4 ms     | 27.8 ms     | 38.3 ms     | 54.9 ms      | 83.2 ms      |
+| Mul (`x`)                                              | 31.0 ms    | 49.6 ms     | 92.4 ms     | 267 ms      | 892 ms       | 3.45 s       |
+| Equal / Not Equal (`eq`, `ne`)                         | 11.2 ms    | 12.9 ms     | 20.4 ms     | 27.3 ms     | 38.8 ms      | 67.0 ms      |
+| Max / Min   (`max`,`min`)                              | 53.4 ms    | 59.3 ms     | 70.4 ms     | 89.6 ms     | 120 ms       | 177 ms       |
+| Bitwise operations (`&`, `\|`, `^`)                    | 4.16 ms    | 4.62 ms     | 5.61 ms     | 7.52 ms     | 10.2 ms      | 15.7 ms      |
+| Div / Rem  (`/`, `%`)                                  | 299 ms     | 595 ms      | 1.36 s      | 3.12 s      | 7.8 s        | 21.1 s       |
+| Left / Right Shifts (`<<`, `>>`)                       | 26.9 ms    | 34.5 ms     | 48.7 ms     | 70.2 ms     | 108 ms       | 220 ms       |
+| Left / Right Rotations (`left_rotate`, `right_rotate`) | 26.8 ms    | 34.5 ms     | 48.7 ms     | 70.1 ms     | 108 ms       | 220 ms       |
+
+
+The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
+
+| Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | `FheUint64` | `FheUint128` | `FheUint256` |
+| ------------------------------------------------------ |------------|-------------|-------------|-------------|--------------|--------------|
+| Add / Sub (`+`,`-`)                                    | 16.4 ms    | 20.5 ms     | 28.0 ms     | 38.4 ms     | 54.9 ms      | 83.1 ms      |
+| Mul (`x`)                                              | 25.3 ms    | 36.8 ms     | 62.0 ms     | 130 ms      | 377 ms       | 1.35 s       |
+| Equal / Not Equal (`eq`, `ne`)                         | 36.4 ms    | 36.5 ms     | 39.3 ms     | 47.1 ms     | 58.0 ms      | 78.0 ms      |
+| Max / Min   (`max`,`min`)                              | 53.6 ms    | 60.8 ms     | 71.9 ms     | 89.4 ms     | 119 ms       | 173 ms       |
+| Bitwise operations (`&`, `\|`, `^`)                    | 4.33 ms    | 4.76 ms     | 6.4 ms      | 7.65 ms     | 10.4 ms      | 15.7 ms      |
+| Div (`/`)                                              | 40.9 ms    | 59.7 ms     | 109.0 ms    | 248.5 ms    | 806.1 ms     | 2.9 s        |
+| Rem (`%`)                                              | 80.6 ms    | 116.1 ms    | 199.9 ms    | 412.9 ms    | 1.2 s        | 4.3 s        |
+| Left / Right Shifts (`<<`, `>>`)                       | 4.15 ms    | 4.57 ms     | 6.19 ms     | 7.48 ms     | 10.3 ms      | 15.7 ms      |
+| Left / Right Rotations (`left_rotate`, `right_rotate`) | 4.15 ms    | 4.57 ms     | 6.18 ms     | 7.46 ms     | 10.2 ms      | 15.6 ms      |
