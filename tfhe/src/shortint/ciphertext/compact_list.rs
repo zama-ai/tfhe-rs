@@ -10,6 +10,7 @@ pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -94,7 +95,7 @@ impl CompactCiphertextList {
                 let pbs_order = casting_key.dest_server_key.pbs_order;
 
                 let res = output_lwe_ciphertext_list
-                    .iter()
+                    .par_iter()
                     .map(|lwe_view| {
                         let lwe_to_cast = LweCiphertext::from_container(
                             lwe_view.as_ref().to_vec(),
