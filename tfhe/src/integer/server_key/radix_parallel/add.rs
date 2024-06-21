@@ -458,8 +458,9 @@ impl ServerKey {
         if !has_enough_bits_per_block {
             return false;
         }
-
-        should_hillis_steele_propagation_be_faster(ct.blocks().len(), rayon::current_num_threads())
+        return true;
+        //should_hillis_steele_propagation_be_faster(ct.blocks().len(),
+        // rayon::current_num_threads())
     }
 
     /// This add_assign two numbers

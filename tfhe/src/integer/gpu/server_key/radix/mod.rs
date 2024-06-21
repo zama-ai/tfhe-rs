@@ -599,8 +599,8 @@ impl CudaServerKey {
         f: F,
         left_message_scaling: MessageModulus,
     ) -> BivariateLookupTableOwned
-        where
-            F: Fn(u64, u64) -> u64,
+    where
+        F: Fn(u64, u64) -> u64,
     {
         // Depending on the factor used, rhs and / or lhs may have carries
         // (degree >= message_modulus) which is why we need to apply the message_modulus
@@ -622,8 +622,8 @@ impl CudaServerKey {
     }
 
     pub fn generate_lookup_table_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
-        where
-            F: Fn(u64, u64) -> u64,
+    where
+        F: Fn(u64, u64) -> u64,
     {
         self.generate_lookup_table_bivariate_with_factor(f, self.message_modulus)
     }

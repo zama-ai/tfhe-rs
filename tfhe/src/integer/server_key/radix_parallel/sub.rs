@@ -516,6 +516,11 @@ impl ServerKey {
                     // to have less noise growth later
                     (propagation_result as u64) << bits_of_message
                 });
+        println!("cpu_acc: {:?}", last_block_inner_propagation_lut.acc);
+
+        println!("last_lhs_block: {:?}", last_lhs_block.ct.get_body());
+        println!("last_rhs_block: {:?}", last_rhs_block.ct.get_body());
+
         self.key.unchecked_apply_lookup_table_bivariate(
             last_lhs_block,
             last_rhs_block,
@@ -607,6 +612,9 @@ impl ServerKey {
             self.unchecked_add_assign(&mut result, rhs);
         }
 
+        for blcok in &result.blocks {
+            println!("result#1: {:?}", blcok.ct.get_body());
+        }
         let ((input_carries, output_carry), last_block_inner_propagation) = rayon::join(
             || {
                 let generates_or_propagates = self.generate_init_carry_array(result.blocks());
@@ -619,6 +627,14 @@ impl ServerKey {
                     signed_operation,
                 )
             },
+        );
+        for blcok in &input_carries {
+            println!("input_carries#1: {:?}", blcok.ct.get_body());
+        }
+        println!("output_carry#1: {:?}", output_carry.ct.get_body());
+        println!(
+            "last_block_inner_propagation#1: {:?}",
+            last_block_inner_propagation.ct.get_body()
         );
 
         let (_, overflowed) = rayon::join(

@@ -147,6 +147,7 @@ void cuda_apply_bivariate_lut_kb_64(void **streams, uint32_t *gpu_indexes,
                                     void **ksks, void **bsks,
                                     uint32_t num_blocks, uint32_t shift) {
 
+
   host_apply_bivariate_lut_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(output_radix_lwe),

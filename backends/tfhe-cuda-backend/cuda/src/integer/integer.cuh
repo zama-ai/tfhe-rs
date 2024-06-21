@@ -896,10 +896,13 @@ void host_apply_bivariate_lut_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  int_radix_lut<Torus> *mem, Torus **ksks,
                                  void **bsks, uint32_t num_blocks,
                                  uint32_t shift) {
+  print_debug("inp1: ", &radix_lwe_in_1[2048], 1);
+  print_debug("inp2: ", &radix_lwe_in_2[2048], 1);
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, radix_lwe_in_1,
       radix_lwe_in_2, bsks, ksks, num_blocks, mem, shift);
+  print_debug("out: ", &radix_lwe_out[2048], 1);
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
