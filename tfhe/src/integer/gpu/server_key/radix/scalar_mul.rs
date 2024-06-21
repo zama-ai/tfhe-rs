@@ -26,50 +26,59 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.unchecked_scalar_mul(&d_ct, scalar, &mut stream);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let d_ct_res = sks.unchecked_scalar_mul(&d_ct, scalar, &mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn unchecked_scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
+    pub fn unchecked_scalar_mul<Scalar, T>(
+        &self,
+        ct: &T,
+        scalar: Scalar,
+        streams: &CudaStreams,
+    ) -> T
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.unchecked_scalar_mul_assign(&mut result, scalar, stream);
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.unchecked_scalar_mul_assign(&mut result, scalar, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_scalar_mul_assign_async<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar == Scalar::ZERO {
-            ct.as_mut().d_blocks.0.d_vec.memset_async(0, stream, 0);
+            ct.as_mut()
+                .d_blocks
+                .0
+                .d_vec
+                .memset_async(0, streams, streams.gpu_indexes[0]);
             return;
         }
 
@@ -80,7 +89,7 @@ impl CudaServerKey {
         if scalar.is_power_of_two() {
             // Shifting cost one bivariate PBS so its always faster
             // than multiplying
-            self.unchecked_scalar_left_shift_assign_async(ct, scalar.ilog2() as u64, stream);
+            self.unchecked_scalar_left_shift_assign_async(ct, scalar.ilog2() as u64, streams);
             return;
         }
         let ciphertext = ct.as_mut();
@@ -104,7 +113,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_mul_integer_radix_kb_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
@@ -129,7 +138,7 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_mul_integer_radix_kb_async(
-                    stream,
+                    streams,
                     &mut ct.as_mut().d_blocks.0.d_vec,
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
@@ -161,15 +170,15 @@ impl CudaServerKey {
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
-            self.unchecked_scalar_mul_assign_async(ct, scalar, stream);
+            self.unchecked_scalar_mul_assign_async(ct, scalar, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -189,63 +198,63 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 30;
     /// let scalar = 3;
     ///
     /// let ct = cks.encrypt(msg);
-    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let mut d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.scalar_mul(&d_ct, scalar, &mut stream);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let d_ct_res = sks.scalar_mul(&d_ct, scalar, &mut streams);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, stream: &CudaStreams) -> T
+    pub fn scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.scalar_mul_assign(&mut result, scalar, stream);
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.scalar_mul_assign(&mut result, scalar, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn scalar_mul_assign_async<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, stream);
+            self.full_propagate_assign_async(ct, streams);
         };
 
-        self.unchecked_scalar_mul_assign_async(ct, scalar, stream);
+        self.unchecked_scalar_mul_assign_async(ct, scalar, streams);
     }
 
-    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, stream: &CudaStreams)
+    pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         unsafe {
-            self.scalar_mul_assign_async(ct, scalar, stream);
+            self.scalar_mul_assign_async(ct, scalar, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 }
