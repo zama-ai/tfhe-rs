@@ -18,8 +18,8 @@ use crate::integer::gpu::{
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::fill_accumulator;
-use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::PBSOrder;
+use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
+use crate::shortint::{MessageModulus, PBSOrder};
 
 mod add;
 mod bitwise_op;
@@ -592,6 +592,40 @@ impl CudaServerKey {
             acc,
             degree: Degree::new(max_value as usize),
         }
+    }
+
+    pub fn generate_lookup_table_bivariate_with_factor<F>(
+        &self,
+        f: F,
+        left_message_scaling: MessageModulus,
+    ) -> BivariateLookupTableOwned
+        where
+            F: Fn(u64, u64) -> u64,
+    {
+        // Depending on the factor used, rhs and / or lhs may have carries
+        // (degree >= message_modulus) which is why we need to apply the message_modulus
+        // to clear them
+        let factor_u64 = left_message_scaling.0 as u64;
+        let message_modulus = self.message_modulus.0 as u64;
+        let wrapped_f = |input: u64| -> u64 {
+            let lhs = (input / factor_u64) % message_modulus;
+            let rhs = (input % factor_u64) % message_modulus;
+
+            f(lhs, rhs)
+        };
+        let accumulator = self.generate_lookup_table(wrapped_f);
+
+        BivariateLookupTableOwned {
+            acc: accumulator,
+            ct_right_modulus: left_message_scaling,
+        }
+    }
+
+    pub fn generate_lookup_table_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
+        where
+            F: Fn(u64, u64) -> u64,
+    {
+        self.generate_lookup_table_bivariate_with_factor(f, self.message_modulus)
     }
 
     /// # Safety

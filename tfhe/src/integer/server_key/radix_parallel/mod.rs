@@ -1,5 +1,5 @@
 mod abs;
-mod add;
+pub(crate) mod add;
 mod bit_extractor;
 mod bitwise_op;
 pub(crate) mod cmux;

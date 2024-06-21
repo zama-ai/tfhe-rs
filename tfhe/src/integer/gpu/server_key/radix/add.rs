@@ -2,12 +2,15 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_add_integer_radix_assign_async,
     unchecked_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
+use crate::integer::server_key::radix_parallel::add::OutputCarry;
+use crate::shortint::Ciphertext;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
@@ -491,4 +494,156 @@ impl CudaServerKey {
 
         (ct_res, ct_overflowed)
     }
+
+    pub fn signed_overflowing_add(
+        &self,
+        ct_left: &CudaSignedRadixCiphertext,
+        ct_right: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                unsafe {
+                    tmp_rhs = ct_right.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                }
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate_async(stream);
+
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_signed_overflowing_add(lhs, rhs, stream)
+    }
+
+    pub fn unchecked_signed_overflowing_add(
+        &self,
+        ct_left: &CudaSignedRadixCiphertext,
+        ct_right: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0,
+            "lhs and rhs must have the name number of blocks ({} vs {})",
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        assert!(ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 > 0, "inputs cannot be empty");
+
+        self.unchecked_signed_overflowing_add_or_sub(ct_left, ct_right,
+                                                                       SignedOperation::Addition, stream)
+
+    }
+
+    pub fn unchecked_signed_overflowing_add_or_sub(
+        &self,
+        lhs: &CudaSignedRadixCiphertext,
+        rhs: &CudaSignedRadixCiphertext,
+        signed_operation: SignedOperation,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        assert!(self.message_modulus.0 >= 4 && self.carry_modulus.0 >= 4);
+
+        let mut result;
+        unsafe {
+            result = lhs.duplicate_async(stream);
+        }
+
+        if signed_operation == SignedOperation::Subtraction {
+            self.unchecked_sub_assign(&mut result, rhs, stream);
+        } else {
+            self.unchecked_add_assign(&mut result, rhs, stream);
+        }
+
+        let mut input_carries;
+        let mut output_carry;
+        unsafe {
+            input_carries = result.duplicate_async(stream);
+            output_carry = self.propagate_single_carry_assign_async(&mut input_carries,
+                                                                        stream);
+        }
+    }
+
+    pub(crate) fn generate_last_block_inner_propagation(
+        &self,
+        last_lhs_block: &CudaRadixCiphertext,
+        last_rhs_block: &CudaRadixCiphertext,
+        op: SignedOperation,
+    ) -> Ciphertext {
+        let bits_of_message = self.message_modulus.0.ilog2();
+        let message_bit_mask = (1 << bits_of_message) - 1;
+
+        // This lut will generate a block that contains the information
+        // of how carry propagation happens in the last block, until the last bit.
+        let last_block_inner_propagation_lut =
+            self.generate_lookup_table_bivariate(|lhs_block, rhs_block| {
+                    let rhs_block = if op == SignedOperation::Subtraction {
+                        // subtraction is done by doing addition of negation
+                        // negation(x) = bit_flip(x) + 1
+                        // We only add the flipped value, the + 1 will be resolved by
+                        // carry propagation computation
+                        let flipped_rhs = !rhs_block;
+
+                        // We remove the last bit, its not interesting in this step
+                        (flipped_rhs << 1) & message_bit_mask
+                    } else {
+                        (rhs_block << 1) & message_bit_mask
+                    };
+
+                    let lhs_block = (lhs_block << 1) & message_bit_mask;
+
+                    // whole_result contains the result of addition with
+                    // the carry being in the first bit of carry space
+                    // the message space contains the message, but with one 0
+                    // on the right (lsb)
+                    let whole_result = lhs_block + rhs_block;
+                    let carry = whole_result >> bits_of_message;
+                    let result = (whole_result & message_bit_mask) >> 1;
+                    let propagation_result = if carry == 1 {
+                        // Addition of bits before last one generates a carry
+                        OutputCarry::Generated
+                    } else if result == ((self.message_modulus.0 as u64 - 1) >> 1) {
+                        // Addition of bits before last one puts the bits
+                        // in a state that makes it so that an input carry into last block
+                        // gets propagated to last bit.
+                        OutputCarry::Propagated
+                    } else {
+                        OutputCarry::None
+                    };
+
+                    // Shift the propagation result in carry part
+                    // to have less noise growth later
+                    (propagation_result as u64) << bits_of_message
+                });
+        // self.key.unchecked_apply_lookup_table_bivariate(
+        //     last_lhs_block,
+        //     last_rhs_block,
+        //     &last_block_inner_propagation_lut,
+        // )
+    }
+
+
 }
