@@ -1,6 +1,9 @@
 //! Module containing the definition of the SeededLweBootstrapKey.
 
+use tfhe_versionable::Versionize;
+
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::backward_compatibility::entities::seeded_lwe_multi_bit_bootstrap_key::SeededLweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::generators::{
     EncryptionRandomGeneratorForkConfig, MaskRandomGeneratorForkConfig,
 };
@@ -17,7 +20,8 @@ use crate::core_crypto::entities::*;
 /// [`std::ops::DerefMut`] are implemented to dereference to the underlying
 /// [`SeededGgswCiphertextList`] for ease of use. See [`SeededGgswCiphertextList`] for additional
 /// methods.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeededLweMultiBitBootstrapKeyVersions)]
 pub struct SeededLweMultiBitBootstrapKey<C: Container>
 where
     C::Element: UnsignedInteger,

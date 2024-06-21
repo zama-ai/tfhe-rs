@@ -16,11 +16,17 @@ use crate::shortint::server_key::apply_programmable_bootstrap;
 use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
 use core::cmp::Ordering;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use super::backward_compatibility::key_switching_key::{
+    CompressedKeySwitchingKeyMaterialVersions, KeySwitchingKeyMaterialVersions,
+};
 
 #[cfg(test)]
 mod test;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(KeySwitchingKeyMaterialVersions)]
 pub struct KeySwitchingKeyMaterial {
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u64>,
     pub(crate) cast_rshift: i8,
@@ -581,7 +587,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedKeySwitchingKeyMaterialVersions)]
 pub struct CompressedKeySwitchingKeyMaterial {
     pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
     pub(crate) cast_rshift: i8,

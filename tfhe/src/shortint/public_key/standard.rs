@@ -1,14 +1,17 @@
 //! Module with the definition of the PublicKey.
 use crate::core_crypto::entities::*;
+use crate::shortint::backward_compatibility::public_key::PublicKeyVersions;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::{ClientKey, CompressedPublicKey, PBSOrder};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 
 /// A structure containing a public key.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(PublicKeyVersions)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,

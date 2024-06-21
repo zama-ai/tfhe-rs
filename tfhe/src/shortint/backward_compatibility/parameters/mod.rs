@@ -1,3 +1,7 @@
+pub mod compact_public_key_only;
+pub mod key_switching;
+pub mod list_compression;
+
 use tfhe_versionable::VersionsDispatch;
 
 use crate::shortint::parameters::ShortintParameterSetInner;

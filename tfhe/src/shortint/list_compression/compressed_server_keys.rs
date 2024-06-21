@@ -6,14 +6,19 @@ use crate::core_crypto::prelude::{
     FourierLweBootstrapKey, LweCiphertextCount, SeededLweBootstrapKeyOwned,
     SeededLwePackingKeyswitchKey,
 };
+use crate::shortint::backward_compatibility::list_compression::{
+    CompressedCompressionKeyVersions, CompressedDecompressionKeyVersions,
+};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCompressionKeyVersions)]
 pub struct CompressedCompressionKey {
     pub packing_key_switching_key: SeededLwePackingKeyswitchKey<Vec<u64>>,
     pub lwe_per_glwe: LweCiphertextCount,
@@ -35,7 +40,8 @@ impl CompressedCompressionKey {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedDecompressionKeyVersions)]
 pub struct CompressedDecompressionKey {
     pub blind_rotate_key: SeededLweBootstrapKeyOwned<u64>,
     pub lwe_per_glwe: LweCiphertextCount,

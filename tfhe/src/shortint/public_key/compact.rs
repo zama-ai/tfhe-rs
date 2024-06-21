@@ -4,6 +4,9 @@ use crate::core_crypto::prelude::{
     Container, LweCiphertextCount, LweCompactCiphertextListOwned, LweCompactPublicKeyOwned,
     LweSecretKey, Plaintext, PlaintextList, SeededLweCompactPublicKeyOwned,
 };
+use crate::shortint::backward_compatibility::public_key::{
+    CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
+};
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
@@ -15,9 +18,11 @@ use crate::shortint::{CarryModulus, ClientKey, MessageModulus};
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Private key from which a [`CompactPublicKey`] can be built.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompactPrivateKeyVersions)]
 pub struct CompactPrivateKey<KeyCont: Container<Element = u64>> {
     key: LweSecretKey<KeyCont>,
     parameters: CompactPublicKeyEncryptionParameters,
@@ -118,7 +123,8 @@ impl<'key, C: Container<Element = u64>> From<&'key CompactPrivateKey<C>>
 }
 
 /// Public key construction described in <https://eprint.iacr.org/2023/603> by M. Joye.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(crate) key: LweCompactPublicKeyOwned<u64>,
     pub parameters: CompactPublicKeyEncryptionParameters,
@@ -458,7 +464,8 @@ impl CompactPublicKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCompactPublicKeyVersions)]
 pub struct CompressedCompactPublicKey {
     pub(crate) key: SeededLweCompactPublicKeyOwned<u64>,
     pub parameters: CompactPublicKeyEncryptionParameters,

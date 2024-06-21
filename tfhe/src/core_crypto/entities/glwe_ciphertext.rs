@@ -1,6 +1,9 @@
 //! Module containing the definition of the GlweCiphertext.
 
 use crate::conformance::ParameterSetConformant;
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::glwe_ciphertext::GlweCiphertextVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -301,7 +304,8 @@ pub fn glwe_ciphertext_encryption_noise_sample_count(
 ///
 /// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
 /// rounding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GlweCiphertextVersions)]
 pub struct GlweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

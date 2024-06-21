@@ -3,6 +3,9 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_packing_keyswitch_key, CiphertextModulusLog, GlweSize,
     LweCiphertextCount, LwePackingKeyswitchKey,
 };
+use crate::shortint::backward_compatibility::list_compression::{
+    CompressionKeyVersions, DecompressionKeyVersions,
+};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::PolynomialSize;
@@ -10,15 +13,18 @@ use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressionKeyVersions)]
 pub struct CompressionKey {
     pub packing_key_switching_key: LwePackingKeyswitchKey<Vec<u64>>,
     pub lwe_per_glwe: LweCiphertextCount,
     pub storage_log_modulus: CiphertextModulusLog,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(DecompressionKeyVersions)]
 pub struct DecompressionKey {
     pub blind_rotate_key: ShortintBootstrappingKey,
     pub lwe_per_glwe: LweCiphertextCount,

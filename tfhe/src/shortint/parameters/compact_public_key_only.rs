@@ -1,5 +1,8 @@
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
+use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
+    CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
+};
 use crate::shortint::parameters::{
     CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
     ShortintParameterSet,
@@ -7,8 +10,10 @@ use crate::shortint::parameters::{
 use crate::shortint::KeySwitchingKeyView;
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListExpansionKindVersions)]
 pub enum CompactCiphertextListExpansionKind {
     RequiresCasting,
     NoCasting(PBSOrder),
@@ -29,7 +34,8 @@ impl From<PBSOrder> for CompactCiphertextListExpansionKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompactPublicKeyEncryptionParametersVersions)]
 pub struct CompactPublicKeyEncryptionParameters {
     pub encryption_lwe_dimension: LweDimension,
     pub encryption_noise_distribution: DynamicDistribution<u64>,
