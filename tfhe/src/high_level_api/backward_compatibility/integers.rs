@@ -1,10 +1,22 @@
 #![allow(deprecated)]
 
-use tfhe_versionable::{Versionize, VersionsDispatch};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
+use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::*;
-use crate::integer::ciphertext::DataKind;
-use crate::{CompactCiphertextList, Error};
+use crate::integer::backward_compatibility::ciphertext::{
+    CompressedModulusSwitchedRadixCiphertextTFHE06,
+    CompressedModulusSwitchedSignedRadixCiphertextTFHE06,
+};
+use crate::integer::ciphertext::{
+    BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
+    CompressedRadixCiphertext as IntegerCompressedRadixCiphertext,
+    CompressedSignedRadixCiphertext as IntegerCompressedSignedRadixCiphertext, DataKind,
+};
+use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
+use crate::shortint::{Ciphertext, ServerKey};
+use crate::{CompactCiphertextList as HlCompactCiphertextList, Error};
 use serde::{Deserialize, Serialize};
 
 // Manual impl
@@ -18,14 +30,91 @@ pub(crate) enum UnsignedRadixCiphertextVersionedOwned {
     V0(UnsignedRadixCiphertextVersionOwned),
 }
 
+// This method was used to decompress a ciphertext in tfhe-rs < 0.7
+fn old_sk_decompress(
+    sk: &ServerKey,
+    compressed_ct: &CompressedModulusSwitchedCiphertext,
+) -> Ciphertext {
+    let acc = sk.generate_lookup_table(|a| a);
+
+    let mut result = sk.decompress_and_apply_lookup_table(compressed_ct, &acc);
+
+    result.degree = compressed_ct.degree;
+
+    result
+}
+
+#[derive(Version)]
+pub enum CompressedSignedRadixCiphertextV0 {
+    Seeded(IntegerCompressedSignedRadixCiphertext),
+    ModulusSwitched(CompressedModulusSwitchedSignedRadixCiphertextTFHE06),
+}
+
+impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertextV0 {
+    fn upgrade(self) -> Result<CompressedSignedRadixCiphertext, String> {
+        match self {
+            CompressedSignedRadixCiphertextV0::Seeded(ct) => {
+                Ok(CompressedSignedRadixCiphertext::Seeded(ct))
+            }
+
+            // Upgrade by decompressing and recompressing with the new scheme
+            CompressedSignedRadixCiphertextV0::ModulusSwitched(ct) => {
+                let upgraded = with_cpu_internal_keys(|sk| {
+                    let blocks = ct
+                        .blocks
+                        .par_iter()
+                        .map(|a| old_sk_decompress(&sk.key.key, a))
+                        .collect();
+
+                    let radix = BaseSignedRadixCiphertext { blocks };
+                    sk.key
+                        .switch_modulus_and_compress_signed_parallelized(&radix)
+                });
+                Ok(CompressedSignedRadixCiphertext::ModulusSwitched(upgraded))
+            }
+        }
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedSignedRadixCiphertextVersions {
-    V0(CompressedSignedRadixCiphertext),
+    V0(CompressedSignedRadixCiphertextV0),
+    V1(CompressedSignedRadixCiphertext),
+}
+
+#[derive(Version)]
+pub enum CompressedRadixCiphertextV0 {
+    Seeded(IntegerCompressedRadixCiphertext),
+    ModulusSwitched(CompressedModulusSwitchedRadixCiphertextTFHE06),
+}
+
+impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
+    fn upgrade(self) -> Result<CompressedRadixCiphertext, String> {
+        match self {
+            CompressedRadixCiphertextV0::Seeded(ct) => Ok(CompressedRadixCiphertext::Seeded(ct)),
+
+            // Upgrade by decompressing and recompressing with the new scheme
+            CompressedRadixCiphertextV0::ModulusSwitched(ct) => {
+                let upgraded = with_cpu_internal_keys(|sk| {
+                    let blocks = ct
+                        .blocks
+                        .par_iter()
+                        .map(|a| old_sk_decompress(&sk.key.key, a))
+                        .collect();
+
+                    let radix = BaseRadixCiphertext { blocks };
+                    sk.key.switch_modulus_and_compress_parallelized(&radix)
+                });
+                Ok(CompressedRadixCiphertext::ModulusSwitched(upgraded))
+            }
+        }
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedRadixCiphertextVersions {
-    V0(CompressedRadixCiphertext),
+    V0(CompressedRadixCiphertextV0),
+    V1(CompressedRadixCiphertext),
 }
 
 #[derive(VersionsDispatch)]
@@ -88,11 +177,11 @@ where
         // This compact list might have been loaded from an homogenous compact list without type
         // info
         self.list
-            .0
             .info
             .iter_mut()
             .for_each(|info| *info = DataKind::Signed(info.num_blocks()));
-        let list = self.list.expand()?;
+        let hl_list = HlCompactCiphertextList(self.list);
+        let list = hl_list.expand()?;
 
         let ct = list
             .get::<crate::integer::SignedRadixCiphertext>(0)
@@ -118,12 +207,12 @@ where
         // This compact list might have been loaded from an homogenous compact list without type
         // info
         self.list
-            .0
             .info
             .iter_mut()
             .for_each(|info| *info = DataKind::Signed(info.num_blocks()));
 
-        let list = self.list.expand()?;
+        let hl_list = HlCompactCiphertextList(self.list);
+        let list = hl_list.expand()?;
 
         let len = list.len();
 
@@ -155,12 +244,12 @@ where
         // This compact list might have been loaded from an homogenous compact list without type
         // info
         self.list
-            .0
             .info
             .iter_mut()
             .for_each(|info| *info = DataKind::Unsigned(info.num_blocks()));
 
-        let list = self.list.expand()?;
+        let hl_list = HlCompactCiphertextList(self.list);
+        let list = hl_list.expand()?;
 
         let ct = list
             .get::<crate::integer::RadixCiphertext>(0)
@@ -186,12 +275,12 @@ where
         // This compact list might have been loaded from an homogenous compact list without type
         // info
         self.list
-            .0
             .info
             .iter_mut()
             .for_each(|info| *info = DataKind::Unsigned(info.num_blocks()));
 
-        let list = self.list.expand()?;
+        let hl_list = HlCompactCiphertextList(self.list);
+        let list = hl_list.expand()?;
 
         let len = list.len();
 

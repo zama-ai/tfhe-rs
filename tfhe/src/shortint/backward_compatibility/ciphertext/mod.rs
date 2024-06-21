@@ -1,4 +1,6 @@
-use crate::core_crypto::prelude::LweCompactCiphertextListOwned;
+use crate::core_crypto::prelude::{
+    CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
+};
 use crate::shortint::ciphertext::*;
 use crate::shortint::parameters::CompactCiphertextListExpansionKind;
 use crate::shortint::{CarryModulus, MessageModulus};
@@ -54,7 +56,8 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
 
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
-    V0(CompactCiphertextList),
+    V0(CompactCiphertextListV0),
+    V1(CompactCiphertextList),
 }
 
 #[derive(VersionsDispatch)]
@@ -62,9 +65,35 @@ pub enum CompressedCiphertextVersions {
     V0(CompressedCiphertext),
 }
 
+#[derive(Version)]
+pub struct CompressedModulusSwitchedCiphertextV0 {
+    pub(crate) compressed_modulus_switched_lwe_ciphertext:
+        CompressedModulusSwitchedLweCiphertext<u64>,
+    pub(crate) degree: Degree,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
+    pub(crate) pbs_order: PBSOrder,
+}
+
+impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV0 {
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, String> {
+        Ok(CompressedModulusSwitchedCiphertext {
+            compressed_modulus_switched_lwe_ciphertext:
+                InternalCompressedModulusSwitchedCiphertext::Classic(
+                    self.compressed_modulus_switched_lwe_ciphertext,
+                ),
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            pbs_order: self.pbs_order,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedModulusSwitchedCiphertextVersions {
-    V0(CompressedModulusSwitchedCiphertext),
+    V0(CompressedModulusSwitchedCiphertextV0),
+    V1(CompressedModulusSwitchedCiphertext),
 }
 
 #[derive(VersionsDispatch)]
