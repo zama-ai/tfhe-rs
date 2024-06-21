@@ -680,7 +680,7 @@ where
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -791,7 +791,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, NoiseDistribution, KeyCont, OutputCon
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -1253,7 +1253,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -1424,7 +1424,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///

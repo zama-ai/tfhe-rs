@@ -69,7 +69,7 @@ use crate::core_crypto::entities::{
 ///     &mut encryption_generator,
 /// );
 ///
-/// assert!(pksk.as_ref().iter().all(|&x| x == 0) == false);
+/// assert!(!pksk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn generate_lwe_packing_keyswitch_key<
     Scalar,
@@ -261,7 +261,7 @@ where
 ///     seeder,
 /// );
 ///
-/// assert!(seeded_pksk.as_ref().iter().all(|&x| x == 0) == false);
+/// assert!(!seeded_pksk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn generate_seeded_lwe_packing_keyswitch_key<
     Scalar,

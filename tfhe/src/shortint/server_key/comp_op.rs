@@ -41,7 +41,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg > msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -54,7 +54,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg > msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn greater(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -203,7 +203,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg > msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -216,7 +216,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg > msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs > rhs))
@@ -254,7 +254,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg >= msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -267,7 +267,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg >= msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn greater_or_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -369,7 +369,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg >= msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -382,7 +382,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg >= msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn smart_greater_or_equal(
         &self,
@@ -474,7 +474,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg < msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -487,7 +487,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg < msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn less(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -638,7 +638,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg < msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -651,7 +651,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg < msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn smart_less(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs < rhs))
@@ -689,7 +689,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg <= msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -702,7 +702,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg <= msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn less_or_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -855,7 +855,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg <= msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -868,7 +868,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg <= msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn smart_less_or_equal(
         &self,
@@ -910,7 +910,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg == msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -923,7 +923,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg == msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -1072,7 +1072,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg == msg) as u64, res);
+    /// assert_eq!(1, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1085,7 +1085,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg == msg) as u64, res);
+    /// assert_eq!(1, res);
     /// ```
     pub fn smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs == rhs))
@@ -1123,7 +1123,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg != msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1136,7 +1136,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg != msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn not_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let tmp_lhs: Ciphertext;
@@ -1285,7 +1285,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg != msg) as u64, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1298,7 +1298,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg != msg) as u64, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn smart_not_equal(
         &self,

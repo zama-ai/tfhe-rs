@@ -77,7 +77,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(true, dec);
+    /// assert!(dec);
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt(message, self))
@@ -100,7 +100,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(true, dec);
+    /// assert!(dec);
     /// ```
     pub fn encrypt_compressed(&self, message: bool) -> CompressedCiphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt_compressed(message, self))
@@ -121,7 +121,7 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(true, dec);
+    /// assert!(dec);
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> bool {
         BooleanEngine::with_thread_local_mut(|engine| engine.decrypt(ct, self))

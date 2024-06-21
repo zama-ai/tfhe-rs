@@ -58,6 +58,6 @@ fn main() {
     let ct_1 = client_key.encrypt(false);
 
 // We check for equality:
-    assert_eq!(false, loaded_client_key.decrypt(&ct_1));
+    assert!(!loaded_client_key.decrypt(&ct_1));
 }
 ```

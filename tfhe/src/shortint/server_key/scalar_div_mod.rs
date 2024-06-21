@@ -61,7 +61,7 @@ impl ServerKey {
     /// let mut ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.unchecked_scalar_div(&mut ct_1, clear_2);
+    /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -73,7 +73,7 @@ impl ServerKey {
     /// let mut ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.unchecked_scalar_div(&mut ct_1, clear_2);
+    /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -152,7 +152,7 @@ impl ServerKey {
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.unchecked_scalar_mod(&mut ct, modulus);
+    /// let ct_res = sks.unchecked_scalar_mod(&ct, modulus);
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
@@ -164,7 +164,7 @@ impl ServerKey {
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.unchecked_scalar_mod(&mut ct, modulus);
+    /// let ct_res = sks.unchecked_scalar_mod(&ct, modulus);
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);

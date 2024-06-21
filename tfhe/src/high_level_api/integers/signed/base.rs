@@ -358,7 +358,7 @@ where
     /// let (result, is_ok) = a.checked_ilog2();
     ///
     /// let is_ok = is_ok.decrypt(&client_key);
-    /// assert_eq!(is_ok, false);
+    /// assert!(!is_ok);
     ///
     /// let decrypted: u16 = result.decrypt(&client_key);
     /// assert_eq!(decrypted, 15); // result is meaningless
@@ -411,7 +411,7 @@ where
     ///
     /// // We cannot trivial decrypt
     /// let result: Result<i16, _> = non_trivial.try_decrypt_trivial();
-    /// matches!(result, Err(_));
+    /// assert!(result.is_err());
     /// ```
     pub fn try_decrypt_trivial<Clear>(&self) -> Result<Clear, NotTrivialCiphertextError>
     where

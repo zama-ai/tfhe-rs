@@ -38,7 +38,7 @@ assert_eq!(
 	overflowed.decrypt(&client_key),
 	u16::MAX.overflowing_add(1u16).1
 );
-assert_eq!(overflowed.decrypt(&client_key), true);
+assert!(overflowed.decrypt(&client_key));
 ```
 
 The following tables show the current benchmarks result.

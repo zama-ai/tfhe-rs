@@ -338,7 +338,7 @@ impl WopbsKey {
     /// let m = 2;
     /// let mut ct = cks.encrypt(m);
     /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
-    /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &mut ct, &lut);
+    /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &ct, &lut);
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (m * m) % message_modulus);
     /// ```

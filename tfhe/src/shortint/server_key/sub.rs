@@ -31,7 +31,7 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(1);
     ///
     /// // Compute homomorphically a subtraction:
-    /// let ct_res = sks.sub(&mut ct_1, &ct_2);
+    /// let ct_res = sks.sub(&ct_1, &ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;

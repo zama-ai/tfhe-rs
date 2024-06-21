@@ -245,7 +245,7 @@ where
 ///     &mut encryption_generator,
 /// );
 ///
-/// assert!(bsk.as_ref().iter().all(|&x| x == 0) == false);
+/// assert!(!bsk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn par_generate_lwe_bootstrap_key<
     Scalar,

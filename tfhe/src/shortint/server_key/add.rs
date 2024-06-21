@@ -252,8 +252,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks
-    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    /// sks.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
     ///     .unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -263,8 +262,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks
-    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    /// sks.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
     ///     .unwrap();
     /// ```
     pub fn is_add_possible(

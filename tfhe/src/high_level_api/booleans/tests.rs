@@ -25,19 +25,19 @@ fn xor_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse ^ ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse ^ ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue ^ ffalse;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue ^ ttrue;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -47,36 +47,36 @@ fn scalar_xor_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
 
     // Scalar on the right
     let r = ffalse ^ false;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse ^ true;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue ^ false;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue ^ true;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     // Scalar on the left
     let r = false ^ ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = false ^ ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true ^ ffalse;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true ^ ttrue;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -85,19 +85,19 @@ fn and_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse & ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse & ttrue;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue & ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue & ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -107,36 +107,36 @@ fn scalar_and_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
 
     // Scalar on the right
     let r = ffalse & false;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse & true;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue & false;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue & true;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     // Scalar on the left
     let r = false & ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = false & ttrue;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true & ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true & ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -145,19 +145,19 @@ fn or_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse | ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse | ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue | ffalse;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue | ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -167,36 +167,36 @@ fn scalar_or_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
 
     // Scalar on the right
     let r = ffalse | false;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse | true;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue | false;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue | true;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     // Scalar on the left
     let r = false | ffalse;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = false | ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true | ffalse;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = true | ttrue;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -205,11 +205,11 @@ fn not_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = !ffalse;
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = !ttrue;
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -218,19 +218,19 @@ fn eq_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse.eq(ttrue);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.eq(ffalse);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.eq(ttrue);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse.eq(ffalse);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -239,19 +239,19 @@ fn scalar_eq_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse.eq(true);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.eq(false);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.eq(true);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse.eq(false);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -260,19 +260,19 @@ fn ne_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse.ne(ttrue);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.ne(ffalse);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.ne(ttrue);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse.ne(ffalse);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -281,19 +281,19 @@ fn scalar_ne_truth_table(ttrue: &FheBool, ffalse: &FheBool, key: &ClientKey) {
     assert_degree_is_ok(ffalse);
 
     let r = ffalse.ne(true);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.ne(false);
-    assert_eq!(r.decrypt(key), true);
+    assert!(r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ttrue.ne(true);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 
     let r = ffalse.ne(false);
-    assert_eq!(r.decrypt(key), false);
+    assert!(!r.decrypt(key));
     assert_degree_is_ok(&r);
 }
 
@@ -312,8 +312,8 @@ fn compressed_bool_test_case(setup_fn: impl FnOnce() -> (ClientKey, Device)) {
     assert_eq!(a.current_device(), sks_device);
     assert_eq!(b.current_device(), sks_device);
 
-    assert_eq!(a.decrypt(&cks), true);
-    assert_eq!(b.decrypt(&cks), false);
+    assert!(a.decrypt(&cks));
+    assert!(!b.decrypt(&cks));
 }
 
 mod cpu {
@@ -639,8 +639,8 @@ mod cpu {
         assert_degree_is_ok(&a);
         assert_degree_is_ok(&b);
 
-        assert_eq!(a.decrypt(&keys), true);
-        assert_eq!(b.decrypt(&keys), false);
+        assert!(a.decrypt(&keys));
+        assert!(!b.decrypt(&keys));
     }
 
     #[test]
@@ -654,7 +654,7 @@ mod cpu {
         assert_degree_is_ok(&a);
 
         let clear: bool = a.decrypt(&client_key);
-        assert_eq!(clear, true);
+        assert!(clear);
     }
 
     #[test]
@@ -669,7 +669,7 @@ mod cpu {
         assert_degree_is_ok(&a);
 
         let clear: bool = a.decrypt(&client_key);
-        assert_eq!(clear, true);
+        assert!(clear);
     }
 
     #[test]

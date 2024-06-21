@@ -17,7 +17,6 @@ bincode = "1.3.3"
 ```rust
 // main.rs
 
-use bincode;
 use std::io::Cursor;
 use tfhe::integer::{gen_keys_radix, ServerKey, RadixCiphertext};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;

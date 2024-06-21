@@ -85,7 +85,7 @@ impl ServerKey {
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let sks = ServerKey::new_radix_server_key(&cks);
+    /// let sks = ServerKey::new_radix_server_key(cks);
     /// ```
     pub fn new_radix_server_key<C>(cks: C) -> Self
     where

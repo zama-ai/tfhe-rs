@@ -135,7 +135,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.checked_scalar_add(&mut ct, scalar).unwrap();
+    /// let ct_res = sks.checked_scalar_add(&ct, scalar).unwrap();
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);

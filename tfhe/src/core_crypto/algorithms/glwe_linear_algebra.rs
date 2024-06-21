@@ -363,7 +363,7 @@ pub fn glwe_ciphertext_plaintext_list_add_assign<Scalar, InCont, PlainCont>(
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
 ///
 /// // Check we recovered the expected result
-/// assert!(output_plaintext_list.iter().all(|x| *x.0 == msg - msg));
+/// assert!(output_plaintext_list.iter().all(|x| *x.0 == 0));
 /// ```
 pub fn glwe_ciphertext_plaintext_list_sub_assign<Scalar, InCont, PlainCont>(
     lhs: &mut GlweCiphertext<InCont>,
@@ -547,7 +547,7 @@ pub fn glwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
 ///
 /// // Check we recovered the expected result
-/// assert!(output_plaintext_list.iter().all(|x| *x.0 == msg - msg));
+/// assert!(output_plaintext_list.iter().all(|x| *x.0 == 0));
 /// ```
 pub fn glwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
     lhs: &mut GlweCiphertext<InCont>,
@@ -901,7 +901,7 @@ pub fn glwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
 ///
 /// // Check we recovered the expected result
-/// assert!(output_plaintext_list.iter().all(|x| *x.0 == msg - msg));
+/// assert!(output_plaintext_list.iter().all(|x| *x.0 == 0));
 /// ```
 pub fn glwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut GlweCiphertext<LhsCont>,
@@ -996,7 +996,7 @@ pub fn glwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
 ///
 /// // Check we recovered the expected result
-/// assert!(output_plaintext_list.iter().all(|x| *x.0 == msg - msg));
+/// assert!(output_plaintext_list.iter().all(|x| *x.0 == 0));
 /// ```
 pub fn glwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
     output: &mut GlweCiphertext<OutputCont>,
