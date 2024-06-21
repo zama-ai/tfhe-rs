@@ -1,6 +1,8 @@
+use std::marker::PhantomData;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::BooleanBlock;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -12,6 +14,7 @@ use crate::integer::gpu::{
     apply_bivariate_lut_kb_async, unchecked_add_integer_radix_assign_async,
     unchecked_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::server_key::radix_parallel::add::OutputCarry;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::prelude::CastInto;
@@ -820,39 +823,53 @@ impl CudaServerKey {
         }
     }
 
-    // pub(crate) fn resolve_signed_overflow(
-    //     &self,
-    //     mut last_block_inner_propagation: CudaSignedRadixCiphertext,
-    //     last_block_input_carry: &CudaSignedRadixCiphertext,
-    //     last_block_output_carry: &CudaSignedRadixCiphertext,
-    //     stream: &CudaStreams,
-    // ) -> CudaBooleanBlock {
-    //     let bits_of_message = self.message_modulus.0.ilog2();
-    //
-    //     let resolve_overflow_lut = self.generate_lookup_table(|x| {
-    //         let carry_propagation = x >> bits_of_message;
-    //         let output_carry_of_block = (x >> 1) & 1;
-    //         let input_carry_of_block = x & 1;
-    //
-    //         // Resolve the carry that the last bit actually receives as input
-    //         let input_carry_to_last_bit = if carry_propagation == OutputCarry::Propagated as u64 {
-    //             input_carry_of_block
-    //         } else if carry_propagation == OutputCarry::Generated as u64 {
-    //             1
-    //         } else {
-    //             0
-    //         };
-    //
-    //         u64::from(input_carry_to_last_bit != output_carry_of_block)
-    //     });
-    //
-    //
-    //     let x = self.unchecked_scalar_mul(last_block_input_carry.as_ref().d_blocks.0.d_vec
-    //                                           .as_slice(12312 .. 32323).unwrap(), 2,
-    //                                       stream);
-    //     // self.unchecked_add_assign(&mut last_block_inner_propagation, &x, stream);
-    //     // self.unchecked_add_assign(&mut last_block_inner_propagation, last_block_input_carry.as_ref(), stream);
-    //
-    // }
+    pub(crate) fn resolve_signed_overflow(
+        &self,
+        mut last_block_inner_propagation: CudaSignedRadixCiphertext,
+        last_block_input_carry: &CudaSignedRadixCiphertext,
+        last_block_output_carry: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> CudaBooleanBlock {
+        let bits_of_message = self.message_modulus.0.ilog2();
+
+        let resolve_overflow_lut = self.generate_lookup_table(|x| {
+            let carry_propagation = x >> bits_of_message;
+            let output_carry_of_block = (x >> 1) & 1;
+            let input_carry_of_block = x & 1;
+
+            // Resolve the carry that the last bit actually receives as input
+            let input_carry_to_last_bit = if carry_propagation == OutputCarry::Propagated as u64 {
+                input_carry_of_block
+            } else if carry_propagation == OutputCarry::Generated as u64 {
+                1
+            } else {
+                0
+            };
+
+            u64::from(input_carry_to_last_bit != output_carry_of_block)
+        });
+
+        let cuda_vec = CudaVec{
+            ptr: vec![last_block_input_carry.as_ref().d_blocks.0.d_vec.ptr.last().unwrap().clone()],
+            len: 1,
+            gpu_indexes: vec![last_block_input_carry.as_ref().d_blocks.0.d_vec.gpu_indexes.last().unwrap().clone()],
+            _phantom: PhantomData,
+        };
+        let d_blocks = CudaLweCiphertextList::from_cuda_vec(cuda_vec, LweCiphertextCount(1), self.ciphertext_modulus);
+        let info = CudaRadixCiphertextInfo {
+            blocks: vec![last_block_input_carry.as_ref().info.blocks.last().unwrap().clone()]
+        };
+        let cuda_radix_ct = CudaRadixCiphertext::new(d_blocks, info);
+        let cuda_signed_radix_ct = CudaSignedRadixCiphertext{
+            ciphertext: cuda_radix_ct
+        };
+
+        let x = self.unchecked_scalar_mul(
+            &cuda_signed_radix_ct, 2,
+                                          stream);
+        // self.unchecked_add_assign(&mut last_block_inner_propagation, &x, stream);
+        // self.unchecked_add_assign(&mut last_block_inner_propagation, last_block_input_carry.as_ref(), stream);
+
+    }
 
 }

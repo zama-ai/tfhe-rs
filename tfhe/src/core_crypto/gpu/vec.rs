@@ -27,7 +27,7 @@ pub struct CudaVec<T: Numeric> {
     pub ptr: Vec<*mut c_void>,
     pub len: usize,
     pub gpu_indexes: Vec<u32>,
-    _phantom: PhantomData<T>,
+    pub(crate) _phantom: PhantomData<T>,
 }
 
 impl<T: Numeric> CudaVec<T> {
