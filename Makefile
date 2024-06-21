@@ -266,6 +266,17 @@ clippy: install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
+.PHONY: clippy_rustdoc # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
+clippy_rustdoc: install_rs_check_toolchain
+	if [[ "$(OS)" != "Linux" && "$(OS)" != "Darwin" ]]; then \
+		echo "WARNING: skipped clippy_rustdoc, unsupported OS $(OS)"; \
+		exit 0; \
+	fi && \
+	CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
+		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,zk-pok,pbs-stats \
+		-p $(TFHE_SPEC)
+
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
