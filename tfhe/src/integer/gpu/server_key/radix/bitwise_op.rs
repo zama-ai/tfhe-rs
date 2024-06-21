@@ -29,24 +29,24 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 1u64;
     ///
     /// let ct = cks.encrypt(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitnot(&d_ct, &mut stream);
+    /// let d_ct_res = sks.unchecked_bitnot(&d_ct, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -55,24 +55,24 @@ impl CudaServerKey {
     pub fn unchecked_bitnot<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.unchecked_bitnot_assign(&mut result, stream);
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.unchecked_bitnot_assign(&mut result, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
-        cuda_lwe_ciphertext_negate_assign(&mut ct.as_mut().d_blocks, stream);
+        cuda_lwe_ciphertext_negate_assign(&mut ct.as_mut().d_blocks, streams);
 
         let ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
@@ -81,14 +81,21 @@ impl CudaServerKey {
         let shift_plaintext = u64::from(scalar) * delta;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
-        let mut d_decomposed_scalar =
-            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, stream, 0);
-        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), stream, 0);
+        let mut d_decomposed_scalar = CudaVec::<u64>::new_async(
+            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
+            streams,
+            streams.gpu_indexes[0],
+        );
+        d_decomposed_scalar.copy_from_cpu_async(
+            scalar_vector.as_slice(),
+            streams,
+            streams.gpu_indexes[0],
+        );
 
         cuda_lwe_ciphertext_plaintext_add_assign(
             &mut ct.as_mut().d_blocks,
             &d_decomposed_scalar,
-            stream,
+            streams,
         );
         ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
@@ -96,12 +103,12 @@ impl CudaServerKey {
     pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.unchecked_bitnot_assign_async(ct, stream);
+            self.unchecked_bitnot_assign_async(ct, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -121,11 +128,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -134,14 +141,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitand(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.unchecked_bitand(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -151,23 +158,23 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.unchecked_bitand_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.unchecked_bitand_assign(&mut result, ct_right, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn unchecked_bitop_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
         op: BitOpType,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
@@ -183,7 +190,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_bitop_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_bsk.d_vec,
@@ -210,7 +217,7 @@ impl CudaServerKey {
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_bitop_integer_radix_kb_assign_async(
-                    stream,
+                    streams,
                     &mut ct_left.as_mut().d_blocks.0.d_vec,
                     &ct_right.as_ref().d_blocks.0.d_vec,
                     &d_multibit_bsk.d_vec,
@@ -242,13 +249,13 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::And, stream);
+            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::And, streams);
             ct_left.as_mut().info = ct_left.as_ref().info.after_bitand(&ct_right.as_ref().info);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
@@ -268,11 +275,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 200u64;
     /// let msg2 = 1u64;
@@ -281,14 +288,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitor(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.unchecked_bitor(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -298,10 +305,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.unchecked_bitor_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.unchecked_bitor_assign(&mut result, ct_right, streams);
         result
     }
 
@@ -309,13 +316,13 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Or, stream);
+            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Or, streams);
             ct_left.as_mut().info = ct_left.as_ref().info.after_bitor(&ct_right.as_ref().info);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
@@ -335,11 +342,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 49;
     /// let msg2 = 64;
@@ -348,14 +355,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitxor(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.unchecked_bitxor(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -365,10 +372,10 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.unchecked_bitxor_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.unchecked_bitxor_assign(&mut result, ct_right, streams);
         result
     }
 
@@ -376,13 +383,13 @@ impl CudaServerKey {
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Xor, stream);
+            self.unchecked_bitop_assign_async(ct_left, ct_right, BitOpType::Xor, streams);
             ct_left.as_mut().info = ct_left.as_ref().info.after_bitxor(&ct_right.as_ref().info);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -402,11 +409,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -415,14 +422,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitand(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.bitand(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -432,22 +439,22 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.bitand_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.bitand_assign(&mut result, ct_right, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn bitand_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -458,36 +465,36 @@ impl CudaServerKey {
             ) {
                 (true, true) => (ct_left, ct_right),
                 (true, false) => {
-                    tmp_rhs = ct_right.duplicate_async(stream);
-                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                    tmp_rhs = ct_right.duplicate_async(streams);
+                    self.full_propagate_assign_async(&mut tmp_rhs, streams);
                     (ct_left, &tmp_rhs)
                 }
                 (false, true) => {
-                    self.full_propagate_assign_async(ct_left, stream);
+                    self.full_propagate_assign_async(ct_left, streams);
                     (ct_left, ct_right)
                 }
                 (false, false) => {
-                    tmp_rhs = ct_right.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate_async(streams);
 
-                    self.full_propagate_assign_async(ct_left, stream);
-                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                    self.full_propagate_assign_async(ct_left, streams);
+                    self.full_propagate_assign_async(&mut tmp_rhs, streams);
                     (ct_left, &tmp_rhs)
                 }
             }
         };
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::And, stream);
+        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::And, streams);
     }
 
     pub fn bitand_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.bitand_assign_async(ct_left, ct_right, stream);
+            self.bitand_assign_async(ct_left, ct_right, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
@@ -507,11 +514,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -520,14 +527,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitor(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.bitor(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -537,22 +544,22 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.bitor_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.bitor_assign(&mut result, ct_right, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn bitor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -562,36 +569,36 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                self.full_propagate_assign_async(ct_left, stream);
+                self.full_propagate_assign_async(ct_left, streams);
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
 
-                self.full_propagate_assign_async(ct_left, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(ct_left, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
         };
 
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Or, stream);
+        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Or, streams);
     }
 
     pub fn bitor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.bitor_assign_async(ct_left, ct_right, stream);
+            self.bitor_assign_async(ct_left, ct_right, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
@@ -611,11 +618,11 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -624,14 +631,14 @@ impl CudaServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut stream);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut stream);
+    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &mut streams);
+    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitxor(&d_ct1, &d_ct2, &mut stream);
+    /// let d_ct_res = sks.bitxor(&d_ct1, &d_ct2, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
@@ -641,22 +648,22 @@ impl CudaServerKey {
         &self,
         ct_left: &T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) -> T {
-        let mut result = unsafe { ct_left.duplicate_async(stream) };
-        self.bitxor_assign(&mut result, ct_right, stream);
+        let mut result = unsafe { ct_left.duplicate_async(streams) };
+        self.bitxor_assign(&mut result, ct_right, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn bitxor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         let mut tmp_rhs;
 
@@ -666,36 +673,36 @@ impl CudaServerKey {
         ) {
             (true, true) => (ct_left, ct_right),
             (true, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
             (false, true) => {
-                self.full_propagate_assign_async(ct_left, stream);
+                self.full_propagate_assign_async(ct_left, streams);
                 (ct_left, ct_right)
             }
             (false, false) => {
-                tmp_rhs = ct_right.duplicate_async(stream);
+                tmp_rhs = ct_right.duplicate_async(streams);
 
-                self.full_propagate_assign_async(ct_left, stream);
-                self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                self.full_propagate_assign_async(ct_left, streams);
+                self.full_propagate_assign_async(&mut tmp_rhs, streams);
                 (ct_left, &tmp_rhs)
             }
         };
 
-        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Xor, stream);
+        self.unchecked_bitop_assign_async(lhs, rhs, BitOpType::Xor, streams);
     }
 
     pub fn bitxor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         unsafe {
-            self.bitxor_assign_async(ct_left, ct_right, stream);
+            self.bitxor_assign_async(ct_left, ct_right, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 
     /// Computes homomorphically bitnot for an encrypted integer value.
@@ -716,55 +723,55 @@ impl CudaServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let gpu_index = 0;
-    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// let mut streams = CudaStreams::new_single_gpu(gpu_index);
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut stream);
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size, &mut streams);
     ///
     /// let msg = 1u64;
     ///
     /// let ct = cks.encrypt(msg);
     ///
     /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut streams);
     ///
     /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.bitnot(&d_ct, &mut stream);
+    /// let d_ct_res = sks.bitnot(&d_ct, &mut streams);
     ///
     /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut stream);
+    /// let ct_res = d_ct_res.to_radix_ciphertext(&mut streams);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, !msg % 256);
     /// ```
-    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, stream: &CudaStreams) -> T {
-        let mut result = unsafe { ct.duplicate_async(stream) };
-        self.bitnot_assign(&mut result, stream);
+    pub fn bitnot<T: CudaIntegerRadixCiphertext>(&self, ct: &T, streams: &CudaStreams) -> T {
+        let mut result = unsafe { ct.duplicate_async(streams) };
+        self.bitnot_assign(&mut result, streams);
         result
     }
 
     /// # Safety
     ///
-    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until stream is synchronised
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
     pub unsafe fn bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
-        stream: &CudaStreams,
+        streams: &CudaStreams,
     ) {
         if !ct.block_carries_are_empty() {
-            self.full_propagate_assign_async(ct, stream);
+            self.full_propagate_assign_async(ct, streams);
         }
 
-        self.unchecked_bitnot_assign_async(ct, stream);
+        self.unchecked_bitnot_assign_async(ct, streams);
     }
 
-    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, stream: &CudaStreams) {
+    pub fn bitnot_assign<T: CudaIntegerRadixCiphertext>(&self, ct: &mut T, streams: &CudaStreams) {
         unsafe {
-            self.bitnot_assign_async(ct, stream);
+            self.bitnot_assign_async(ct, streams);
         }
-        stream.synchronize();
+        streams.synchronize();
     }
 }
