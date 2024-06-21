@@ -203,7 +203,7 @@ where
     /// let result = a.max(&b);
     ///
     /// let decrypted_max: u16 = result.decrypt(&client_key);
-    /// assert_eq!(decrypted_max, 1u16.max(2u16));
+    /// assert_eq!(decrypted_max, 2u16);
     /// ```
     fn max(&self, rhs: &Self) -> Self::Output {
         global_state::with_internal_keys(|key| match key {
@@ -249,7 +249,7 @@ where
     /// let result = a.min(&b);
     ///
     /// let decrypted_min: u16 = result.decrypt(&client_key);
-    /// assert_eq!(decrypted_min, 1u16.min(2u16));
+    /// assert_eq!(decrypted_min, 1u16);
     /// ```
     fn min(&self, rhs: &Self) -> Self::Output {
         global_state::with_internal_keys(|key| match key {

@@ -92,7 +92,7 @@ fn to_lower(c: &FheUint8) -> FheUint8 {
 impl FheAsciiString {
     fn encrypt(string: &str, client_key: &ClientKey) -> Self {
         assert!(
-            string.chars().all(|char| char.is_ascii()),
+            string.is_ascii(),
             "The input string must only contain ascii letters"
         );
 

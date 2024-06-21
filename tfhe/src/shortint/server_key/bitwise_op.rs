@@ -36,7 +36,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg & msg, res);
+    /// assert_eq!(msg, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -49,7 +49,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg & msg, res);
+    /// assert_eq!(msg, res);
     /// ```
     pub fn bitand(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
@@ -235,7 +235,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_bitand(&ct1, &ct2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg & msg);
+    /// assert_eq!(clear_res, msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -247,7 +247,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_bitand(&ct1, &ct2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg & msg);
+    /// assert_eq!(clear_res, msg);
     /// ```
     pub fn checked_bitand(
         &self,
@@ -289,7 +289,7 @@ impl ServerKey {
     /// sks.checked_bitand_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg & msg);
+    /// assert_eq!(clear_res, msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -301,7 +301,7 @@ impl ServerKey {
     /// sks.checked_bitand_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg & msg);
+    /// assert_eq!(clear_res, msg);
     /// ```
     pub fn checked_bitand_assign(
         &self,
@@ -343,7 +343,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg & msg, res);
+    /// assert_eq!(msg, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -356,7 +356,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg & msg, res);
+    /// assert_eq!(msg, res);
     /// ```
     pub fn smart_bitand(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs & rhs)
@@ -446,7 +446,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg ^ msg, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -459,7 +459,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg ^ msg, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn bitxor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
@@ -649,7 +649,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_bitxor(&ct1, &ct2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg ^ msg);
+    /// assert_eq!(clear_res, 0);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -660,7 +660,7 @@ impl ServerKey {
     /// // Compute homomorphically a xor:
     /// let ct_res = sks.checked_bitxor(&ct1, &ct2).unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg ^ msg);
+    /// assert_eq!(clear_res, 0);
     /// ```
     pub fn checked_bitxor(
         &self,
@@ -702,7 +702,7 @@ impl ServerKey {
     /// sks.checked_bitxor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg ^ msg);
+    /// assert_eq!(clear_res, 0);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -714,7 +714,7 @@ impl ServerKey {
     /// sks.checked_bitxor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg ^ msg);
+    /// assert_eq!(clear_res, 0);
     /// ```
     pub fn checked_bitxor_assign(
         &self,
@@ -756,7 +756,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg ^ msg, res);
+    /// assert_eq!(0, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -769,7 +769,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg ^ msg, res);
+    /// assert_eq!(0, res);
     /// ```
     pub fn smart_bitxor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs ^ rhs)
@@ -859,7 +859,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg | msg, res);
+    /// assert_eq!(msg, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -872,7 +872,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg | msg, res);
+    /// assert_eq!(msg, res);
     /// ```
     pub fn bitor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
@@ -1064,7 +1064,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_bitor(&ct1, &ct2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg | msg);
+    /// assert_eq!(clear_res, msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1076,7 +1076,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_bitor(&ct1, &ct2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg | msg);
+    /// assert_eq!(clear_res, msg);
     /// ```
     pub fn checked_bitor(
         &self,
@@ -1118,7 +1118,7 @@ impl ServerKey {
     /// sks.checked_bitor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg | msg);
+    /// assert_eq!(clear_res, msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1130,7 +1130,7 @@ impl ServerKey {
     /// sks.checked_bitor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg | msg);
+    /// assert_eq!(clear_res, msg);
     /// ```
     pub fn checked_bitor_assign(
         &self,
@@ -1172,7 +1172,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg | msg, res);
+    /// assert_eq!(msg, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -1185,7 +1185,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg | msg, res);
+    /// assert_eq!(msg, res);
     /// ```
     pub fn smart_bitor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs | rhs)

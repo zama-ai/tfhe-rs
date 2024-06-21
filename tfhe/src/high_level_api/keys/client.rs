@@ -37,15 +37,14 @@ impl ClientKey {
     /// Using the same seed between generations allows to regenerate the same key.
     ///
     /// ```rust
-    /// use bincode;
     /// use tfhe::{ClientKey, ConfigBuilder, Seed};
     ///
     /// let builder = ConfigBuilder::default();
     /// let config = builder.build();
     ///
-    /// let cks1 = ClientKey::generate_with_seed(config.clone(), Seed(125));
-    /// let cks2 = ClientKey::generate(config.clone());
-    /// let cks3 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    /// let cks1 = ClientKey::generate_with_seed(config, Seed(125));
+    /// let cks2 = ClientKey::generate(config);
+    /// let cks3 = ClientKey::generate_with_seed(config, Seed(125));
     ///
     /// // The keys created with the same seed are equal
     /// assert_eq!(

@@ -382,7 +382,7 @@ pub fn lwe_ciphertext_plaintext_add_assign_other_mod<Scalar, InCont>(
 /// let cleartext = rounded >> 60;
 ///
 /// // Check we recovered the expected result
-/// assert_eq!(cleartext, msg - msg);
+/// assert_eq!(cleartext, 0);
 /// ```
 pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
@@ -705,7 +705,7 @@ pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
 /// let cleartext = rounded >> 60;
 ///
 /// // Check we recovered the expected result
-/// assert_eq!(cleartext, msg - msg);
+/// assert_eq!(cleartext, 0);
 /// ```
 pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertext<LhsCont>,

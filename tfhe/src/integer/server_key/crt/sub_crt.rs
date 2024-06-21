@@ -25,7 +25,7 @@ impl ServerKey {
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
-    /// let ctxt = sks.unchecked_crt_sub(&mut ctxt_1, &mut ctxt_2);
+    /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);
@@ -64,7 +64,7 @@ impl ServerKey {
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
-    /// let ctxt = sks.unchecked_crt_sub(&mut ctxt_1, &mut ctxt_2);
+    /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);

@@ -44,7 +44,7 @@ use tfhe_versionable::Versionize;
 /// let fhe_result = ttrue & ffalse;
 ///
 /// let clear_result = fhe_result.decrypt(&client_key);
-/// assert_eq!(clear_result, false);
+/// assert!(!clear_result);
 /// ```
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(FheBoolVersions)]
@@ -141,7 +141,7 @@ impl FheBool {
     ///
     /// // We cannot trivial decrypt
     /// let result: Result<bool, _> = non_trivial.try_decrypt_trivial();
-    /// matches!(result, Err(_));
+    /// assert!(result.is_err());
     /// ```
     pub fn try_decrypt_trivial(&self) -> Result<bool, NotTrivialCiphertextError> {
         self.ciphertext.on_cpu().decrypt_trivial()
@@ -270,7 +270,7 @@ where
     /// let result = a.eq(&b);
     ///
     /// let decrypted = result.decrypt(&client_key);
-    /// assert_eq!(decrypted, true == false);
+    /// assert!(!decrypted);
     /// ```
     fn eq(&self, other: B) -> Self {
         let ciphertext = global_state::with_internal_keys(|key| match key {
@@ -353,7 +353,7 @@ impl FheEq<bool> for FheBool {
     /// let result = a.eq(false);
     ///
     /// let decrypted = result.decrypt(&client_key);
-    /// assert_eq!(decrypted, true == false);
+    /// assert!(!decrypted);
     /// ```
     fn eq(&self, other: bool) -> FheBool {
         let ciphertext = global_state::with_internal_keys(|key| match key {
@@ -438,7 +438,7 @@ where
     ///
     /// let result = a & &b;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, true & true);
+    /// assert!(result);
     /// ```
     fn bitand(self, rhs: B) -> Self::Output {
         BitAnd::bitand(&self, rhs)
@@ -466,7 +466,7 @@ where
     ///
     /// let result = &a & &b;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, true & true);
+    /// assert!(result);
     /// ```
     fn bitand(self, rhs: B) -> Self::Output {
         let ciphertext = global_state::with_internal_keys(|key| match key {
@@ -592,7 +592,7 @@ where
     ///
     /// let result = a ^ &b;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, true ^ true);
+    /// assert!(!result);
     /// ```
     fn bitxor(self, rhs: B) -> Self::Output {
         BitXor::bitxor(&self, rhs)
@@ -621,7 +621,7 @@ where
     ///
     /// let result = &a ^ &b;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, true ^ true);
+    /// assert!(!result);
     /// ```
     fn bitxor(self, rhs: B) -> Self::Output {
         let ciphertext = global_state::with_internal_keys(|key| match key {
@@ -1029,7 +1029,7 @@ where
     ///
     /// a &= b;
     /// let result = a.decrypt(&client_key);
-    /// assert_eq!(result, true & true);
+    /// assert!(result);
     /// ```
     fn bitand_assign(&mut self, rhs: B) {
         let rhs = rhs.borrow();
@@ -1072,7 +1072,7 @@ where
     ///
     /// a |= &b;
     /// let result = a.decrypt(&client_key);
-    /// assert_eq!(result, true | true);
+    /// assert!(result);
     /// ```
     fn bitor_assign(&mut self, rhs: B) {
         let rhs = rhs.borrow();
@@ -1115,7 +1115,7 @@ where
     ///
     /// a ^= &b;
     /// let result = a.decrypt(&client_key);
-    /// assert_eq!(result, true ^ true);
+    /// assert!(!result);
     /// ```
     fn bitxor_assign(&mut self, rhs: B) {
         let rhs = rhs.borrow();
@@ -1267,7 +1267,7 @@ impl std::ops::Not for FheBool {
     ///
     /// let result = !a;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, false);
+    /// assert!(!result);
     /// ```
     fn not(self) -> Self::Output {
         (&self).not()
@@ -1292,7 +1292,7 @@ impl std::ops::Not for &FheBool {
     ///
     /// let result = !&a;
     /// let result = result.decrypt(&client_key);
-    /// assert_eq!(result, false);
+    /// assert!(!result);
     /// ```
     fn not(self) -> Self::Output {
         let ciphertext = global_state::with_internal_keys(|key| match key {

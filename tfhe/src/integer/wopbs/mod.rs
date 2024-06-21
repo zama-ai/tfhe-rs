@@ -273,7 +273,7 @@ impl WopbsKey {
     ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 42 % moduli;
-    /// let ct = cks.encrypt(clear as u64);
+    /// let ct = cks.encrypt(clear);
     /// let ct = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct);
     /// let lut = wopbs_key.generate_lut_radix(&ct, |x| x);
     /// let ct_res = wopbs_key.wopbs(&ct, &lut);
@@ -363,7 +363,7 @@ impl WopbsKey {
     ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 15 % moduli;
-    /// let ct = cks.encrypt_without_padding(clear as u64);
+    /// let ct = cks.encrypt_without_padding(clear);
     /// let lut = wopbs_key.generate_lut_radix_without_padding(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs_without_padding(&ct, &lut);
     /// let res: u64 = cks.decrypt_without_padding(&ct_res);
@@ -453,7 +453,7 @@ impl WopbsKey {
     /// let clear = 42 % msg_space; // Encrypt the integers
     /// let mut ct = cks.encrypt_native_crt(clear);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
-    /// let ct_res = wopbs_key.wopbs_native_crt(&mut ct, &lut);
+    /// let ct_res = wopbs_key.wopbs_native_crt(&ct, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, clear);
     /// ```
@@ -480,8 +480,8 @@ impl WopbsKey {
     /// }
     /// let clear1 = 42 % moduli;
     /// let clear2 = 24 % moduli;
-    /// let ct1 = cks.encrypt(clear1 as u64);
-    /// let ct2 = cks.encrypt(clear2 as u64);
+    /// let ct1 = cks.encrypt(clear1);
+    /// let ct2 = cks.encrypt(clear2);
     ///
     /// let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
     /// let ct2 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct2);
@@ -519,7 +519,7 @@ impl WopbsKey {
     ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 42 % moduli;
-    /// let ct = cks.encrypt(clear as u64);
+    /// let ct = cks.encrypt(clear);
     /// let ct = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct);
     /// let lut = wopbs_key.generate_lut_radix(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs(&ct, &lut);
@@ -589,7 +589,7 @@ impl WopbsKey {
     ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 15 % moduli;
-    /// let ct = cks.encrypt_without_padding(clear as u64);
+    /// let ct = cks.encrypt_without_padding(clear);
     /// let ct = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct);
     /// let lut = wopbs_key.generate_lut_radix_without_padding(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs_without_padding(&ct, &lut);
@@ -655,7 +655,7 @@ impl WopbsKey {
     /// let clear = 42 % msg_space; // Encrypt the integers
     /// let mut ct = cks.encrypt_native_crt(clear);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
-    /// let ct_res = wopbs_key.wopbs_native_crt(&mut ct, &lut);
+    /// let ct_res = wopbs_key.wopbs_native_crt(&ct, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, clear);
     /// ```
@@ -784,8 +784,8 @@ impl WopbsKey {
     /// }
     /// let clear1 = 42 % moduli;
     /// let clear2 = 24 % moduli;
-    /// let ct1 = cks.encrypt(clear1 as u64);
-    /// let ct2 = cks.encrypt(clear2 as u64);
+    /// let ct1 = cks.encrypt(clear1);
+    /// let ct2 = cks.encrypt(clear2);
     ///
     /// let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
     /// let ct2 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct2);
@@ -967,7 +967,7 @@ impl WopbsKey {
     /// let mut ct1 = cks.encrypt_native_crt(clear1);
     /// let mut ct2 = cks.encrypt_native_crt(clear2);
     /// let lut = wopbs_key.generate_lut_bivariate_native_crt(&ct1, |x, y| x * y * 2);
-    /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&mut ct1, &mut ct2, &lut);
+    /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&ct1, &ct2, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, (clear1 * clear2 * 2) % msg_space);
     /// ```
@@ -1037,7 +1037,7 @@ impl WopbsKey {
     /// let mut ct1 = cks.encrypt_native_crt(clear1);
     /// let mut ct2 = cks.encrypt_native_crt(clear2);
     /// let lut = wopbs_key.generate_lut_bivariate_native_crt(&ct1, |x, y| x * y * 2);
-    /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&mut ct1, &mut ct2, &lut);
+    /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&ct1, &ct2, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, (clear1 * clear2 * 2) % msg_space);
     /// ```

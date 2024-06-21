@@ -290,9 +290,7 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
 /// decrypted_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
-/// input_plaintext_list
-///     .iter_mut()
-///     .for_each(|x| *x.0 = *x.0 >> 60);
+/// input_plaintext_list.iter_mut().for_each(|x| *x.0 >>= 60);
 ///
 /// // Check we recovered the original message
 /// assert_eq!(input_plaintext_list, decrypted_plaintext_list);
@@ -486,9 +484,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// decrypted_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
-/// input_plaintext_list
-///     .iter_mut()
-///     .for_each(|x| *x.0 = *x.0 >> 60);
+/// input_plaintext_list.iter_mut().for_each(|x| *x.0 >>= 60);
 ///
 /// // Check we recovered the original message
 /// assert_eq!(input_plaintext_list, decrypted_plaintext_list);
@@ -625,9 +621,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
 /// decrypted_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
-/// input_plaintext_list
-///     .iter_mut()
-///     .for_each(|x| *x.0 = *x.0 >> 60);
+/// input_plaintext_list.iter_mut().for_each(|x| *x.0 >>= 60);
 ///
 /// // Check we recovered the original message
 /// assert_eq!(input_plaintext_list, decrypted_plaintext_list);

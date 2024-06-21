@@ -17,7 +17,6 @@ bincode = "1.3.3"
 ```rust
 // main.rs
 
-use bincode;
 use std::io::Cursor;
 use tfhe::shortint::prelude::*;
 

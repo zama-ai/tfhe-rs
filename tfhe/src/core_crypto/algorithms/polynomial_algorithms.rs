@@ -694,10 +694,9 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
 /// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
-/// let poly_list =
-///     PolynomialList::from_container(vec![100 as u8, 20, 3, 4, 5, 6], PolynomialSize(3));
+/// let poly_list = PolynomialList::from_container(vec![100_u8, 20, 3, 4, 5, 6], PolynomialSize(3));
 /// let bin_poly_list = PolynomialList::from_container(vec![0, 1, 1, 1, 0, 0], PolynomialSize(3));
-/// let mut output = Polynomial::new(250 as u8, PolynomialSize(3));
+/// let mut output = Polynomial::new(250_u8, PolynomialSize(3));
 /// polynomial_wrapping_sub_multisum_assign(&mut output, &poly_list, &bin_poly_list);
 /// assert_eq!(output.as_ref(), &[13, 148, 124]);
 /// ```

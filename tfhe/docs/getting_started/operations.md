@@ -97,10 +97,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut d = FheInt8::try_encrypt(clear_d, &keys)?;
 
 
-    a = a * &b;     // Clear equivalent computations: 15 * 27 mod 256 = 149
+    a *= &b;     // Clear equivalent computations: 15 * 27 mod 256 = 149
     b = &b + &c;    // Clear equivalent computations: 27 + 43 mod 256 = 70
-    b = b - 76u8;   // Clear equivalent computations: 70 - 76 mod 256 = 250
-    d = d - 13i8;   // Clear equivalent computations: -87 - 13 = 100 in [-128, 128[
+    b -= 76u8;   // Clear equivalent computations: 70 - 76 mod 256 = 250
+    d -= 13i8;   // Clear equivalent computations: -87 - 13 = 100 in [-128, 128[
 
     let dec_a: u8 = a.decrypt(&keys);
     let dec_b: u8 = b.decrypt(&keys);
@@ -146,9 +146,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
     let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
 
-    a = a ^ &b;
-    b = b ^ &a;
-    a = a ^ &b;
+    a ^= &b;
+    b ^= &a;
+    a ^= &b;
 
     let dec_a: u8 = a.decrypt(&keys);
     let dec_b: u8 = b.decrypt(&keys);
