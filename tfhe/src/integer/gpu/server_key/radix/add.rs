@@ -609,52 +609,57 @@ impl CudaServerKey {
             output_carry = self.propagate_single_carry_assign_async(&mut input_carries, stream);
         }
 
-        let last_block_inner_propagation = self.generate_last_block_inner_propagation(
-            &lhs.ciphertext,
-            &rhs.ciphertext,
+        let last_block_inner_propagation : CudaSignedRadixCiphertext = self.generate_last_block_inner_propagation(
+            &lhs,
+            &rhs,
             signed_operation,
             stream,
         );
 
-        {
-            // debug
-            let tmp1 = input_carries.to_signed_radix_ciphertext(stream);
-            let tmp2 = output_carry.to_signed_radix_ciphertext(stream);
-            let d_tmp3: CudaSignedRadixCiphertext = CudaSignedRadixCiphertext::new(
-                last_block_inner_propagation.d_blocks,
-                last_block_inner_propagation.info,
-            );
-            let tmp3 = d_tmp3.to_signed_radix_ciphertext(stream);
-            for block in &tmp1.blocks {
-                println!("gpu input_carries#1: {:?}", block.ct.get_body());
-            }
-            for block in &tmp2.blocks {
-                println!("gpu output_carry#1: {:?}", block.ct.get_body());
-            }
+        // {
+        //     // debug
+        //     let tmp1 = input_carries.to_signed_radix_ciphertext(stream);
+        //     let tmp2 = output_carry.to_signed_radix_ciphertext(stream);
+        //     let d_tmp3: CudaSignedRadixCiphertext = CudaSignedRadixCiphertext::new(
+        //         last_block_inner_propagation.as_ref().d_blocks,
+        //         last_block_inner_propagation.as_ref().info,
+        //     );
+        //     let tmp3 = d_tmp3.to_signed_radix_ciphertext(stream);
+        //     for block in &tmp1.blocks {
+        //         println!("gpu input_carries#1: {:?}", block.ct.get_body());
+        //     }
+        //     for block in &tmp2.blocks {
+        //         println!("gpu output_carry#1: {:?}", block.ct.get_body());
+        //     }
+        //     for block in tmp3.blocks {
+        //         println!(
+        //             "gpu last_block_inner_propagation#1: {:?}",
+        //             block.ct.get_body()
+        //         );
+        //     }
+        // }
+        let tmp3 = last_block_inner_propagation.to_signed_radix_ciphertext(stream);
             for block in tmp3.blocks {
                 println!(
                     "gpu last_block_inner_propagation#1: {:?}",
                     block.ct.get_body()
                 );
             }
-        }
-
-
         (result, overflowed)
     }
 
-    pub(crate) fn generate_last_block_inner_propagation(
+    pub(crate) fn generate_last_block_inner_propagation<T : CudaIntegerRadixCiphertext>(
         &self,
-        lhs: &CudaRadixCiphertext,
-        rhs: &CudaRadixCiphertext,
+        lhs: &T,
+        rhs: &T,
         op: SignedOperation,
         stream: &CudaStreams,
-    ) -> CudaRadixCiphertext {
-        let mut result: CudaSignedRadixCiphertext;
+    ) -> T {
+        let mut result: T;
         unsafe {
             result = self.create_trivial_zero_radix(1, stream);
-            self.generate_last_block_inner_propagation_assign_async(
-                &mut result.ciphertext,
+            self.generate_last_block_inner_propagation_async(
+                &mut result,
                 &lhs,
                 &rhs,
                 op,
@@ -662,18 +667,18 @@ impl CudaServerKey {
             );
         }
         stream.synchronize();
-        result.ciphertext
+        result
     }
 
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn generate_last_block_inner_propagation_assign_async(
+    pub unsafe fn generate_last_block_inner_propagation_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        result: &mut CudaRadixCiphertext,
-        lhs: &CudaRadixCiphertext,
-        rhs: &CudaRadixCiphertext,
+        result: &mut T,
+        lhs: &T,
+        rhs: &T,
         op: SignedOperation,
         stream: &CudaStreams,
     ) {
@@ -724,14 +729,14 @@ impl CudaServerKey {
             });
 
         let lwe_size = self.key_switching_key.input_key_lwe_size().0;
-        let num_blocks = rhs.d_blocks.lwe_ciphertext_count().0;
-        let last_lhs_block = lhs
+        let num_blocks = rhs.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let last_lhs_block = lhs.as_ref()
             .d_blocks
             .0
             .d_vec
             .as_slice(lwe_size * (num_blocks - 1).., stream.gpu_indexes[0])
             .unwrap();
-        let last_rhs_block = rhs
+        let last_rhs_block = rhs.as_ref()
             .d_blocks
             .0
             .d_vec
@@ -753,7 +758,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 apply_bivariate_lut_kb_async(
                     stream,
-                    &mut result
+                    &mut result.as_mut()
                         .d_blocks
                         .0
                         .d_vec
@@ -784,7 +789,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_bsk) => {
                 apply_bivariate_lut_kb_async(
                     stream,
-                    &mut result
+                    &mut result.as_mut()
                         .d_blocks
                         .0
                         .d_vec
@@ -817,9 +822,9 @@ impl CudaServerKey {
 
     // pub(crate) fn resolve_signed_overflow(
     //     &self,
-    //     mut last_block_inner_propagation: CudaRadixCiphertext,
-    //     last_block_input_carry: &CudaRadixCiphertext,
-    //     last_block_output_carry: &CudaRadixCiphertext,
+    //     mut last_block_inner_propagation: CudaSignedRadixCiphertext,
+    //     last_block_input_carry: &CudaSignedRadixCiphertext,
+    //     last_block_output_carry: &CudaSignedRadixCiphertext,
     //     stream: &CudaStreams,
     // ) -> CudaBooleanBlock {
     //     let bits_of_message = self.message_modulus.0.ilog2();
@@ -841,7 +846,10 @@ impl CudaServerKey {
     //         u64::from(input_carry_to_last_bit != output_carry_of_block)
     //     });
     //
-    //     // let x = self.unchecked_scalar_mul(last_block_output_carry.as_ref(), 2, stream);
+    //
+    //     let x = self.unchecked_scalar_mul(last_block_input_carry.as_ref().d_blocks.0.d_vec
+    //                                           .as_slice(12312 .. 32323).unwrap(), 2,
+    //                                       stream);
     //     // self.unchecked_add_assign(&mut last_block_inner_propagation, &x, stream);
     //     // self.unchecked_add_assign(&mut last_block_inner_propagation, last_block_input_carry.as_ref(), stream);
     //
