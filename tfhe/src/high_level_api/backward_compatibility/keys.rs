@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::VersionsDispatch;
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::keys::*;
 
@@ -49,10 +49,28 @@ pub(crate) enum IntegerConfigVersions {
     V0(IntegerConfig),
 }
 
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV0 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV0 {
+    fn upgrade(self) -> Result<IntegerClientKey, String> {
+        Ok(IntegerClientKey {
+            key: self.key,
+            wopbs_block_parameters: self.wopbs_block_parameters,
+            dedicated_compact_private_key: None,
+            compression_key: None,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum IntegerClientKeyVersions {
-    V0(IntegerClientKey),
+    V0(IntegerClientKeyV0),
+    V1(IntegerClientKey),
 }
 
 #[derive(VersionsDispatch)]
