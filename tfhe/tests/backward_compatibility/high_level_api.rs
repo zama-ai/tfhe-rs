@@ -1,14 +1,24 @@
+#![allow(deprecated)]
 use std::path::Path;
 
-use tfhe::backward_compatibility::integers::CompactFheUint8;
-use tfhe::prelude::FheDecrypt;
+use tfhe::backward_compatibility::booleans::{CompactFheBool, CompactFheBoolList};
+use tfhe::backward_compatibility::integers::{
+    CompactFheInt8, CompactFheInt8List, CompactFheUint8, CompactFheUint8List,
+};
+use tfhe::prelude::{FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
-use tfhe::{set_server_key, ClientKey, CompressedFheUint8};
+use tfhe::{
+    set_server_key, ClientKey, CompactCiphertextList, CompressedCompactPublicKey,
+    CompressedFheBool, CompressedFheInt8, CompressedFheUint8, CompressedPublicKey,
+    CompressedServerKey, FheUint8,
+};
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    HlCiphertextTest, HlClientKeyTest, TestMetadata, TestParameterSet, TestType, Testcase,
+    HlBoolCiphertextListTest, HlBoolCiphertextTest, HlCiphertextListTest, HlCiphertextTest,
+    HlClientKeyTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextListTest,
+    HlSignedCiphertextTest, TestMetadata, TestParameterSet, TestType, Testcase,
 };
 use tfhe_versionable::Unversionize;
 
@@ -84,7 +94,7 @@ pub fn test_hl_signed_ciphertext(
         compressed.decompress()
     } else if test.compact {
         let compact: CompactFheInt8 = load_and_unversionize(dir, test, format)?;
-        compact.expand()
+        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
@@ -125,7 +135,7 @@ pub fn test_hl_bool_ciphertext(
         compressed.decompress()
     } else if test.compact {
         let compact: CompactFheBool = load_and_unversionize(dir, test, format)?;
-        compact.expand()
+        compact.expand().unwrap()
     } else {
         load_and_unversionize(dir, test, format)?
     };
@@ -162,7 +172,7 @@ pub fn test_hl_ciphertext_list(
     set_server_key(server_key);
 
     let compact: CompactFheUint8List = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand();
+    let ct_list = compact.expand().unwrap();
 
     let clear_list: Vec<u8> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
     let ref_values: Vec<u8> = test.clear_values.iter().map(|v| *v as u8).collect();
@@ -196,7 +206,7 @@ pub fn test_hl_signed_ciphertext_list(
     set_server_key(server_key);
 
     let compact: CompactFheInt8List = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand();
+    let ct_list = compact.expand().unwrap();
 
     let clear_list: Vec<i8> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
     let ref_values: Vec<i8> = test.clear_values.iter().map(|v| *v as i8).collect();
@@ -230,7 +240,7 @@ pub fn test_hl_bool_ciphertext_list(
     set_server_key(server_key);
 
     let compact: CompactFheBoolList = load_and_unversionize(dir, test, format)?;
-    let ct_list = compact.expand();
+    let ct_list = compact.expand().unwrap();
 
     let clear_list: Vec<bool> = ct_list.into_iter().map(|ct| ct.decrypt(&key)).collect();
     let ref_values: Vec<bool> = test.clear_values.iter().copied().collect();
@@ -295,7 +305,10 @@ pub fn test_hl_pubkey(
         } else {
             load_and_unversionize(dir, test, format)?
         };
-        FheUint8::encrypt(value, &public_key)
+        let ct_list = CompactCiphertextList::builder(&public_key)
+            .push(value)
+            .build();
+        ct_list.expand().unwrap().get(0).unwrap().unwrap()
     } else {
         let public_key = if test.compressed {
             let compressed: CompressedPublicKey = load_and_unversionize(dir, test, format)?;
