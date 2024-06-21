@@ -45,7 +45,7 @@ impl FheTrivialEncrypt<bool> for FheBool {
     /// let a = FheBool::encrypt_trivial(true);
     ///
     /// let decrypted: bool = a.decrypt(&client_key);
-    /// assert_eq!(decrypted, true);
+    /// assert!(decrypted);
     /// ```
     #[track_caller]
     fn encrypt_trivial(value: bool) -> Self {

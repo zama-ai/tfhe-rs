@@ -303,7 +303,7 @@ impl ServerKey {
     /// // |  0 0  |   0 1   |
     ///
     /// let shift: u8 = 1;
-    /// let ct_res = sks.scalar_left_shift(&mut ct, shift);
+    /// let ct_res = sks.scalar_left_shift(&ct, shift);
     /// // |      ct_res     |
     /// // | carry | message |
     /// // |-------|---------|
@@ -325,7 +325,7 @@ impl ServerKey {
     /// // |  0 0  |   0 1   |
     ///
     /// let shift: u8 = 1;
-    /// let ct_res = sks.scalar_left_shift(&mut ct, shift);
+    /// let ct_res = sks.scalar_left_shift(&ct, shift);
     /// // |      ct_res     |
     /// // | carry | message |
     /// // |-------|---------|

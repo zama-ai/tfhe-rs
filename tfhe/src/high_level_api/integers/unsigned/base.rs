@@ -196,7 +196,7 @@ where
     ///
     /// // We cannot trivial decrypt
     /// let result: Result<u16, _> = non_trivial.try_decrypt_trivial();
-    /// matches!(result, Err(_));
+    /// assert!(result.is_err());
     /// ```
     pub fn try_decrypt_trivial<Clear>(&self) -> Result<Clear, NotTrivialCiphertextError>
     where
@@ -460,7 +460,7 @@ where
     /// let (result, is_ok) = a.checked_ilog2();
     ///
     /// let is_ok = is_ok.decrypt(&client_key);
-    /// assert_eq!(is_ok, false);
+    /// assert!(!is_ok);
     ///
     /// let decrypted: u16 = result.decrypt(&client_key);
     /// assert_eq!(decrypted, 63); // result is meaningless
@@ -516,7 +516,7 @@ where
     ///     .unwrap(); // All possible output values fit in a u8
     ///
     /// let matched = matched.decrypt(&client_key);
-    /// assert_eq!(matched, true);
+    /// assert!(matched);
     ///
     /// let decrypted: u16 = result.decrypt(&client_key);
     /// assert_eq!(decrypted, 25u16)

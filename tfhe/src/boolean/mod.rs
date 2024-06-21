@@ -34,19 +34,19 @@
 //!
 //! // We use the client key to decrypt the output of the circuit:
 //! let output_1 = client_key.decrypt(&ct_6);
-//! assert_eq!(output_1, true);
+//! assert!(output_1);
 //!
 //! // It is possible to compute gates with one input unencrypted
 //! let ct_7 = server_key.and(&ct_6, true);
 //! let output_2 = client_key.decrypt(&ct_7);
-//! assert_eq!(output_2, true);
+//! assert!(output_2);
 //!
 //! // It is possible to trivially encrypt on the server side
 //! // i.e. to not encrypt but still generate a compatible Ciphertext
 //! let ct_8 = server_key.trivial_encrypt(false);
 //! let ct_9 = server_key.mux(&ct_7, &ct_3, &ct_8);
 //! let output_3 = client_key.decrypt(&ct_9);
-//! assert_eq!(output_3, true);
+//! assert!(output_3);
 //! ```
 
 use crate::boolean::client_key::ClientKey;

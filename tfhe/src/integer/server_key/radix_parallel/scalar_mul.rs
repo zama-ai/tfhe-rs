@@ -162,7 +162,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.scalar_mul_parallelized(&mut ct, scalar);
+    /// let ct_res = sks.scalar_mul_parallelized(&ct, scalar);
     ///
     /// // Decrypt:
     /// let clear: u64 = cks.decrypt(&ct_res);

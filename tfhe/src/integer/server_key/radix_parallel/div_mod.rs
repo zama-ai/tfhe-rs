@@ -898,7 +898,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let div_by_0 = cks.decrypt_bool(&div_by_0);
-    /// assert_eq!(div_by_0, true);
+    /// assert!(div_by_0);
     ///
     /// let q: u8 = cks.decrypt(&ct_q);
     /// assert_eq!(u8::MAX, q);
@@ -950,7 +950,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let div_by_0 = cks.decrypt_bool(&div_by_0);
-    /// assert_eq!(div_by_0, true);
+    /// assert!(div_by_0);
     ///
     /// let dec_result: u8 = cks.decrypt(&ct_res);
     /// assert_eq!(u8::MAX, dec_result);
@@ -995,7 +995,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let rem_by_0 = cks.decrypt_bool(&rem_by_0);
-    /// assert_eq!(rem_by_0, true);
+    /// assert!(rem_by_0);
     ///
     /// let dec_result: u8 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg);

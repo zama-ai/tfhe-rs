@@ -158,7 +158,7 @@ impl BooleanBlock {
     /// assert_eq!(Ok(msg), res);
     ///
     /// let res = non_trivial_ct.decrypt_trivial();
-    /// matches!(res, Err(_));
+    /// assert!(res.is_err());
     /// ```
     pub fn decrypt_trivial(&self) -> Result<bool, NotTrivialCiphertextError> {
         let value = self.0.decrypt_trivial()?;

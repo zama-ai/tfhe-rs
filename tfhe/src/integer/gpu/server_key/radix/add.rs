@@ -392,7 +392,7 @@ impl CudaServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// let dec_overflowed: bool = cks.decrypt_bool(&ct_overflowed);
     /// assert_eq!(dec_result, (msg1 + msg2) % modulus);
-    /// assert_eq!(dec_overflowed, true);
+    /// assert!(dec_overflowed);
     /// ```
     pub fn unsigned_overflowing_add(
         &self,

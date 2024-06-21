@@ -56,7 +56,7 @@ where
 /// // Check all coefficients are not zero as we just generated a new key
 /// // Note probability of this assert failing is (1/2)^polynomial_size or ~5.6 * 10^-309 for a
 /// // polynomial size of 1024.
-/// assert!(glwe_secret_key.as_ref().iter().all(|&elt| elt == 0) == false);
+/// assert!(!glwe_secret_key.as_ref().iter().all(|&elt| elt == 0));
 /// ```
 pub fn generate_binary_glwe_secret_key<Scalar, InCont, Gen>(
     glwe_secret_key: &mut GlweSecretKey<InCont>,

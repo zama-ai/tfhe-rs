@@ -504,7 +504,7 @@ impl ClientKey {
     ///
     /// let a = cks.encrypt_bool(false);
     /// let dec = cks.decrypt_bool(&a);
-    /// assert_eq!(dec, false);
+    /// assert!(!dec);
     ///
     /// let a = a.into_radix(size, &sks);
     /// let dec: u64 = cks.decrypt(&a);
@@ -538,7 +538,7 @@ impl ClientKey {
     /// let a = cks.encrypt_one_block(1u64);
     /// let wrapped = BooleanBlock::new_unchecked(a);
     /// let dec = cks.decrypt_bool(&wrapped);
-    /// assert_eq!(dec, true);
+    /// assert!(dec);
     /// ```
     pub fn decrypt_bool(&self, ct: &BooleanBlock) -> bool {
         self.decrypt_one_block(&ct.0) != 0

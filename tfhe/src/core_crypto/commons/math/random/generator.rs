@@ -608,12 +608,12 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// // for f32
-    /// let (g1, g2): (f32, f32) = generator.random_gaussian(0. as f32, 1. as f32);
+    /// let (g1, g2): (f32, f32) = generator.random_gaussian(0_f32, 1_f32);
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);
     /// // for f64
-    /// let (g1, g2): (f64, f64) = generator.random_gaussian(0. as f64, 1. as f64);
+    /// let (g1, g2): (f64, f64) = generator.random_gaussian(0_f64, 1_f64);
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);

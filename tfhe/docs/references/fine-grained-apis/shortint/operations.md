@@ -175,8 +175,8 @@ fn main() {
     let mut ct_2 = client_key.encrypt(msg2);
 
     server_key.scalar_mul_assign(&mut ct_1, scalar);
-    server_key.sub_assign(&mut ct_1, &mut ct_2);
-    server_key.mul_lsb_assign(&mut ct_1, &mut ct_2);
+    server_key.sub_assign(&mut ct_1, &ct_2);
+    server_key.mul_lsb_assign(&mut ct_1, &ct_2);
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_1);

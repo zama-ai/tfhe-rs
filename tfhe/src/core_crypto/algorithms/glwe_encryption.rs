@@ -227,7 +227,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign_non_native_mod<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -564,7 +564,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_other_mod<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -695,7 +695,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, NoiseDistribution, KeyCont, InputCont, Ou
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -1268,7 +1268,7 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -1461,7 +1461,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt >>= 60);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///

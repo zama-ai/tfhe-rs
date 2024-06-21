@@ -36,7 +36,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.scalar_sub(&mut ct, scalar);
+    /// let ct_res = sks.scalar_sub(&ct, scalar);
     ///
     /// // The input ciphertext content is not changed
     /// assert_eq!(cks.decrypt(&ct), msg);
@@ -52,7 +52,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.scalar_sub(&mut ct, scalar);
+    /// let ct_res = sks.scalar_sub(&ct, scalar);
     ///
     /// // The input ciphertext content is not changed
     /// assert_eq!(cks.decrypt(&ct), msg);

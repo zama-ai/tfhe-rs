@@ -121,7 +121,7 @@ impl CompressedPublicKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt(&ct_res);
-    /// assert_eq!(false, dec);
+    /// assert!(!dec);
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| {

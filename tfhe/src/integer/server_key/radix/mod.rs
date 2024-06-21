@@ -728,7 +728,7 @@ impl ServerKey {
     /// let mut ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let mut ct_res = sks.unchecked_add(&mut ct1, &mut ct2);
+    /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);
     /// sks.full_propagate(&mut ct_res);
     ///
     /// // Decrypt:

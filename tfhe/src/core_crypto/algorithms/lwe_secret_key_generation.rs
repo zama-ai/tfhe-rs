@@ -51,7 +51,7 @@ where
 /// // Check all coefficients are not zero as we just generated a new key
 /// // Note probability of this assert failing is (1/2)^lwe_dimension or ~4.3 * 10^-224 for an LWE
 /// // dimension of 742.
-/// assert!(lwe_secret_key.as_ref().iter().all(|&elt| elt == 0) == false);
+/// assert!(!lwe_secret_key.as_ref().iter().all(|&elt| elt == 0));
 /// ```
 pub fn generate_binary_lwe_secret_key<Scalar, InCont, Gen>(
     lwe_secret_key: &mut LweSecretKey<InCont>,

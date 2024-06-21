@@ -127,7 +127,7 @@ fn main() {
 
     set_server_key(server_key);
 
-    let clear_bits = [0, 1, 0, 0, 0, 1, 1].map(|b| (b != 0) as bool);
+    let clear_bits = [0, 1, 0, 0, 0, 1, 1].map(|b| (b != 0));
 
     let fhe_bits = clear_bits
         .iter()
@@ -338,7 +338,7 @@ fn main() {
 
     set_server_key(server_key);
 
-    let clear_bits = [0, 1, 0, 0, 0, 1, 1].map(|b| (b != 0) as bool);
+    let clear_bits = [0, 1, 0, 0, 0, 1, 1].map(|b| (b != 0));
 
     let fhe_bits = clear_bits
         .iter()

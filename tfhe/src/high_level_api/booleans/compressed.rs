@@ -29,7 +29,7 @@ use tfhe_versionable::Versionize;
 ///
 /// let decompressed = compressed.decompress();
 /// let decrypted: bool = decompressed.decrypt(&client_key);
-/// assert_eq!(decrypted, true);
+/// assert!(decrypted);
 /// ```
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedFheBoolVersions)]
