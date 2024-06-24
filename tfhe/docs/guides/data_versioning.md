@@ -2,7 +2,7 @@
 
 This document explains how to save and load versioned data using the data versioning feature.
 
-Starting from v0.7.0, **TFHE-rs** supports versioned data types. This allows you to store data and load it in the future without compatibility concerns. This feature is done by the `tfhe-versionable` crate.
+Starting from v0.6.4, **TFHE-rs** supports versioned data types. This allows you to store data and load it in the future without compatibility concerns. This feature is done by the `tfhe-versionable` crate.
 
 This versioning scheme is compatible with all the [data formats](https://serde.rs/#data-formats) supported by serde.
 
@@ -85,7 +85,7 @@ When possible, data will be upgraded automatically without any kind of interract
 You will find below a list of breaking changes and how to upgrade them.
 
 # 0.6 -> 0.7
-- `crate::integer::ciphertext::CompactCiphertextList`
+- `tfhe::integer::ciphertext::CompactCiphertextList`:
   in 0.6, these lists of ciphertext were statically typed and homogenous. Since 0.7, they are heterogeneous. The new version stores for each element an information about its type (Signed, Unsigned or Boolean). Since this information were not stored before, the list is set to be made of `Unsigned` integers by default. If that is not the case, you can set its type using the following snippet:
 
 ```rust
@@ -142,3 +142,12 @@ pub fn main() {
     assert_eq!(-1i8, decrypted);
 }
 ```
+
+- `tfhe::{CompactFheInt, CompactFheUint, CompactFheIntList, CompactFheUintList}`:
+  The types have been deprecated, they are only kept in **TFHE-rs** for backward compatibility. They can now be accessed using the `tfhe::high_level_api::backward_compatibility::integers` module. The only functionality that is still supported is to unversionize them and expand them into regular `FheInt`, `FheUint`, `Vec<FehInt>` and `Vec<FheUint>`:
+
+```Rust
+    let loaded_ct = CompactFheUint8::unversionize(versioned_ct).unwrap();
+    let ct = loaded_ct.expand();
+```
+  Starting with v0.7, this compact list functionality is provided by the `tfhe::CompactCiphertextList` type.
