@@ -83,7 +83,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GlweCiphertextCreationMetadata(_, ciphertext_modulus) = meta;
+        let GlweCiphertextCreationMetadata {
+            polynomial_size: _,
+            ciphertext_modulus,
+        } = meta;
         Self::from_container(from, ciphertext_modulus)
     }
 }
@@ -602,17 +605,20 @@ impl<Scalar: UnsignedInteger> GlweCiphertextOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GlweCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct GlweCiphertextCreationMetadata<Scalar: UnsignedInteger>(
-    pub PolynomialSize,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct GlweCiphertextCreationMetadata<Scalar: UnsignedInteger> {
+    pub polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for GlweCiphertext<C> {
     type Metadata = GlweCiphertextCreationMetadata<Scalar>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GlweCiphertextCreationMetadata(polynomial_size, ciphertext_modulus) = meta;
+        let GlweCiphertextCreationMetadata {
+            polynomial_size,
+            ciphertext_modulus,
+        } = meta;
         Self::from_container(from, polynomial_size, ciphertext_modulus)
     }
 }

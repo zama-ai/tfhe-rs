@@ -386,11 +386,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(
         &self,
     ) -> SeededLweCiphertextListCreationMetadata<Self::Element> {
-        SeededLweCiphertextListCreationMetadata(
-            self.output_lwe_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
-        )
+        SeededLweCiphertextListCreationMetadata {
+            lwe_size: self.output_lwe_size(),
+            compression_seed: self.compression_seed(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

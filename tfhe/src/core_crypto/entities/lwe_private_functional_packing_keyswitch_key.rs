@@ -448,11 +448,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GlweCiphertextListCreationMetadata(
-            self.output_glwe_size,
-            self.output_polynomial_size,
-            self.ciphertext_modulus,
-        )
+        GlweCiphertextListCreationMetadata {
+            glwe_size: self.output_glwe_size,
+            polynomial_size: self.output_polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -460,13 +460,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata(
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
-            self.output_glwe_size(),
-            self.output_polynomial_size(),
-            self.ciphertext_modulus(),
-        )
+        LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata {
+            decomp_base_log: self.decomposition_base_log(),
+            decomp_level_count: self.decomposition_level_count(),
+            output_glwe_size: self.output_glwe_size(),
+            output_polynomial_size: self.output_polynomial_size(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 }
 
@@ -485,13 +485,13 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 /// Metadata used in the [`CreateFrom`] implementation to create
 /// [`LwePrivateFunctionalPackingKeyswitchKey`] entities.
 #[derive(Clone, Copy)]
-pub struct LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Scalar: UnsignedInteger>(
-    pub DecompositionBaseLog,
-    pub DecompositionLevelCount,
-    pub GlweSize,
-    pub PolynomialSize,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Scalar: UnsignedInteger> {
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub output_glwe_size: GlweSize,
+    pub output_polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for LwePrivateFunctionalPackingKeyswitchKey<C>
@@ -500,13 +500,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata(
+        let LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata {
             decomp_base_log,
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
             decomp_base_log,

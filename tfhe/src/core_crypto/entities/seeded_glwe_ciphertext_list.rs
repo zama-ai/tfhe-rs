@@ -265,12 +265,12 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextListOwned<Scalar> {
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGlweCiphertextList`]
 /// entities.
 #[derive(Clone, Copy)]
-pub struct SeededGlweCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub CompressionSeed,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct SeededGlweCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub compression_seed: CompressionSeed,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for SeededGlweCiphertextList<C>
@@ -279,13 +279,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let SeededGlweCiphertextListCreationMetadata(
+        let SeededGlweCiphertextListCreationMetadata {
             glwe_size,
             polynomial_size,
             compression_seed,
-            modulus,
-        ) = meta;
-        Self::from_container(from, glwe_size, polynomial_size, compression_seed, modulus)
+            ciphertext_modulus,
+        } = meta;
+        Self::from_container(
+            from,
+            glwe_size,
+            polynomial_size,
+            compression_seed,
+            ciphertext_modulus,
+        )
     }
 }
 
@@ -307,11 +313,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        SeededGlweCiphertextCreationMetadata(
-            self.glwe_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
-        )
+        SeededGlweCiphertextCreationMetadata {
+            glwe_size: self.glwe_size(),
+            compression_seed: self.compression_seed(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

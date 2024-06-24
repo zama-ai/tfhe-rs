@@ -319,13 +319,13 @@ impl<Scalar: UnsignedInteger> GgswCiphertextListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswCiphertextList`] entities.
 #[derive(Clone, Copy)]
-pub struct GgswCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub DecompositionBaseLog,
-    pub DecompositionLevelCount,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct GgswCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for GgswCiphertextList<C>
@@ -334,13 +334,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GgswCiphertextListCreationMetadata(
+        let GgswCiphertextListCreationMetadata {
             glwe_size,
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
             glwe_size,
@@ -357,7 +357,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 {
     type Element = C::Element;
 
-    type EntityViewMetadata = GgswCiphertextCreationMetadata<Scalar>;
+    type EntityViewMetadata = GgswCiphertextCreationMetadata<Self::Element>;
 
     type EntityView<'this> = GgswCiphertextView<'this, Self::Element>
     where
@@ -370,12 +370,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GgswCiphertextCreationMetadata(
-            self.glwe_size,
-            self.polynomial_size,
-            self.decomp_base_log,
-            self.ciphertext_modulus,
-        )
+        GgswCiphertextCreationMetadata {
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            decomp_base_log: self.decomp_base_log,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -387,13 +387,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        GgswCiphertextListCreationMetadata(
-            self.glwe_size,
-            self.polynomial_size,
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.ciphertext_modulus,
-        )
+        GgswCiphertextListCreationMetadata {
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            decomp_base_log: self.decomp_base_log,
+            decomp_level_count: self.decomp_level_count,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 }
 

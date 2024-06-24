@@ -303,11 +303,11 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertextListOwned<Scalar> {
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededLweCiphertextList`]
 /// entities.
 #[derive(Clone, Copy)]
-pub struct SeededLweCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
-    pub LweSize,
-    pub CompressionSeed,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct SeededLweCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
+    pub lwe_size: LweSize,
+    pub compression_seed: CompressionSeed,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for SeededLweCiphertextList<C>
@@ -316,8 +316,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let SeededLweCiphertextListCreationMetadata(lwe_size, compression_seed, modulus) = meta;
-        Self::from_container(from, lwe_size, compression_seed, modulus)
+        let SeededLweCiphertextListCreationMetadata {
+            lwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = meta;
+        Self::from_container(from, lwe_size, compression_seed, ciphertext_modulus)
     }
 }
 
@@ -339,7 +343,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweBodyCreationMetadata(self.ciphertext_modulus())
+        LweBodyCreationMetadata {
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

@@ -150,7 +150,7 @@ where
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`Polynomial`] entities.
 #[derive(Clone, Copy)]
-pub struct PolynomialCreationMetadata();
+pub struct PolynomialCreationMetadata {}
 
 impl<C: Container> CreateFrom<C> for Polynomial<C> {
     type Metadata = PolynomialCreationMetadata;

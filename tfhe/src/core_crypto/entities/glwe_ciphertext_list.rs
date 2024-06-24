@@ -233,11 +233,11 @@ impl<Scalar: UnsignedInteger> GlweCiphertextListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GlweCiphertextList`] entities.
 #[derive(Clone, Copy)]
-pub struct GlweCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct GlweCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for GlweCiphertextList<C>
@@ -246,8 +246,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GlweCiphertextListCreationMetadata(glwe_size, polynomial_size, ciphertext_modulus) =
-            meta;
+        let GlweCiphertextListCreationMetadata {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = meta;
         Self::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
@@ -270,7 +273,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GlweCiphertextCreationMetadata(self.polynomial_size(), self.ciphertext_modulus())
+        GlweCiphertextCreationMetadata {
+            polynomial_size: self.polynomial_size(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -278,11 +284,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        GlweCiphertextListCreationMetadata(
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.ciphertext_modulus(),
-        )
+        GlweCiphertextListCreationMetadata {
+            glwe_size: self.glwe_size(),
+            polynomial_size: self.polynomial_size(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 }
 
