@@ -71,7 +71,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for LweBodyRef<'data, T> 
 
     #[inline]
     fn create_from(from: &[T], meta: Self::Metadata) -> LweBodyRef<T> {
-        let LweBodyCreationMetadata(ciphertext_modulus) = meta;
+        let LweBodyCreationMetadata { ciphertext_modulus } = meta;
         LweBodyRef {
             data: &from[0],
             ciphertext_modulus,
@@ -84,7 +84,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for LweBodyRefMut<'da
 
     #[inline]
     fn create_from(from: &mut [T], meta: Self::Metadata) -> LweBodyRefMut<T> {
-        let LweBodyCreationMetadata(ciphertext_modulus) = meta;
+        let LweBodyCreationMetadata { ciphertext_modulus } = meta;
         LweBodyRefMut {
             data: &mut from[0],
             ciphertext_modulus,
@@ -121,7 +121,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for LweBodyListView<'data
 
     #[inline]
     fn create_from(from: &[T], meta: Self::Metadata) -> LweBodyListView<'_, T> {
-        let LweBodyListCreationMetadata(ciphertext_modulus) = meta;
+        let LweBodyListCreationMetadata { ciphertext_modulus } = meta;
         LweBodyList {
             data: from,
             ciphertext_modulus,
@@ -134,7 +134,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for LweBodyListMutVie
 
     #[inline]
     fn create_from(from: &mut [T], meta: Self::Metadata) -> LweBodyListMutView<'_, T> {
-        let LweBodyListCreationMetadata(ciphertext_modulus) = meta;
+        let LweBodyListCreationMetadata { ciphertext_modulus } = meta;
         LweBodyList {
             data: from,
             ciphertext_modulus,
@@ -161,11 +161,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBodyList<C> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`LweBody`] entities.
 #[derive(Clone, Copy)]
-pub struct LweBodyCreationMetadata<Scalar: UnsignedInteger>(pub CiphertextModulus<Scalar>);
+pub struct LweBodyCreationMetadata<Scalar: UnsignedInteger> {
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`LweBodyList`] entities.
 #[derive(Clone, Copy)]
-pub struct LweBodyListCreationMetadata<Scalar: UnsignedInteger>(pub CiphertextModulus<Scalar>);
+pub struct LweBodyListCreationMetadata<Scalar: UnsignedInteger> {
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
     for LweBodyList<C>
@@ -185,7 +189,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweBodyCreationMetadata(self.ciphertext_modulus())
+        LweBodyCreationMetadata {
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -193,7 +199,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        LweBodyListCreationMetadata(self.ciphertext_modulus())
+        LweBodyListCreationMetadata {
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 }
 
@@ -279,7 +287,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for LweMask<&'data [T]> {
 
     #[inline]
     fn create_from(from: &[T], meta: Self::Metadata) -> LweMask<&[T]> {
-        let LweMaskCreationMetadata(ciphertext_modulus) = meta;
+        let LweMaskCreationMetadata { ciphertext_modulus } = meta;
         LweMask {
             data: from,
             ciphertext_modulus,
@@ -292,7 +300,7 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for LweMask<&'data mu
 
     #[inline]
     fn create_from(from: &mut [T], meta: Self::Metadata) -> LweMask<&mut [T]> {
-        let LweMaskCreationMetadata(ciphertext_modulus) = meta;
+        let LweMaskCreationMetadata { ciphertext_modulus } = meta;
         LweMask {
             data: from,
             ciphertext_modulus,
@@ -334,7 +342,10 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for LweMaskListView<'data
 
     #[inline]
     fn create_from(from: &[T], meta: Self::Metadata) -> LweMaskListView<'_, T> {
-        let LweMaskListCreationMetadata(lwe_dimension, ciphertext_modulus) = meta;
+        let LweMaskListCreationMetadata {
+            lwe_dimension,
+            ciphertext_modulus,
+        } = meta;
         LweMaskList {
             data: from,
             lwe_dimension,
@@ -348,7 +359,10 @@ impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for LweMaskListMutVie
 
     #[inline]
     fn create_from(from: &mut [T], meta: Self::Metadata) -> LweMaskListMutView<'_, T> {
-        let LweMaskListCreationMetadata(lwe_dimension, ciphertext_modulus) = meta;
+        let LweMaskListCreationMetadata {
+            lwe_dimension,
+            ciphertext_modulus,
+        } = meta;
         LweMaskList {
             data: from,
             lwe_dimension,
@@ -397,14 +411,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMaskList<C> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`LweMask`] entities.
 #[derive(Clone, Copy)]
-pub struct LweMaskCreationMetadata<Scalar: UnsignedInteger>(pub CiphertextModulus<Scalar>);
+pub struct LweMaskCreationMetadata<Scalar: UnsignedInteger> {
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`LweMaskList`] entities.
 #[derive(Clone, Copy)]
-pub struct LweMaskListCreationMetadata<Scalar: UnsignedInteger>(
-    pub LweDimension,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct LweMaskListCreationMetadata<Scalar: UnsignedInteger> {
+    pub lwe_dimension: LweDimension,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
     for LweMaskList<C>
@@ -413,7 +429,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     type EntityViewMetadata = LweMaskCreationMetadata<Self::Element>;
 
-    type EntityView<'this> = LweMask<&'this [ Self::Element]>
+    type EntityView<'this> = LweMask<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -424,7 +440,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweMaskCreationMetadata(self.ciphertext_modulus())
+        LweMaskCreationMetadata {
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -432,14 +450,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        LweMaskListCreationMetadata(self.lwe_dimension(), self.ciphertext_modulus())
+        LweMaskListCreationMetadata {
+            lwe_dimension: self.lwe_dimension(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
     for LweMaskList<C>
 {
-    type EntityMutView<'this> = LweMask<&'this mut [ Self::Element]>
+    type EntityMutView<'this> = LweMask<&'this mut [Self::Element]>
     where
         Self: 'this;
 
@@ -768,14 +789,16 @@ impl<Scalar: UnsignedInteger> LweCiphertextOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`LweCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct LweCiphertextCreationMetadata<Scalar: UnsignedInteger>(pub CiphertextModulus<Scalar>);
+pub struct LweCiphertextCreationMetadata<Scalar: UnsignedInteger> {
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for LweCiphertext<C> {
     type Metadata = LweCiphertextCreationMetadata<C::Element>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let LweCiphertextCreationMetadata(modulus) = meta;
-        Self::from_container(from, modulus)
+        let LweCiphertextCreationMetadata { ciphertext_modulus } = meta;
+        Self::from_container(from, ciphertext_modulus)
     }
 }

@@ -602,24 +602,24 @@ impl<Scalar: UnsignedInteger> GgswCiphertextOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct GgswCiphertextCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub DecompositionBaseLog,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct GgswCiphertextCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for GgswCiphertext<C> {
     type Metadata = GgswCiphertextCreationMetadata<Scalar>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GgswCiphertextCreationMetadata(
+        let GgswCiphertextCreationMetadata {
             glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
             glwe_size,
@@ -756,18 +756,22 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GgswLevelMatrix
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswLevelMatrix`] entities.
 #[derive(Clone, Copy)]
-pub struct GgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct GgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for GgswLevelMatrix<C> {
     type Metadata = GgswLevelMatrixCreationMetadata<C::Element>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let GgswLevelMatrixCreationMetadata(glwe_size, polynomial_size, ciphertext_modulus) = meta;
+        let GgswLevelMatrixCreationMetadata {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = meta;
         Self::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
@@ -790,11 +794,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GgswLevelMatrixCreationMetadata(
-            self.glwe_size,
-            self.polynomial_size,
-            self.ciphertext_modulus,
-        )
+        GgswLevelMatrixCreationMetadata {
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

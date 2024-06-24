@@ -275,11 +275,11 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGlweCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct SeededGlweCiphertextCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub CompressionSeed,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct SeededGlweCiphertextCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub compression_seed: CompressionSeed,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for SeededGlweCiphertext<C>
@@ -288,8 +288,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let SeededGlweCiphertextCreationMetadata(glwe_size, compression_seed, ciphertext_modulus) =
-            meta;
+        let SeededGlweCiphertextCreationMetadata {
+            glwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = meta;
         Self::from_container(from, glwe_size, compression_seed, ciphertext_modulus)
     }
 }

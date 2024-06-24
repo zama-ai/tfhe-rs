@@ -370,14 +370,14 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextListOwned<Scalar> {
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGgswCiphertextList`]
 /// entities.
 #[derive(Clone, Copy)]
-pub struct SeededGgswCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub PolynomialSize,
-    pub DecompositionBaseLog,
-    pub DecompositionLevelCount,
-    pub CompressionSeed,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct SeededGgswCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub compression_seed: CompressionSeed,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for SeededGgswCiphertextList<C>
@@ -386,14 +386,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let SeededGgswCiphertextListCreationMetadata(
+        let SeededGgswCiphertextListCreationMetadata {
             glwe_size,
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
             compression_seed,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
             glwe_size,
@@ -424,13 +424,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        SeededGgswCiphertextCreationMetadata(
-            self.glwe_size,
-            self.polynomial_size,
-            self.decomp_base_log,
-            self.compression_seed,
-            self.ciphertext_modulus,
-        )
+        SeededGgswCiphertextCreationMetadata {
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            decomp_base_log: self.decomp_base_log,
+            compression_seed: self.compression_seed,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -444,14 +444,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     /// Unimplemented for [`SeededGgswCiphertextList`]. At the moment it does not make sense to
     /// return "sub" seeded lists.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        SeededGgswCiphertextListCreationMetadata(
-            self.glwe_size,
-            self.polynomial_size,
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.compression_seed,
-            self.ciphertext_modulus,
-        )
+        SeededGgswCiphertextListCreationMetadata {
+            glwe_size: self.glwe_size,
+            polynomial_size: self.polynomial_size,
+            decomp_base_log: self.decomp_base_log,
+            decomp_level_count: self.decomp_level_count,
+            compression_seed: self.compression_seed,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 }
 

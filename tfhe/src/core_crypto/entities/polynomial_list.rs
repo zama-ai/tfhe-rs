@@ -137,14 +137,16 @@ impl<Scalar: Copy> PolynomialListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`PolynomialList`] entities.
 #[derive(Clone, Copy)]
-pub struct PolynomialListCreationMetadata(pub PolynomialSize);
+pub struct PolynomialListCreationMetadata {
+    pub polynomial_size: PolynomialSize,
+}
 
 impl<C: Container> CreateFrom<C> for PolynomialList<C> {
     type Metadata = PolynomialListCreationMetadata;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let PolynomialListCreationMetadata(polynomial_size) = meta;
+        let PolynomialListCreationMetadata { polynomial_size } = meta;
         Self::from_container(from, polynomial_size)
     }
 }
@@ -165,7 +167,7 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        PolynomialCreationMetadata()
+        PolynomialCreationMetadata {}
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -173,7 +175,9 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        PolynomialListCreationMetadata(self.polynomial_size())
+        PolynomialListCreationMetadata {
+            polynomial_size: self.polynomial_size(),
+        }
     }
 }
 

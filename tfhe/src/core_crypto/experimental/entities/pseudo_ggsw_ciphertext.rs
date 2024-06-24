@@ -17,8 +17,8 @@ where
     C::Element: UnsignedInteger,
 {
     data: C,
-    glwe_size_in: GlweSize,
-    glwe_size_out: GlweSize,
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     decomp_base_log: DecompositionBaseLog,
     ciphertext_modulus: CiphertextModulus<C::Element>,
@@ -39,23 +39,23 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for PseudoGgsw
 /// Return the number of elements in a [`PseudoGgswCiphertext`] given a [`GlweSize`],
 /// [`PolynomialSize`] and [`DecompositionLevelCount`].
 pub fn pseudo_ggsw_ciphertext_size(
-    glwe_size_in: GlweSize,
-    glwe_size_out: GlweSize,
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     decomp_level_count: DecompositionLevelCount,
 ) -> usize {
     decomp_level_count.0
-        * pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size)
+        * pseudo_ggsw_level_matrix_size(input_glwe_size, output_glwe_size, polynomial_size)
 }
 
 /// Return the number of elements in a [`GgswLevelMatrix`] given a [`GlweSize`] and
 /// [`PolynomialSize`].
 pub fn pseudo_ggsw_level_matrix_size(
-    glwe_size_in: GlweSize,
-    glwe_size_out: GlweSize,
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
 ) -> usize {
-    glwe_size_in.to_glwe_dimension().0 * glwe_size_out.0 * polynomial_size.0
+    input_glwe_size.to_glwe_dimension().0 * output_glwe_size.0 * polynomial_size.0
 }
 
 /// Return the number of mask samples used during encryption of a [`PseudoGgswCiphertext`] given an
@@ -204,8 +204,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     /// // computations
     /// // Define parameters for PseudoGgswCiphertext creation
-    /// let glwe_size_in = GlweSize(2);
-    /// let glwe_size_out = GlweSize(3);
+    /// let input_glwe_size = GlweSize(2);
+    /// let output_glwe_size = GlweSize(3);
     /// let polynomial_size = PolynomialSize(1024);
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
@@ -214,23 +214,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// // Create a new PseudoGgswCiphertext
     /// let ggsw = PseudoGgswCiphertext::new(
     ///     0u64,
-    ///     glwe_size_in,
-    ///     glwe_size_out,
+    ///     input_glwe_size,
+    ///     output_glwe_size,
     ///     polynomial_size,
     ///     decomp_base_log,
     ///     decomp_level_count,
     ///     ciphertext_modulus,
     /// );
     ///
-    /// assert_eq!(ggsw.glwe_size_in(), glwe_size_in);
-    /// assert_eq!(ggsw.glwe_size_out(), glwe_size_out);
+    /// assert_eq!(ggsw.input_glwe_size(), input_glwe_size);
+    /// assert_eq!(ggsw.output_glwe_size(), output_glwe_size);
     /// assert_eq!(ggsw.polynomial_size(), polynomial_size);
     /// assert_eq!(ggsw.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(ggsw.decomposition_level_count(), decomp_level_count);
     /// assert_eq!(ggsw.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(
     ///     ggsw.pseudo_ggsw_level_matrix_size(),
-    ///     pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size)
+    ///     pseudo_ggsw_level_matrix_size(input_glwe_size, output_glwe_size, polynomial_size)
     /// );
     ///
     /// // Demonstrate how to recover the allocated container
@@ -239,28 +239,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// // Recreate a ciphertext using from_container
     /// let ggsw = PseudoGgswCiphertext::from_container(
     ///     underlying_container,
-    ///     glwe_size_in,
-    ///     glwe_size_out,
+    ///     input_glwe_size,
+    ///     output_glwe_size,
     ///     polynomial_size,
     ///     decomp_base_log,
     ///     ciphertext_modulus,
     /// );
     ///
-    /// assert_eq!(ggsw.glwe_size_in(), glwe_size_in);
-    /// assert_eq!(ggsw.glwe_size_out(), glwe_size_out);
+    /// assert_eq!(ggsw.input_glwe_size(), input_glwe_size);
+    /// assert_eq!(ggsw.output_glwe_size(), output_glwe_size);
     /// assert_eq!(ggsw.polynomial_size(), polynomial_size);
     /// assert_eq!(ggsw.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(ggsw.decomposition_level_count(), decomp_level_count);
     /// assert_eq!(ggsw.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(
     ///     ggsw.pseudo_ggsw_level_matrix_size(),
-    ///     pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size)
+    ///     pseudo_ggsw_level_matrix_size(input_glwe_size, output_glwe_size, polynomial_size)
     /// );
     /// ```
     pub fn from_container(
         container: C,
-        glwe_size_in: GlweSize,
-        glwe_size_out: GlweSize,
+        input_glwe_size: GlweSize,
+        output_glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         ciphertext_modulus: CiphertextModulus<C::Element>,
@@ -271,22 +271,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
         );
         assert!(
             container.container_len()
-                % (glwe_size_in.to_glwe_dimension().0 * glwe_size_out.0 * polynomial_size.0)
+                % (input_glwe_size.to_glwe_dimension().0 * output_glwe_size.0 * polynomial_size.0)
                 == 0,
             "The provided container length is not valid. \
-        It needs to be dividable by glwe_dimension_in * glwe_size_out * polynomial_size: {}. \
-        Got container length: {} and glwe_dimension_in: {:?}, glwe_size_out: \
-        {glwe_size_out:?}\
+        It needs to be dividable by glwe_dimension_in * output_glwe_size * polynomial_size: {}. \
+        Got container length: {} and glwe_dimension_in: {:?}, output_glwe_size: \
+        {output_glwe_size:?}\
         polynomial_size: {polynomial_size:?}.",
-            glwe_size_in.0 * glwe_size_out.0 * polynomial_size.0,
+            input_glwe_size.0 * output_glwe_size.0 * polynomial_size.0,
             container.container_len(),
-            glwe_size_in.to_glwe_dimension()
+            input_glwe_size.to_glwe_dimension()
         );
 
         Self {
             data: container,
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
@@ -303,15 +303,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// Return the [`GlweSize`] of the [`PseudoGgswCiphertext`].
     ///
     /// See [`PseudoGgswCiphertext::from_container`] for usage.
-    pub fn glwe_size_in(&self) -> GlweSize {
-        self.glwe_size_in
+    pub fn input_glwe_size(&self) -> GlweSize {
+        self.input_glwe_size
     }
 
     /// Return the [`GlweSize`] of the [`PseudoGgswCiphertext`].
     ///
     /// See [`PseudoGgswCiphertext::from_container`] for usage.
-    pub fn glwe_size_out(&self) -> GlweSize {
-        self.glwe_size_out
+    pub fn output_glwe_size(&self) -> GlweSize {
+        self.output_glwe_size
     }
 
     /// Return the [`DecompositionBaseLog`] of the [`PseudoGgswCiphertext`].
@@ -341,7 +341,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// See [`PseudoGgswCiphertext::from_container`] for usage.
     pub fn pseudo_ggsw_level_matrix_size(&self) -> usize {
         // GlweSize GlweCiphertext(glwe_size, polynomial_size) per level
-        pseudo_ggsw_level_matrix_size(self.glwe_size_in, self.glwe_size_out, self.polynomial_size)
+        pseudo_ggsw_level_matrix_size(
+            self.input_glwe_size,
+            self.output_glwe_size,
+            self.polynomial_size,
+        )
     }
 
     /// Interpret the [`PseudoGgswCiphertext`] as a [`PolynomialList`].
@@ -353,7 +357,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, Scalar> {
         GlweCiphertextListView::from_container(
             self.as_ref(),
-            self.glwe_size_out,
+            self.output_glwe_size,
             self.polynomial_size,
             self.ciphertext_modulus,
         )
@@ -364,8 +368,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     pub fn as_view(&self) -> PseudoGgswCiphertextView<'_, Scalar> {
         PseudoGgswCiphertextView::from_container(
             self.as_ref(),
-            self.glwe_size_in(),
-            self.glwe_size_out(),
+            self.input_glwe_size(),
+            self.output_glwe_size(),
             self.polynomial_size(),
             self.decomposition_base_log(),
             self.ciphertext_modulus(),
@@ -391,8 +395,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
             + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
     {
         pseudo_ggsw_ciphertext_encryption_fork_config(
-            self.glwe_size_in(),
-            self.glwe_size_out(),
+            self.input_glwe_size(),
+            self.output_glwe_size(),
             self.polynomial_size(),
             self.decomposition_level_count(),
             mask_distribution,
@@ -412,11 +416,11 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> PseudoGgswCiphe
     /// Mutable variant of [`PseudoGgswCiphertext::as_glwe_list`].
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, Scalar> {
         let polynomial_size = self.polynomial_size;
-        let glwe_size_out = self.glwe_size_out;
+        let output_glwe_size = self.output_glwe_size;
         let ciphertext_modulus = self.ciphertext_modulus;
         GlweCiphertextListMutView::from_container(
             self.as_mut(),
-            glwe_size_out,
+            output_glwe_size,
             polynomial_size,
             ciphertext_modulus,
         )
@@ -424,15 +428,15 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> PseudoGgswCiphe
 
     /// Mutable variant of [`PseudoGgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> PseudoGgswCiphertextMutView<'_, Scalar> {
-        let glwe_size_in = self.glwe_size_in();
-        let glwe_size_out = self.glwe_size_out();
+        let input_glwe_size = self.input_glwe_size();
+        let output_glwe_size = self.output_glwe_size();
         let polynomial_size = self.polynomial_size();
         let decomp_base_log = self.decomposition_base_log();
         let ciphertext_modulus = self.ciphertext_modulus;
         PseudoGgswCiphertextMutView::from_container(
             self.as_mut(),
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
@@ -461,8 +465,8 @@ impl<Scalar: UnsignedInteger> PseudoGgswCiphertextOwned<Scalar> {
     /// See [`PseudoGgswCiphertext::from_container`] for usage.
     pub fn new(
         fill_with: Scalar,
-        glwe_size_in: GlweSize,
-        glwe_size_out: GlweSize,
+        input_glwe_size: GlweSize,
+        output_glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
@@ -472,14 +476,14 @@ impl<Scalar: UnsignedInteger> PseudoGgswCiphertextOwned<Scalar> {
             vec![
                 fill_with;
                 pseudo_ggsw_ciphertext_size(
-                    glwe_size_in,
-                    glwe_size_out,
+                    input_glwe_size,
+                    output_glwe_size,
                     polynomial_size,
                     decomp_level_count
                 )
             ],
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
@@ -489,13 +493,13 @@ impl<Scalar: UnsignedInteger> PseudoGgswCiphertextOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`PseudoGgswCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct PseudoGgswCiphertextCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub GlweSize,
-    pub PolynomialSize,
-    pub DecompositionBaseLog,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct PseudoGgswCiphertextCreationMetadata<Scalar: UnsignedInteger> {
+    pub input_glwe_size: GlweSize,
+    pub output_glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for PseudoGgswCiphertext<C>
@@ -504,17 +508,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let PseudoGgswCiphertextCreationMetadata(
-            glwe_size_in,
-            glwe_size_out,
+        let PseudoGgswCiphertextCreationMetadata {
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
@@ -528,8 +532,8 @@ where
     C::Element: UnsignedInteger,
 {
     data: C,
-    glwe_size_in: GlweSize,
-    glwe_size_out: GlweSize,
+    input_glwe_size: GlweSize,
+    output_glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     ciphertext_modulus: CiphertextModulus<C::Element>,
 }
@@ -548,48 +552,55 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswLevelMat
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     /// // computations
     /// // Define parameters for GgswLevelMatrix creation
-    /// let glwe_size_in = GlweSize(3);
-    /// let glwe_size_out = GlweSize(2);
+    /// let input_glwe_size = GlweSize(3);
+    /// let output_glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// let container =
-    ///     vec![0u64; pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size)];
+    ///     vec![
+    ///         0u64;
+    ///         pseudo_ggsw_level_matrix_size(input_glwe_size, output_glwe_size, polynomial_size)
+    ///     ];
     ///
     /// // Create a new GgswLevelMatrix
     /// let ggsw_level_matrix = PseudoGgswLevelMatrix::from_container(
     ///     container,
-    ///     glwe_size_in,
-    ///     glwe_size_out,
+    ///     input_glwe_size,
+    ///     output_glwe_size,
     ///     polynomial_size,
     ///     ciphertext_modulus,
     /// );
     ///
-    /// assert_eq!(ggsw_level_matrix.glwe_size_in(), glwe_size_in);
-    /// assert_eq!(ggsw_level_matrix.glwe_size_out(), glwe_size_out);
+    /// assert_eq!(ggsw_level_matrix.input_glwe_size(), input_glwe_size);
+    /// assert_eq!(ggsw_level_matrix.output_glwe_size(), output_glwe_size);
     /// assert_eq!(ggsw_level_matrix.polynomial_size(), polynomial_size);
     /// assert_eq!(ggsw_level_matrix.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(
         container: C,
-        glwe_size_in: GlweSize,
-        glwe_size_out: GlweSize,
+        input_glwe_size: GlweSize,
+        output_glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
             container.container_len()
-                == pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size),
+                == pseudo_ggsw_level_matrix_size(
+                    input_glwe_size,
+                    output_glwe_size,
+                    polynomial_size
+                ),
             "The provided container length is not valid. \
             Expected length of {} (glwe_size * glwe_size * polynomial_size), got {}",
-            pseudo_ggsw_level_matrix_size(glwe_size_in, glwe_size_out, polynomial_size),
+            pseudo_ggsw_level_matrix_size(input_glwe_size, output_glwe_size, polynomial_size),
             container.container_len(),
         );
 
         Self {
             data: container,
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             ciphertext_modulus,
         }
@@ -598,12 +609,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswLevelMat
     /// Return the [`GlweSize`] of the [`GgswLevelMatrix`].
     ///
     /// See [`GgswLevelMatrix::from_container`] for usage.
-    pub fn glwe_size_in(&self) -> GlweSize {
-        self.glwe_size_in
+    pub fn input_glwe_size(&self) -> GlweSize {
+        self.input_glwe_size
     }
 
-    pub fn glwe_size_out(&self) -> GlweSize {
-        self.glwe_size_out
+    pub fn output_glwe_size(&self) -> GlweSize {
+        self.output_glwe_size
     }
 
     /// Return the [`PolynomialSize`] of the [`GgswLevelMatrix`].
@@ -624,7 +635,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswLevelMat
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, C::Element> {
         GlweCiphertextListView::from_container(
             self.data.as_ref(),
-            self.glwe_size_out,
+            self.output_glwe_size,
             self.polynomial_size,
             self.ciphertext_modulus,
         )
@@ -642,8 +653,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswLevelMat
             + RandomGenerable<NoiseDistribution, CustomModulus = Scalar>,
     {
         pseudo_ggsw_level_matrix_encryption_fork_config(
-            self.glwe_size_in(),
-            self.glwe_size_out(),
+            self.input_glwe_size(),
+            self.output_glwe_size(),
             self.polynomial_size(),
             mask_distribution,
             noise_distribution,
@@ -657,7 +668,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> PseudoGgswLevel
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, C::Element> {
         GlweCiphertextListMutView::from_container(
             self.data.as_mut(),
-            self.glwe_size_out,
+            self.output_glwe_size,
             self.polynomial_size,
             self.ciphertext_modulus,
         )
@@ -666,12 +677,12 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> PseudoGgswLevel
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswLevelMatrix`] entities.
 #[derive(Clone, Copy)]
-pub struct PseudoGgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger>(
-    pub GlweSize,
-    pub GlweSize,
-    pub PolynomialSize,
-    pub CiphertextModulus<Scalar>,
-);
+pub struct PseudoGgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger> {
+    pub input_glwe_size: GlweSize,
+    pub output_glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     for PseudoGgswLevelMatrix<C>
@@ -680,16 +691,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
-        let PseudoGgswLevelMatrixCreationMetadata(
-            glwe_size_in,
-            glwe_size_out,
+        let PseudoGgswLevelMatrixCreationMetadata {
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             ciphertext_modulus,
-        ) = meta;
+        } = meta;
         Self::from_container(
             from,
-            glwe_size_in,
-            glwe_size_out,
+            input_glwe_size,
+            output_glwe_size,
             polynomial_size,
             ciphertext_modulus,
         )
@@ -714,12 +725,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        PseudoGgswLevelMatrixCreationMetadata(
-            self.glwe_size_in,
-            self.glwe_size_out,
-            self.polynomial_size,
-            self.ciphertext_modulus,
-        )
+        PseudoGgswLevelMatrixCreationMetadata {
+            input_glwe_size: self.input_glwe_size,
+            output_glwe_size: self.output_glwe_size,
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

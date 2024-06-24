@@ -421,12 +421,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(
         &self,
     ) -> SeededGlweCiphertextListCreationMetadata<Self::Element> {
-        SeededGlweCiphertextListCreationMetadata(
-            self.output_glwe_size(),
-            self.output_polynomial_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
-        )
+        SeededGlweCiphertextListCreationMetadata {
+            glwe_size: self.output_glwe_size(),
+            polynomial_size: self.output_polynomial_size(),
+            compression_seed: self.compression_seed(),
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
