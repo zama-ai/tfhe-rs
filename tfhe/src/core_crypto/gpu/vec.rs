@@ -345,6 +345,7 @@ impl<T: Numeric> CudaVec<T> {
         }
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn as_mut_c_ptr(&mut self, gpu_index: u32) -> *mut c_void {
         self.ptr[gpu_index as usize]
     }
@@ -380,6 +381,8 @@ impl<T: Numeric> CudaVec<T> {
         }
     }
 
+    // clippy complains as we only manipulate pointers, but we want to keep rust semantics
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn as_mut_slice<R>(&mut self, range: R, gpu_index: u32) -> Option<CudaSliceMut<T>>
     where
         R: std::ops::RangeBounds<usize>,

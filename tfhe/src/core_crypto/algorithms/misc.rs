@@ -218,6 +218,7 @@ mod test {
         for _ in 0..NB_TESTS {
             let num: f64 = rng.gen();
             let mut denom = 0.0f64;
+            #[allow(clippy::while_float)]
             while denom == 0.0f64 {
                 denom = rng.gen();
             }
