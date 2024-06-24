@@ -12,6 +12,7 @@ mod mul;
 mod neg;
 mod scalar_add;
 mod scalar_bitwise_op;
+mod scalar_div_mod;
 mod scalar_mul;
 mod scalar_sub;
 mod shift;
