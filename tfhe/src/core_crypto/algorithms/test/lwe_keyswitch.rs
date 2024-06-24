@@ -213,7 +213,7 @@ fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
@@ -327,7 +327,7 @@ fn test_lwe_encrypt_ks_switch_mod_switch_scalar_decrypt_custom_mod() {
 
         // In coverage, we break after one while loop iteration, changing message values does not
         // yield higher coverage
-        #[cfg(feature = "__coverage")]
+        #[cfg(tarpaulin)]
         break;
     }
 }
