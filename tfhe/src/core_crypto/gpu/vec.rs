@@ -345,6 +345,7 @@ impl<T: Numeric> CudaVec<T> {
         }
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn as_mut_c_ptr(&mut self, gpu_index: u32) -> *mut c_void {
         self.ptr[gpu_index as usize]
     }

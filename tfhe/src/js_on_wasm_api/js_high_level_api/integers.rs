@@ -1022,7 +1022,7 @@ define_expander_get_method!(
 #[wasm_bindgen]
 impl CompactCiphertextListExpander {
     #[wasm_bindgen]
-    pub fn get_bool(&mut self, index: usize) -> Result<FheBool, JsError> {
+    pub fn get_bool(&self, index: usize) -> Result<FheBool, JsError> {
         catch_panic_result(|| {
             self.0
                 .get::<crate::FheBool>(index)

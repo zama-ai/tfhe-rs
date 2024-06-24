@@ -92,6 +92,7 @@ pub unsafe extern "C" fn tfhe_threading_context_run(
     struct TheUserEnsuresTheFuncIsThreadSafe(extern "C" fn(*mut c_void) -> c_int);
     unsafe impl Send for TheUserEnsuresTheFuncIsThreadSafe {}
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     impl TheUserEnsuresTheFuncIsThreadSafe {
         fn execute(&mut self, data: &TheUserEnsuresDataIsThreadSafe) -> c_int {
             (self.0)(data.0)
