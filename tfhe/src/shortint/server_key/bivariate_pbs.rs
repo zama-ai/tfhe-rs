@@ -380,12 +380,14 @@ impl ServerKey {
     ///  - The carry of the input 2 does not overlap with input 1 message
     ///  - The padding bit is clean
     ///  - The noise is not too high
+    ///
     /// We have multiple possibilities:
     ///  - choose which input to shift
     ///  - bootstrap the unscaled input (less noise and allows for a smaller scale as not carry
     ///    overlapping is possible) or not
     ///  - do not bootstrap the scaled input (cheaper), scale it in a bootstrap (least noise) or
     ///    bootstrap it then scale it (the input is cleaner for other operations)
+    ///
     /// This function choose the solution with the smallest cost and in case of equality, with the
     /// most cleaned inputs
     fn get_best_bivariate_scaling(

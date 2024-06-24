@@ -172,8 +172,8 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required
     pub unsafe fn copy_from_cpu_async(&mut self, src: &[T], streams: &CudaStreams, gpu_index: u32)
     where
         T: Numeric,
@@ -198,8 +198,8 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required
     pub unsafe fn copy_from_cpu_multi_gpu_async(&mut self, src: &[T], streams: &CudaStreams)
     where
         T: Numeric,
@@ -226,8 +226,8 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required
     pub unsafe fn copy_from_gpu_async(&mut self, src: &Self, streams: &CudaStreams, gpu_index: u32)
     where
         T: Numeric,
@@ -250,8 +250,8 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required
     pub unsafe fn copy_src_range_gpu_to_gpu_async<R>(
         &mut self,
         range: R,
@@ -287,8 +287,8 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required
     pub unsafe fn copy_self_range_gpu_to_gpu_async<R>(
         &mut self,
         range: R,
@@ -324,8 +324,7 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-    /// required
+    /// - [CudaStreams::synchronize] __must__ be called as soon as synchronization is required
     pub unsafe fn copy_to_cpu_async(&self, dest: &mut [T], streams: &CudaStreams, gpu_index: u32)
     where
         T: Numeric,

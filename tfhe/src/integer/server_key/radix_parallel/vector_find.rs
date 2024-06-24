@@ -55,8 +55,7 @@ impl<Clear> MatchValues<Clear> {
 impl ServerKey {
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -130,8 +129,7 @@ impl ServerKey {
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -155,8 +153,7 @@ impl ServerKey {
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -182,8 +179,7 @@ impl ServerKey {
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -222,8 +218,7 @@ impl ServerKey {
 
     /// `map` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -247,8 +242,7 @@ impl ServerKey {
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    /// ` ct` could hold.
+    /// - Input values are not required to span all possible values that `ct` could hold.
     ///
     /// - The output radix has a number of blocks that depends on the maximum possible output value
     ///   from the `MatchValues`
@@ -1143,8 +1137,8 @@ impl ServerKey {
     ///
     /// `num_blocks`: number of blocks (unpacked) needed to represent the biggest clear value
     ///
-    /// - Resulting radix ciphertexts have their block packed, thus they will have ceil
-    /// (numb_blocks / 2) elements
+    /// - Resulting radix ciphertexts have their block packed, thus they will have ceil (numb_blocks
+    ///   / 2) elements
     fn create_possible_results<T, Iter, Clear>(
         &self,
         num_blocks: usize,

@@ -13,10 +13,10 @@ use std::fmt::{Debug, Formatter};
 /// A structure containing the client key, which must be kept secret.
 ///
 /// In more details, it contains:
-/// * `lwe_secret_key` - an LWE secret key, used to encrypt the inputs and decrypt the outputs.
-/// This secret key is also used in the generation of bootstrapping and key switching keys.
+/// * `lwe_secret_key` - an LWE secret key, used to encrypt the inputs and decrypt the outputs. This
+///   secret key is also used in the generation of bootstrapping and key switching keys.
 /// * `glwe_secret_key` - a GLWE secret key, used to generate the bootstrapping keys and key
-/// switching keys.
+///   switching keys.
 /// * `parameters` - the cryptographic parameter set.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ClientKey {

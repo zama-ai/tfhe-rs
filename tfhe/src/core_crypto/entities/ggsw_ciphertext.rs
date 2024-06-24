@@ -52,8 +52,8 @@ use crate::core_crypto::entities::*;
 /// ## GGSW Encryption
 /// ###### inputs:
 /// - $\mathsf{PT}\in\mathcal{R}\_q$: a polynomial plaintext
-/// - $\vec{S}=\left(S\_0, \cdots, S\_{k-1} \right) \in\mathcal{R}\_q^k$: a
-/// [`GLWE secret key`](`crate::core_crypto::entities::GlweSecretKey`)
+/// - $\vec{S}=\left(S\_0, \cdots, S\_{k-1} \right) \in\mathcal{R}\_q^k$: a [`GLWE secret
+///   key`](`crate::core_crypto::entities::GlweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -69,25 +69,23 @@ use crate::core_crypto::entities::*;
 /// 1. for $0\le i < k$:
 ///     - compute $\mathsf{PT}\_i = -S\_i\cdot\mathsf{PT} \in \mathbb{Z}\_q$
 ///     - compute $\overline{\mathsf{CT}\_i} \leftarrow \mathsf{GLev}.\mathsf{encrypt}\left(
-///    \mathsf{PT}\_i, \vec{S} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
+///       \mathsf{PT}\_i, \vec{S} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
 /// 2. compute  $\overline{\mathsf{CT}\_n} \leftarrow \mathsf{GLev}.\mathsf{encrypt}\left(
-/// \mathsf{PT}, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
+///    \mathsf{PT}, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
 /// 3. output $\overline{\overline{\mathsf{CT}}} = \left( \overline{\mathsf{CT}\_0} , \cdots ,
-/// \overline{\mathsf{CT}\_{n}} \right)$
+///    \overline{\mathsf{CT}\_{n}} \right)$
 ///
 /// ###### equivalent algorithm (using the gadget matrix):
 /// 1. for $0\le i \le k$:
 ///     - for  $0\le j < \ell$:
 ///         - compute $\mathsf{CT}\_{i,j} \leftarrow \mathsf{GLWE}.\mathsf{encrypt}\left( 0, \vec{S}
-///     ,\mathcal{D\_{\sigma^2,\mu}} \right)$
+///           ,\mathcal{D\_{\sigma^2,\mu}} \right)$
 ///         - add to the $i$-th component of $\mathsf{CT}\_{i,j}$ the value
-///           $\left\lfloor\mathsf{PT}\cdot
-///     \frac{q}{\beta^{j+1}} \right\rceil \in \mathcal{R}\_q$
+///           $\left\lfloor\mathsf{PT}\cdot \frac{q}{\beta^{j+1}} \right\rceil \in \mathcal{R}\_q$
 ///     - set $\overline{\mathsf{CT}\_i} = \left( \mathsf{CT}\_{i,0} , \cdots ,
-///       \mathsf{CT}\_{i,\ell-1}
-///    \right)$
+///       \mathsf{CT}\_{i,\ell-1} \right)$
 /// 2. output $\overline{\overline{\mathsf{CT}}} = \left( \overline{\mathsf{CT}\_0} , \cdots ,
-/// \overline{\mathsf{CT}\_{n}} \right)$
+///    \overline{\mathsf{CT}\_{n}} \right)$
 ///
 /// ## GGSW Decryption
 /// Simply use the GLev decryption algorithm on the last GLev ciphertext contained in the GGSW
@@ -134,8 +132,8 @@ use crate::core_crypto::entities::*;
 /// ## GLev Encryption
 /// ###### inputs:
 /// - $\mathsf{PT}\in \mathcal{R}\_q$: a polynomial plaintext
-/// - $\vec{S}\in  \mathcal{R}\_q^k$: a
-/// [`GLWE Secret Key`](`crate::core_crypto::entities::GlweSecretKey`)
+/// - $\vec{S}\in  \mathcal{R}\_q^k$: a [`GLWE Secret
+///   Key`](`crate::core_crypto::entities::GlweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -149,12 +147,11 @@ use crate::core_crypto::entities::*;
 /// ###### algorithm:
 /// 1. for $0\le i < \ell-1$:
 ///     - compute $\mathsf{PT}\_i = \left\lfloor\mathsf{PT}\cdot \frac{q}{\beta^{i+1}} \right\rceil
-///       \in
-///    \mathcal{R}\_q$
+///       \in \mathcal{R}\_q$
 ///     - compute $\mathsf{CT}\_i \leftarrow \mathsf{GLWE}.\mathsf{encrypt}\left( \mathsf{PT}\_i,
-///    \vec{S} ,\mathcal{D\_{\sigma^2,\mu}} \right)$
+///       \vec{S} ,\mathcal{D\_{\sigma^2,\mu}} \right)$
 /// 2. output $\overline{\mathsf{CT}} = \left( \mathsf{CT}\_0 , \cdots , \mathsf{CT}\_{\ell-1}
-/// \right)$
+///    \right)$
 ///
 /// ## GLev Decryption
 /// Simply use the

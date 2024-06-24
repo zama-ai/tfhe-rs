@@ -3,10 +3,10 @@
 //! This module contains a [`RandomGenerator`] type, which exposes methods to sample numeric values
 //! randomly according to a given distribution, for instance:
 //!
-//! + [`RandomGenerator::random_uniform`] samples a random unsigned integer with uniform
-//! probability over the set of representable values.
+//! + [`RandomGenerator::random_uniform`] samples a random unsigned integer with uniform probability
+//!   over the set of representable values.
 //! + [`RandomGenerator::random_gaussian`] samples a random float with using a gaussian
-//! distribution.
+//!   distribution.
 //!
 //! The implementation relies on the [`RandomGenerable`] trait, which gives a type the ability to
 //! be randomly generated according to a given distribution. The module contains multiple
