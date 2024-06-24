@@ -47,8 +47,8 @@ use crate::core_crypto::commons::traits::*;
 /// ## GSW Encryption
 /// ###### inputs:
 /// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: an
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret
+///   key`](`crate::core_crypto::entities::LweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -63,26 +63,23 @@ use crate::core_crypto::commons::traits::*;
 /// 1. for $0\le i < n$:
 ///     - compute $\mathsf{pt}\_i = -s\_i\cdot\mathsf{pt} \in \mathbb{Z}\_q$
 ///     - compute $\overline{\mathsf{ct}\_i} \leftarrow \mathsf{Lev}.\mathsf{encrypt}\left(
-///    \mathsf{pt}\_i, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
+///       \mathsf{pt}\_i, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
 /// 2. compute  $\overline{\mathsf{ct}\_n} \leftarrow \mathsf{Lev}.\mathsf{encrypt}\left(
-/// \mathsf{pt}, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
-/// 3. output
-/// $\overline{\overline{\mathsf{ct}}} = \left( \overline{\mathsf{ct}\_0} , \cdots ,
-/// \overline{\mathsf{ct}\_{n}} \right)$
+///    \mathsf{pt}, \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} ,\ell \right)$
+/// 3. output $\overline{\overline{\mathsf{ct}}} = \left( \overline{\mathsf{ct}\_0} , \cdots ,
+///    \overline{\mathsf{ct}\_{n}} \right)$
 ///
 /// ###### equivalent algorithm (using the gadget matrix):
 /// 1. for $0\le i \le n$:
 ///     - for  $0\le j < \ell$:
 ///         - compute $\mathsf{ct}\_{i,j} \leftarrow \mathsf{LWE}.\mathsf{encrypt}\left( 0, \vec{s}
-///     ,\mathcal{D\_{\sigma^2,\mu}} \right)$
+///           ,\mathcal{D\_{\sigma^2,\mu}} \right)$
 ///         - add to the $i$-th component of $\mathsf{ct}\_{i,j}$ the value
-///           $\left\lfloor\mathsf{pt}\cdot
-///     \frac{q}{\beta^{j+1}} \right\rceil \in \mathbb{Z}\_q$
+///           $\left\lfloor\mathsf{pt}\cdot \frac{q}{\beta^{j+1}} \right\rceil \in \mathbb{Z}\_q$
 ///     - set $\overline{\mathsf{ct}\_i} = \left( \mathsf{ct}\_{i,0} , \cdots ,
-///       \mathsf{ct}\_{i,\ell-1}
-///    \right)$
+///       \mathsf{ct}\_{i,\ell-1} \right)$
 /// 3. output $\overline{\overline{\mathsf{ct}}} = \left( \overline{\mathsf{ct}\_0} , \cdots ,
-/// \overline{\mathsf{ct}\_{n}} \right)$
+///    \overline{\mathsf{ct}\_{n}} \right)$
 ///
 /// ## GSW Decryption
 /// Simply use the Lev decryption algorithm on the last Lev ciphertext contained in the GSW
@@ -127,8 +124,8 @@ use crate::core_crypto::commons::traits::*;
 /// ## Lev Encryption
 /// ###### inputs:
 /// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: an
-/// [`LWE secret key`](`crate::core_crypto::entities::LweSecretKey`)
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: an [`LWE secret
+///   key`](`crate::core_crypto::entities::LweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
 /// - $\ell$: number of levels desired
@@ -142,12 +139,11 @@ use crate::core_crypto::commons::traits::*;
 /// ###### algorithm:
 /// 1. for $0\le i < \ell-1$:
 ///     - compute $\mathsf{pt}\_i = \left\lfloor\mathsf{pt}\cdot \frac{q}{\beta^{i+1}} \right\rceil
-///       \in
-///    \mathbb{Z}\_q$
+///       \in \mathbb{Z}\_q$
 ///     - compute $\mathsf{ct}\_i \leftarrow \mathsf{LWE}.\mathsf{encrypt}\left( \mathsf{pt}\_i,
-///    \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} \right)$
+///       \vec{s} ,\mathcal{D\_{\sigma^2,\mu}} \right)$
 /// 2. output $\overline{\mathsf{ct}} = \left( \mathsf{ct}\_0 , \cdots , \mathsf{ct}\_{\ell-1}
-/// \right)$
+///    \right)$
 ///
 /// ## Lev Decryption
 /// Simply use the

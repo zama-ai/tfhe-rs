@@ -61,20 +61,19 @@ use crate::core_crypto::entities::*;
 ///   \mathsf{LWE}^{n\_{\mathsf{in}}}\_{\vec{s}\_{\mathsf{in}}}( \mathsf{pt} )$: an [`LWE
 ///   ciphertext`](`LweCiphertext`) with $\vec{a}\_{\mathsf{in}}=\left(a\_0, \cdots
 ///   a\_{n\_{\mathsf{in}}-1}\right)$
-/// - $\mathsf{KSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{s}\_{\mathsf{out}}}$: a
-/// [`key switching key`](`crate::core_crypto::entities::LweKeyswitchKey`)
+/// - $\mathsf{KSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{s}\_{\mathsf{out}}}$: a [`key switching
+///   key`](`crate::core_crypto::entities::LweKeyswitchKey`)
 ///
 /// ###### outputs:
 /// - $\mathsf{ct}\_{\mathsf{out}} \in \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}}
-///   \left( \mathsf{pt} \right)$: an
-/// [`LWE ciphertext`](`crate::core_crypto::entities::LweCiphertext`)
+///   \left( \mathsf{pt} \right)$: an [`LWE
+///   ciphertext`](`crate::core_crypto::entities::LweCiphertext`)
 ///
 /// ###### algorithm:
 /// 1. set $\mathsf{ct}=\left( 0 , \cdots , 0 ,  b\_{\mathsf{in}} \right) \in
-/// \mathbb{Z}\_q^{(n\_{\mathsf{out}}+1)}$
-/// 2. compute $\mathsf{ct}\_{\mathsf{out}} = \mathsf{ct} -
-/// \sum\_{i=0}^{n\_{\mathsf{in}}-1} \mathsf{decompProduct}\left( a\_i , \overline{\mathsf{ct}\_i}
-/// \right)$
+///    \mathbb{Z}\_q^{(n\_{\mathsf{out}}+1)}$
+/// 2. compute $\mathsf{ct}\_{\mathsf{out}} = \mathsf{ct} - \sum\_{i=0}^{n\_{\mathsf{in}}-1}
+///    \mathsf{decompProduct}\left( a\_i , \overline{\mathsf{ct}\_i} \right)$
 /// 3. output $\mathsf{ct}\_{\mathsf{out}}$
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(LweKeyswitchKeyVersions)]

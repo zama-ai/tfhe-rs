@@ -332,13 +332,12 @@ impl ServerKey {
     /// where for each index, the vec contains either
     /// - `None` if fhe scalar was not present in the slice,
     /// - or `Some` lookuptable that allows to compare a shortint block to the scalar value at this
-    ///  index
+    ///   index
     ///
     ///
     ///  E.g.
     ///  - input slice: [0, 2],
-    ///  - total_modulus: 4,
-    ///  returns -> [Some(LUT(|x| x == 0)), None, Some(LUT(|x| x == 2), None]
+    ///  - total_modulus: 4, returns -> [Some(LUT(|x| x == 0)), None, Some(LUT(|x| x == 2), None]
     fn create_scalar_comparison_luts<F>(
         &self,
         scalar_blocks: &[u8],
