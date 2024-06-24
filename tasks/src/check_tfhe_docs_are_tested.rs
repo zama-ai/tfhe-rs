@@ -2,6 +2,9 @@ use no_comment::{languages, IntoWithoutComments};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 
+// TODO use .gitignore or git to resolve ignored files
+const DIR_TO_IGNORE: [&str; 2] = [".git", "target"];
+
 const FILES_TO_IGNORE: [&str; 4] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256_bool.md",
@@ -103,6 +106,11 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
             }
         })
         .collect();
+
+    for dir_to_remove in DIR_TO_IGNORE {
+        let path_to_remove = curr_dir.join(dir_to_remove);
+        doc_files.retain(|v| !v.starts_with(&path_to_remove));
+    }
 
     for value_to_remove in FILES_TO_IGNORE {
         let path_to_remove = curr_dir.join(value_to_remove).canonicalize()?.to_path_buf();
