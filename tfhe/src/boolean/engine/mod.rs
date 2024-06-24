@@ -209,7 +209,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         )
     }
 
-    pub fn trivial_encrypt(&mut self, message: bool) -> Ciphertext {
+    pub fn trivial_encrypt(&self, message: bool) -> Ciphertext {
         Ciphertext::Trivial(message)
     }
 
@@ -304,7 +304,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         Ciphertext::Encrypted(output)
     }
 
-    pub fn decrypt(&mut self, ct: &Ciphertext, cks: &ClientKey) -> bool {
+    pub fn decrypt(&self, ct: &Ciphertext, cks: &ClientKey) -> bool {
         match ct {
             Ciphertext::Trivial(b) => *b,
             Ciphertext::Encrypted(ciphertext) => {
@@ -324,7 +324,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         }
     }
 
-    pub fn not(&mut self, ct: &Ciphertext) -> Ciphertext {
+    pub fn not(&self, ct: &Ciphertext) -> Ciphertext {
         match ct {
             Ciphertext::Trivial(message) => Ciphertext::Trivial(!*message),
             Ciphertext::Encrypted(ct_ct) => {
@@ -338,7 +338,7 @@ cks1 has {choice1:?}, cks2 has: {choice2:?}
         }
     }
 
-    pub fn not_assign(&mut self, ct: &mut Ciphertext) {
+    pub fn not_assign(&self, ct: &mut Ciphertext) {
         match ct {
             Ciphertext::Trivial(message) => *message = !*message,
             Ciphertext::Encrypted(ct_ct) => {

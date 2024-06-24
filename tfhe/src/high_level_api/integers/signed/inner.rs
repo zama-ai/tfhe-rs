@@ -180,6 +180,7 @@ impl RadixCiphertext {
         }
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn move_to_device(&mut self, device: Device) {
         match (&self, device) {
             (Self::Cpu(_), Device::Cpu) => {
@@ -207,7 +208,7 @@ impl RadixCiphertext {
     }
 
     #[inline]
-    #[allow(clippy::unused_self)]
+    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
     pub(crate) fn move_to_device_of_server_key_if_set(&mut self) {
         #[cfg(feature = "gpu")]
         if let Some(device) = global_state::device_of_internal_keys() {

@@ -1,5 +1,4 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
-use crate::core_crypto::prelude::verify_lwe_ciphertext;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
@@ -38,33 +37,6 @@ impl CompactPkeCrs {
                 &mut engine.random_generator,
             )
         })
-    }
-}
-
-/// A Ciphertext tied to a zero-knowledge proof
-///
-/// The proof can only be generated during the encryption with a [CompactPublicKey]
-pub struct ProvenCiphertext {
-    pub(crate) ciphertext: Ciphertext,
-    pub(crate) proof: CompactPkeProof,
-}
-
-impl ProvenCiphertext {
-    pub fn ciphertext(&self) -> &Ciphertext {
-        &self.ciphertext
-    }
-
-    pub fn verify(
-        &self,
-        public_params: &CompactPkePublicParams,
-        public_key: &CompactPublicKey,
-    ) -> ZkVerificationOutCome {
-        verify_lwe_ciphertext(
-            &self.ciphertext.ct,
-            &public_key.key,
-            &self.proof,
-            public_params,
-        )
     }
 }
 
