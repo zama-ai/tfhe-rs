@@ -288,8 +288,8 @@ pub fn glwe_ciphertext_encryption_noise_sample_count(
 /// ###### algorithm:
 /// 1. uniformly sample each coefficient of the polynomial vector $\vec{A}\in\mathcal{R}^k\_q$
 /// 2. sample each integer error coefficient of an error polynomial $E\in\mathcal{R}\_q$ from
-/// $\mathcal{D\_{\sigma^2,\mu}}$ 3. compute $B = \left\langle \vec{A} , \vec{S} \right\rangle +
-/// \mathsf{PT} + E \in\mathcal{R}\_q$ 4. output $\left( \vec{A} , B \right)$
+///    $\mathcal{D\_{\sigma^2,\mu}}$ 3. compute $B = \left\langle \vec{A} , \vec{S} \right\rangle +
+///    \mathsf{PT} + E \in\mathcal{R}\_q$ 4. output $\left( \vec{A} , B \right)$
 ///
 /// ## GLWE Decryption
 /// ###### inputs:

@@ -572,11 +572,10 @@ impl ServerKey {
     /// When the divisor is 0:
     ///
     /// - For unsigned operands, the returned quotient will be the max value (i.e. all bits set to
-    ///   1),
-    /// the remainder will have the value of the numerator.
+    ///   1), the remainder will have the value of the numerator.
     ///
-    /// - For signed operands, remainder will have the same value as the numerator, and,
-    /// if the numerator is < 0, quotient will be -1 else 1
+    /// - For signed operands, remainder will have the same value as the numerator, and, if the
+    ///   numerator is < 0, quotient will be -1 else 1
     ///
     /// This behaviour should not be relied on.
     ///

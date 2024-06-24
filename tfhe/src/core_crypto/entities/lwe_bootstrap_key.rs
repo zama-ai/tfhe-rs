@@ -91,12 +91,12 @@ use crate::core_crypto::entities::*;
 ///
 /// ###### algorithm:
 /// 1. Compute $\tilde{a}\_i \in \mathbb{Z}\_{2N\_{\mathsf{out}}} \leftarrow \lfloor \frac{2
-/// N\_{\mathsf{out}} \cdot a\_i}{q} \rceil$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
+///    N\_{\mathsf{out}} \cdot a\_i}{q} \rceil$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
 /// 2. Compute $\tilde{b}\_\mathsf{in} \in \mathbb{Z}\_{2N\_{\mathsf{out}}} \leftarrow \lfloor
-/// \frac{2 N\_{\mathsf{out}} \cdot b\_\mathsf{in}}{q} \rceil$
+///    \frac{2 N\_{\mathsf{out}} \cdot b\_\mathsf{in}}{q} \rceil$
 /// 3. Set $\mathsf{ACC} = (0, \ldots, 0, \mathsf{LUT} \cdot X^{-\tilde{b}\_\mathsf{in}})$
 /// 4. Compute $\mathsf{ACC} = \mathsf{CMux}(\overline{\overline{\mathsf{CT}\_i}}, \mathsf{ACC}
-/// \cdot X^{\tilde{a}\_i}, \mathsf{ACC})$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
+///    \cdot X^{\tilde{a}\_i}, \mathsf{ACC})$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
 /// 5. Output $\mathsf{ct}\_{\mathsf{out}} \leftarrow \mathsf{SampleExtract}(\mathsf{ACC})$
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(LweBootstrapKeyVersions)]
