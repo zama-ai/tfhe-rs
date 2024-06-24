@@ -317,12 +317,12 @@ clippy_zk_pok: install_rs_check_toolchain
 		-p tfhe-zk-pok -- --no-deps -D warnings
 
 .PHONY: clippy_all # Run all clippy targets
-clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium
+clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_zk_pok clippy_trivium
 
 .PHONY: clippy_fast # Run main clippy targets
-clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
-clippy_concrete_csprng
+clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
+clippy_core clippy_concrete_csprng
 
 .PHONY: clippy_cuda_backend # Run clippy lints on the tfhe-cuda-backend
 clippy_cuda_backend: install_rs_check_toolchain
