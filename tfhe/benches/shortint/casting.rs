@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use tfhe::shortint::prelude::*;
 
 pub fn pack_cast_64(c: &mut Criterion) {
-    let bench_name = "pack_cast_64";
+    let bench_name = "shortint::pack_cast_64";
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
@@ -55,7 +55,7 @@ pub fn pack_cast_64(c: &mut Criterion) {
 }
 
 pub fn pack_cast(c: &mut Criterion) {
-    let bench_name = "pack_cast";
+    let bench_name = "shortint::pack_cast";
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
@@ -96,7 +96,7 @@ pub fn pack_cast(c: &mut Criterion) {
 }
 
 pub fn cast(c: &mut Criterion) {
-    let bench_name = "cast";
+    let bench_name = "shortint::cast";
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
