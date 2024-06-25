@@ -143,10 +143,10 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case CLASSICAL:
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, active_gpu_count);
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
@@ -170,10 +170,10 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, active_gpu_count);
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -188,10 +188,10 @@ void execute_pbs(cudaStream_t *streams, uint32_t *gpu_indexes,
     case CLASSICAL:
 #pragma omp parallel for num_threads(active_gpu_count)
       for (uint i = 0; i < active_gpu_count; i++) {
-        int num_inputs_on_gpu =
-            get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, active_gpu_count);
         int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
+            get_gpu_offset(input_lwe_ciphertext_count, i, active_gpu_count);
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
