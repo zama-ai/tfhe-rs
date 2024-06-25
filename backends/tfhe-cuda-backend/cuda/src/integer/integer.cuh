@@ -327,8 +327,9 @@ void generate_device_accumulator_bivariate(
 
   cudaSetDevice(gpu_index);
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut;
+  cudaMallocHost((void **)&h_lut,
+                 (glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
   // fill bivariate accumulator
   generate_lookup_table_bivariate<Torus>(h_lut, glwe_dimension, polynomial_size,
@@ -360,8 +361,9 @@ void generate_device_accumulator_bivariate_with_factor(
 
   cudaSetDevice(gpu_index);
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut;
+  cudaMallocHost((void **)&h_lut,
+                 (glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
   // fill bivariate accumulator
   generate_lookup_table_bivariate_with_factor<Torus>(
@@ -396,8 +398,9 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
 
   cudaSetDevice(gpu_index);
   // host lut
-  Torus *h_lut =
-      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+  Torus *h_lut;
+  cudaMallocHost((void **)&h_lut,
+                 (glwe_dimension + 1) * polynomial_size * sizeof(Torus));
 
   // fill accumulator
   generate_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,

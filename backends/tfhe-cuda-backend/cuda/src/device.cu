@@ -258,5 +258,5 @@ void cuda_stream_add_callback(cudaStream_t stream, uint32_t gpu_index,
 
 void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
                                   void *host_pointer) {
-  free(host_pointer);
+  cudaFreeHost(host_pointer);
 }

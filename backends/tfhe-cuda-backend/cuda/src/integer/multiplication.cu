@@ -229,8 +229,9 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
 
   auto mem = (int_sum_ciphertexts_vec_memory<uint64_t> *)mem_ptr;
 
-  int *terms_degree =
-      (int *)malloc(num_blocks_in_radix * num_radix_in_vec * sizeof(int));
+  int *terms_degree;
+  cudaMallocHost((void **)&terms_degree,
+                 num_blocks_in_radix * num_radix_in_vec * sizeof(int));
 
   for (int i = 0; i < num_radix_in_vec * num_blocks_in_radix; i++) {
     terms_degree[i] = mem->params.message_modulus - 1;
@@ -284,7 +285,7 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
           "Supported N's are powers of two in the interval [256..16384].")
   }
 
-  free(terms_degree);
+  cudaFreeHost(terms_degree);
 }
 
 void cleanup_cuda_integer_radix_sum_ciphertexts_vec(void **streams,

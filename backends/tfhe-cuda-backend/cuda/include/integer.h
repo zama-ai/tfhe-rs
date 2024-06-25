@@ -530,7 +530,8 @@ template <typename Torus> struct int_radix_lut {
           num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
       lwe_trivial_indexes = (Torus *)cuda_malloc_async(
           num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-      auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+      Torus *h_lwe_indexes;
+      cudaMallocHost((void **)&h_lwe_indexes, num_radix_blocks * sizeof(Torus));
 
       for (int i = 0; i < num_radix_blocks; i++)
         h_lwe_indexes[i] = i;
@@ -609,7 +610,8 @@ template <typename Torus> struct int_radix_lut {
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
     lwe_trivial_indexes = (Torus *)cuda_malloc_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    auto h_lwe_indexes = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+    Torus *h_lwe_indexes;
+    cudaMallocHost((void **)&h_lwe_indexes, num_radix_blocks * sizeof(Torus));
 
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes[i] = i;
@@ -738,8 +740,9 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
        * we have bits_per_blocks LUTs that should be used for all bits in all
        * blocks
        */
-      Torus *h_lut_indexes =
-          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+      Torus *h_lut_indexes;
+      cudaMallocHost((void **)&h_lut_indexes,
+                     num_radix_blocks * bits_per_block * sizeof(Torus));
       for (int j = 0; j < num_radix_blocks; j++) {
         for (int i = 0; i < bits_per_block; i++)
           h_lut_indexes[i + j * bits_per_block] = i;
@@ -756,8 +759,9 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
        * the input indexes should take the first bits_per_block PBS to target
        * the block 0, then block 1, etc...
        */
-      Torus *h_lwe_indexes_in =
-          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+      Torus *h_lwe_indexes_in;
+      cudaMallocHost((void **)&h_lwe_indexes_in,
+                     num_radix_blocks * bits_per_block * sizeof(Torus));
 
       for (int j = 0; j < num_radix_blocks; j++) {
         for (int i = 0; i < bits_per_block; i++)
@@ -774,8 +778,9 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
        * the output should aim different lwe ciphertexts, so lwe_indexes_out =
        * range(num_luts)
        */
-      Torus *h_lwe_indexes_out =
-          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+      Torus *h_lwe_indexes_out;
+      cudaMallocHost((void **)&h_lwe_indexes_out,
+                     num_radix_blocks * bits_per_block * sizeof(Torus));
 
       for (int i = 0; i < num_radix_blocks * bits_per_block; i++)
         h_lwe_indexes_out[i] = i;
@@ -985,7 +990,8 @@ template <typename Torus> struct int_fullprop_buffer {
           lut_f_carry);
 
       Torus lwe_indexes_size = num_radix_blocks * sizeof(Torus);
-      Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
+      Torus *h_lwe_indexes;
+      cudaMallocHost((void **)&h_lwe_indexes, lwe_indexes_size);
       for (int i = 0; i < num_radix_blocks; i++)
         h_lwe_indexes[i] = i;
       Torus *lwe_indexes = lut->get_lut_indexes(gpu_indexes[0], 0);
