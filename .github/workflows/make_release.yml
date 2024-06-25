@@ -40,8 +40,9 @@ jobs:
           fetch-depth: 0
 
       - name: Create NPM version tag
+        if: ${{ inputs.npm_latest_tag }}
         run: |
-          echo "NPM_TAG=$(sed -n -e '1,/^version/p' tfhe/Cargo.toml | grep '^version[[:space:]]*=' | cut -d '=' -f 2 | tr -d ' ')" >> "${GITHUB_ENV}"
+          echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
 
       - name: Publish crate.io package
         if: ${{ inputs.push_to_crates }}
@@ -65,14 +66,6 @@ jobs:
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
 
-      - name: Publish web package as latest
-        if: ${{ inputs.push_web_package && inputs.npm_latest_tag }}
-        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: tfhe/pkg/package.json
-          dry-run: ${{ inputs.dry_run }}
-
       - name: Build Node package
         if: ${{ inputs.push_node_package }}
         run: |
@@ -89,14 +82,6 @@ jobs:
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
-
-      - name: Publish Node package as latest
-        if: ${{ inputs.push_node_package && inputs.npm_latest_tag }}
-        uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: tfhe/pkg/package.json
-          dry-run: ${{ inputs.dry_run }}
 
       - name: Slack Notification
         if: ${{ failure() }}
