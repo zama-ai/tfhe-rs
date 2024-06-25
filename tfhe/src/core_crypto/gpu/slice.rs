@@ -158,12 +158,8 @@ where
             None
         } else {
             // Shift ptr
-            let shifted_ptr: *mut c_void = unsafe {
-                self.ptrs[gpu_index as usize]
-                    .cast::<u8>()
-                    .add(start * std::mem::size_of::<T>())
-                    .cast()
-            };
+            let shifted_ptr: *mut c_void =
+                self.ptrs[gpu_index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
@@ -212,12 +208,8 @@ where
             let new_len_1 = mid;
             let new_len_2 = self.lengths[gpu_index as usize] - mid;
             // Shift ptr
-            let shifted_ptr: *mut c_void = unsafe {
-                self.ptrs[gpu_index as usize]
-                    .cast::<u8>()
-                    .add(mid * std::mem::size_of::<T>())
-                    .cast()
-            };
+            let shifted_ptr: *mut c_void =
+                self.ptrs[gpu_index as usize].wrapping_byte_add(mid * std::mem::size_of::<T>());
 
             // Create the slice
             (
