@@ -82,7 +82,7 @@ jobs:
     needs: [ should-run, setup-instance ]
     concurrency:
       group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs repo with tags

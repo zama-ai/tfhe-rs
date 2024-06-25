@@ -27,7 +27,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || contains(github.event.label.name, '4090_bench') }}
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}_cuda_integer_bench
-      cancel-in-progress: true
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ["self-hosted", "4090-desktop"]
     timeout-minutes: 1440 # 24 hours
     strategy:
@@ -114,7 +114,7 @@ jobs:
     needs: cuda-integer-benchmarks
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}_cuda_core_crypto_bench
-      cancel-in-progress: true
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ["self-hosted", "4090-desktop"]
     timeout-minutes: 1440 # 24 hours
 
