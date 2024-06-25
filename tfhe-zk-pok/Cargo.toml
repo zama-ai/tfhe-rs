@@ -13,9 +13,9 @@ description = "tfhe-zk-pok: An implementation of zero-knowledge proofs of encryp
 
 [dependencies]
 ark-bls12-381 = { package = "tfhe-ark-bls12-381", version = "0.4.0" }
-ark-ec = { package = "tfhe-ark-ec", version = "0.4.2" }
-ark-ff = { package = "tfhe-ark-ff", version = "0.4.3" }
-ark-poly = { package = "tfhe-ark-poly", version = "0.4.2" }
+ark-ec = { package = "tfhe-ark-ec", version = "0.4.2", features = ["parallel"] }
+ark-ff = { package = "tfhe-ark-ff", version = "0.4.3", features = ["parallel"] }
+ark-poly = { package = "tfhe-ark-poly", version = "0.4.2", features = ["parallel"] }
 ark-serialize = { version = "0.4.2" }
 rand = "0.8.5"
 rayon = "1.8.0"
