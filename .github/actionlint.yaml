@@ -3,6 +3,7 @@ self-hosted-runner:
   labels:
     - m1mac
     - 4090-desktop
+    - large_windows_16_latest
 # Configuration variables in array of strings defined in your repository or
 # organization. `null` means disabling configuration variables check.
 # Empty array means no configuration variable is allowed.
