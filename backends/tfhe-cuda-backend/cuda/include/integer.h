@@ -490,7 +490,7 @@ template <typename Torus> struct int_radix_lut {
       cudaSetDevice(i);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
-          get_num_inputs_on_gpu(num_radix_blocks, i, gpu_count);
+          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
 
       execute_scratch_pbs<Torus>(
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
