@@ -120,7 +120,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                 streams.ptr[0],
                 streams.gpu_indexes[0],
             );
-            ptr = ptr.cast::<u8>().add(size).cast();
+            ptr = ptr.wrapping_byte_add(size);
             for list in cuda_ciphertexts_list_vec {
                 cuda_memcpy_async_gpu_to_gpu(
                     ptr,
@@ -129,7 +129,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                     streams.ptr[0],
                     streams.gpu_indexes[0],
                 );
-                ptr = ptr.cast::<u8>().add(size).cast();
+                ptr = ptr.wrapping_byte_add(size);
             }
         }
 

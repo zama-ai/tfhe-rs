@@ -370,12 +370,8 @@ impl<T: Numeric> CudaVec<T> {
             None
         } else {
             // Shift ptr
-            let shifted_ptr: *mut c_void = unsafe {
-                self.ptr[gpu_index as usize]
-                    .cast::<u8>()
-                    .add(start * std::mem::size_of::<T>())
-                    .cast()
-            };
+            let shifted_ptr: *mut c_void =
+                self.ptr[gpu_index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
@@ -397,12 +393,8 @@ impl<T: Numeric> CudaVec<T> {
             None
         } else {
             // Shift ptr
-            let shifted_ptr: *mut c_void = unsafe {
-                self.ptr[gpu_index as usize]
-                    .cast::<u8>()
-                    .add(start * std::mem::size_of::<T>())
-                    .cast()
-            };
+            let shifted_ptr: *mut c_void =
+                self.ptr[gpu_index as usize].wrapping_byte_add(start * std::mem::size_of::<T>());
 
             // Compute the length
             let new_len = end - start + 1;
