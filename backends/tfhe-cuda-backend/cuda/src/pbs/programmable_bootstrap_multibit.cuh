@@ -626,7 +626,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus, typename STorus, class params>
+template <typename Torus, typename STorus, class params, class keybundleParams>
 __host__ void host_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
@@ -639,15 +639,29 @@ __host__ void host_multi_bit_programmable_bootstrap(
   cudaSetDevice(gpu_index);
 
   // If a chunk size is not passed to this function, select one.
-  if (!lwe_chunk_size)
-    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+
+  uint32_t lwe_chunk_size_bundle=0;
+  if (!lwe_chunk_size) {
+    //lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+    //    gpu_index, num_samples, polynomial_size, max_shared_memory);
+
+    lwe_chunk_size= get_lwe_chunk_size<Torus, keybundleParams>(
         gpu_index, num_samples, polynomial_size, max_shared_memory);
+  } else {
+
+    lwe_chunk_size_bundle = lwe_chunk_size;
+  
+  }
+  if(lwe_chunk_size!=lwe_chunk_size_bundle)
+    printf("ERROR WE CAN ITERATE OVER THE SAME");
+    
+  printf("lwe_chunksize: %d , lwe_chunksize_bundle: %d \n", lwe_chunk_size, lwe_chunk_size_bundle);
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
+    execute_compute_keybundle<Torus, keybundleParams>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, max_shared_memory,
