@@ -553,7 +553,7 @@ define_server_key_bench_fn!(
 );
 define_server_key_bench_fn!(
     method_name: greater,
-    display_name: greater,
+    display_name: greater_than,
     BenchParamsSet::Standard
 );
 define_server_key_bench_fn!(
@@ -563,7 +563,7 @@ define_server_key_bench_fn!(
 );
 define_server_key_bench_fn!(
     method_name: less,
-    display_name: less,
+    display_name: less_than,
     BenchParamsSet::Standard
 );
 define_server_key_bench_fn!(
@@ -676,7 +676,7 @@ define_server_key_scalar_div_bench_fn!(
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_greater,
-    display_name: greater,
+    display_name: greater_than,
     BenchParamsSet::Standard
 );
 define_server_key_scalar_bench_fn!(
@@ -686,7 +686,7 @@ define_server_key_scalar_bench_fn!(
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_less,
-    display_name: less,
+    display_name: less_than,
     BenchParamsSet::Standard
 );
 define_server_key_scalar_bench_fn!(
