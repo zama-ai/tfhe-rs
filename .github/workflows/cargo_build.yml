@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest-large, windows-latest]
+        os: [ubuntu-latest, macos-latest-large, large_windows_16_latest]
       fail-fast: false
 
     steps:
