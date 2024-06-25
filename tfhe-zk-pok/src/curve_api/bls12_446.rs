@@ -55,6 +55,7 @@ mod g1 {
     }
 
     impl G1Affine {
+        #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G1 {
             // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
             G1 {
@@ -124,6 +125,7 @@ mod g1 {
             }
         }
 
+        #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> Self {
             use rayon::prelude::*;
             let bases = bases
@@ -230,6 +232,7 @@ mod g2 {
     }
 
     impl G2Affine {
+        #[track_caller]
         pub fn multi_mul_scalar(bases: &[Self], scalars: &[Zp]) -> G2 {
             // SAFETY: interpreting a `repr(transparent)` pointer as its contents.
             G2 {
@@ -247,10 +250,10 @@ mod g2 {
         // functions. we cache it since it requires a Zp division
         // https://hackmd.io/@tazAymRSQCGXTUKkbh1BAg/Sk27liTW9#Math-Formula-for-Point-Addition
         pub(crate) fn compute_m(self, other: G2Affine) -> Option<crate::curve_446::Fq2> {
-            let zero = crate::curve_446::Fq2::ZERO;
-
             // in the context of elliptic curves, the point at infinity is the zero element of the
             // group
+            let zero = crate::curve_446::Fq2::ZERO;
+
             if self.inner.infinity || other.inner.infinity {
                 return None;
             }
