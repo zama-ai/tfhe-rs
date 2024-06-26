@@ -1,7 +1,8 @@
 use crate::backward_compatibility::integers::SignedRadixCiphertextVersionedOwned;
 use crate::high_level_api::details::MaybeCloned;
+use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::{self, with_thread_local_cuda_streams};
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 #[cfg(feature = "gpu")]
@@ -208,9 +209,7 @@ impl RadixCiphertext {
     }
 
     #[inline]
-    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
     pub(crate) fn move_to_device_of_server_key_if_set(&mut self) {
-        #[cfg(feature = "gpu")]
         if let Some(device) = global_state::device_of_internal_keys() {
             self.move_to_device(device);
         }
