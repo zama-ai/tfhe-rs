@@ -162,7 +162,9 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
-                let bench_id = format!("{param_name}_{bits}_bits_packed_{zk_load}");
+                let bench_id_verify = format!("{param_name}_{bits}_bits_packed_{zk_load}_verify");
+                let bench_id_verify_and_expand =
+                    format!("{param_name}_{bits}_bits_packed_{zk_load}_verify_and_expand");
                 let input_msg = rng.gen::<u64>();
                 let messages = vec![input_msg; fhe_uint_count];
 
@@ -172,7 +174,13 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     .build_with_proof_packed(public_params, compute_load)
                     .unwrap();
 
-                bench_group.bench_function(&bench_id, |b| {
+                bench_group.bench_function(&bench_id_verify, |b| {
+                    b.iter(|| {
+                        let _ret = ct1.verify(public_params, &pk);
+                    });
+                });
+
+                bench_group.bench_function(&bench_id_verify_and_expand, |b| {
                     b.iter(|| {
                         let _ret = ct1
                             .verify_and_expand(
@@ -188,10 +196,20 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 });
 
                 write_to_json::<u64, _>(
-                    &bench_id,
+                    &bench_id_verify,
                     shortint_params,
                     param_name,
                     "pke_zk_verify",
+                    &OperatorType::Atomic,
+                    shortint_params.message_modulus().0 as u32,
+                    vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                );
+
+                write_to_json::<u64, _>(
+                    &bench_id_verify_and_expand,
+                    shortint_params,
+                    param_name,
+                    "pke_zk_verify_and_expand",
                     &OperatorType::Atomic,
                     shortint_params.message_modulus().0 as u32,
                     vec![shortint_params.message_modulus().0.ilog2(); num_block],

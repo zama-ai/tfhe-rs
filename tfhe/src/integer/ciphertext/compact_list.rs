@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
+use crate::zk::{CompactPkePublicParams, ZkComputeLoad, ZkVerificationOutCome};
 
 fn extract_message_and_carries(packed_blocks: Vec<Ciphertext>, sks: &ServerKey) -> Vec<Ciphertext> {
     packed_blocks
@@ -546,6 +546,14 @@ pub struct ProvenCompactCiphertextList {
 impl ProvenCompactCiphertextList {
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
+    }
+
+    pub fn verify(
+        &self,
+        public_params: &CompactPkePublicParams,
+        public_key: &CompactPublicKey,
+    ) -> ZkVerificationOutCome {
+        self.ct_list.verify(public_params, &public_key.key)
     }
 
     pub fn verify_and_expand(
