@@ -106,6 +106,10 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
+      - name:
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
+
       - name: Run core crypto, integer and internal CUDA backend tests
         run: |
           make test_gpu
