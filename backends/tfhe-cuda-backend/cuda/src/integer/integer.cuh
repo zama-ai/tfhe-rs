@@ -427,7 +427,7 @@ void scratch_cuda_propagate_single_carry_kb_inplace(
 template <typename Torus>
 void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  uint32_t gpu_count, Torus *lwe_array,
-                                 Torus *carry_out,
+                                 Torus *carry_out, Torus *input_carries,
                                  int_sc_prop_memory<Torus> *mem, void **bsks,
                                  Torus **ksks, uint32_t num_blocks) {
   auto params = mem->params;
@@ -481,6 +481,12 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
   }
   cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
                     gpu_indexes[0]);
+
+  if (input_carries != nullptr) {
+    cuda_memcpy_async_gpu_to_gpu(input_carries, step_output,
+                                 big_lwe_size_bytes * num_blocks, streams[0],
+                                 gpu_indexes[0]);
+  }
 
   host_addition(streams[0], gpu_indexes[0], lwe_array, lwe_array, step_output,
                 glwe_dimension * polynomial_size, num_blocks);

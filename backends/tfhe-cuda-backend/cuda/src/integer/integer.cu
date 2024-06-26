@@ -68,6 +68,18 @@ void cuda_propagate_single_carry_kb_64_inplace(
   host_propagate_single_carry<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(carry_out),
+      nullptr, (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks), num_blocks);
+}
+
+void cuda_propagate_single_carry_get_input_carries_kb_64_inplace(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
+    void *carry_out, void *input_carries, int8_t *mem_ptr, void **bsks,
+    void **ksks, uint32_t num_blocks) {
+  host_propagate_single_carry<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(carry_out),
+      static_cast<uint64_t *>(input_carries),
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       num_blocks);
 }
