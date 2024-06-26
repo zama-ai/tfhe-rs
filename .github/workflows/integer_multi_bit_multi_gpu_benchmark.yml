@@ -3,6 +3,12 @@ name: Integer multi GPU Multi-bit benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      full_benchmark:
+        description: "Run all precisions"
+        type: boolean
+        default: false
+
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
     - cron: '0 1 * * 6'
@@ -17,6 +23,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  FAST_BENCH: TRUE
 
 jobs:
   setup-instance:
@@ -105,9 +112,14 @@ jobs:
           path: slab
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
+      - name: Should run full benchmarks
+        if: inputs.full_benchmark
+        run: |
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
+
       - name: Run multi-bit benchmarks with AVX512
         run: |
-          make FAST_BENCH=TRUE BENCH_OP_FLAVOR=default bench_integer_multi_bit_gpu
+          make FAST_BENCH=${{ env.FAST_BENCH }} BENCH_OP_FLAVOR=default bench_integer_multi_bit_gpu
 
       - name: Parse results
         run: |
