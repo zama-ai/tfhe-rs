@@ -84,6 +84,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
         grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
     Torus *bsk_poly = bsk_slice + poly_id * params::degree;
 
+    // opt = 8 degree/opt = 256
     copy_polynomial<Torus, params::opt, params::degree / params::opt>(
         bsk_poly, accumulator);
 
@@ -114,6 +115,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Move accumulator to local memory
     double2 temp[params::opt / 2];
     int tid = threadIdx.x;
+    //opt = 8 degree=2048  degree/opt =256
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
       temp[i].x = __ll2double_rn((int64_t)accumulator[tid]);
@@ -123,17 +125,22 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       temp[i].y /= (double)std::numeric_limits<Torus>::max();
       tid += params::degree / params::opt;
     }
-
+/*
     synchronize_threads_in_block();
+    
     // Move from local memory back to shared memory but as complex
     tid = threadIdx.x;
+    //Loop for 4 times ... temp[4]
+
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
       fft[tid] = temp[i];
-      tid += params::degree / params::opt;
+      tid += params::degree / params::opt; // degree 2048 opt 8  degree/opt = 256
     }
     synchronize_threads_in_block();
     NSMFFT_direct<HalfDegree<params>>(fft);
+*/
+    NSMFFT_direct_bundle<HalfDegree<params>>(fft, temp);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
