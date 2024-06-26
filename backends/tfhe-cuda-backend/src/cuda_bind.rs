@@ -1068,6 +1068,19 @@ extern "C" {
         num_blocks: u32,
     );
 
+    pub fn cuda_propagate_single_carry_get_input_carries_kb_64_inplace(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        radix_lwe: *mut c_void,
+        carry_out: *mut c_void,
+        input_carries: *mut c_void,
+        mem_ptr: *mut i8,
+        bsks: *const *mut c_void,
+        ksks: *const *mut c_void,
+        num_blocks: u32,
+    );
+
     pub fn cleanup_cuda_propagate_single_carry(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
