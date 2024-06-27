@@ -28,7 +28,8 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 }
 
 fn pke_zk_proof(c: &mut Criterion) {
-    let mut bench_group = c.benchmark_group("pke_zk_proof");
+    let bench_name = "zk::pke_zk_proof";
+    let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -65,7 +66,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                     ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
-                let bench_id = format!("{param_name}_{bits}_bits_packed_{zk_load}");
+                let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
                 let input_msg = rng.gen::<u64>();
                 let messages = vec![input_msg; fhe_uint_count];
 
@@ -99,7 +100,8 @@ fn pke_zk_proof(c: &mut Criterion) {
 criterion_group!(zk_proof, pke_zk_proof);
 
 fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
-    let mut bench_group = c.benchmark_group("pke_zk_verify");
+    let bench_name = "zk::pke_zk_verify";
+    let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -144,7 +146,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             public_params
                 .serialize_with_mode(&mut crs_data, Compress::No)
                 .unwrap();
-            let test_name = format!("crs_sizes_{param_name}_{bits}_bits_packed");
+            let test_name = format!("zk::crs_sizes::{param_name}_{bits}_bits_packed");
 
             write_result(&mut file, &test_name, crs_data.len());
             write_to_json::<u64, _>(
@@ -162,9 +164,11 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     ZkComputeLoad::Proof => "compute_load_proof",
                     ZkComputeLoad::Verify => "compute_load_verify",
                 };
-                let bench_id_verify = format!("{param_name}_{bits}_bits_packed_{zk_load}_verify");
+                let bench_id_verify =
+                    format!("{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}");
                 let bench_id_verify_and_expand =
-                    format!("{param_name}_{bits}_bits_packed_{zk_load}_verify_and_expand");
+                    format!("{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}");
+
                 let input_msg = rng.gen::<u64>();
                 let messages = vec![input_msg; fhe_uint_count];
 
