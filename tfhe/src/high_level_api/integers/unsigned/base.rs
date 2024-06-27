@@ -11,6 +11,7 @@ use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::ciphertext::BaseRadixCiphertext;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::server_key::MatchValues;
 use crate::named::Named;
@@ -612,6 +613,31 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support match_value_or yet");
+            }
+        })
+    }
+
+    pub fn reverse_bits(&self) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let sk = &cpu_key.pbs_key().key;
+
+                let lut = sk.generate_lookup_table(|x| 2 * (x % 2) + x / 2);
+
+                let blocks = self
+                    .ciphertext
+                    .on_cpu()
+                    .blocks
+                    .iter()
+                    .rev()
+                    .map(|block| cpu_key.pbs_key().key.apply_lookup_table(block, &lut))
+                    .collect();
+
+                Self::new(RadixCiphertext::Cpu(BaseRadixCiphertext { blocks }))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support reverse yet");
             }
         })
     }
