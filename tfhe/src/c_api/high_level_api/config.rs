@@ -69,9 +69,7 @@ pub unsafe extern "C" fn config_builder_use_custom_parameters(
         let params: crate::shortint::ClassicPBSParameters =
             shortint_block_parameters.try_into().unwrap();
 
-        let inner = Box::from_raw(*builder)
-            .0
-            .use_custom_parameters(params, None);
+        let inner = Box::from_raw(*builder).0.use_custom_parameters(params);
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }

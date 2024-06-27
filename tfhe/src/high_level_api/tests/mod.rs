@@ -115,23 +115,6 @@ fn test_with_seed() {
 }
 
 #[test]
-#[should_panic(
-    expected = "The configuration used to create the ClientKey had function evaluation on integers enabled.
-                   This feature requires an additional key that is not
-                   compressible. Thus, It is not possible
-                   to create a CompressedServerKey.
-                   "
-)]
-fn test_compressed_server_key_creation_panic_if_function_eval() {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
-
-    let cks = ClientKey::generate(config);
-    let _ = CompressedServerKey::new(&cks);
-}
-
-#[test]
 fn test_with_context() {
     let config = ConfigBuilder::default().build();
 

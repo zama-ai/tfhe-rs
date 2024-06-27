@@ -10,7 +10,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{
-    DivRem, FheBootstrap, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
+    DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
 #[cfg(feature = "gpu")]
@@ -546,70 +546,6 @@ where
                 );
                 FheBool::new(inner_result)
             }),
-        })
-    }
-}
-
-impl<Id> FheBootstrap for FheUint<Id>
-where
-    Id: FheUintId,
-    crate::integer::wopbs::WopbsKey: super::wopbs::WopbsEvaluationKey<
-        crate::integer::ServerKey,
-        crate::integer::RadixCiphertext,
-    >,
-{
-    fn map<F: Fn(u64) -> u64>(&self, func: F) -> Self {
-        use super::wopbs::WopbsEvaluationKey;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(cpu_key) => {
-                let res = cpu_key
-                    .wopbs_key
-                    .as_ref()
-                    .expect("Function evaluation on integers was not enabled in the config")
-                    .apply_wopbs(cpu_key.pbs_key(), &*self.ciphertext.on_cpu(), func);
-                Self::new(res)
-            }
-            #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support function evaluation yet");
-            }
-        })
-    }
-
-    fn apply<F: Fn(u64) -> u64>(&mut self, func: F) {
-        let result = self.map(func);
-        *self = result;
-    }
-}
-
-impl<Id> FheUint<Id>
-where
-    Id: FheUintId,
-    crate::integer::wopbs::WopbsKey: super::wopbs::WopbsEvaluationKey<
-        crate::integer::ServerKey,
-        crate::integer::RadixCiphertext,
-    >,
-{
-    pub fn bivariate_function<F>(&self, other: &Self, func: F) -> Self
-    where
-        F: Fn(u64, u64) -> u64,
-    {
-        use super::wopbs::WopbsEvaluationKey;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(cpu_key) => {
-                let lhs = self.ciphertext.on_cpu();
-                let rhs = other.ciphertext.on_cpu();
-                let res = cpu_key
-                    .wopbs_key
-                    .as_ref()
-                    .expect("Function evaluation on integers was not enabled in the config")
-                    .apply_bivariate_wopbs(cpu_key.pbs_key(), &*lhs, &*rhs, func);
-                Self::new(res)
-            }
-            #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support bivariate functions yet");
-            }
         })
     }
 }

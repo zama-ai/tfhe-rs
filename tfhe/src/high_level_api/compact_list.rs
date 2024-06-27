@@ -382,7 +382,6 @@ mod tests {
 
         let config = crate::ConfigBuilder::with_custom_parameters(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            None,
         )
         .build();
 
@@ -446,7 +445,6 @@ mod tests {
 
         let config = crate::ConfigBuilder::with_custom_parameters(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            None,
         )
         .use_dedicated_compact_public_key_parameters((
             PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
