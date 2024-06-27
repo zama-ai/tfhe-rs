@@ -36,12 +36,6 @@ impl Default for ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    #[doc(hidden)]
-    pub fn enable_function_evaluation(mut self) -> Self {
-        self.config.inner.enable_wopbs();
-        self
-    }
-
     pub fn enable_compression(mut self, compression_parameters: CompressionParameters) -> Self {
         self.config.inner.enable_compression(compression_parameters);
 
@@ -70,16 +64,13 @@ impl ConfigBuilder {
         }
     }
 
-    pub fn with_custom_parameters<P>(
-        block_parameters: P,
-        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-    ) -> Self
+    pub fn with_custom_parameters<P>(block_parameters: P) -> Self
     where
         P: Into<crate::shortint::PBSParameters>,
     {
         Self {
             config: Config {
-                inner: IntegerConfig::new(block_parameters.into(), wopbs_block_parameters, None),
+                inner: IntegerConfig::new(block_parameters.into(), None),
             },
         }
     }
@@ -96,16 +87,11 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn use_custom_parameters<P>(
-        mut self,
-        block_parameters: P,
-        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-    ) -> Self
+    pub fn use_custom_parameters<P>(mut self, block_parameters: P) -> Self
     where
         P: Into<crate::shortint::PBSParameters>,
     {
-        self.config.inner =
-            IntegerConfig::new(block_parameters.into(), wopbs_block_parameters, None);
+        self.config.inner = IntegerConfig::new(block_parameters.into(), None);
         self
     }
 
