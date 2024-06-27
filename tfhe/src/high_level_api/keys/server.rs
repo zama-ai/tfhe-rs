@@ -38,14 +38,12 @@ impl ServerKey {
         self,
     ) -> (
         crate::integer::ServerKey,
-        Option<crate::integer::wopbs::WopbsKey>,
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
         Option<CompressionKey>,
         Option<DecompressionKey>,
     ) {
         let IntegerServerKey {
             key,
-            wopbs_key,
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
@@ -53,7 +51,6 @@ impl ServerKey {
 
         (
             key,
-            wopbs_key,
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
@@ -62,7 +59,6 @@ impl ServerKey {
 
     pub fn from_raw_parts(
         key: crate::integer::ServerKey,
-        wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
         cpk_key_switching_key_material: Option<
             crate::integer::key_switching_key::KeySwitchingKeyMaterial,
         >,
@@ -72,7 +68,6 @@ impl ServerKey {
         Self {
             key: Arc::new(IntegerServerKey {
                 key,
-                wopbs_key,
                 cpk_key_switching_key_material,
                 compression_key,
                 decompression_key,

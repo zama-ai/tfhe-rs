@@ -15,7 +15,6 @@ pub(in crate::high_level_api) use inner::RadixCiphertextVersionOwned;
 mod base;
 mod compressed;
 mod static_;
-mod wopbs;
 
 mod encrypt;
 mod inner;

@@ -46,7 +46,6 @@ fn main() {
      let config = ConfigBuilder::default()
         .use_custom_parameters(
             tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-            None,
         )
         .build();
     let (client_key, _) = generate_keys(config);

@@ -68,7 +68,6 @@ impl ClientKey {
         self,
     ) -> (
         crate::integer::ClientKey,
-        Option<crate::shortint::WopbsParameters>,
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
     ) {
@@ -77,7 +76,6 @@ impl ClientKey {
 
     pub fn from_raw_parts(
         key: crate::integer::ClientKey,
-        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
         dedicated_compact_private_key: Option<(
             crate::integer::CompactPrivateKey<Vec<u64>>,
             crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
@@ -87,7 +85,6 @@ impl ClientKey {
         Self {
             key: IntegerClientKey::from_raw_parts(
                 key,
-                wopbs_block_parameters,
                 dedicated_compact_private_key,
                 compression_key,
             ),
