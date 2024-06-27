@@ -197,7 +197,7 @@ impl Fft {
     }
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 fn convert_forward_torus<Scalar: UnsignedTorus>(
     out: &mut [c64],
     in_re: &[Scalar],
@@ -242,7 +242,7 @@ fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
     );
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 fn convert_forward_integer<Scalar: UnsignedTorus>(
     out: &mut [c64],
     in_re: &[Scalar],
@@ -264,7 +264,7 @@ fn convert_forward_integer<Scalar: UnsignedTorus>(
     convert_forward_integer_scalar::<Scalar>(out, in_re, in_im, twisties);
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 fn convert_backward_torus<Scalar: UnsignedTorus>(
     out_re: &mut [Scalar],
     out_im: &mut [Scalar],
@@ -307,7 +307,7 @@ fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
     );
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 fn convert_add_backward_torus<Scalar: UnsignedTorus>(
     out_re: &mut [Scalar],
     out_im: &mut [Scalar],
