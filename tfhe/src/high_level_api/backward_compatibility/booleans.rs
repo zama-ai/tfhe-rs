@@ -38,7 +38,7 @@ pub enum CompactFheBoolListVersions {
 
 #[derive(Versionize)]
 #[versionize(CompactFheBoolVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheBool {
     pub(in crate::high_level_api) list: CompactCiphertextList,
 }
@@ -70,7 +70,7 @@ impl CompactFheBool {
 
 #[derive(Versionize)]
 #[versionize(CompactFheBoolListVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheBoolList {
     list: CompactCiphertextList,
 }
