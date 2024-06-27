@@ -62,7 +62,7 @@ jobs:
 
       - name: Run multi-bit benchmarks with AVX512
         run: |
-          make FAST_BENCH=TRUE bench_unsigned_integer_multi_bit
+          make FAST_BENCH=TRUE bench_integer_multi_bit
 
       - name: Parse benchmarks to csv
         run: |
