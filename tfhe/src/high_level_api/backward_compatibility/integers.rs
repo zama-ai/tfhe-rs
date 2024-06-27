@@ -160,7 +160,7 @@ pub enum CompactFheUintListVersions<Id: FheUintId> {
 
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheIntVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheInt<Id: FheIntId> {
     list: CompactCiphertextList,
     id: Id,
@@ -190,7 +190,7 @@ where
 
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheIntListVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheIntList<Id: FheIntId> {
     list: CompactCiphertextList,
     id: Id,
@@ -227,7 +227,7 @@ where
 
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheUintVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheUint<Id: FheUintId> {
     list: CompactCiphertextList,
     id: Id,
@@ -258,7 +258,7 @@ where
 
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheUintListVersions)]
-#[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
+#[deprecated(since = "0.7.1", note = "Use CompactCiphertextList instead")]
 pub struct CompactFheUintList<Id: FheUintId> {
     list: CompactCiphertextList,
     id: Id,
