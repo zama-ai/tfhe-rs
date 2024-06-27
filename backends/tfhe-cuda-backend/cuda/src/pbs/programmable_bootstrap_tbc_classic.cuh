@@ -40,8 +40,8 @@ __global__ void device_programmable_bootstrap_tbc(
     Torus *lut_vector_indexes, Torus *lwe_array_in, Torus *lwe_input_indexes,
     double2 *bootstrapping_key, double2 *join_buffer, uint32_t lwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    int8_t *device_mem, uint64_t device_memory_size_per_block, bool support_dsm,
-    uint32_t gpu_offset) {
+    int8_t *device_mem, uint64_t device_memory_size_per_block,
+    bool support_dsm) {
 
   cluster_group cluster = this_cluster();
 
@@ -78,8 +78,7 @@ __global__ void device_programmable_bootstrap_tbc(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
-                    (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
 
   Torus *block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.z] *
                                         params::degree * (glwe_dimension + 1)];
@@ -143,7 +142,7 @@ __global__ void device_programmable_bootstrap_tbc(
   }
 
   auto block_lwe_array_out =
-      &lwe_array_out[lwe_output_indexes[blockIdx.z + gpu_offset] *
+      &lwe_array_out[lwe_output_indexes[blockIdx.z] *
                          (glwe_dimension * polynomial_size + 1) +
                      blockIdx.y * polynomial_size];
 
@@ -224,7 +223,7 @@ __host__ void host_programmable_bootstrap_tbc(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_luts, uint32_t max_shared_memory, uint32_t gpu_offset) {
+    uint32_t num_luts, uint32_t max_shared_memory) {
   cudaSetDevice(gpu_index);
 
   auto supports_dsm =
@@ -278,7 +277,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
-        supports_dsm, gpu_offset));
+        supports_dsm));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
@@ -287,7 +286,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-        partial_dm, supports_dsm, gpu_offset));
+        partial_dm, supports_dsm));
   } else {
     config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -296,7 +295,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-        supports_dsm, gpu_offset));
+        supports_dsm));
   }
 }
 

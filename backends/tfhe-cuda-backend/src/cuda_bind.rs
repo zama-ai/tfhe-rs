@@ -358,7 +358,6 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        gpu_offset: u32,
     );
 
     /// Perform the negation of a u64 input LWE ciphertext vector.

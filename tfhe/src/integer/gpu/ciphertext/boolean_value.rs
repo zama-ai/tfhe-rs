@@ -124,7 +124,7 @@ impl CudaBooleanBlock {
     /// let ct2 = d_ct1.to_boolean_block(&mut streams);
     /// let res = cks.decrypt_bool(&ct2);
     ///
-    /// assert_eq!(msg1, res);
+    /// assert_eq!(msg1, res as u32);
     /// ```
     pub fn to_boolean_block(&self, streams: &CudaStreams) -> BooleanBlock {
         let h_lwe_ciphertext_list = self.0.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
