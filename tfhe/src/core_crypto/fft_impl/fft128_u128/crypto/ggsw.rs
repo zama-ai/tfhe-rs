@@ -11,7 +11,7 @@ use crate::core_crypto::prelude::{Container, ContainerMut, SignedDecomposer};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut};
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlweLo, ContGlweHi>(
     out_lo: &mut GlweCiphertext<ContOutLo>,
     out_hi: &mut GlweCiphertext<ContOutHi>,
