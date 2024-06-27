@@ -13,12 +13,19 @@ env:
   # We clear the cache to reduce memory pressure because of the numerous processes of cargo
   # nextest
   TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE: "1"
+  NO_BIG_PARAMS: FALSE
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
     types: [ labeled ]
+  push:
+    branches:
+      - main
+  schedule:
+    # Nightly tests @ 3AM after each work day
+    - cron: "0 3 * * MON-FRI"
 
 jobs:
   setup-instance:
@@ -61,6 +68,11 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Should skip big parameters set
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "NO_BIG_PARAMS=TRUE" >> "${GITHUB_ENV}"
+
       - name: Gen Keys if required
         run: |
           make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
@@ -75,7 +87,7 @@ jobs:
 
       - name: Run unsigned integer tests
         run: |
-          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
+          AVX512_SUPPORT=ON NO_BIG_PARAMS=${{ env.NO_BIG_PARAMS }} BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}
