@@ -541,7 +541,7 @@ pub fn pbs_modulus_switch_non_native<Scalar: UnsignedTorus + CastInto<usize>>(
 }
 
 /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     mut out: GlweCiphertextMutView<'_, u64>,
     ggsw: NttGgswCiphertextView<'_, u64>,
@@ -670,7 +670,7 @@ pub(crate) fn cmux_ntt64_assign(
     add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub(crate) fn update_with_fmadd_ntt64(
     output_fft_buffer: &mut [u64],
     lhs_polynomial_list: &[u64],
