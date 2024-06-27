@@ -299,9 +299,8 @@ fn kreyvium_test_clear_byte() {
 
 #[test]
 fn kreyvium_test_byte_long() {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
+    let config = ConfigBuilder::default().build();
+
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
@@ -338,9 +337,8 @@ fn kreyvium_test_byte_long() {
 
 #[test]
 fn kreyvium_test_fhe_byte_transciphering_long() {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
+    let config = ConfigBuilder::default().build();
+
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();

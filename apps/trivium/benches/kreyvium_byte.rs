@@ -4,9 +4,8 @@ use tfhe::{generate_keys, ConfigBuilder, FheUint64, FheUint8};
 use tfhe_trivium::{KreyviumStreamByte, TransCiphering};
 
 pub fn kreyvium_byte_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
+    let config = ConfigBuilder::default().build();
+
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
@@ -33,9 +32,8 @@ pub fn kreyvium_byte_gen(c: &mut Criterion) {
 }
 
 pub fn kreyvium_byte_trans(c: &mut Criterion) {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
+    let config = ConfigBuilder::default().build();
+
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
@@ -63,9 +61,8 @@ pub fn kreyvium_byte_trans(c: &mut Criterion) {
 }
 
 pub fn kreyvium_byte_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::default()
-        .enable_function_evaluation()
-        .build();
+    let config = ConfigBuilder::default().build();
+
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
