@@ -423,6 +423,42 @@ where
     {
         self.ciphertext.on_cpu().decrypt_trivial()
     }
+
+    /// Reverse the bit of the signed integer
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let msg = 0b0110100_i8;
+    ///
+    /// let a = FheInt8::encrypt(msg, &client_key);
+    ///
+    /// let result: FheInt8 = a.reverse_bits();
+    ///
+    /// let decrypted: i8 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, msg.reverse_bits());
+    /// ```
+    pub fn reverse_bits(&self) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let sk = &cpu_key.pbs_key();
+
+                let ct = self.ciphertext.on_cpu();
+
+                Self::new(sk.reverse_bits_parallelized(&*ct))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support reverse yet");
+            }
+        })
+    }
 }
 
 impl<FromId, IntoId> CastFrom<FheInt<FromId>> for FheInt<IntoId>
