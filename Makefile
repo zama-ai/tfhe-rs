@@ -824,6 +824,14 @@ bench_integer_multi_bit_gpu: install_rs_check_toolchain
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
+.PHONY: bench_unsigned_integer_multi_bit_gpu # Run benchmarks for unsigned integer on GPU backend using multi-bit parameters
+bench_unsigned_integer_multi_bit_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) -- unsigned
+
 .PHONY: bench_integer_zk # Run benchmarks for integer encryption with ZK proofs
 bench_integer_zk: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
