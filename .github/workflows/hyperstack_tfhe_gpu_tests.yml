@@ -58,16 +58,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install ca-certificates curl
-          sudo install -m 0755 -d /etc/apt/keyrings
-          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-          sudo chmod a+r /etc/apt/keyrings/docker.asc
-          echo \
-          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-           $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev 
           wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
           tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
           cd cmake-${{ env.CMAKE_VERSION }}
@@ -129,7 +120,7 @@ jobs:
   slack-notify:
     name: Slack Notification
     needs: [ setup-instance, cuda-tests-linux ]
-    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    runs-on: ubuntu-latest
     if: ${{ !success() && !cancelled() }}
     continue-on-error: true
     steps:
