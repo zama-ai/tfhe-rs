@@ -119,7 +119,7 @@ impl KreyviumStreamByte<FheUint8> {
         }
 
         // Key and iv are stored in reverse in their shift registers
-        let mut key = key_bytes.map(|b| b.map(|x| (x as u8).reverse_bits() as u64));
+        let mut key = key_bytes.map(|b| b.reverse_bits());
         let mut iv = iv_bytes.map(|x| FheUint8::encrypt_trivial(x.reverse_bits()));
         key.reverse();
         iv.reverse();
