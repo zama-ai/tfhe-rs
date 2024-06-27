@@ -17,6 +17,7 @@ pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
 pub(crate) mod test_sub;
+pub(crate) mod test_sum;
 pub(crate) mod test_vector_comparisons;
 pub(crate) mod test_vector_find;
 
@@ -405,8 +406,6 @@ impl ExpectedDegrees {
     }
 }
 
-create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
-create_parametrized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 // left/right shifts
 create_parametrized_test!(
     integer_unchecked_left_shift {
@@ -691,49 +690,6 @@ where
 //=============================================================================
 // Smart Tests
 //=============================================================================
-
-fn integer_smart_sum_ciphertexts_slice<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..nb_tests_smaller {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let mut ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let ct_res = sks.smart_sum_ciphertexts_parallelized(&mut ctxts).unwrap();
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
-}
-
-fn integer_default_unsigned_overflowing_sum_ciphertexts_vec<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    integer_default_unsigned_overflowing_sum_ciphertexts_test(param);
-}
 
 //=============================================================================
 // Smart Scalar Tests
