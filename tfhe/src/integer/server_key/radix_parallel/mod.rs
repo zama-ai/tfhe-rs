@@ -19,6 +19,7 @@ mod scalar_shift;
 mod scalar_sub;
 mod shift;
 pub(crate) mod sub;
+mod sum;
 
 mod ilog2;
 #[cfg(test)]
