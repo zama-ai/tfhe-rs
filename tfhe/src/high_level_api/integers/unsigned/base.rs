@@ -619,6 +619,42 @@ where
             }
         })
     }
+
+    /// Reverse the bit of the unsigned integer
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let msg = 0b10110100_u8;
+    ///
+    /// let a = FheUint8::encrypt(msg, &client_key);
+    ///
+    /// let result: FheUint8 = a.reverse_bits();
+    ///
+    /// let decrypted: u8 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, msg.reverse_bits());
+    /// ```
+    pub fn reverse_bits(&self) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let sk = &cpu_key.pbs_key();
+
+                let ct = self.ciphertext.on_cpu();
+
+                Self::new(sk.reverse_bits_parallelized(&*ct))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support reverse yet");
+            }
+        })
+    }
 }
 
 impl<Id> TryFrom<crate::integer::RadixCiphertext> for FheUint<Id>
