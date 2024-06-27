@@ -119,7 +119,7 @@ jobs:
 
       - name: Run multi-bit benchmarks with AVX512
         run: |
-          make FAST_BENCH=${{ env.FAST_BENCH }} BENCH_OP_FLAVOR=default bench_integer_multi_bit_gpu
+          make FAST_BENCH=${{ env.FAST_BENCH }} BENCH_OP_FLAVOR=default bench_unsigned_integer_multi_bit_gpu
 
       - name: Parse results
         run: |
