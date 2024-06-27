@@ -49,7 +49,7 @@ if(NOT TARGET tfhe-rs)
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
     DOWNLOAD_COMMAND ""
-    BUILD_COMMAND make build_c_api
+    BUILD_COMMAND $(MAKE) build_c_api
     INSTALL_COMMAND ""
     LOG_BUILD ON)
 endif()
