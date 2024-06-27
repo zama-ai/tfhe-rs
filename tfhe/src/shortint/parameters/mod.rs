@@ -40,6 +40,7 @@ pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pb
 pub use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::pbs_ks::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::pbs_ks::*;
+pub use crate::shortint::parameters::list_compression::CompressionParameters;
 pub use compact_public_key_only::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     ShortintCompactCiphertextListCastingMode,
@@ -856,3 +857,8 @@ pub const PARAM_SMALL_MESSAGE_1_CARRY_1: ClassicPBSParameters = PARAM_MESSAGE_1_
 pub const PARAM_SMALL_MESSAGE_2_CARRY_2: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
 pub const PARAM_SMALL_MESSAGE_3_CARRY_3: ClassicPBSParameters = PARAM_MESSAGE_3_CARRY_3_PBS_KS;
 pub const PARAM_SMALL_MESSAGE_4_CARRY_4: ClassicPBSParameters = PARAM_MESSAGE_4_CARRY_4_PBS_KS;
+
+pub const COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS: CompressionParameters =
+    list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+
+pub const COMP_PARAM_MESSAGE_2_CARRY_2: CompressionParameters = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
