@@ -1720,7 +1720,7 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_unsigned_overflowing_scalar_add,
-        display_name: unsigned_overflowing_add,
+        display_name: overflowing_add,
         rng_func: default_scalar
     );
 
