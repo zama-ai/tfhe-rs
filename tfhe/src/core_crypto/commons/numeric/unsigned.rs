@@ -153,37 +153,17 @@ macro_rules! implement {
             }
             #[inline]
             fn wrapping_add_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
-                if Self::BITS <= 64 {
-                    let self_u128: u128 = self.cast_into();
-                    let other_u128: u128 = other.cast_into();
-                    let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    self_u128
-                        .wrapping_add(other_u128)
-                        .wrapping_rem(custom_modulus_u128)
-                        .cast_into()
-                } else {
-                    if custom_modulus.is_power_of_two() {
-                        return self.wrapping_add(other).wrapping_rem(custom_modulus);
-                    }
-                    todo!("wrapping_add_custom_mod is not yet implemented for non power of two moduli wider than u64")
-                }
+                self.wrapping_sub_custom_mod(
+                    other.wrapping_neg_custom_mod(custom_modulus),
+                    custom_modulus,
+                )
             }
             #[inline]
             fn wrapping_sub_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
-                if Self::BITS <= 64 {
-                    let self_u128: u128 = self.cast_into();
-                    let other_u128: u128 = other.cast_into();
-                    let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    self_u128
-                        .wrapping_add(custom_modulus_u128)
-                        .wrapping_sub(other_u128)
-                        .wrapping_rem(custom_modulus_u128)
-                        .cast_into()
+                if self >= other {
+                    self - other
                 } else {
-                    if custom_modulus.is_power_of_two() {
-                        return self.wrapping_sub(other).wrapping_rem(custom_modulus);
-                    }
-                    todo!("wrapping_sub_custom_mod is not yet implemented for non power of two moduli wider than u64")
+                    self.wrapping_sub(other).wrapping_add(custom_modulus)
                 }
             }
             #[inline]
@@ -218,8 +198,11 @@ macro_rules! implement {
             }
             #[inline]
             fn wrapping_neg_custom_mod(self, custom_modulus: Self) -> Self {
-                // Custom modulus applied by wrapping_sub
-                Self::ZERO.wrapping_sub_custom_mod(self, custom_modulus)
+                if self == Self::ZERO {
+                    self
+                } else {
+                    custom_modulus - self
+                }
             }
             #[inline]
             fn wrapping_shl(self, rhs: u32) -> Self {

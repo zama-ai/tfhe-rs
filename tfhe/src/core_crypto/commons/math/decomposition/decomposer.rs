@@ -384,9 +384,7 @@ where
         let modulus_as_scalar: Scalar = self.ciphertext_modulus.get_custom_modulus().cast_into();
         match sign {
             ValueSign::Positive => abs_closest,
-            ValueSign::Negative => {
-                modulus_as_scalar.wrapping_sub_custom_mod(abs_closest, modulus_as_scalar)
-            }
+            ValueSign::Negative => abs_closest.wrapping_neg_custom_mod(modulus_as_scalar),
         }
     }
 
