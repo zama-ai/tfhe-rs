@@ -101,7 +101,7 @@ impl<G: Curve> PublicCommit<G> {
             b,
             c1,
             c2,
-            __marker: Default::default(),
+            __marker: PhantomData,
         }
     }
 }

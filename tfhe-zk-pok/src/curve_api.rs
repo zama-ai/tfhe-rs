@@ -210,9 +210,14 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
     }
 
     fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
-        self.mul_scalar(scalar)
+        if scalar.inner == MontFp!("2") {
+            self.double()
+        } else {
+            self.mul_scalar(scalar)
+        }
     }
 
+    #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_381::Zp]) -> Self {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
@@ -245,9 +250,14 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
     }
 
     fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
-        self.mul_scalar(scalar)
+        if scalar.inner == MontFp!("2") {
+            self.double()
+        } else {
+            self.mul_scalar(scalar)
+        }
     }
 
+    #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_381::Zp]) -> Self {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
@@ -273,6 +283,9 @@ impl PairingGroupOps<bls12_381::Zp, bls12_381::G1, bls12_381::G2> for bls12_381:
     }
 
     fn pairing(x: bls12_381::G1, y: bls12_381::G2) -> Self {
+        if x == bls12_381::G1::ZERO || y == bls12_381::G2::ZERO {
+            return Self::pairing(bls12_381::G1::ZERO, bls12_381::G2::GENERATOR);
+        }
         Self::pairing(x, y)
     }
 }
@@ -329,12 +342,21 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
     }
 
     fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
-        self.mul_scalar(scalar)
+        if scalar.inner == MontFp!("2") {
+            self.double()
+        } else {
+            self.mul_scalar(scalar)
+        }
     }
 
+    #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
-        msm::msm_wnaf_g1_446(bases, scalars)
-        // Self::Affine::multi_mul_scalar(bases, scalars)
+        // overhead seems to not be worth it outside of wasm
+        if cfg!(target_family = "wasm") {
+            msm::msm_wnaf_g1_446(bases, scalars)
+        } else {
+            Self::Affine::multi_mul_scalar(bases, scalars)
+        }
     }
 
     fn to_bytes(self) -> impl AsRef<[u8]> {
@@ -365,9 +387,14 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
     }
 
     fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
-        self.mul_scalar(scalar)
+        if scalar.inner == MontFp!("2") {
+            self.double()
+        } else {
+            self.mul_scalar(scalar)
+        }
     }
 
+    #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
@@ -393,13 +420,16 @@ impl PairingGroupOps<bls12_446::Zp, bls12_446::G1, bls12_446::G2> for bls12_446:
     }
 
     fn pairing(x: bls12_446::G1, y: bls12_446::G2) -> Self {
+        if x == bls12_446::G1::ZERO || y == bls12_446::G2::ZERO {
+            return Self::pairing(bls12_446::G1::ZERO, bls12_446::G2::GENERATOR);
+        }
         Self::pairing(x, y)
     }
 }
 
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Bls12_381;
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Bls12_446;
 
 impl Curve for Bls12_381 {
