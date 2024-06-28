@@ -8,6 +8,18 @@ fn main() {
         }
     }
 
+    // This is a workaround to the current nightly toolchain (2024-06-27 which started with
+    // toolchain 2024-05-05) build issue
+    // Essentially if cbindgen is running, a wrong argument ends up forwarded to the cuda backend
+    // "make" command during macro expansions for TFHE-rs C API, crashing make for make < 4.4 and
+    // thus crashing the build
+    // On the other hand, this speeds up C API build greatly given we don't have macro expansions
+    // in the CUDA backend so this skips the second compilation of TFHE-rs for macro inspection by
+    // cbindgen
+    if std::env::var("_CBINDGEN_IS_RUNNING").is_ok() {
+        return;
+    }
+
     println!("Build tfhe-cuda-backend");
     println!("cargo::rerun-if-changed=cuda/include");
     println!("cargo::rerun-if-changed=cuda/src");
