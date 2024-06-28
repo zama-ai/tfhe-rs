@@ -30,7 +30,7 @@ on:
 jobs:
   setup-instance:
     name: Setup instance (unsigned-integer-tests)
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    if: github.event_name != 'pull_request' || contains(github.event.label.name, 'approved')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
