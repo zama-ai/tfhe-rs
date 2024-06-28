@@ -52,7 +52,7 @@ tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-co
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-concrete-csprng = { version = "0.4.0", path = "../concrete-csprng", features = [
+concrete-csprng = { version = "0.4.1", path = "../concrete-csprng", features = [
     "generator_fallback",
     "parallel",
 ] }
