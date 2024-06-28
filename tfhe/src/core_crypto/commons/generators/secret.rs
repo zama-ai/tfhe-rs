@@ -25,4 +25,11 @@ impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
     {
         self.0.fill_slice_with_random_uniform_binary(slice);
     }
+
+    pub(crate) fn generate_random_uniform_binary<Scalar>(&mut self) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformBinary>,
+    {
+        self.0.random_uniform_binary()
+    }
 }

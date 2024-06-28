@@ -4,7 +4,7 @@ use crate::integer::backward_compatibility::public_key::CompressedPublicKeyVersi
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+use crate::integer::encryption::{create_clear_radix_block_iterator, encrypt_crt};
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::MessageModulus;
@@ -36,30 +36,46 @@ impl CompressedPublicKey {
     }
 
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(
-            message,
-            base_vec,
-            crate::shortint::CompressedPublicKey::encrypt_with_message_modulus,
-        )
+        // let mut ctxt_vect = Vec::with_capacity(base_vec.len());
+
+        // // Put each decomposition into a new ciphertext
+        // for modulus in base_vec.iter().copied() {
+        //     let ct = self
+        //         .key
+        //         .encrypt_many_with_message_modulus(message, MessageModulus(modulus as usize));
+
+        //     ctxt_vect.push(ct);
+        // }
+
+        // CrtCiphertext {
+        //     blocks: ctxt_vect,
+        //     moduli: base_vec,
+        // }
+        todo!()
     }
 
     pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
-            cks.encrypt_native_crt(msg, moduli.0 as u8)
-        })
-    }
+        // let mut ctxt_vect = Vec::with_capacity(base_vec.len());
 
-    fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
-        &self,
-        message: u64,
-        base_vec: Vec<u64>,
-        encrypt_block: F,
-    ) -> CrtCiphertextType
-    where
-        F: Fn(&crate::shortint::CompressedPublicKey, u64, MessageModulus) -> Block,
-        CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
-    {
-        encrypt_crt(&self.key, message, base_vec, encrypt_block)
+        // // Put each decomposition into a new ciphertext
+        // for modulus in base_vec.iter().copied() {
+        //     let ct = self
+        //         .key
+        //         .encrypt_native_crt(message, MessageModulus(modulus as usize));
+
+        //     ctxt_vect.push(ct);
+        // }
+
+        // CrtCiphertext {
+        //     blocks: ctxt_vect,
+        //     moduli: base_vec,
+        // }
+
+        // // self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
+        // //     cks.encrypt_native_crt(msg, moduli.0 as u8)
+        // // })
+
+        todo!()
     }
 
     pub fn parameters(&self) -> crate::shortint::PBSParameters {
@@ -71,11 +87,13 @@ impl CompressedPublicKey {
         message: T,
         num_blocks: usize,
     ) -> RadixCiphertext {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt,
-        )
+        let message_modulus = self.key.parameters.message_modulus();
+        let clear_block_iterator =
+            create_clear_radix_block_iterator(message, message_modulus, num_blocks);
+
+        let blocks = self.key.encrypt_many(clear_block_iterator);
+
+        RadixCiphertext { blocks }
     }
 
     pub fn encrypt_signed_radix<T: DecomposableInto<u64>>(
@@ -83,11 +101,13 @@ impl CompressedPublicKey {
         message: T,
         num_blocks: usize,
     ) -> SignedRadixCiphertext {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt,
-        )
+        let message_modulus = self.key.parameters.message_modulus();
+        let clear_block_iterator =
+            create_clear_radix_block_iterator(message, message_modulus, num_blocks);
+
+        let blocks = self.key.encrypt_many(clear_block_iterator);
+
+        SignedRadixCiphertext { blocks }
     }
 
     pub fn encrypt_bool(&self, message: bool) -> BooleanBlock {
@@ -101,24 +121,12 @@ impl CompressedPublicKey {
         message: u64,
         num_blocks: usize,
     ) -> RadixCiphertext {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt_without_padding,
-        )
-    }
+        let message_modulus = self.key.parameters.message_modulus();
+        let clear_block_iterator =
+            create_clear_radix_block_iterator(message, message_modulus, num_blocks);
 
-    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
-        &self,
-        message_words: T,
-        num_blocks: usize,
-        encrypt_block: F,
-    ) -> RadixCiphertextType
-    where
-        T: DecomposableInto<u64>,
-        F: Fn(&crate::shortint::CompressedPublicKey, u64) -> Block,
-        RadixCiphertextType: From<Vec<Block>>,
-    {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+        let blocks = self.key.encrypt_many_without_padding(clear_block_iterator);
+
+        RadixCiphertext { blocks }
     }
 }

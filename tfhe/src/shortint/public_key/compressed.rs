@@ -129,6 +129,12 @@ impl CompressedPublicKey {
         })
     }
 
+    pub fn encrypt_many(&self, messages: impl Iterator<Item = u64>) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_many_with_compressed_public_key(self, messages)
+        })
+    }
+
     /// Encrypts a small integer message using the client key with a specific message modulus
     ///
     /// # Example
@@ -163,6 +169,22 @@ impl CompressedPublicKey {
                 message_modulus,
             )
         })
+    }
+
+    pub fn encrypt_with_many_message_modulus(
+        &self,
+        message: u64,
+        message_moduli: impl Iterator<Item = MessageModulus>,
+    ) -> Ciphertext {
+        // ShortintEngine::with_thread_local_mut(|engine| {
+        //     engine.encrypt_with_many_message_modulus_and_compressed_public_key(
+        //         self,
+        //         message,
+        //         message_moduli,
+        //     )
+        // })
+
+        todo!()
     }
 
     /// Encrypts an integer without reducing the input message modulus the message space
@@ -219,6 +241,15 @@ impl CompressedPublicKey {
     pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_without_padding_with_compressed_public_key(self, message)
+        })
+    }
+
+    pub fn encrypt_many_without_padding(
+        &self,
+        messages: impl Iterator<Item = u64>,
+    ) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_many_without_padding_with_compressed_public_key(self, messages)
         })
     }
 
