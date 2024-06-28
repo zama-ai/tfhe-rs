@@ -6,9 +6,9 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion, Lifetime,
-    Path, Type, Variant,
+    parse_quote, Attribute, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields,
+    FieldsNamed, FieldsUnnamed, Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion,
+    Lifetime, Path, Type, Variant,
 };
 
 use crate::associated::{
@@ -230,7 +230,7 @@ impl VersionType {
             fields,
             ident: self.ident(),
             vis: self.orig_type.vis.clone(),
-            attrs: Vec::new(),
+            attrs: vec![parse_quote! { #[automatically_derived] }],
             generics: self.type_generics()?,
             struct_token: stru.struct_token,
             semi_token: stru.semi_token,
@@ -257,7 +257,7 @@ impl VersionType {
         let versioned_enu = ItemEnum {
             ident: self.ident(),
             vis: self.orig_type.vis.clone(),
-            attrs: Vec::new(),
+            attrs: vec![parse_quote! { #[automatically_derived] }],
             generics: self.type_generics()?,
             enum_token: enu.enum_token,
             brace_token: enu.brace_token,
@@ -275,7 +275,7 @@ impl VersionType {
             fields,
             ident: self.ident(),
             vis: self.orig_type.vis.clone(),
-            attrs: Vec::new(),
+            attrs: vec![parse_quote! { #[automatically_derived] }],
             generics: self.type_generics()?,
             union_token: uni.union_token,
         };
