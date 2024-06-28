@@ -328,7 +328,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
     luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-    auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     /// After this keyswitch execution, we need to synchronize the streams
     /// because the keyswitch and PBS do not operate on the same number of
