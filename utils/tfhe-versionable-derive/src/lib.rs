@@ -83,6 +83,8 @@ fn impl_version_trait(input: &DeriveInput) -> proc_macro2::TokenStream {
     quote! {
         const _: () = {
             #version_types
+
+            #[automatically_derived]
             #version_impl
         };
     }
@@ -116,6 +118,8 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
     quote! {
         const _: () = {
             #dispatch_types
+
+            #[automatically_derived]
             #dispatch_impl
         };
     }
@@ -238,6 +242,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
     quote! {
         #version_trait_impl
 
+        #[automatically_derived]
         impl #versionize_impl_generics #versionize_trait for #input_ident #ty_generics
         #versionize_where_clause
         {
@@ -253,12 +258,13 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
                 #versionize_body
             }
 
-        type VersionedOwned =
+            type VersionedOwned =
             <#dispatch_enum_path #dispatch_generics as
             #dispatch_trait<#dispatch_target>>::Owned #owned_where_clause;
 
         }
 
+        #[automatically_derived]
         impl #unversionize_impl_generics #unversionize_trait for #input_ident #ty_generics
         #unversionize_where_clause
         {
@@ -267,6 +273,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl #versionize_vec_impl_generics #versionize_vec_trait for #input_ident #ty_generics
         #versionize_vec_where_clause
         {
@@ -283,6 +290,7 @@ pub fn derive_versionize(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl #unversionize_vec_impl_generics #unversionize_vec_trait for #input_ident #ty_generics
         #unversionize_vec_where_clause {
             fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, #unversionize_error> {
@@ -318,6 +326,7 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
     let lifetime = Lifetime::new(LIFETIME_NAME, Span::call_site());
 
     quote! {
+        #[automatically_derived]
         impl #impl_generics #versionize_trait for #input_ident #ty_generics #where_clause {
             type Versioned<#lifetime> = &#lifetime Self;
             type VersionedOwned = Self;
@@ -331,12 +340,14 @@ pub fn derive_not_versioned(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl #impl_generics #unversionize_trait for #input_ident #ty_generics #where_clause {
             fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, #unversionize_error> {
                 Ok(versioned)
             }
         }
 
+        #[automatically_derived]
         impl NotVersioned for #input_ident #ty_generics #where_clause {}
 
     }

@@ -95,6 +95,7 @@ impl AssociatedType for DispatchType {
             ident: self.ident(),
             generics: self.generics()?,
             variants: variants?,
+            attrs: vec![parse_quote! { #[automatically_derived] }],
             ..self.orig_type.clone()
         }
         .into())

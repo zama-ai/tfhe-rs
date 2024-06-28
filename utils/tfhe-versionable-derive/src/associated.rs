@@ -27,6 +27,7 @@ pub(crate) fn generate_from_trait_impl(
 ) -> syn::Result<ItemImpl> {
     let from_variable = Ident::new(from_variable_name, Span::call_site());
     Ok(parse_quote! {
+        #[automatically_derived]
         impl #impl_generics From<#src> for #dest #where_clause {
             fn from(#from_variable: #src) -> Self {
                 #constructor
@@ -55,6 +56,7 @@ pub(crate) fn generate_try_from_trait_impl(
 ) -> syn::Result<ItemImpl> {
     let from_variable = Ident::new(from_variable_name, Span::call_site());
     Ok(parse_quote! {
+        #[automatically_derived]
         impl #impl_generics TryFrom<#src> for #dest #where_clause {
             type Error = #error;
             fn try_from(#from_variable: #src) -> Result<Self, Self::Error> {
