@@ -94,6 +94,7 @@ impl AssociatedType for DispatchType {
         Ok(ItemEnum {
             ident: self.ident(),
             generics: self.generics()?,
+            attrs: vec![parse_quote! { #[automatically_derived] }],
             variants: variants?,
             ..self.orig_type.clone()
         }
