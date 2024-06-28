@@ -2,8 +2,8 @@
 
 set -e
 
-if [ $# -lt 2 ]; then
-		echo "$0 git_url dest_path"
+if [ $# -lt 3 ]; then
+		echo "$0 git_url branch dest_path"
 		exit 1
 fi
 
@@ -13,7 +13,8 @@ if ! git lfs env 2>/dev/null >/dev/null; then
 fi
 
 if [ -d $2 ]; then
-		cd $2 && git pull
+		cd $2 && git fetch --depth 1 && git reset --hard origin/$2 && git clean -dfx
+
 else
-		git clone $1 $2
+		git clone $1 -b $2 --depth 1
 fi
