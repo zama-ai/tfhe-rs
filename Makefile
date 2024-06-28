@@ -21,6 +21,7 @@ BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22
 FORWARD_COMPAT?=OFF
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
+BACKWARD_COMPAT_DATA_BRANCH=v0.1
 BACKWARD_COMPAT_DATA_DIR=tfhe-backward-compat-data
 # sed: -n, do not print input stream, -e means a script/expression
 # 1,/version/ indicates from the first line, to the line matching version at the start of the line
@@ -1037,7 +1038,7 @@ write_params_to_file: install_rs_check_toolchain
 
 .PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
 clone_backward_compat_data:
-	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) tfhe/$(BACKWARD_COMPAT_DATA_DIR)
+	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) tfhe/$(BACKWARD_COMPAT_DATA_DIR)
 
 tfhe/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
 
