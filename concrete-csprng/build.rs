@@ -36,12 +36,15 @@ impl FeatureRequirement {
             }
         }
 
-        let target_family = get_target_family_cfg();
+        let target_families = get_target_family_cfgs();
         if let Some(feature_req_target_family) = self.feature_req_target_family {
-            if feature_req_target_family != target_family {
+            if target_families
+                .split(',')
+                .all(|family| family != feature_req_target_family)
+            {
                 panic!(
-                    "Feature `{}` requires target_family `{}`, current cfg: `{}`",
-                    self.feature_name, feature_req_target_family, target_family
+                    "Feature `{}` requires target_family `{}`, current cfgs: `{}`",
+                    self.feature_name, feature_req_target_family, target_families
                 )
             }
         }
@@ -97,7 +100,7 @@ fn get_target_arch_cfg() -> String {
     env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH is not set")
 }
 
-fn get_target_family_cfg() -> String {
+fn get_target_family_cfgs() -> String {
     env::var("CARGO_CFG_TARGET_FAMILY").expect("CARGO_CFG_TARGET_FAMILY is not set")
 }
 
