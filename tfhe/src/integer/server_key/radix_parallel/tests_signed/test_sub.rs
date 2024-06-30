@@ -20,25 +20,6 @@ use std::sync::Arc;
 
 create_parametrized_test!(integer_signed_unchecked_sub);
 create_parametrized_test!(integer_signed_unchecked_overflowing_sub);
-create_parametrized_test!(
-    integer_signed_unchecked_overflowing_sub_parallelized {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Requires 4 bits, so 1_1 parameters are not supported
-            // until they get their own version of the algorithm
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
 create_parametrized_test!(integer_signed_default_sub);
 create_parametrized_test!(integer_signed_default_overflowing_sub);
 
@@ -55,17 +36,6 @@ where
     P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_sub);
-    signed_unchecked_overflowing_sub_test(param, executor);
-}
-
-fn integer_signed_unchecked_overflowing_sub_parallelized<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    // Call _impl so we are sure the parallel version is tested
-    // However this only supports param X_X where X >= 4
-    let executor =
-        CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_sub_parallelized_impl);
     signed_unchecked_overflowing_sub_test(param, executor);
 }
 

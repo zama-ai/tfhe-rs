@@ -33,6 +33,7 @@ mod vector_find;
 
 use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+pub(crate) use add::ComputationFlags;
 use rayon::prelude::*;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 pub use vector_find::MatchValues;
@@ -129,27 +130,20 @@ impl ServerKey {
                 .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
                 .map(|block| block.degree.get())
                 .unwrap(); // We checked for emptiness earlier
-            if highest_degree <= (self.key.message_modulus.0 - 1) * 2 {
-                let _ = self.propagate_single_carry_parallelized_low_latency(
-                    &mut ctxt.blocks_mut()[start_index..],
-                );
-            } else {
+
+            if highest_degree >= (self.key.message_modulus.0 - 1) * 2 {
                 // At least one of the blocks has more than one carry,
                 // we need to extract message and carries, then add + propagate
                 let (mut message_blocks, carry_blocks) =
                     extract_message_and_carry_blocks(&ctxt.blocks()[start_index..]);
 
-                ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
-                for (block, carry) in ctxt.blocks_mut()[start_index + 1..]
-                    .iter_mut()
-                    .zip(carry_blocks.iter())
-                {
-                    self.key.unchecked_add_assign(block, carry);
-                }
-                // We can start propagation one index later as we already did the first block
-                let _ = self.propagate_single_carry_parallelized_low_latency(
-                    &mut ctxt.blocks_mut()[start_index + 1..],
-                );
+                ctxt.blocks_mut()[start_index] = message_blocks.remove(0);
+                let mut lhs = T::from(message_blocks);
+                let rhs = T::from(carry_blocks);
+                self.add_assign_with_carry(&mut lhs, &rhs, None);
+                ctxt.blocks_mut()[start_index + 1..].clone_from_slice(lhs.blocks());
+            } else {
+                self.propagate_single_carry_parallelized(&mut ctxt.blocks_mut()[start_index..]);
             }
         } else {
             let maybe_highest_degree = ctxt

@@ -1,8 +1,5 @@
-use super::add::OutputCarry;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{
-    BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -18,13 +15,6 @@ enum BorrowGeneration {
     /// The block will propagate a borrow if ever
     /// the preceding blocks borrows from it
     Propagated = 2,
-}
-
-// see [ServerKey::generate_last_block_inner_propagation]
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub(crate) enum SignedOperation {
-    Addition,
-    Subtraction,
 }
 
 impl ServerKey {
@@ -235,56 +225,8 @@ impl ServerKey {
             }
         };
 
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            let neg = self.unchecked_neg(rhs);
-            let _carry = self.unchecked_add_assign_parallelized_low_latency(lhs, &neg);
-        } else {
-            self.unchecked_sub_assign(lhs, rhs);
-            self.full_propagate_parallelized(lhs);
-        }
-    }
-
-    pub fn sub_parallelized_work_efficient<T>(&self, ctxt_left: &T, ctxt_right: &T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let mut ct_res = ctxt_left.clone();
-        self.sub_assign_parallelized_work_efficient(&mut ct_res, ctxt_right);
-        ct_res
-    }
-
-    pub fn sub_assign_parallelized_work_efficient<T>(&self, ctxt_left: &mut T, ctxt_right: &T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ctxt_left.block_carries_are_empty(),
-            ctxt_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ctxt_left, ctxt_right),
-            (true, false) => {
-                tmp_rhs = ctxt_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ctxt_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ctxt_left);
-                (ctxt_left, ctxt_right)
-            }
-            (false, false) => {
-                tmp_rhs = ctxt_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ctxt_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ctxt_left, &tmp_rhs)
-            }
-        };
-
         let neg = self.unchecked_neg(rhs);
-        self.unchecked_add_assign_parallelized_work_efficient(lhs, &neg);
+        self.add_assign_with_carry(lhs, &neg, None);
     }
 
     /// Computes the subtraction and returns an indicator of overflow
@@ -351,7 +293,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_unsigned_overflowing_sub_parallelized(lhs, rhs)
+        self.unchecked_unsigned_overflowing_sub(lhs, rhs)
     }
 
     pub fn unchecked_unsigned_overflowing_sub_parallelized(
@@ -369,7 +311,7 @@ impl ServerKey {
         );
         // Here we have to use manual unchecked_sub on shortint blocks
         // rather than calling integer's unchecked_sub as we need each subtraction
-        // to be independent from other blocks. And we don't want to do subtraction by
+        // to be independent of other blocks. And we don't want to do subtraction by
         // adding negation
         let ct = lhs
             .blocks
@@ -454,217 +396,6 @@ impl ServerKey {
         }
     }
 
-    // This is used in signed overflow detection
-    // see [unchecked_signed_overflowing_sub_parallelized] for more context
-    //
-    // This is to share the logic between the fully parallelized and
-    // semi parallelized algorithms.
-    //
-    // - last_lhs_block: last block of the lhs used in signed subtraction
-    // - last_rhs_block: last block the rhs used in signed subtraction
-    //
-    // Returns a block to be used as one of the inputs of [resolve_signed_overflow]
-    pub(crate) fn generate_last_block_inner_propagation(
-        &self,
-        last_lhs_block: &Ciphertext,
-        last_rhs_block: &Ciphertext,
-        op: SignedOperation,
-    ) -> Ciphertext {
-        let bits_of_message = self.key.message_modulus.0.ilog2();
-        let message_bit_mask = (1 << bits_of_message) - 1;
-
-        // This lut will generate a block that contains the information
-        // of how carry propagation happens in the last block, until the last bit.
-        let last_block_inner_propagation_lut =
-            self.key
-                .generate_lookup_table_bivariate(|lhs_block, rhs_block| {
-                    let rhs_block = if op == SignedOperation::Subtraction {
-                        // subtraction is done by doing addition of negation
-                        // negation(x) = bit_flip(x) + 1
-                        // We only add the flipped value, the + 1 will be resolved by
-                        // carry propagation computation
-                        let flipped_rhs = !rhs_block;
-
-                        // We remove the last bit, its not interesting in this step
-                        (flipped_rhs << 1) & message_bit_mask
-                    } else {
-                        (rhs_block << 1) & message_bit_mask
-                    };
-
-                    let lhs_block = (lhs_block << 1) & message_bit_mask;
-
-                    // whole_result contains the result of addition with
-                    // the carry being in the first bit of carry space
-                    // the message space contains the message, but with one 0
-                    // on the right (lsb)
-                    let whole_result = lhs_block + rhs_block;
-                    let carry = whole_result >> bits_of_message;
-                    let result = (whole_result & message_bit_mask) >> 1;
-                    let propagation_result = if carry == 1 {
-                        // Addition of bits before last one generates a carry
-                        OutputCarry::Generated
-                    } else if result == ((self.key.message_modulus.0 as u64 - 1) >> 1) {
-                        // Addition of bits before last one puts the bits
-                        // in a state that makes it so that an input carry into last block
-                        // gets propagated to last bit.
-                        OutputCarry::Propagated
-                    } else {
-                        OutputCarry::None
-                    };
-
-                    // Shift the propagation result in carry part
-                    // to have less noise growth later
-                    (propagation_result as u64) << bits_of_message
-                });
-        self.key.unchecked_apply_lookup_table_bivariate(
-            last_lhs_block,
-            last_rhs_block,
-            &last_block_inner_propagation_lut,
-        )
-    }
-
-    // - last_block_inner_propagation must be the result of generate_last_block_inner_propagation
-    // - last_block_input_carry: carry that the last pair of blocks (lhs, rhs) receives as input
-    // - last_block_output_carry: carry that the last pair of blocks (lhs, rhs) output
-    //
-    // Returns whether the subtraction overflowed
-    //
-    // See [unchecked_signed_overflowing_sub_parallelized] for more context
-    pub(crate) fn resolve_signed_overflow(
-        &self,
-        mut last_block_inner_propagation: Ciphertext,
-        last_block_input_carry: &BooleanBlock,
-        last_block_output_carry: &BooleanBlock,
-    ) -> BooleanBlock {
-        let bits_of_message = self.key.message_modulus.0.ilog2();
-
-        let resolve_overflow_lut = self.key.generate_lookup_table(|x| {
-            let carry_propagation = x >> bits_of_message;
-            let output_carry_of_block = (x >> 1) & 1;
-            let input_carry_of_block = x & 1;
-
-            // Resolve the carry that the last bit actually receives as input
-            let input_carry_to_last_bit = if carry_propagation == OutputCarry::Propagated as u64 {
-                input_carry_of_block
-            } else if carry_propagation == OutputCarry::Generated as u64 {
-                1
-            } else {
-                0
-            };
-
-            u64::from(input_carry_to_last_bit != output_carry_of_block)
-        });
-
-        let x = self
-            .key
-            .unchecked_scalar_mul(last_block_output_carry.as_ref(), 2);
-        self.key
-            .unchecked_add_assign(&mut last_block_inner_propagation, &x);
-        self.key.unchecked_add_assign(
-            &mut last_block_inner_propagation,
-            last_block_input_carry.as_ref(),
-        );
-        let result = self
-            .key
-            .apply_lookup_table(&last_block_inner_propagation, &resolve_overflow_lut);
-        BooleanBlock::new_unchecked(result)
-    }
-
-    // This is the implementation of overflowing add/sub when we can use parallel carry
-    // propagation, as only a few things change between the two.
-    pub(crate) fn unchecked_signed_overflowing_add_or_sub_parallelized_impl(
-        &self,
-        lhs: &SignedRadixCiphertext,
-        rhs: &SignedRadixCiphertext,
-        signed_operation: SignedOperation,
-    ) -> (SignedRadixCiphertext, BooleanBlock) {
-        // This assert is here because this overflow computation requires these preconditions
-        // which is_eligible_for_parallel_single_carry_propagation, but it could change in the
-        // future
-        assert!(self.key.message_modulus.0 >= 4 && self.key.carry_modulus.0 >= 4);
-
-        // In Two's complement arithmetic, overflow occurs when the output carry of the
-        // last bit is not the same as the input carry of the last bit.
-        //
-        // Here we have blocks, and we cannot just compare input and output carries of the last
-        // block as its not equivalent to checking what happens on the last bit.
-        // So we have to resolve that carry propagation that happens in the last block.
-        //
-        // So the carry propagation is done in 2 steps, first we compute the carry propagation
-        // in the last block to be able at the second step, to know the actual carry that
-        // the last bit receives.
-        //
-        // These are done in parallel to other stuff, and so no additional 'latency cost'
-        // should occur.
-
-        let mut result = lhs.clone();
-
-        // Using parallel algorithms for unchecked_add/sub does not seem to bring
-        // measurable improvements
-        if signed_operation == SignedOperation::Subtraction {
-            self.unchecked_sub_assign(&mut result, rhs);
-        } else {
-            self.unchecked_add_assign(&mut result, rhs);
-        }
-
-        let ((input_carries, output_carry), last_block_inner_propagation) = rayon::join(
-            || {
-                let generates_or_propagates = self.generate_init_carry_array(result.blocks());
-                self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates)
-            },
-            || {
-                self.generate_last_block_inner_propagation(
-                    lhs.blocks.last().as_ref().unwrap(),
-                    rhs.blocks.last().as_ref().unwrap(),
-                    signed_operation,
-                )
-            },
-        );
-
-        let (_, overflowed) = rayon::join(
-            || {
-                result
-                    .blocks
-                    .par_iter_mut()
-                    .zip(input_carries.par_iter())
-                    .for_each(|(block, input_carry)| {
-                        self.key.unchecked_add_assign(block, input_carry);
-                        self.key.message_extract_assign(block);
-                    });
-            },
-            || {
-                let input_carry = input_carries
-                    .last()
-                    .cloned()
-                    .map(BooleanBlock::new_unchecked)
-                    .unwrap();
-                let output_carry = BooleanBlock::new_unchecked(output_carry);
-                self.resolve_signed_overflow(
-                    last_block_inner_propagation,
-                    &input_carry,
-                    &output_carry,
-                )
-            },
-        );
-
-        (result, overflowed)
-    }
-
-    // It is in its own function so that it can be tested, as the main entry point
-    // unchecked_signed_overflowing_sub may select non parallel version if lhs
-    // does not have enough block.
-    pub(crate) fn unchecked_signed_overflowing_sub_parallelized_impl(
-        &self,
-        lhs: &SignedRadixCiphertext,
-        rhs: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, BooleanBlock) {
-        self.unchecked_signed_overflowing_add_or_sub_parallelized_impl(
-            lhs,
-            rhs,
-            SignedOperation::Subtraction,
-        )
-    }
-
     pub fn unchecked_signed_overflowing_sub_parallelized(
         &self,
         lhs: &SignedRadixCiphertext,
@@ -679,11 +410,12 @@ impl ServerKey {
             rhs.blocks.len()
         );
 
-        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            self.unchecked_signed_overflowing_sub_parallelized_impl(lhs, rhs)
-        } else {
-            self.unchecked_signed_overflowing_sub(lhs, rhs)
-        }
+        let flipped_rhs = self.bitnot(rhs);
+        let input_carry = self.create_trivial_boolean_block(true);
+        let mut result = lhs.clone();
+        let overflowed =
+            self.overflowing_add_assign_with_carry(&mut result, &flipped_rhs, Some(&input_carry));
+        (result, overflowed)
     }
 
     pub(super) fn generate_init_borrow_array(&self, sum_ct: &RadixCiphertext) -> Vec<Ciphertext> {

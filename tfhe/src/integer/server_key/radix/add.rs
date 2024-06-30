@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::server_key::radix_parallel::sub::SignedOperation;
+use crate::integer::server_key::radix_parallel::ComputationFlags;
 use crate::integer::server_key::CheckError;
 use crate::integer::{BooleanBlock, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
@@ -267,6 +267,16 @@ impl ServerKey {
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
-        self.unchecked_signed_overflowing_add_or_sub(lhs, rhs, SignedOperation::Addition)
+        let mut result = lhs.clone();
+        let overflowed = self
+            .advanced_add_assign_with_carry_sequential(
+                &mut result.blocks,
+                &rhs.blocks,
+                None,
+                ComputationFlags::from_signedness(true),
+            )
+            .expect("overflow flat was reuested");
+
+        (result, overflowed)
     }
 }

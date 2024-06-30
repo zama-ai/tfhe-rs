@@ -16,14 +16,28 @@ impl ServerKey {
             self.full_propagate_parallelized(lhs);
         }
 
-        self.unchecked_scalar_add_assign(lhs, scalar);
-        let overflowed = self.unsigned_overflowing_propagate_addition_carry(lhs);
+        let bits_in_message = self.key.message_modulus.0.ilog2();
+        let mut scalar_blocks = BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+            .iter_as::<u8>()
+            .map(|v| self.key.create_trivial(u64::from(v)))
+            .collect::<Vec<_>>();
 
-        let num_scalar_block =
-            BlockDecomposer::with_early_stop_at_zero(scalar, self.key.message_modulus.0.ilog2())
-                .count();
+        let trivially_overflowed = match scalar_blocks.len().cmp(&lhs.blocks.len()) {
+            std::cmp::Ordering::Less => {
+                scalar_blocks.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+                false
+            }
+            std::cmp::Ordering::Equal => false,
+            std::cmp::Ordering::Greater => {
+                scalar_blocks.truncate(lhs.blocks.len());
+                true
+            }
+        };
 
-        if num_scalar_block > lhs.blocks.len() {
+        let rhs = RadixCiphertext::from(scalar_blocks);
+        let overflowed = self.overflowing_add_assign_with_carry(lhs, &rhs, None);
+
+        if trivially_overflowed {
             // Scalar has more blocks so addition counts as overflowing
             BooleanBlock::new_unchecked(self.key.create_trivial(1))
         } else {
@@ -257,7 +271,7 @@ impl ServerKey {
 
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             self.unchecked_scalar_add_assign(ct, scalar);
-            let _carry = self.propagate_single_carry_parallelized_low_latency(ct.blocks_mut());
+            self.propagate_single_carry_parallelized(ct.blocks_mut())
         } else {
             self.unchecked_scalar_add_assign(ct, scalar);
             self.full_propagate_parallelized(ct);

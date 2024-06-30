@@ -105,13 +105,18 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         };
 
-        self.unchecked_scalar_sub_assign(ct, scalar);
+        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
+            // subtraction by zero
+            return;
+        };
 
-        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
-            let _carry = self.propagate_single_carry_parallelized_low_latency(ct.blocks_mut());
-        } else {
-            self.full_propagate_parallelized(ct);
-        }
+        let blocks = decomposer
+            .take(ct.blocks().len())
+            .map(|v| self.key.create_trivial(u64::from(v)))
+            .collect::<Vec<_>>();
+        let rhs = T::from_blocks(blocks);
+
+        self.add_assign_with_carry(ct, &rhs, None);
     }
 
     pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(

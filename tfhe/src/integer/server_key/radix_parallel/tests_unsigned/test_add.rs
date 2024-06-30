@@ -19,24 +19,6 @@ create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_add_assign);
-create_parametrized_test!(
-    integer_default_add_work_efficient {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
-    }
-);
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -67,14 +49,6 @@ where
     P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
-    default_add_test(param, executor);
-}
-
-fn integer_default_add_work_efficient<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized_work_efficient);
     default_add_test(param, executor);
 }
 

@@ -88,14 +88,8 @@ impl ServerKey {
             &tmp_ctxt
         };
 
-        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
-            let mut ct = self.unchecked_neg(ct);
-            let _carry = self.propagate_single_carry_parallelized_low_latency(ct.blocks_mut());
-            ct
-        } else {
-            let mut ct = self.unchecked_neg(ct);
-            self.full_propagate_parallelized(&mut ct);
-            ct
-        }
+        let mut ct = self.unchecked_neg(ct);
+        self.full_propagate_parallelized(&mut ct);
+        ct
     }
 }
