@@ -103,8 +103,8 @@ pub(crate) fn random_integer() -> u32 {
 /// `DEFAULT_PARAMETERS`.
 /// The client is the one generating both keys.
 /// * the client key is used to encrypt and decrypt and has to be kept secret;
-/// * the server key is used to perform homomorphic operations on the server side and it is
-/// meant to be published (the client sends it to the server).
+/// * the server key is used to perform homomorphic operations on the server side and it is meant to
+///   be published (the client sends it to the server).
 ///
 /// ```rust
 /// use tfhe::boolean::gen_keys;

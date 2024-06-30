@@ -486,8 +486,8 @@ where
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    ///  `self` could hold. And the output type can be different.
+    /// - Input values are not required to span all possible values that `self` could hold. And the
+    ///   output type can be different.
     ///
     /// Returns a FheBool that encrypts `true` if the input `self`
     /// matched one of the possible inputs
@@ -553,8 +553,8 @@ where
 
     /// `match` an input value to an output value
     ///
-    /// - Input values are not required to span all possible values that
-    ///  `self` could hold. And the output type can be different.
+    /// - Input values are not required to span all possible values that `self` could hold. And the
+    ///   output type can be different.
     ///
     /// If none of the input matched the `self` then, `self` will encrypt the
     /// value given to `or_value`

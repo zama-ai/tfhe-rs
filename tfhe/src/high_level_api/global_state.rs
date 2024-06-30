@@ -109,7 +109,6 @@ where
     })
 }
 
-#[cfg(feature = "gpu")]
 #[inline]
 pub(in crate::high_level_api) fn device_of_internal_keys() -> Option<crate::Device> {
     // Should use `with_borrow` when its stabilized

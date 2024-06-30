@@ -168,7 +168,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
     out.as_mut().fill(Scalar::ZERO);
 
     /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
-    #[cfg_attr(__profiling, inline(never))]
+    #[cfg_attr(feature = "__profiling", inline(never))]
     pub fn impl_glwe_fast_keyswitch<Scalar, InputGlweCont>(
         mut out: GlweCiphertextMutView<'_, Scalar>,
         ggsw: PseudoFourierGgswCiphertextView<'_>,

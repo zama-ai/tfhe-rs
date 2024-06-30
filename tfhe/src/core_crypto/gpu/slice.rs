@@ -91,8 +91,8 @@ where
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required.
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required.
     pub unsafe fn copy_from_gpu_async(&mut self, src: &Self, streams: &CudaStreams, gpu_index: u32)
     where
         T: Numeric,
@@ -116,8 +116,8 @@ where
     ///
     /// # Safety
     ///
-    /// - [CudaStreams::synchronize] __must__ be called after the copy
-    /// as soon as synchronization is required.
+    /// - [CudaStreams::synchronize] __must__ be called after the copy as soon as synchronization is
+    ///   required.
     pub unsafe fn copy_to_cpu_async(&self, dest: &mut [T], streams: &CudaStreams, gpu_index: u32)
     where
         T: Numeric,

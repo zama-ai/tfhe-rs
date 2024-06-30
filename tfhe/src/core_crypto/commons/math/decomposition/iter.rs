@@ -388,7 +388,7 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
         ))
     }
 
-    #[cfg_attr(__profiling, inline(never))]
+    #[cfg_attr(feature = "__profiling", inline(never))]
     pub fn collect_next_term<'a>(
         &mut self,
         substack1: &'a mut PodStack,

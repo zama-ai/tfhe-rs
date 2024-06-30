@@ -3,9 +3,9 @@
 //!
 //! currently we dispatch based on the availability of
 //!  - avx+avx2(advanced vector extensions for 256 intrinsics)+fma(fused multiply add for complex
-//!  multiplication, usually comes with avx+avx2),
+//!    multiplication, usually comes with avx+avx2),
 //!  - or the availability of avx512f[+avx512dq(doubleword/quadword intrinsics for conversion of f64
-//! to/from i64. usually comes with avx512f on modern cpus)]
+//!    to/from i64. usually comes with avx512f on modern cpus)]
 //!
 //! more dispatch options may be added in the future
 

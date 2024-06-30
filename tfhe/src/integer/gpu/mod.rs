@@ -152,8 +152,8 @@ where
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array: &mut CudaVec<T>,
@@ -189,8 +189,8 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array: &mut CudaVec<T>,
@@ -276,8 +276,8 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaVec<T>,
@@ -309,8 +309,8 @@ pub unsafe fn unchecked_add_integer_radix_assign_async<T: UnsignedInteger>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaVec<T>,
@@ -395,8 +395,8 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaVec<T>,
@@ -483,14 +483,14 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -582,8 +582,8 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaVec<T>,
@@ -680,8 +680,8 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaVec<T>,
@@ -780,8 +780,8 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaVec<T>,
@@ -856,8 +856,8 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaVec<T>,
@@ -936,8 +936,8 @@ pub unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn propagate_single_carry_get_input_carries_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1021,8 +1021,8 @@ pub unsafe fn propagate_single_carry_get_input_carries_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1105,8 +1105,8 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1189,8 +1189,8 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1273,8 +1273,8 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1364,8 +1364,8 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaVec<T>,
@@ -1452,8 +1452,8 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1543,8 +1543,8 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1634,8 +1634,8 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaVec<T>,
@@ -1733,8 +1733,8 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1817,8 +1817,8 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1901,8 +1901,8 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -1990,8 +1990,8 @@ pub unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -2092,8 +2092,8 @@ pub unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async<
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaSliceMut<T>,
@@ -2177,8 +2177,8 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaSliceMut<T>,
@@ -2271,8 +2271,8 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
-/// - [CudaStreams::synchronize] __must__ be called after this function
-/// as soon as synchronization is required
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_unsigned_div_rem_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,

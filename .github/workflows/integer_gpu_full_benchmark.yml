@@ -57,7 +57,7 @@ jobs:
             gcc: 11
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-      CMAKE_VERSION: 3.29.1
+      CMAKE_VERSION: 3.29.6
     steps:
       # Mandatory on hyperstack since a bootable volume is not re-usable yet.
       - name: Install dependencies

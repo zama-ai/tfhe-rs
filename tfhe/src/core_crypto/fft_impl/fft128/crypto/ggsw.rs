@@ -355,7 +355,7 @@ pub fn add_external_product_assign_scratch<Scalar>(
     substack0.try_and(StackReq::try_all_of([fourier_scratch; 4])?)
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
     out: &mut GlweCiphertext<ContOut>,
     ggsw: &Fourier128GgswCiphertext<ContGgsw>,
