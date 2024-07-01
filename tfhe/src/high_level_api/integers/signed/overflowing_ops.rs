@@ -36,7 +36,7 @@ where
     ///     overflowed.decrypt(&client_key),
     ///     i16::MAX.overflowing_add(1i16).1
     /// );
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_add(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
@@ -85,7 +85,7 @@ where
     ///     overflowed.decrypt(&client_key),
     ///     i16::MAX.overflowing_add(1i16).1
     /// );
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_add(self, other: &Self) -> (Self::Output, FheBool) {
         <&Self as OverflowingAdd<&Self>>::overflowing_add(&self, other)
@@ -122,7 +122,7 @@ where
     ///     overflowed.decrypt(&client_key),
     ///     i16::MAX.overflowing_add(1i16).1
     /// );
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_add(self, other: Clear) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
@@ -170,7 +170,7 @@ where
     ///     overflowed.decrypt(&client_key),
     ///     i16::MAX.overflowing_add(1i16).1
     /// );
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_add(self, other: Clear) -> (Self::Output, FheBool) {
         (&self).overflowing_add(other)
@@ -209,7 +209,7 @@ where
     ///     overflowed.decrypt(&client_key),
     ///     i16::MAX.overflowing_add(1i16).1
     /// );
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_add(self, other: &FheInt<Id>) -> (Self::Output, FheBool) {
         other.overflowing_add(self)
@@ -244,7 +244,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflow);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_sub(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
@@ -291,7 +291,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflow);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_sub(self, other: &Self) -> (Self::Output, FheBool) {
         <&Self as OverflowingSub<&Self>>::overflowing_sub(&self, other)
@@ -326,7 +326,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflow);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_sub(self, other: Clear) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
@@ -372,7 +372,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflow);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_sub(self, other: Clear) -> (Self::Output, FheBool) {
         <&Self as OverflowingSub<Clear>>::overflowing_sub(&self, other)
@@ -407,7 +407,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflowed);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_mul(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
@@ -454,7 +454,7 @@ where
     /// let result: i16 = result.decrypt(&client_key);
     /// assert_eq!(result, expected_result);
     /// assert_eq!(overflowed.decrypt(&client_key), expected_overflowed);
-    /// assert_eq!(overflowed.decrypt(&client_key), true);
+    /// assert!(overflowed.decrypt(&client_key));
     /// ```
     fn overflowing_mul(self, other: &Self) -> (Self::Output, FheBool) {
         <&Self as OverflowingMul<&Self>>::overflowing_mul(&self, other)

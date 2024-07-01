@@ -39,6 +39,11 @@ jobs:
         run: |
           make pcc
 
+      - name: Run doctest clippy lints check
+        if: runner.os == 'Linux'
+        run: |
+          make rustdoc_clippy
+
       - name: Build concrete-csprng
         run: |
           make build_concrete_csprng

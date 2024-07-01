@@ -72,8 +72,7 @@ impl ServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.is_crt_scalar_mul_possible(&mut ctxt_1, clear_2)
-    ///     .unwrap();
+    /// sks.is_crt_scalar_mul_possible(&ctxt_1, clear_2).unwrap();
     /// ```
     pub fn is_crt_scalar_mul_possible(
         &self,

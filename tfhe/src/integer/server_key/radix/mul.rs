@@ -202,7 +202,7 @@ impl ServerKey {
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.unchecked_mul(&mut ctxt_1, &ctxt_2);
+    /// let ct_res = sks.unchecked_mul(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct_res);

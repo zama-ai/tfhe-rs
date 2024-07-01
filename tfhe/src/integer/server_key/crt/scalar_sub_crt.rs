@@ -62,8 +62,7 @@ impl ServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.is_crt_scalar_sub_possible(&mut ctxt_1, clear_2)
-    ///     .unwrap();
+    /// sks.is_crt_scalar_sub_possible(&ctxt_1, clear_2).unwrap();
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
@@ -103,7 +102,7 @@ impl ServerKey {
     ///
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// let ct_res = sks.checked_crt_scalar_sub(&mut ctxt_1, clear_2).unwrap();
+    /// let ct_res = sks.checked_crt_scalar_sub(&ctxt_1, clear_2).unwrap();
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);

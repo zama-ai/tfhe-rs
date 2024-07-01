@@ -36,7 +36,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
-    /// let ct_res = sks.neg(&mut ct);
+    /// let ct_res = sks.neg(&ct);
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
@@ -49,7 +49,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
-    /// let ct_res = sks.neg(&mut ct);
+    /// let ct_res = sks.neg(&ct);
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
@@ -263,7 +263,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Check if we can perform a negation
-    /// let can_be_negated = sks.is_neg_possible(ct.noise_degree()).unwrap();
+    /// sks.is_neg_possible(ct.noise_degree()).unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -271,7 +271,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Check if we can perform a negation
-    /// let can_be_negated = sks.is_neg_possible(ct.noise_degree()).unwrap();
+    /// sks.is_neg_possible(ct.noise_degree()).unwrap();
     /// ```
     pub fn is_neg_possible(&self, ct: CiphertextNoiseDegree) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p

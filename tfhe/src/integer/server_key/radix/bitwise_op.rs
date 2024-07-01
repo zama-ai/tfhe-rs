@@ -74,8 +74,7 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// let res = sks
-    ///     .is_functional_bivariate_pbs_possible(&ct1, &ct2)
+    /// sks.is_functional_bivariate_pbs_possible(&ct1, &ct2)
     ///     .unwrap();
     /// ```
     pub fn is_functional_bivariate_pbs_possible<T>(
@@ -628,7 +627,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec_result = cks.decrypt_bool(&ct_is_in_range);
-    /// assert_eq!(dec_result, msg >= 10 && msg <= 15);
+    /// assert_eq!(dec_result, (10..=15).contains(&msg));
     /// ```
     pub fn boolean_bitand(&self, lhs: &BooleanBlock, rhs: &BooleanBlock) -> BooleanBlock {
         let result = self.key.bitand(&lhs.0, &rhs.0);

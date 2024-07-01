@@ -132,7 +132,7 @@ fn main() {
     // We use the client key to decrypt the output of the circuit:
     let output: u64 = client_key.decrypt(&ct_1);
     // The carry buffer has been overflowed, the result is not correct
-    assert_ne!(output, ((msg1 * scalar as u64 - msg2) + msg3) % modulus as u64);
+    assert_ne!(output, ((msg1 * scalar - msg2) + msg3) % modulus);
 }
 ```
 
@@ -171,7 +171,7 @@ fn main() {
     // We use the client key to decrypt the output of the circuit:
     // Only the scalar multiplication could be done
     let output: u64 = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar) - msg2) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar) - msg2) % modulus);
 }
 ```
 
@@ -208,7 +208,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output: u64 = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) + msg3) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar - msg2) + msg3) % modulus);
 }
 ```
 
@@ -249,12 +249,12 @@ fn main() {
 
     server_key.scalar_mul_assign_parallelized(&mut ct_1, scalar);
 
-    server_key.sub_assign_parallelized(&mut ct_1, &mut ct_2);
+    server_key.sub_assign_parallelized(&mut ct_1, &ct_2);
 
-    server_key.add_assign_parallelized(&mut ct_1, &mut ct_3);
+    server_key.add_assign_parallelized(&mut ct_1, &ct_3);
 
     // We use the client key to decrypt the output of the circuit:
     let output: u64 = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) + msg3) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar - msg2) + msg3) % modulus);
 }
 ```

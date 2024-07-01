@@ -204,6 +204,6 @@ fn main() {
     let output = client_key.decrypt(&output);
 
 // And check that the result is the expected one:
-    assert_eq!(output, true);
+    assert!(output);
 }
 ```

@@ -269,8 +269,7 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// let res = sks
-    ///     .is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    /// sks.is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
     ///     .unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -280,8 +279,7 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform a multiplication
-    /// let res = sks
-    ///     .is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
+    /// sks.is_mul_possible(ct_1.noise_degree(), ct_2.noise_degree())
     ///     .unwrap();
     /// ```
     pub fn is_mul_possible(
@@ -503,7 +501,7 @@ impl ServerKey {
     /// let mut ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct_1, &mut ct_2);
+    /// let ct_res = sks.unchecked_mul_lsb_small_carry(&ct_1, &ct_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -516,7 +514,7 @@ impl ServerKey {
     /// let mut ct_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct_1, &mut ct_2);
+    /// let ct_res = sks.unchecked_mul_lsb_small_carry(&ct_1, &ct_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -623,9 +621,7 @@ impl ServerKey {
     /// let mut ct_2 = cks.encrypt(msg_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks
-    ///     .checked_mul_lsb_with_small_carry(&mut ct_1, &mut ct_2)
-    ///     .unwrap();
+    /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
@@ -638,9 +634,7 @@ impl ServerKey {
     /// let mut ct_2 = cks.encrypt(msg_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks
-    ///     .checked_mul_lsb_with_small_carry(&mut ct_1, &mut ct_2)
-    ///     .unwrap();
+    /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;

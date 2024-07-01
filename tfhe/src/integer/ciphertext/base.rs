@@ -83,13 +83,13 @@ impl RadixCiphertext {
     /// assert_eq!(Ok(msg), res);
     ///
     /// let res = non_trivial_ct.decrypt_trivial::<u8>();
-    /// matches!(res, Err(_));
+    /// assert!(res.is_err());
     ///
     /// // Doing operations that mixes trivial and non trivial
     /// // will always return a non trivial
     /// let ct_res = sks.add_parallelized(&trivial_ct, &non_trivial_ct);
     /// let res = ct_res.decrypt_trivial::<u8>();
-    /// matches!(res, Err(_));
+    /// assert!(res.is_err());
     ///
     /// // Doing operations using only trivial ciphertexts
     /// // will return a trivial
@@ -184,13 +184,13 @@ impl SignedRadixCiphertext {
     /// assert_eq!(Ok(msg), res);
     ///
     /// let res = non_trivial_ct.decrypt_trivial::<i8>();
-    /// matches!(res, Err(_));
+    /// assert!(res.is_err());
     ///
     /// // Doing operations that mixes trivial and non trivial
     /// // will always return a non trivial
     /// let ct_res = sks.add_parallelized(&trivial_ct, &non_trivial_ct);
     /// let res = ct_res.decrypt_trivial::<i8>();
-    /// matches!(res, Err(_));
+    /// assert!(res.is_err());
     ///
     /// // Doing operations using only trivial ciphertexts
     /// // will return a trivial

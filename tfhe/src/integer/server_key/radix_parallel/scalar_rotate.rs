@@ -35,7 +35,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn smart_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
@@ -76,7 +76,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn smart_scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
@@ -125,7 +125,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn scalar_rotate_right_parallelized<T, Scalar>(&self, ct_right: &T, n: Scalar) -> T
     where
@@ -163,7 +163,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
@@ -212,7 +212,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn unchecked_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
@@ -259,7 +259,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_right(n) as u64, dec);
     /// ```
     pub fn unchecked_scalar_rotate_right_assign_parallelized<T, Scalar>(
         &self,
@@ -366,7 +366,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn smart_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
@@ -407,7 +407,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn smart_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
@@ -456,7 +456,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn scalar_rotate_left_parallelized<T, Scalar>(&self, ct_left: &T, n: Scalar) -> T
     where
@@ -494,7 +494,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
@@ -543,7 +543,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn unchecked_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
@@ -590,7 +590,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
+    /// assert_eq!(msg.rotate_left(n) as u64, dec);
     /// ```
     pub fn unchecked_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where

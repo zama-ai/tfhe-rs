@@ -91,7 +91,7 @@ fn main() {
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_6);
-    assert_eq!(output, true);
+    assert!(output);
 }
 ```
 
