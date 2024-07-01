@@ -445,6 +445,26 @@ impl<T: UnversionizeVec + Clone> Unversionize for AVec<T> {
 
 impl<T: NotVersioned + Clone + Serialize + DeserializeOwned> NotVersioned for AVec<T> {}
 
+impl Versionize for () {
+    type Versioned<'vers> = ();
+
+    fn versionize(&self) -> Self::Versioned<'_> {}
+}
+
+impl VersionizeOwned for () {
+    type VersionedOwned = ();
+
+    fn versionize_owned(self) -> Self::VersionedOwned {}
+}
+
+impl Unversionize for () {
+    fn unversionize(_versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(())
+    }
+}
+
+impl NotVersioned for () {}
+
 impl<T: Versionize, U: Versionize> Versionize for (T, U) {
     type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>) where T: 'vers, U: 'vers;
 
@@ -468,3 +488,39 @@ impl<T: Unversionize, U: Unversionize> Unversionize for (T, U) {
 }
 
 impl<T: NotVersioned, U: NotVersioned> NotVersioned for (T, U) {}
+
+impl<T: Versionize, U: Versionize, V: Versionize> Versionize for (T, U, V) {
+    type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>, V::Versioned<'vers>) where T: 'vers, U: 'vers, V: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        (
+            self.0.versionize(),
+            self.1.versionize(),
+            self.2.versionize(),
+        )
+    }
+}
+
+impl<T: VersionizeOwned, U: VersionizeOwned, V: VersionizeOwned> VersionizeOwned for (T, U, V) {
+    type VersionedOwned = (T::VersionedOwned, U::VersionedOwned, V::VersionedOwned);
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        (
+            self.0.versionize_owned(),
+            self.1.versionize_owned(),
+            self.2.versionize_owned(),
+        )
+    }
+}
+
+impl<T: Unversionize, U: Unversionize, V: Unversionize> Unversionize for (T, U, V) {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok((
+            T::unversionize(versioned.0)?,
+            U::unversionize(versioned.1)?,
+            V::unversionize(versioned.2)?,
+        ))
+    }
+}
+
+impl<T: NotVersioned, U: NotVersioned, V: NotVersioned> NotVersioned for (T, U, V) {}
