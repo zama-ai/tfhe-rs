@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod oprf;
 #[path = "../utilities.rs"]
 mod utilities;
 
@@ -2512,6 +2513,8 @@ define_server_key_bench_unary_fn!(
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
+criterion_group!(oprf, oprf::unsigned_oprf);
+
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
@@ -2535,7 +2538,8 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
-            cast_ops()
+            cast_ops();
+            oprf()
         }
         "smart" => {
             smart_ops();
@@ -2570,7 +2574,8 @@ fn main() {
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
-            cast_ops()
+            cast_ops();
+            oprf()
         }
     };
 
