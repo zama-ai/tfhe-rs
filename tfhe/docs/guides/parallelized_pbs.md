@@ -18,7 +18,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
            tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-           None,
         )
         .build();
         
@@ -52,7 +51,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
            tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.with_deterministic_execution(),
-           None,
         )
         .build();
         

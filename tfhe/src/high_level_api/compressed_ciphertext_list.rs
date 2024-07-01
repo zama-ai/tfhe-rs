@@ -163,7 +163,6 @@ mod tests {
     fn test_compressed_ct_list() {
         let config = crate::ConfigBuilder::with_custom_parameters(
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            None,
         )
         .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
         .build();

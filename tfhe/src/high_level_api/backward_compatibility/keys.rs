@@ -59,7 +59,6 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV0 {
     fn upgrade(self) -> Result<IntegerClientKey, String> {
         Ok(IntegerClientKey {
             key: self.key,
-            wopbs_block_parameters: self.wopbs_block_parameters,
             dedicated_compact_private_key: None,
             compression_key: None,
         })
@@ -83,7 +82,6 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV0 {
     fn upgrade(self) -> Result<IntegerServerKey, String> {
         Ok(IntegerServerKey {
             key: self.key,
-            wopbs_key: self.wopbs_key,
             cpk_key_switching_key_material: None,
             compression_key: None,
             decompression_key: None,

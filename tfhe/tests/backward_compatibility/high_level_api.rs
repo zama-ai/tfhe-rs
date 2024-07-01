@@ -267,7 +267,7 @@ pub fn test_hl_clientkey(
     let test_params = load_hl_params(&test.parameters);
 
     let key: ClientKey = load_and_unversionize(dir, test, format)?;
-    let (integer_key, _, _, _) = key.into_raw_parts();
+    let (integer_key, _, _) = key.into_raw_parts();
     let key_params = integer_key.parameters();
 
     if test_params != key_params {

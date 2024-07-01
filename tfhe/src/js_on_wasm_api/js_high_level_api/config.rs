@@ -29,7 +29,7 @@ impl TfheConfigBuilder {
         self,
         block_parameters: &crate::js_on_wasm_api::shortint::ShortintParameters,
     ) -> Self {
-        Self(self.0.use_custom_parameters(block_parameters.0, None))
+        Self(self.0.use_custom_parameters(block_parameters.0))
     }
 
     #[wasm_bindgen]
