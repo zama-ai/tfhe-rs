@@ -16,6 +16,10 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
 
 jobs:
   setup-instance:
@@ -86,6 +90,7 @@ jobs:
           } >> "${GITHUB_ENV}"
 
       - name: Run unsigned integer tests
+        if: github.event_name != 'pull_request' || contains(github.event.label.name, 'approved')
         run: |
           make test_unsigned_integer_gpu_ci
 
