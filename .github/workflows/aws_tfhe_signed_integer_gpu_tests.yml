@@ -23,7 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
+      pr-labels: ${{ steps.current-labels.outputs.labels }}
     steps:
+      # This action needs to run on an GitHub hosted runner since it relies on `gh` cli.
+      - name: Get current labels
+        id: current-labels
+        if: github.event_name == 'pull_request'
+        uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576
+
       - name: Start instance
         id: start-instance
         uses: zama-ai/slab-github-runner@1dced74825027fe3d481392163ed8fc56813fb5d
@@ -86,6 +93,8 @@ jobs:
           } >> "${GITHUB_ENV}"
 
       - name: Run signed integer tests
+        if: github.event_name != 'pull_request' ||
+          contains(fromJSON(needs.setup-instance.outputs.pr-labels), 'approved')
         run: |
           make test_signed_integer_gpu_ci
 
