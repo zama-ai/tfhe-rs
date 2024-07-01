@@ -12,6 +12,19 @@ pub use concrete_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
 pub use concrete_csprng::seeders::UnixSeeder;
 
+/// We enable manual seeding for reproductible Hw simulation
+#[cfg(feature = "seeder-manual")]
+thread_local! {
+    static MANUAL_SEED: std::cell::RefCell<Option<u128>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(feature = "seeder-manual")]
+pub mod seeder_manual {
+    pub fn set_manual_seed(seed: Option<u128>) {
+        super::MANUAL_SEED.replace(seed);
+    }
+}
+
 #[cfg(feature = "__wasm_api")]
 mod wasm_seeder {
     use crate::core_crypto::commons::math::random::{Seed, Seeder};
@@ -93,8 +106,27 @@ pub fn new_seeder() -> Box<dyn Seeder> {
 
         #[cfg(feature = "seeder_unix")]
         {
-            if seeder.is_none() && UnixSeeder::is_available() {
-                seeder = Some(Box::new(UnixSeeder::new(0)));
+            #[cfg(feature = "seeder-manual")]
+            {
+                MANUAL_SEED.with_borrow(|inner| {
+                    seeder = if let Some(seed) = inner {
+                        Some(Box::new(
+                            crate::core_crypto::commons::generators::DeterministicSeeder::<
+                                crate::core_crypto::prelude::ActivatedRandomGenerator,
+                            >::new(concrete_csprng::seeders::Seed(
+                                *seed,
+                            )),
+                        ))
+                    } else {
+                        Some(Box::new(UnixSeeder::new(0)))
+                    };
+                })
+            }
+            #[cfg(not(feature = "seeder-manual"))]
+            {
+                if seeder.is_none() && UnixSeeder::is_available() {
+                    seeder = Some(Box::new(UnixSeeder::new(0)));
+                }
             }
         }
 
