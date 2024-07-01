@@ -16,10 +16,12 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+      types: [ labeled ]
 
 jobs:
   setup-instance:
     name: Setup instance (cuda-h100-tests)
+    if: github.event_name != 'pull_request' || contains(github.event.label.name, 'approved')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -101,9 +103,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
-      - name: Run core crypto, integer and internal CUDA backend tests
+      - name: Run core crypto and internal CUDA backend tests
         run: |
-          make test_gpu
+          make test_core_crypto_gpu
+          make test_cuda_backend
+
+      - name: Run integer tests
+        run: |
+          make test_integer_gpu_ci
+
+      - name: Run integer multi-bit tests
+        run: |
+          make test_integer_multi_bit_gpu_ci
 
       - name: Run user docs tests
         run: |
