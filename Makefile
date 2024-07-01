@@ -895,16 +895,12 @@ bench_shortint: install_rs_check_toolchain
 	--bench shortint-bench \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
-.PHONY: bench_oprf # Run benchmarks for shortint
-bench_oprf: install_rs_check_toolchain
+.PHONY: bench_shortint_oprf # Run benchmarks for shortint
+bench_shortint_oprf: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-shortint-bench \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
-	RUSTFLAGS="$(RUSTFLAGS)" \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench oprf-integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
 .PHONY: bench_shortint_multi_bit # Run benchmarks for shortint using multi-bit parameters
 bench_shortint_multi_bit: install_rs_check_toolchain
