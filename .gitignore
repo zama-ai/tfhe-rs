@@ -7,6 +7,7 @@ target/
 # In case of symlinked keys
 /keys
 
+**/*.rmeta
 **/Cargo.lock
 **/*.bin
 

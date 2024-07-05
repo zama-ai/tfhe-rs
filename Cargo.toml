@@ -8,10 +8,13 @@ members = [
     "concrete-csprng",
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
-    "utils/tfhe-versionable-derive"
+    "utils/tfhe-versionable-derive",
 ]
+
 exclude = [
-    "tfhe/backward_compatibility_tests"
+    "tfhe/backward_compatibility_tests",
+    "utils/cargo-tfhe-lints-inner",
+    "utils/cargo-tfhe-lints"
 ]
 
 [profile.bench]
