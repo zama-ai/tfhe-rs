@@ -1,0 +1,10 @@
+[package]
+name = "cargo-tfhe-lints-inner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustc-tools = "0.78"
+
+[package.metadata.rust-analyzer]
+rustc_private=true
