@@ -38,11 +38,13 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
 // threads in y are used to paralelize the lwe_dimension_in loop.
 // shared memory is used to store intermediate results of the reduction.
 template <typename Torus>
-__global__ void keyswitch(Torus *lwe_array_out, Torus *lwe_output_indexes,
-                          Torus *lwe_array_in, Torus *lwe_input_indexes,
-                          Torus *ksk, uint32_t lwe_dimension_in,
-                          uint32_t lwe_dimension_out, uint32_t base_log,
-                          uint32_t level_count, int gpu_offset) {
+__global__ void
+keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+          const Torus *__restrict__ lwe_array_in,
+          const Torus *__restrict__ lwe_input_indexes,
+          const Torus *__restrict__ ksk, uint32_t lwe_dimension_in,
+          uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
+          int gpu_offset) {
   const int tid = threadIdx.x + blockIdx.x * blockDim.x;
   const int shmem_index = threadIdx.x + threadIdx.y * blockDim.x;
 

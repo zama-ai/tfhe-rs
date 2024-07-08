@@ -18,7 +18,7 @@
 #include <vector>
 
 template <typename Torus, class params>
-__device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
+__device__ Torus calculates_monomial_degree(const Torus *lwe_array_group,
                                             uint32_t ggsw_idx,
                                             uint32_t grouping_factor) {
   Torus x = 0;
@@ -34,12 +34,14 @@ __device__ Torus calculates_monomial_degree(Torus *lwe_array_group,
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle(
-    Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *keybundle_array,
-    Torus *bootstrapping_key, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
-    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-    uint32_t keybundle_size_per_input, int8_t *device_mem,
-    uint64_t device_memory_size_per_block, uint32_t gpu_offset) {
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t lwe_offset,
+    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+    int8_t *device_mem, uint64_t device_memory_size_per_block,
+    uint32_t gpu_offset) {
 
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory = sharedmem;
@@ -63,7 +65,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     //
     Torus *accumulator = (Torus *)selected_memory;
 
-    Torus *block_lwe_array_in =
+    const Torus *block_lwe_array_in =
         &lwe_array_in[lwe_input_indexes[input_idx + gpu_offset] *
                       (lwe_dimension + 1)];
 
@@ -79,10 +81,10 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // ////////////////////////////////
     // Keygen guarantees the first term is a constant term of the polynomial, no
     // polynomial multiplication required
-    Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
         bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
         grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
-    Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+    const Torus *bsk_poly = bsk_slice + poly_id * params::degree;
 
     copy_polynomial<Torus, params::opt, params::degree / params::opt>(
         bsk_poly, accumulator);
@@ -90,13 +92,13 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Accumulate the other terms
     for (int g = 1; g < (1 << grouping_factor); g++) {
 
-      Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+      const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
           bootstrapping_key, g, rev_lwe_iteration, glwe_id, level_id,
           grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
-      Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+      const Torus *bsk_poly = bsk_slice + poly_id * params::degree;
 
       // Calculates the monomial degree
-      Torus *lwe_array_group =
+      const Torus *lwe_array_group =
           block_lwe_array_in + rev_lwe_iteration * grouping_factor;
       uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
           lwe_array_group, g, grouping_factor);
@@ -148,8 +150,10 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
-    Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *lut_vector,
-    Torus *lut_vector_indexes, Torus *global_accumulator,
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes,
+    const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lut_vector_indexes, Torus *global_accumulator,
     double2 *global_accumulator_fft, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_iteration, int8_t *device_mem,
@@ -179,12 +183,13 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
   if constexpr (SMD == PARTIALSM)
     accumulator_fft = (double2 *)sharedmem;
 
-  Torus *block_lwe_array_in =
+  const Torus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
                     (lwe_dimension + 1)];
 
-  Torus *block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.z] *
-                                        params::degree * (glwe_dimension + 1)];
+  const Torus *block_lut_vector =
+      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+                  (glwe_dimension + 1)];
 
   Torus *global_slice =
       global_accumulator +
@@ -243,11 +248,12 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_two(
-    Torus *lwe_array_out, Torus *lwe_output_indexes, double2 *keybundle_array,
-    Torus *global_accumulator, double2 *global_accumulator_fft,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t grouping_factor, uint32_t iteration,
-    uint32_t lwe_offset, uint32_t lwe_chunk_size, int8_t *device_mem,
+    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+    const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
+    double2 *global_accumulator_fft, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t grouping_factor, uint32_t iteration, uint32_t lwe_offset,
+    uint32_t lwe_chunk_size, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t gpu_offset) {
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -268,11 +274,11 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_two(
   double2 *accumulator_fft = (double2 *)selected_memory;
 
   //
-  double2 *keybundle = keybundle_array +
-                       // select the input
-                       blockIdx.x * lwe_chunk_size * level_count *
-                           (glwe_dimension + 1) * (glwe_dimension + 1) *
-                           (polynomial_size / 2);
+  const double2 *keybundle = keybundle_array +
+                             // select the input
+                             blockIdx.x * lwe_chunk_size * level_count *
+                                 (glwe_dimension + 1) * (glwe_dimension + 1) *
+                                 (polynomial_size / 2);
 
   double2 *global_accumulator_fft_input =
       global_accumulator_fft +

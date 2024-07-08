@@ -22,11 +22,11 @@ get_join_buffer_element(int level_id, int glwe_id, G &group,
                         uint32_t glwe_dimension, bool support_dsm);
 
 template <typename Torus, typename G, class params>
-__device__ void mul_ggsw_glwe(Torus *accumulator, double2 *fft,
-                              double2 *join_buffer, double2 *bootstrapping_key,
-                              int polynomial_size, uint32_t glwe_dimension,
-                              int level_count, int iteration, G &group,
-                              bool support_dsm = false) {
+__device__ void
+mul_ggsw_glwe(Torus *accumulator, double2 *fft, double2 *join_buffer,
+              const double2 *__restrict__ bootstrapping_key,
+              int polynomial_size, uint32_t glwe_dimension, int level_count,
+              int iteration, G &group, bool support_dsm = false) {
 
   // Switch to the FFT space
   NSMFFT_direct<HalfDegree<params>>(fft);
