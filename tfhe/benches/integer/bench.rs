@@ -1387,7 +1387,7 @@ mod cuda {
     }
 
     fn cuda_default_if_then_else(c: &mut Criterion) {
-        let bench_name = "integer::cuda::if_then_else";
+        let bench_name = "integer::cuda::unsigned::if_then_else";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
@@ -1460,7 +1460,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_unary_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        concat!("integer::cuda::unsigned::", stringify!($server_key_method)),
                         stringify!($name),
                         |server_key, lhs, stream| {
                             server_key.$server_key_method(lhs, stream);
@@ -1476,7 +1476,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        concat!("integer::cuda::unsigned::", stringify!($server_key_method)),
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
@@ -1493,7 +1493,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_scalar_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        concat!("integer::cuda::unsigned::", stringify!($server_key_method)),
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
@@ -2161,7 +2161,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     cuda_bench_server_key_cast_function(
                         c,
-                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        concat!("integer::cuda::unsigned::", stringify!($server_key_method)),
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
