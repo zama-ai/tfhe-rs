@@ -36,6 +36,18 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
 }
 
 // We need these lines so the compiler knows how to specialize these functions
+template __device__ const uint64_t *
+get_ith_mask_kth_block(const uint64_t *ptr, int i, int k, int level,
+                       uint32_t polynomial_size, int glwe_dimension,
+                       uint32_t level_count);
+template __device__ const uint32_t *
+get_ith_mask_kth_block(const uint32_t *ptr, int i, int k, int level,
+                       uint32_t polynomial_size, int glwe_dimension,
+                       uint32_t level_count);
+template __device__ const double2 *
+get_ith_mask_kth_block(const double2 *ptr, int i, int k, int level,
+                       uint32_t polynomial_size, int glwe_dimension,
+                       uint32_t level_count);
 template __device__ uint64_t *get_ith_mask_kth_block(uint64_t *ptr, int i,
                                                      int k, int level,
                                                      uint32_t polynomial_size,
@@ -51,6 +63,7 @@ template __device__ double2 *get_ith_mask_kth_block(double2 *ptr, int i, int k,
                                                     uint32_t polynomial_size,
                                                     int glwe_dimension,
                                                     uint32_t level_count);
+
 template __device__ uint64_t *get_ith_body_kth_block(uint64_t *ptr, int i,
                                                      int k, int level,
                                                      uint32_t polynomial_size,
@@ -67,10 +80,12 @@ template __device__ double2 *get_ith_body_kth_block(double2 *ptr, int i, int k,
                                                     int glwe_dimension,
                                                     uint32_t level_count);
 
-template __device__ uint64_t *get_multi_bit_ith_lwe_gth_group_kth_block(
-    uint64_t *ptr, int g, int i, int k, int level, uint32_t grouping_factor,
-    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count);
+template __device__ const uint64_t *get_multi_bit_ith_lwe_gth_group_kth_block(
+    const uint64_t *ptr, int g, int i, int k, int level,
+    uint32_t grouping_factor, uint32_t polynomial_size, uint32_t glwe_dimension,
+    uint32_t level_count);
 
-template __device__ double2 *get_multi_bit_ith_lwe_gth_group_kth_block(
-    double2 *ptr, int g, int i, int k, int level, uint32_t grouping_factor,
-    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count);
+template __device__ const double2 *get_multi_bit_ith_lwe_gth_group_kth_block(
+    const double2 *ptr, int g, int i, int k, int level,
+    uint32_t grouping_factor, uint32_t polynomial_size, uint32_t glwe_dimension,
+    uint32_t level_count);

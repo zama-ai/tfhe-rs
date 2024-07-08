@@ -18,6 +18,18 @@ __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
 
 ////////////////////////////////////////////////
 template <typename T>
+__device__ const T *get_ith_mask_kth_block(const T *ptr, int i, int k,
+                                           int level, uint32_t polynomial_size,
+                                           int glwe_dimension,
+                                           uint32_t level_count) {
+  return &ptr[get_start_ith_ggsw(i, polynomial_size, glwe_dimension,
+                                 level_count) +
+              level * polynomial_size / 2 * (glwe_dimension + 1) *
+                  (glwe_dimension + 1) +
+              k * polynomial_size / 2 * (glwe_dimension + 1)];
+}
+
+template <typename T>
 __device__ T *get_ith_mask_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
                                      int glwe_dimension, uint32_t level_count) {
@@ -27,7 +39,6 @@ __device__ T *get_ith_mask_kth_block(T *ptr, int i, int k, int level,
                   (glwe_dimension + 1) +
               k * polynomial_size / 2 * (glwe_dimension + 1)];
 }
-
 template <typename T>
 __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
@@ -50,14 +61,16 @@ __device__ inline int get_start_ith_lwe(uint32_t i, uint32_t grouping_factor,
 }
 
 template <typename T>
-__device__ T *get_multi_bit_ith_lwe_gth_group_kth_block(
-    T *ptr, int g, int i, int k, int level, uint32_t grouping_factor,
+__device__ const T *get_multi_bit_ith_lwe_gth_group_kth_block(
+    const T *ptr, int g, int i, int k, int level, uint32_t grouping_factor,
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count) {
-  T *ptr_group = ptr + get_start_ith_lwe(i, grouping_factor, polynomial_size,
-                                         glwe_dimension, level_count);
+  const T *ptr_group =
+      ptr + get_start_ith_lwe(i, grouping_factor, polynomial_size,
+                              glwe_dimension, level_count);
   return get_ith_mask_kth_block(ptr_group, g, k, level, polynomial_size,
                                 glwe_dimension, level_count);
 }
+
 ////////////////////////////////////////////////
 template <typename T, typename ST>
 void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,

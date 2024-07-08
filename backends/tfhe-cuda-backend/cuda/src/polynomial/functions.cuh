@@ -11,7 +11,8 @@
  *  function compresses decomposed buffer into half size complex buffer for fft
  */
 template <class params>
-__device__ void real_to_complex_compressed(int16_t *src, double2 *dst) {
+__device__ void real_to_complex_compressed(const int16_t *__restrict__ src,
+                                           double2 *dst) {
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
@@ -22,7 +23,7 @@ __device__ void real_to_complex_compressed(int16_t *src, double2 *dst) {
 }
 
 template <typename T, int elems_per_thread, int block_size>
-__device__ void copy_polynomial(T *source, T *dst) {
+__device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < elems_per_thread; i++) {
@@ -41,13 +42,14 @@ __device__ void copy_polynomial(T *source, T *dst) {
  *  By default, it works on a single polynomial.
  */
 template <typename T, int elems_per_thread, int block_size>
-__device__ void divide_by_monomial_negacyclic_inplace(T *accumulator, T *input,
-                                                      uint32_t j, bool zeroAcc,
-                                                      uint32_t num_poly = 1) {
+__device__ void
+divide_by_monomial_negacyclic_inplace(T *accumulator,
+                                      const T *__restrict__ input, uint32_t j,
+                                      bool zeroAcc, uint32_t num_poly = 1) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
     T *accumulator_slice = (T *)accumulator + (ptrdiff_t)(z * degree);
-    T *input_slice = (T *)input + (ptrdiff_t)(z * degree);
+    const T *input_slice = (T *)input + (ptrdiff_t)(z * degree);
 
     int tid = threadIdx.x;
     if (zeroAcc) {

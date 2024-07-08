@@ -39,9 +39,8 @@ __device__ void polynomial_product_in_fourier_domain(T *result, T *first,
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
 template <class params, typename T>
-__device__ void
-polynomial_product_accumulate_in_fourier_domain(T *result, T *first, T *second,
-                                                bool init_accumulator = false) {
+__device__ void polynomial_product_accumulate_in_fourier_domain(
+    T *result, T *first, const T *second, bool init_accumulator = false) {
   int tid = threadIdx.x;
   if (init_accumulator) {
     for (int i = 0; i < params::opt / 2; i++) {
@@ -60,7 +59,7 @@ polynomial_product_accumulate_in_fourier_domain(T *result, T *first, T *second,
 // that with the outcome of first * second
 template <typename T, class params>
 __device__ void
-polynomial_product_accumulate_by_monomial(T *result, T *poly,
+polynomial_product_accumulate_by_monomial(T *result, const T *__restrict__ poly,
                                           uint64_t monomial_degree,
                                           bool init_accumulator = false) {
   // monomial_degree \in [0, 2 * params::degree)

@@ -18,11 +18,14 @@
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_programmable_bootstrap_step_one(
-    Torus *lut_vector, Torus *lut_vector_indexes, Torus *lwe_array_in,
-    Torus *lwe_input_indexes, double2 *bootstrapping_key,
-    Torus *global_accumulator, double2 *global_accumulator_fft,
-    uint32_t lwe_iteration, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count, int8_t *device_mem,
+    const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lut_vector_indexes,
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes,
+    const double2 *__restrict__ bootstrapping_key, Torus *global_accumulator,
+    double2 *global_accumulator_fft, uint32_t lwe_iteration,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t gpu_offset) {
 
   // We use shared memory for the polynomials that are used often during the
@@ -50,12 +53,13 @@ __global__ void device_programmable_bootstrap_step_one(
 
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
-  Torus *block_lwe_array_in =
+  const Torus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.z + gpu_offset] *
                     (lwe_dimension + 1)];
 
-  Torus *block_lut_vector = &lut_vector[lut_vector_indexes[blockIdx.z] *
-                                        params::degree * (glwe_dimension + 1)];
+  const Torus *block_lut_vector =
+      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+                  (glwe_dimension + 1)];
 
   Torus *global_slice =
       global_accumulator +
@@ -129,11 +133,13 @@ __global__ void device_programmable_bootstrap_step_one(
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_programmable_bootstrap_step_two(
-    Torus *lwe_array_out, Torus *lwe_output_indexes, Torus *lut_vector,
-    Torus *lut_vector_indexes, double2 *bootstrapping_key,
-    Torus *global_accumulator, double2 *global_accumulator_fft,
-    uint32_t lwe_iteration, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count, int8_t *device_mem,
+    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+    const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lut_vector_indexes,
+    const double2 *__restrict__ bootstrapping_key, Torus *global_accumulator,
+    double2 *global_accumulator_fft, uint32_t lwe_iteration,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t gpu_offset) {
 
   // We use shared memory for the polynomials that are used often during the
