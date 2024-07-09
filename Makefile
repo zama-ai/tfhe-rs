@@ -148,6 +148,11 @@ install_tarpaulin: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
+.PHONY: install_tfhe_lints # Install custom tfhe-rs lints
+install_tfhe_lints:
+	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
+	cd utils/cargo-tfhe-lints && cargo install --path .
+
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
 	@printf "\n" | linelint - > /dev/null 2>&1 || \
@@ -318,6 +323,11 @@ clippy_concrete_csprng
 clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
+
+.PHONY: tfhe_lints # Run custom tfhe-rs lints
+tfhe_lints: install_tfhe_lints
+	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -- -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
@@ -991,7 +1001,7 @@ sha256_bool: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc check_md_docs_are_tested check_intra_md_links \
-clippy_all check_compile_tests
+clippy_all tfhe_lints check_compile_tests
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
