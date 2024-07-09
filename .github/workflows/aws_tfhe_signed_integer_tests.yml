@@ -51,7 +51,7 @@ jobs:
     needs: setup-instance
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs
