@@ -56,6 +56,7 @@ use crate::boolean::server_key::ServerKey;
 #[cfg(test)]
 use rand::Rng;
 
+pub mod backward_compatibility;
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;

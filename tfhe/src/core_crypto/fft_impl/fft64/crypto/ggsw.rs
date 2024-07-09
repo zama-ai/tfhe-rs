@@ -1,6 +1,10 @@
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::super::math::polynomial::FourierPolynomialMutView;
+use crate::core_crypto::backward_compatibility::fft_impl::{
+    FourierGgswCiphertextVersioned, FourierGgswCiphertextVersionedOwned,
+    FourierPolynomialListVersioned, FourierPolynomialListVersionedOwned,
+};
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -17,6 +21,7 @@ use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweC
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 /// A GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -26,6 +31,90 @@ pub struct FourierGgswCiphertext<C: Container<Element = c64>> {
     glwe_size: GlweSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+}
+
+#[derive(serde::Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+pub struct FourierGgswCiphertextVersion<'vers> {
+    fourier: FourierPolynomialListVersioned<'vers>,
+    glwe_size: <GlweSize as Versionize>::Versioned<'vers>,
+    decomposition_base_log: <DecompositionBaseLog as Versionize>::Versioned<'vers>,
+    decomposition_level_count: <DecompositionLevelCount as Versionize>::Versioned<'vers>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+pub struct FourierGgswCiphertextVersionOwned {
+    fourier: FourierPolynomialListVersionedOwned,
+    glwe_size: <GlweSize as VersionizeOwned>::VersionedOwned,
+    decomposition_base_log: <DecompositionBaseLog as VersionizeOwned>::VersionedOwned,
+    decomposition_level_count: <DecompositionLevelCount as VersionizeOwned>::VersionedOwned,
+}
+
+impl<'vers, C: Container<Element = c64>> From<&'vers FourierGgswCiphertext<C>>
+    for FourierGgswCiphertextVersion<'vers>
+{
+    fn from(value: &'vers FourierGgswCiphertext<C>) -> Self {
+        Self {
+            fourier: value.fourier.versionize(),
+            glwe_size: value.glwe_size.versionize(),
+            decomposition_base_log: value.decomposition_base_log.versionize(),
+            decomposition_level_count: value.decomposition_level_count.versionize(),
+        }
+    }
+}
+
+impl<C: Container<Element = c64>> From<FourierGgswCiphertext<C>>
+    for FourierGgswCiphertextVersionOwned
+{
+    fn from(value: FourierGgswCiphertext<C>) -> Self {
+        Self {
+            fourier: value.fourier.versionize_owned(),
+            glwe_size: value.glwe_size.versionize_owned(),
+            decomposition_base_log: value.decomposition_base_log.versionize_owned(),
+            decomposition_level_count: value.decomposition_level_count.versionize_owned(),
+        }
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierGgswCiphertextVersionOwned>
+    for FourierGgswCiphertext<C>
+{
+    type Error = UnversionizeError;
+    fn try_from(value: FourierGgswCiphertextVersionOwned) -> Result<Self, Self::Error> {
+        Ok(Self {
+            fourier: FourierPolynomialList::unversionize(value.fourier)?,
+            glwe_size: GlweSize::unversionize(value.glwe_size)?,
+            decomposition_base_log: DecompositionBaseLog::unversionize(
+                value.decomposition_base_log,
+            )?,
+            decomposition_level_count: DecompositionLevelCount::unversionize(
+                value.decomposition_level_count,
+            )?,
+        })
+    }
+}
+
+impl<C: Container<Element = c64>> Versionize for FourierGgswCiphertext<C> {
+    type Versioned<'vers> = FourierGgswCiphertextVersioned<'vers> where C: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.into()
+    }
+}
+
+impl<C: Container<Element = c64>> VersionizeOwned for FourierGgswCiphertext<C> {
+    type VersionedOwned = FourierGgswCiphertextVersionedOwned;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.into()
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> Unversionize for FourierGgswCiphertext<C> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Self::try_from(versioned)
+    }
 }
 
 /// A matrix containing a single level of gadget decomposition, in the Fourier domain.

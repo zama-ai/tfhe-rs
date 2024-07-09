@@ -9,6 +9,9 @@ use crate::boolean::parameters::{BooleanParameters, DynamicDistribution, Encrypt
 use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use tfhe_versionable::Versionize;
+
+use super::backward_compatibility::client_key::ClientKeyVersions;
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -18,7 +21,8 @@ use std::fmt::{Debug, Formatter};
 /// * `glwe_secret_key` - a GLWE secret key, used to generate the bootstrapping keys and key
 ///   switching keys.
 /// * `parameters` - the cryptographic parameter set.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ClientKeyVersions)]
 pub struct ClientKey {
     pub(crate) lwe_secret_key: LweSecretKeyOwned<u32>,
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u32>,

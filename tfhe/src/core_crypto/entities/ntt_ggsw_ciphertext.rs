@@ -1,3 +1,4 @@
+use crate::core_crypto::backward_compatibility::entities::ntt_ggsw_ciphertext::NttGgswCiphertextVersions;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
@@ -9,12 +10,14 @@ pub use crate::core_crypto::entities::ggsw_ciphertext::{
 };
 pub use crate::core_crypto::entities::glwe_ciphertext::glwe_ciphertext_size;
 use aligned_vec::{avec, ABox};
+use tfhe_versionable::Versionize;
 
 /// A [`GGSW ciphertext in the Ntt domain`](`crate::core_crypto::entities::GgswCiphertext`).
 ///
 /// See [`the formal definition of a GGSW
 /// ciphertext`](`crate::core_crypto::entities::GgswCiphertext#formal-definition`)
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(NttGgswCiphertextVersions)]
 pub struct NttGgswCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

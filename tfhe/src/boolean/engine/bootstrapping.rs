@@ -1,3 +1,6 @@
+use crate::boolean::backward_compatibility::server_key::{
+    CompressedServerKeyVersions, ServerKeyVersions,
+};
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
@@ -8,6 +11,7 @@ use crate::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Memory used as buffer for the bootstrap
 ///
@@ -89,7 +93,8 @@ impl Memory {
 /// In more details, it contains:
 /// * `bootstrapping_key` - a public key, used to perform the bootstrapping operation.
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(ServerKeyVersions)]
 pub struct ServerKey {
     pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
@@ -182,7 +187,8 @@ impl ServerKey {
 /// In more details, it contains:
 /// * `bootstrapping_key` - a public key, used to perform the bootstrapping operation.
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedServerKeyVersions)]
 pub struct CompressedServerKey {
     pub(crate) bootstrapping_key: SeededLweBootstrapKeyOwned<u32>,
     pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u32>,

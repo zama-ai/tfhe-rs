@@ -1,3 +1,4 @@
+use crate::core_crypto::backward_compatibility::entities::ntt_lwe_bootstrap_key::NttLweBootstrapKeyVersions;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GgswCiphertextCount,
@@ -9,8 +10,10 @@ use crate::core_crypto::entities::ntt_ggsw_ciphertext::NttGgswCiphertext;
 use crate::core_crypto::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextList;
 use crate::core_crypto::entities::polynomial_list::{PolynomialListMutView, PolynomialListView};
 use aligned_vec::ABox;
+use tfhe_versionable::Versionize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(NttLweBootstrapKeyVersions)]
 pub struct NttLweBootstrapKey<C: Container>
 where
     C::Element: UnsignedInteger,

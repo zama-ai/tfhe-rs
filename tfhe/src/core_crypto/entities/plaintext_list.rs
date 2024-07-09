@@ -1,11 +1,15 @@
 //! Module containing the definition of the PlaintextList.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::plaintext_list::PlaintextListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing [`plaintexts`](`crate::core_crypto::entities::Plaintext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PlaintextListVersions)]
 pub struct PlaintextList<C: Container> {
     data: C,
 }

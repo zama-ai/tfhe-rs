@@ -1,4 +1,4 @@
-use tfhe_versionable::UnversionizeError;
+use tfhe_versionable::{UnversionizeError, VersionsDispatch};
 
 use aligned_vec::ABox;
 use concrete_fft::c64;
@@ -7,8 +7,14 @@ use serde::{Deserialize, Serialize};
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
     FourierLweBootstrapKeyVersion, FourierLweBootstrapKeyVersionOwned,
 };
+use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
+    FourierGgswCiphertextVersion, FourierGgswCiphertextVersionOwned,
+};
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
-use crate::core_crypto::prelude::{Container, FourierLweBootstrapKey, IntoContainerOwned};
+use crate::core_crypto::prelude::{
+    Container, Fourier128GgswCiphertext, Fourier128LweBootstrapKey, FourierGgswCiphertext,
+    FourierLweBootstrapKey, IntoContainerOwned,
+};
 
 #[derive(Serialize)]
 #[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
@@ -98,4 +104,54 @@ impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierLweBootstrapKeyVersion
             FourierLweBootstrapKeyVersionedOwned::V0(v0) => Self::try_from(v0),
         }
     }
+}
+
+#[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+pub enum FourierGgswCiphertextVersioned<'vers> {
+    V0(FourierGgswCiphertextVersion<'vers>),
+}
+
+impl<'vers, C: Container<Element = c64>> From<&'vers FourierGgswCiphertext<C>>
+    for FourierGgswCiphertextVersioned<'vers>
+{
+    fn from(value: &'vers FourierGgswCiphertext<C>) -> Self {
+        Self::V0(value.into())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
+pub enum FourierGgswCiphertextVersionedOwned {
+    V0(FourierGgswCiphertextVersionOwned),
+}
+
+impl<C: Container<Element = c64>> From<FourierGgswCiphertext<C>>
+    for FourierGgswCiphertextVersionedOwned
+{
+    fn from(value: FourierGgswCiphertext<C>) -> Self {
+        Self::V0(value.into())
+    }
+}
+
+impl<C: IntoContainerOwned<Element = c64>> TryFrom<FourierGgswCiphertextVersionedOwned>
+    for FourierGgswCiphertext<C>
+{
+    type Error = UnversionizeError;
+
+    fn try_from(value: FourierGgswCiphertextVersionedOwned) -> Result<Self, Self::Error> {
+        match value {
+            FourierGgswCiphertextVersionedOwned::V0(v0) => Self::try_from(v0),
+        }
+    }
+}
+
+#[derive(VersionsDispatch)]
+pub enum Fourier128LweBootstrapKeyVersions<C: Container<Element = f64>> {
+    V0(Fourier128LweBootstrapKey<C>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum Fourier128GgswCiphertextVersions<C: Container<Element = f64>> {
+    V0(Fourier128GgswCiphertext<C>),
 }
