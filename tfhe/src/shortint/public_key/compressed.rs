@@ -129,6 +129,13 @@ impl CompressedPublicKey {
         })
     }
 
+    /// [`Self::encrypt`] variant that can encrypt many messages efficiently at the same time.
+    pub fn encrypt_many(&self, messages: impl Iterator<Item = u64>) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_many_ciphertexts_with_compressed_public_key(self, messages)
+        })
+    }
+
     /// Encrypts a small integer message using the client key with a specific message modulus
     ///
     /// # Example
@@ -161,6 +168,22 @@ impl CompressedPublicKey {
                 self,
                 message,
                 message_modulus,
+            )
+        })
+    }
+
+    /// [`Self::encrypt_with_message_modulus`] variant that can encrypt a message under several
+    /// moduli efficiently at the same time.
+    pub fn encrypt_with_many_message_moduli(
+        &self,
+        message: u64,
+        message_moduli: impl Iterator<Item = MessageModulus>,
+    ) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_with_many_message_moduli_and_compressed_public_key(
+                self,
+                message,
+                message_moduli,
             )
         })
     }
@@ -222,6 +245,18 @@ impl CompressedPublicKey {
         })
     }
 
+    /// [`Self::encrypt_without_padding`] variant that can encrypt many messages efficiently at the
+    /// same time.
+    pub fn encrypt_many_without_padding(
+        &self,
+        messages: impl Iterator<Item = u64>,
+    ) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .encrypt_many_ciphertexts_without_padding_with_compressed_public_key(self, messages)
+        })
+    }
+
     /// Encrypts a small integer message using the client key without padding bit with some modulus.
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -249,6 +284,22 @@ impl CompressedPublicKey {
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_native_crt_with_compressed_public_key(self, message, message_modulus)
+        })
+    }
+
+    /// [`Self::encrypt_native_crt`] variant that can encrypt a message under several moduli
+    /// efficiently at the same time.
+    pub fn encrypt_native_crt_with_many_message_moduli(
+        &self,
+        message: u64,
+        message_modulus: impl Iterator<Item = MessageModulus>,
+    ) -> Vec<Ciphertext> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_native_crt_with_many_message_moduli_and_compressed_public_key(
+                self,
+                message,
+                message_modulus,
+            )
         })
     }
 }

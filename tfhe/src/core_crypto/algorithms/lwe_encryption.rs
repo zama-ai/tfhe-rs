@@ -1089,41 +1089,185 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         output.lwe_size().to_lwe_dimension(),
         lwe_public_key.lwe_size().to_lwe_dimension()
     );
+    encrypt_lwe_ciphertext_iterator_with_seeded_public_key(
+        lwe_public_key,
+        std::iter::once(output.as_mut_view()),
+        std::iter::once(encoded),
+        generator,
+    );
+}
 
-    output.as_mut().fill(Scalar::ZERO);
+/// Encrypt several input plaintext in output [`LWE ciphertexts`](`LweCiphertext`) using a
+/// [`seeded LWE public key`](`SeededLwePublicKey`). The ciphertext can be decrypted using the
+/// [`LWE secret key`](`LweSecretKey`) that was used to generate the public key.
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
+/// let zero_encryption_count =
+///     LwePublicKeyZeroEncryptionCount(lwe_dimension.to_lwe_size().0 * 64 + 128);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// let lwe_public_key = allocate_and_generate_new_seeded_lwe_public_key(
+///     &lwe_secret_key,
+///     zero_encryption_count,
+///     lwe_noise_distribution,
+///     ciphertext_modulus,
+///     seeder,
+/// );
+///
+/// // Create the plaintext
+/// let msg_1 = 3u64;
+/// let plaintext_1 = Plaintext(msg_1 << 60);
+/// let msg_2 = 2u64;
+/// let plaintext_2 = Plaintext(msg_2 << 60);
+///
+/// // Create a new LweCiphertext
+/// let mut lwe_1 = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
+/// let mut lwe_2 = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
+///
+/// encrypt_lwe_ciphertext_iterator_with_seeded_public_key(
+///     &lwe_public_key,
+///     [lwe_1.as_mut_view(), lwe_2.as_mut_view()],
+///     [plaintext_1, plaintext_2],
+///     &mut secret_generator,
+/// );
+///
+/// let decrypted_plaintext_1 = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe_1);
+/// let decrypted_plaintext_2 = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe_2);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded_1 = decomposer.closest_representable(decrypted_plaintext_1.0);
+/// let rounded_2 = decomposer.closest_representable(decrypted_plaintext_2.0);
+///
+/// // Remove the encoding
+/// let cleartext_1 = rounded_1 >> 60;
+/// let cleartext_2 = rounded_2 >> 60;
+///
+/// // Check we recovered the original message
+/// assert_eq!(cleartext_1, msg_1);
+/// assert_eq!(cleartext_2, msg_2);
+/// ```
+pub fn encrypt_lwe_ciphertext_iterator_with_seeded_public_key<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_public_key: &SeededLwePublicKey<KeyCont>,
+    output: impl IntoIterator<Item = LweCiphertext<OutputCont>>,
+    encoded: impl IntoIterator<Item = Plaintext<Scalar>>,
+    generator: &mut SecretRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let mut output: Vec<_> = output.into_iter().collect();
+    let output = output.as_mut_slice();
+    if output.is_empty() {
+        return;
+    }
 
-    let mut ct_choice = vec![Scalar::ZERO; lwe_public_key.zero_encryption_count().0];
+    let encoded: Vec<_> = encoded.into_iter().collect();
+    assert_eq!(
+        output.len(),
+        encoded.len(),
+        "Mismatched Plaintext Iterator and LweCiphertext Iterator lengths."
+    );
 
-    generator.fill_slice_with_random_uniform_binary(&mut ct_choice);
+    let output_ciphertext_modulus = output[0].ciphertext_modulus();
 
-    let ciphertext_modulus = output.ciphertext_modulus();
+    assert!(
+        output
+            .iter()
+            .all(|lwe| lwe.ciphertext_modulus() == output_ciphertext_modulus),
+        "The input LweCiphertext Iterator must have homogeneous CiphertextModulus"
+    );
 
-    let mut tmp_zero_encryption =
-        LweCiphertext::new(Scalar::ZERO, lwe_public_key.lwe_size(), ciphertext_modulus);
+    assert_eq!(
+        lwe_public_key.ciphertext_modulus(),
+        output_ciphertext_modulus,
+        "Mismatched moduli between lwe_public_key ({:?}) and output ({:?})",
+        lwe_public_key.ciphertext_modulus(),
+        output_ciphertext_modulus
+    );
+
+    let output_lwe_size = output[0].lwe_size();
+
+    assert!(
+        output.iter().all(|lwe| lwe.lwe_size() == output_lwe_size),
+        "The input LweCiphertext Iterator must have homogeneous LweSize"
+    );
+
+    assert!(
+        output_lwe_size.to_lwe_dimension() == lwe_public_key.lwe_size().to_lwe_dimension(),
+        "Mismatch between LweDimension of output ciphertext and input public key. \
+        Got {:?} in output, and {:?} in public key.",
+        output_lwe_size.to_lwe_dimension(),
+        lwe_public_key.lwe_size().to_lwe_dimension()
+    );
+
+    for output_ct in output.iter_mut() {
+        output_ct.as_mut().fill(Scalar::ZERO);
+    }
+
+    let mut tmp_zero_encryption = LweCiphertext::new(
+        Scalar::ZERO,
+        lwe_public_key.lwe_size(),
+        output_ciphertext_modulus,
+    );
 
     let mut random_generator =
         RandomGenerator::<ActivatedRandomGenerator>::new(lwe_public_key.compression_seed().seed);
 
     // Add the public encryption of zeros to get the zero encryption
-    for (&chosen, public_encryption_of_zero_body) in ct_choice.iter().zip(lwe_public_key.iter()) {
+    for public_encryption_of_zero_body in lwe_public_key.iter() {
         let (mut mask, body) = tmp_zero_encryption.get_mut_mask_and_body();
         random_generator
-            .fill_slice_with_random_uniform_custom_mod(mask.as_mut(), ciphertext_modulus);
-        if ciphertext_modulus.is_non_native_power_of_two() {
+            .fill_slice_with_random_uniform_custom_mod(mask.as_mut(), output_ciphertext_modulus);
+        if output_ciphertext_modulus.is_non_native_power_of_two() {
             slice_wrapping_scalar_mul_assign(
                 mask.as_mut(),
-                ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
+                output_ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
             );
         }
         *body.data = *public_encryption_of_zero_body.data;
 
-        // chosen is 1 if chosen, 0 otherwise, so use a multiplication to avoid having a branch
-        // depending on a value that's supposed to remain secret
-        lwe_ciphertext_cleartext_mul_assign(&mut tmp_zero_encryption, Cleartext(chosen));
-        lwe_ciphertext_add_assign(output, &tmp_zero_encryption);
+        for output_ct in output.iter_mut() {
+            let chosen = generator.generate_random_uniform_binary();
+            // chosen is 1 if chosen, 0 otherwise, so use a multiplication to avoid having a branch
+            // depending on a value that's supposed to remain secret
+            slice_wrapping_add_scalar_mul_assign(
+                output_ct.as_mut(),
+                tmp_zero_encryption.as_ref(),
+                chosen,
+            );
+        }
     }
 
-    lwe_ciphertext_plaintext_add_assign(output, encoded);
+    for (output_ct, plaintext) in output.iter_mut().zip(encoded.into_iter()) {
+        lwe_ciphertext_plaintext_add_assign(output_ct, plaintext);
+    }
 }
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions

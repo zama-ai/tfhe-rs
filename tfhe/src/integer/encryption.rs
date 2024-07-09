@@ -66,11 +66,41 @@ where
     RadixCiphertextType::from(blocks)
 }
 
+/// Same as [`encrypt_words_radix_impl`] with an encryption function working directly on several
+/// plaintexts at once.
+pub(crate) fn encrypt_many_words_radix_impl<BlockKey, Block, RadixCiphertextType, T, F>(
+    encrypting_key: &BlockKey,
+    message: T,
+    num_blocks: usize,
+    encrypt_blocks: F,
+) -> RadixCiphertextType
+where
+    T: DecomposableInto<u64>,
+    BlockKey: KnowsMessageModulus,
+    F: Fn(&BlockKey, ClearRadixBlockIterator<T>) -> Vec<Block>,
+    RadixCiphertextType: From<Vec<Block>>,
+{
+    let message_modulus = encrypting_key.message_modulus();
+    let clear_block_iterator =
+        create_clear_radix_block_iterator(message, message_modulus, num_blocks);
+
+    let blocks = encrypt_blocks(encrypting_key, clear_block_iterator);
+
+    RadixCiphertextType::from(blocks)
+}
+
+// We need to concretize the iterator type to be able to pass callbacks consuming the iterator,
+// having an opaque return impl Iterator does not allow to take callbacks at this moment, not sure
+// the Fn(impl Trait) syntax can be made to work nicely with the rest of the language
+pub(crate) type ClearRadixBlockIterator<T> = std::iter::Take<
+    std::iter::Chain<std::iter::Map<BlockDecomposer<T>, fn(T) -> u64>, std::iter::Repeat<u64>>,
+>;
+
 pub(crate) fn create_clear_radix_block_iterator<T>(
     message: T,
     message_modulus: MessageModulus,
     num_blocks: usize,
-) -> impl Iterator<Item = u64>
+) -> ClearRadixBlockIterator<T>
 where
     T: DecomposableInto<u64>,
 {
@@ -101,6 +131,31 @@ where
 
         ctxt_vect.push(ct);
     }
+
+    CrtCiphertextType::from((ctxt_vect, base_vec))
+}
+
+pub(crate) type CrtManyMessageModulusIterator =
+    core::iter::Map<std::vec::IntoIter<u64>, fn(u64) -> MessageModulus>;
+
+pub(crate) fn encrypt_many_crt<BlockKey, Block, CrtCiphertextType, F>(
+    encrypting_key: &BlockKey,
+    message: u64,
+    base_vec: Vec<u64>,
+    encrypt_blocks: F,
+) -> CrtCiphertextType
+where
+    F: Fn(&BlockKey, u64, CrtManyMessageModulusIterator) -> Vec<Block>,
+    CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
+{
+    let ctxt_vect = encrypt_blocks(
+        encrypting_key,
+        message,
+        base_vec
+            .clone()
+            .into_iter()
+            .map(|x| MessageModulus(x as usize)),
+    );
 
     CrtCiphertextType::from((ctxt_vect, base_vec))
 }

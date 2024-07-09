@@ -183,7 +183,9 @@ impl<T> BlockDecomposer<T>
 where
     T: Decomposable,
 {
-    pub fn iter_as<V>(self) -> impl Iterator<Item = V>
+    // We concretize the iterator type to allow usage of callbacks working on iterator for generic
+    // integer encryption
+    pub fn iter_as<V>(self) -> std::iter::Map<Self, fn(T) -> V>
     where
         V: Numeric,
         T: CastInto<V>,
