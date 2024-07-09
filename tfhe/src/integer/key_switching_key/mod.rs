@@ -1,5 +1,6 @@
 use super::backward_compatibility::key_switching_key::{
-    CompressedKeySwitchingKeyMaterialVersions, KeySwitchingKeyMaterialVersions,
+    CompressedKeySwitchingKeyMaterialVersions, CompressedKeySwitchingKeyVersions,
+    KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
 use super::{ClientKey, CompressedServerKey, ServerKey};
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
@@ -54,7 +55,8 @@ impl KeySwitchingKeyMaterial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
     pub(crate) key: crate::shortint::KeySwitchingKey,
 }
@@ -210,7 +212,8 @@ impl CompressedKeySwitchingKeyMaterial {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedKeySwitchingKeyVersions)]
 pub struct CompressedKeySwitchingKey {
     pub(crate) key: crate::shortint::CompressedKeySwitchingKey,
 }

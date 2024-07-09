@@ -1,3 +1,4 @@
+use crate::core_crypto::backward_compatibility::entities::ntt_ggsw_ciphertext_list::NttGgswCiphertextListVersions;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GgswCiphertextCount,
@@ -11,10 +12,12 @@ use crate::core_crypto::entities::polynomial_list::{
     PolynomialList, PolynomialListMutView, PolynomialListView,
 };
 use aligned_vec::{avec, ABox};
+use tfhe_versionable::Versionize;
 
 /// A contiguous list containing
 /// [`GGSW ciphertexts in the NTT domain`](`crate::core_crypto::entities::NttGgswCiphertext`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(NttGgswCiphertextListVersions)]
 pub struct NttGgswCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

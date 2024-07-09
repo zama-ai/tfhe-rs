@@ -2,7 +2,8 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
-    CompressedModulusSwitchedRadixCiphertext, CompressedModulusSwitchedRadixCiphertextGeneric,
+    CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
+    CompressedModulusSwitchedRadixCiphertextGeneric,
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
 };
 use crate::integer::BooleanBlock;
@@ -81,3 +82,8 @@ pub type CompressedModulusSwitchedSignedRadixCiphertextTFHE06 =
 
 pub type CompressedModulusSwitchedRadixCiphertextTFHE06 =
     BaseRadixCiphertext<CompressedModulusSwitchedCiphertext>;
+
+#[derive(VersionsDispatch)]
+pub enum CompressedCiphertextListVersions {
+    V0(CompressedCiphertextList),
+}

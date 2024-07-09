@@ -1,13 +1,18 @@
+use tfhe_versionable::Versionize;
+
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanKeySwitchingParameters;
 use crate::boolean::prelude::Ciphertext;
 use crate::boolean::ClientKey;
 use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
 
+use super::backward_compatibility::key_switching_key::KeySwitchingKeyVersions;
+
 #[cfg(test)]
 mod test;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
 }

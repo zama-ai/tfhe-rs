@@ -1,6 +1,8 @@
 use super::{ClientKey, SecretEncryptionKeyView};
+use crate::integer::backward_compatibility::client_key::CrtClientKeyVersions;
 use crate::integer::CrtCiphertext;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Client key "specialized" for CRT decomposition.
 ///
@@ -25,7 +27,8 @@ use serde::{Deserialize, Serialize};
 /// let dec = cks.decrypt(&ct);
 /// assert_eq!(msg, dec);
 /// ```
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]
+#[versionize(CrtClientKeyVersions)]
 pub struct CrtClientKey {
     key: ClientKey,
     moduli: Vec<u64>,

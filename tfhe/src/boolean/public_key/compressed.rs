@@ -1,10 +1,13 @@
+use crate::boolean::backward_compatibility::public_key::CompressedPublicKeyVersions;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::prelude::{BooleanParameters, Ciphertext, ClientKey};
 use crate::core_crypto::prelude::SeededLwePublicKeyOwned;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure containing a compressed public key.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedPublicKeyVersions)]
 pub struct CompressedPublicKey {
     pub(crate) compressed_lwe_public_key: SeededLwePublicKeyOwned<u32>,
     pub parameters: BooleanParameters,

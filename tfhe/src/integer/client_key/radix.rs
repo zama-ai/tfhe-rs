@@ -2,6 +2,7 @@
 
 use super::{ClientKey, RecomposableSignedInteger, SecretEncryptionKeyView};
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::integer::backward_compatibility::client_key::RadixClientKeyVersions;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::BooleanBlock;
@@ -9,6 +10,7 @@ use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, 
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Client key "specialized" for radix decomposition.
 ///
@@ -32,7 +34,8 @@ use serde::{Deserialize, Serialize};
 /// let dec = cks.decrypt(&ct);
 /// assert_eq!(msg, dec);
 /// ```
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]
+#[versionize(RadixClientKeyVersions)]
 pub struct RadixClientKey {
     key: ClientKey,
     num_blocks: usize,
