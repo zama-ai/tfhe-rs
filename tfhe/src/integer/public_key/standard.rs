@@ -47,9 +47,11 @@ impl PublicKey {
     }
 
     pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
-            cks.encrypt_native_crt(msg, moduli.0 as u8)
-        })
+        self.encrypt_crt_impl(
+            message,
+            base_vec,
+            crate::shortint::PublicKey::encrypt_native_crt,
+        )
     }
 
     fn encrypt_crt_impl<Block, CrtCiphertextType, F>(

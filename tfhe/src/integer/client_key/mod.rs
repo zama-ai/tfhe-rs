@@ -643,9 +643,11 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
-            cks.encrypt_native_crt(msg, moduli.0 as u8)
-        })
+        self.encrypt_crt_impl(
+            message,
+            base_vec,
+            crate::shortint::ClientKey::encrypt_native_crt,
+        )
     }
 
     pub fn encrypt_native_crt_compressed(
@@ -653,9 +655,11 @@ impl ClientKey {
         message: u64,
         base_vec: Vec<u64>,
     ) -> CompressedCrtCiphertext {
-        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
-            cks.encrypt_native_crt_compressed(msg, moduli.0 as u8)
-        })
+        self.encrypt_crt_impl(
+            message,
+            base_vec,
+            crate::shortint::ClientKey::encrypt_native_crt_compressed,
+        )
     }
 
     /// Decrypts a ciphertext encrypting an integer message with some moduli basis without
@@ -684,7 +688,10 @@ impl ClientKey {
         //Decrypting each block individually
         for (c_i, b_i) in ct.blocks.iter().zip(ct.moduli.iter()) {
             //decrypt the component i of the integer and multiply it by the radix product
-            val.push(self.key.decrypt_message_native_crt(c_i, *b_i as u8));
+            val.push(
+                self.key
+                    .decrypt_message_native_crt(c_i, MessageModulus(*b_i as usize)),
+            );
         }
 
         //Computing the inverse CRT to recompose the message

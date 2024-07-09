@@ -196,11 +196,11 @@ fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
         let message_modulus = MessageModulus(params.message_modulus.0 - 1);
 
         let m = rng.gen::<usize>() % message_modulus.0;
-        let ct = cks.encrypt_native_crt(m as u64, message_modulus.0 as u8);
+        let ct = cks.encrypt_native_crt(m as u64, message_modulus);
         let lut = wopbs_key.generate_lut_native_crt(&ct, |x| (x * x) % message_modulus.0 as u64);
 
         let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
-        let res = cks.decrypt_message_native_crt(&ct_res, message_modulus.0 as u8);
+        let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
         assert_eq!(res as usize, (m * m) % message_modulus.0);
     }
 }
