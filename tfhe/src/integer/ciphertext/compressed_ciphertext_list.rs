@@ -1,10 +1,12 @@
 use super::{DataKind, Expandable, RadixCiphertext, SignedRadixCiphertext};
+use crate::integer::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
 use crate::integer::BooleanBlock;
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
 use crate::shortint::list_compression::{CompressionKey, DecompressionKey};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 pub trait Compressible {
     fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind;
@@ -90,7 +92,8 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
     pub(crate) packed_list: ShortintCompressedCiphertextList,
     info: Vec<DataKind>,

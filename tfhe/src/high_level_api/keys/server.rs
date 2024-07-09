@@ -1,8 +1,6 @@
 use tfhe_versionable::Versionize;
 
-use crate::backward_compatibility::keys::{
-    CompressedServerKeyVersions, ServerKeyVersions,
-};
+use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};

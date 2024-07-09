@@ -1,12 +1,16 @@
 //! Module containing the definition of the PolynomialList.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::polynomial_list::PolynomialListVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`polynomials`](`crate::core_crypto::entities::Polynomial`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PolynomialListVersions)]
 pub struct PolynomialList<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,

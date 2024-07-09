@@ -1,9 +1,13 @@
 //! Module containing the definition of the Plaintext.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::plaintext::PlaintextVersions;
 use crate::core_crypto::commons::traits::*;
 
 /// A plaintext (encoded) value.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PlaintextVersions)]
 pub struct Plaintext<T: Numeric>(pub T);
 /// An immutable reference to a plaintext (encoded) value.
 ///

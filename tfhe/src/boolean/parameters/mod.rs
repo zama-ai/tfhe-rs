@@ -25,6 +25,11 @@ pub use crate::core_crypto::commons::parameters::{
 };
 
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use super::backward_compatibility::parameters::{
+    BooleanKeySwitchingParametersVersions, BooleanParametersVersions,
+};
 
 /// A set of cryptographic parameters for homomorphic Boolean circuit evaluation.
 /// The choice of encryption key for (`boolean ciphertext`)[`super::ciphertext::Ciphertext`].
@@ -39,7 +44,8 @@ use serde::{Deserialize, Serialize};
 ///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and should always fit in
 ///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
 ///   computed first followed by a PBS.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(BooleanParametersVersions)]
 pub struct BooleanParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
@@ -91,7 +97,8 @@ impl BooleanParameters {
 }
 
 /// A set of cryptographic parameters for homomorphic Boolean key switching.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(BooleanKeySwitchingParametersVersions)]
 pub struct BooleanKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,

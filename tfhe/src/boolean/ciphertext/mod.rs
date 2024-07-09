@@ -4,11 +4,15 @@
 
 use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use super::backward_compatibility::ciphertext::{CiphertextVersions, CompressedCiphertextVersions};
 
 /// A structure containing a ciphertext, meant to encrypt a Boolean message.
 ///
 /// It is used to evaluate a Boolean circuits homomorphically.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CiphertextVersions)]
 pub enum Ciphertext {
     Encrypted(LweCiphertextOwned<u32>),
     Trivial(bool),
@@ -17,7 +21,8 @@ pub enum Ciphertext {
 /// A structure containing a compressed ciphertext, meant to encrypt a Boolean message.
 ///
 /// It has to be decompressed before evaluating a Boolean circuit.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCiphertextVersions)]
 pub struct CompressedCiphertext {
     pub(crate) ciphertext: SeededLweCiphertext<u32>,
 }

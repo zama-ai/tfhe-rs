@@ -14,6 +14,9 @@
 //! defined.
 
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::commons::dispersion::StandardDevVersions;
 
 /// A trait for types representing distribution parameters, for a given unsigned integer type.
 //  Warning:
@@ -110,7 +113,8 @@ impl DispersionParameter for LogStandardDev {
 ///     2_f64.powf(32. - 25.).powi(2)
 /// );
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Serialize, Deserialize, Versionize)]
+#[versionize(StandardDevVersions)]
 pub struct StandardDev(pub f64);
 
 impl StandardDev {

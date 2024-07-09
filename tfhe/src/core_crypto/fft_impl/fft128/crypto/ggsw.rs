@@ -1,4 +1,5 @@
 use super::super::math::fft::Fft128View;
+use crate::core_crypto::backward_compatibility::fft_impl::Fourier128GgswCiphertextVersions;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -17,9 +18,11 @@ use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::fft128::f128;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use tfhe_versionable::Versionize;
 
 /// A GGSW ciphertext in the Fourier domain.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(Fourier128GgswCiphertextVersions)]
 pub struct Fourier128GgswCiphertext<C: Container<Element = f64>> {
     data_re0: C,
     data_re1: C,

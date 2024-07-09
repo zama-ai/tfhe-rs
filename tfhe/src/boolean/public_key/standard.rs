@@ -1,15 +1,18 @@
 //! Module with the definition of the encryption PublicKey.
 
 use super::compressed::CompressedPublicKey;
+use crate::boolean::backward_compatibility::public_key::PublicKeyVersions;
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
 use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure containing a public key.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(PublicKeyVersions)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
