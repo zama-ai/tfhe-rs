@@ -108,6 +108,10 @@ __host__ void host_integer_scalar_mul_radix(
     }
   }
 
+  cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
+  mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
+  delete (mem->logical_scalar_shift_buffer);
+
   if (j == 0) {
     // lwe array = 0
     cuda_memset_async(lwe_array, 0, num_radix_blocks * lwe_size_bytes,
