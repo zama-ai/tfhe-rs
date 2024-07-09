@@ -4,10 +4,12 @@ use crate::integer::backward_compatibility::public_key::CompressedPublicKeyVersi
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+use crate::integer::encryption::{
+    encrypt_many_crt, encrypt_many_words_radix_impl, ClearRadixBlockIterator,
+    CrtManyMessageModulusIterator,
+};
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::parameters::MessageModulus;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedPublicKeyVersions)]
@@ -39,7 +41,7 @@ impl CompressedPublicKey {
         self.encrypt_crt_impl(
             message,
             base_vec,
-            crate::shortint::CompressedPublicKey::encrypt_with_message_modulus,
+            crate::shortint::CompressedPublicKey::encrypt_with_many_message_moduli,
         )
     }
 
@@ -47,7 +49,7 @@ impl CompressedPublicKey {
         self.encrypt_crt_impl(
             message,
             base_vec,
-            crate::shortint::CompressedPublicKey::encrypt_native_crt,
+            crate::shortint::CompressedPublicKey::encrypt_native_crt_with_many_message_moduli,
         )
     }
 
@@ -58,10 +60,14 @@ impl CompressedPublicKey {
         encrypt_block: F,
     ) -> CrtCiphertextType
     where
-        F: Fn(&crate::shortint::CompressedPublicKey, u64, MessageModulus) -> Block,
+        F: Fn(
+            &crate::shortint::CompressedPublicKey,
+            u64,
+            CrtManyMessageModulusIterator,
+        ) -> Vec<Block>,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
-        encrypt_crt(&self.key, message, base_vec, encrypt_block)
+        encrypt_many_crt(&self.key, message, base_vec, encrypt_block)
     }
 
     pub fn parameters(&self) -> crate::shortint::PBSParameters {
@@ -76,7 +82,7 @@ impl CompressedPublicKey {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt,
+            crate::shortint::CompressedPublicKey::encrypt_many,
         )
     }
 
@@ -88,7 +94,7 @@ impl CompressedPublicKey {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt,
+            crate::shortint::CompressedPublicKey::encrypt_many,
         )
     }
 
@@ -106,7 +112,7 @@ impl CompressedPublicKey {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::CompressedPublicKey::encrypt_without_padding,
+            crate::shortint::CompressedPublicKey::encrypt_many_without_padding,
         )
     }
 
@@ -114,13 +120,13 @@ impl CompressedPublicKey {
         &self,
         message_words: T,
         num_blocks: usize,
-        encrypt_block: F,
+        encrypt_blocks: F,
     ) -> RadixCiphertextType
     where
         T: DecomposableInto<u64>,
-        F: Fn(&crate::shortint::CompressedPublicKey, u64) -> Block,
+        F: Fn(&crate::shortint::CompressedPublicKey, ClearRadixBlockIterator<T>) -> Vec<Block>,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_many_words_radix_impl(&self.key, message_words, num_blocks, encrypt_blocks)
     }
 }
