@@ -97,7 +97,6 @@ fn main() {
 
     let compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
 
-    
     let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
     let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
     let c: FheBool = compressed_list.get(2).unwrap().unwrap();
