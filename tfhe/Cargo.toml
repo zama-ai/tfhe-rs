@@ -329,4 +329,5 @@ crate-type = ["lib", "staticlib", "cdylib"]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(bench)',
     'cfg(tarpaulin)',
+    'cfg(tfhe_lints)'
 ] }
