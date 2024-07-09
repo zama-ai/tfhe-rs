@@ -225,7 +225,7 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
@@ -234,16 +234,16 @@ impl PublicKey {
     /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 2;
-    /// let modulus = 3;
+    /// let modulus = MessageModulus(3);
     ///
     /// // Encryption of one message:
     /// let ct = pk.encrypt_native_crt(msg, modulus);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// assert_eq!(msg, dec % modulus.0 as u64);
     /// ```
-    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
+    pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_native_crt_with_public_key(self, message, message_modulus)
         })

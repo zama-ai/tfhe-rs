@@ -292,11 +292,11 @@ impl ShortintEngine {
         &mut self,
         public_key: &PublicKey,
         message: u64,
-        message_modulus: u8,
+        message_modulus: MessageModulus,
     ) -> Ciphertext {
-        let carry_modulus = 1;
-        let m = (message % message_modulus as u64) as u128;
-        let shifted_message = m * (1 << 64) / message_modulus as u128;
+        let carry_modulus = CarryModulus(1);
+        let m = (message % message_modulus.0 as u64) as u128;
+        let shifted_message = m * (1 << 64) / message_modulus.0 as u128;
         // encode the message
 
         let plain = Plaintext(shifted_message as u64);
@@ -317,10 +317,10 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree::new(message_modulus as usize - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
-            MessageModulus(message_modulus as usize),
-            CarryModulus(carry_modulus),
+            message_modulus,
+            carry_modulus,
             public_key.pbs_order,
         )
     }
@@ -329,11 +329,11 @@ impl ShortintEngine {
         &mut self,
         public_key: &CompressedPublicKey,
         message: u64,
-        message_modulus: u8,
+        message_modulus: MessageModulus,
     ) -> Ciphertext {
-        let carry_modulus = 1;
-        let m = (message % message_modulus as u64) as u128;
-        let shifted_message = m * (1 << 64) / message_modulus as u128;
+        let carry_modulus = CarryModulus(1);
+        let m = (message % message_modulus.0 as u64) as u128;
+        let shifted_message = m * (1 << 64) / message_modulus.0 as u128;
         // encode the message
 
         let plain = Plaintext(shifted_message as u64);
@@ -354,10 +354,10 @@ impl ShortintEngine {
 
         Ciphertext::new(
             encrypted_ct,
-            Degree::new(message_modulus as usize - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
-            MessageModulus(message_modulus as usize),
-            CarryModulus(carry_modulus),
+            message_modulus,
+            carry_modulus,
             public_key.pbs_order,
         )
     }

@@ -607,23 +607,23 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     /// use tfhe::shortint::ClientKey;
     ///
     /// // Generate the client key
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 2;
-    /// let modulus = 3;
+    /// let modulus = MessageModulus(3);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_native_crt(msg, modulus);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// assert_eq!(msg, dec % modulus.0 as u64);
     /// ```
-    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
+    pub fn encrypt_native_crt(&self, message: u64, message_modulus: MessageModulus) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_native_crt(self, message, message_modulus)
         })
@@ -637,14 +637,14 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     /// use tfhe::shortint::ClientKey;
     ///
     /// // Generate the client key
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 2;
-    /// let modulus = 3;
+    /// let modulus = MessageModulus(3);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_native_crt_compressed(msg, modulus);
@@ -653,12 +653,12 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// assert_eq!(msg, dec % modulus.0 as u64);
     /// ```
     pub fn encrypt_native_crt_compressed(
         &self,
         message: u64,
-        message_modulus: u8,
+        message_modulus: MessageModulus,
     ) -> CompressedCiphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_native_crt_compressed(self, message, message_modulus)
@@ -672,7 +672,7 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    ///     MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
     /// };
     /// use tfhe::shortint::ClientKey;
     ///
@@ -680,14 +680,14 @@ impl ClientKey {
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 1;
-    /// let modulus = 3;
+    /// let modulus = MessageModulus(3);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_native_crt(msg, modulus);
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// assert_eq!(msg, dec % modulus.0 as u64);
     ///
     /// // Generate the client key
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -697,10 +697,14 @@ impl ClientKey {
     ///
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// assert_eq!(msg, dec % modulus.0 as u64);
     /// ```
-    pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, basis: u8) -> u64 {
-        let basis = basis as u64;
+    pub fn decrypt_message_native_crt(
+        &self,
+        ct: &Ciphertext,
+        message_modulus: MessageModulus,
+    ) -> u64 {
+        let basis = message_modulus.0 as u64;
 
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 

@@ -405,17 +405,18 @@ impl WopbsKey {
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     /// use tfhe::shortint::wopbs::WopbsKey;
+    /// use tfhe::shortint::parameters::MessageModulus;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
-    /// let message_modulus = 5;
+    /// let message_modulus = MessageModulus(5);
     /// let m = 2;
     /// let ct = cks.encrypt_native_crt(m, message_modulus);
-    /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x * x % message_modulus as u64);
+    /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x * x % message_modulus.0 as u64);
     /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);
     /// let res = cks.decrypt_message_native_crt(&ct_res, message_modulus);
-    /// assert_eq!(res, (m * m) % message_modulus as u64);
+    /// assert_eq!(res, (m * m) % message_modulus.0 as u64);
     /// ```
     pub fn generate_lut_native_crt<F>(&self, ct: &Ciphertext, f: F) -> ShortintWopbsLUT
     where
@@ -567,12 +568,13 @@ impl WopbsKey {
     /// ```rust
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+    /// use tfhe::shortint::parameters::MessageModulus;
     /// use tfhe::shortint::wopbs::*;
     ///
     /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let msg = 2;
-    /// let modulus = 5;
+    /// let modulus = MessageModulus(5);
     /// let ct = cks.encrypt_native_crt(msg, modulus);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
     /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&ct, &lut);

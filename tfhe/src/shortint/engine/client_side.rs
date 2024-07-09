@@ -320,11 +320,11 @@ impl ShortintEngine {
         &mut self,
         client_key: &ClientKey,
         message: u64,
-        message_modulus: u8,
+        message_modulus: MessageModulus,
     ) -> Ciphertext {
-        let carry_modulus = 1;
-        let m = (message % message_modulus as u64) as u128;
-        let shifted_message = (m * (1 << 64) / message_modulus as u128) as u64;
+        let carry_modulus = CarryModulus(1);
+        let m = (message % message_modulus.0 as u64) as u128;
+        let shifted_message = (m * (1 << 64) / message_modulus.0 as u128) as u64;
 
         let encoded = Plaintext(shifted_message);
 
@@ -343,10 +343,10 @@ impl ShortintEngine {
 
         Ciphertext::new(
             ct,
-            Degree::new(message_modulus as usize - 1),
+            Degree::new(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
-            MessageModulus(message_modulus as usize),
-            CarryModulus(carry_modulus),
+            message_modulus,
+            carry_modulus,
             params_op_order,
         )
     }
@@ -355,11 +355,11 @@ impl ShortintEngine {
         &mut self,
         client_key: &ClientKey,
         message: u64,
-        message_modulus: u8,
+        message_modulus: MessageModulus,
     ) -> CompressedCiphertext {
-        let carry_modulus = 1;
-        let m = (message % message_modulus as u64) as u128;
-        let shifted_message = (m * (1 << 64) / message_modulus as u128) as u64;
+        let carry_modulus = CarryModulus(1);
+        let m = (message % message_modulus.0 as u64) as u128;
+        let shifted_message = (m * (1 << 64) / message_modulus.0 as u128) as u64;
 
         let encoded = Plaintext(shifted_message);
 
@@ -378,9 +378,9 @@ impl ShortintEngine {
 
         CompressedCiphertext {
             ct,
-            degree: Degree::new(message_modulus as usize - 1),
-            message_modulus: MessageModulus(message_modulus as usize),
-            carry_modulus: CarryModulus(carry_modulus),
+            degree: Degree::new(message_modulus.0 - 1),
+            message_modulus,
+            carry_modulus,
             pbs_order: params_op_order,
             noise_level: NoiseLevel::NOMINAL,
         }
