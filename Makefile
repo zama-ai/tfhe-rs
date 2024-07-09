@@ -117,7 +117,7 @@ install_cargo_nextest: install_rs_build_toolchain
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
 install_wasm_pack: install_rs_build_toolchain
 	@wasm-pack --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.12.1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.13.0 || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
 .PHONY: install_node # Install last version of NodeJS via nvm
@@ -413,7 +413,8 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory,+mutable-globals" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
-		-Z build-std=panic_abort,std
+		-Z build-std=panic_abort,std && \
+	find pkg/snippets -type f -iname workerHelpers.worker.js -exec sed -i "s|from '..\/..\/..\/';|from '..\/..\/..\/tfhe.js';|" {} \;
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_rs_build_toolchain install_wasm_pack
