@@ -117,7 +117,7 @@ install_cargo_nextest: install_rs_build_toolchain
 .PHONY: install_wasm_pack # Install wasm-pack to build JS packages
 install_wasm_pack: install_rs_build_toolchain
 	@wasm-pack --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install wasm-pack || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked wasm-pack@0.12.1 || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
 .PHONY: install_node # Install last version of NodeJS via nvm
