@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert').strict;
-const {performance} = require('perf_hooks');
+const { performance } = require('perf_hooks');
 const {
     init_panic_hook,
     TfheClientKey,

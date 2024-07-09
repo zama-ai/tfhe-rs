@@ -17,7 +17,7 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
-NODE_VERSION=20
+NODE_VERSION=22
 FORWARD_COMPAT?=OFF
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
 BACKWARD_COMPAT_DATA_DIR=tfhe-backward-compat-data
@@ -810,7 +810,7 @@ test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd tfhe && node --test js_on_wasm_tests
+	cd tfhe/js_on_wasm_tests && npm run test
 
 .PHONY: test_web_js_api_parallel # Run tests for the web wasm api
 test_web_js_api_parallel: build_web_js_api_parallel
