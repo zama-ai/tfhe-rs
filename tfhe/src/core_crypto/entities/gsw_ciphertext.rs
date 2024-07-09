@@ -1,5 +1,8 @@
 //! Module containing the definition of the GswCiphertext.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::gsw_ciphertext::GswCiphertextVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 
@@ -149,7 +152,8 @@ use crate::core_crypto::commons::traits::*;
 /// Simply use the
 /// [`LWE decryption algorithm`](`crate::core_crypto::algorithms::decrypt_lwe_ciphertext`)
 /// on one of the LWE ciphertexts contained in the Lev ciphertext.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GswCiphertextVersions)]
 pub struct GswCiphertext<C: Container> {
     data: C,
     lwe_size: LweSize,

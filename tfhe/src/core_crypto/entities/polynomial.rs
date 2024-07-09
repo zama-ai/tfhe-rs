@@ -1,11 +1,15 @@
 //! Module containing the definition of the Polynomial.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::polynomial::PolynomialVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use std::ops::{Index, IndexMut};
 
 /// A [`polynomial`](`Polynomial`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(PolynomialVersions)]
 pub struct Polynomial<C: Container> {
     data: C,
 }

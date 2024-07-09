@@ -1,4 +1,7 @@
+use tfhe_versionable::Versionize;
+
 use super::keys::InternalServerKey;
+use crate::backward_compatibility::compressed_ciphertext_list::CompressedCiphertextListVersions;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
@@ -68,7 +71,8 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList(crate::integer::ciphertext::CompressedCiphertextList);
 
 impl Named for CompressedCiphertextList {

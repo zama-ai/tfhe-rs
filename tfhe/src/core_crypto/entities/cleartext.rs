@@ -1,9 +1,13 @@
 //! Module containing the definition of the Cleartext.
 
+use tfhe_versionable::Versionize;
+
+use crate::core_crypto::backward_compatibility::entities::cleartext::CleartextVersions;
 use crate::core_crypto::commons::traits::*;
 
 /// A cleartext, not encoded, value.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CleartextVersions)]
 pub struct Cleartext<T: Numeric>(pub T);
 /// An immutable reference to a cleartext value.
 ///
