@@ -35,7 +35,10 @@ enum COMPARISON_TYPE {
   MAX = 6,
   MIN = 7,
 };
+
 enum CMP_ORDERING { IS_INFERIOR = 0, IS_EQUAL = 1, IS_SUPERIOR = 2 };
+
+enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
 
 extern "C" {
 void scratch_cuda_apply_univariate_lut_kb_64(
@@ -355,6 +358,24 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
 void cleanup_cuda_integer_div_rem(void **streams, uint32_t *gpu_indexes,
                                   uint32_t gpu_count, int8_t **mem_ptr_void);
 
+void scratch_cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
+    uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t num_blocks, int8_t signed_operation,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory);
+
+void cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lhs,
+    void *rhs, void *overflowed, int8_t signed_operation, int8_t *mem_ptr,
+    void **bsks, void **ksks, uint32_t num_blocks_in_radix);
+
+void cleanup_signed_overflowing_add_or_sub(void **streams,
+                                           uint32_t *gpu_indexes,
+                                           uint32_t gpu_count,
+                                           int8_t **mem_ptr_void);
 } // extern C
 
 template <typename Torus>
@@ -2884,6 +2905,232 @@ template <typename Torus> struct int_div_rem_memory {
   }
 };
 
+template <typename Torus> struct int_last_block_inner_propagate_memory {
+
+  int_radix_lut<Torus> *last_block_inner_propagation_lut;
+  int_radix_params params;
+
+  int_last_block_inner_propagate_memory(
+      cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+      int_radix_params params, SIGNED_OPERATION op, uint32_t num_radix_blocks,
+      bool allocate_gpu_memory) {
+
+    this->params = params;
+    auto message_modulus = params.message_modulus;
+    uint32_t bits_of_message =
+        static_cast<uint32_t>(std::log2(params.message_modulus));
+    Torus message_bit_mask = (1 << bits_of_message) - 1;
+
+    // declare lambda function for last_block_inner_propagation_lut generation
+    auto f_last_block_inner_propagation_lut =
+        [op, message_modulus, message_bit_mask,
+         bits_of_message](Torus lhs_block, Torus rhs_block) -> Torus {
+      Torus local_rhs_block = 0;
+      if (op == SIGNED_OPERATION::SUBTRACTION) {
+        Torus flipped_rhs = !rhs_block;
+        local_rhs_block = (flipped_rhs << 1) & message_bit_mask;
+      } else {
+        local_rhs_block = (rhs_block << 1) & message_bit_mask;
+      };
+
+      Torus local_lhs_block = (lhs_block << 1) & message_bit_mask;
+
+      // whole_result contains the result of addition with
+      // the carry being in the first bit of carry space
+      // the message space contains the message, but with one 0
+      // on the right (lsb)
+      Torus whole_result = local_lhs_block + local_rhs_block;
+      Torus carry = whole_result >> bits_of_message;
+      Torus result = (whole_result & message_bit_mask) >> 1;
+      Torus propagation_result = 0;
+      if (carry == 1) {
+        // Addition of bits before last one generates a carry
+        propagation_result = OUTPUT_CARRY::GENERATED;
+      } else if (result == ((message_modulus - 1) >> 1)) {
+        // Addition of bits before last one puts the bits
+        // in a state that makes it so that an input carry into last block
+        // gets propagated to last bit.
+        propagation_result = OUTPUT_CARRY::PROPAGATED;
+      } else {
+        propagation_result = OUTPUT_CARRY::NONE;
+      };
+
+      // Shift the propagation result in carry part
+      // to have less noise growth later
+      return propagation_result << bits_of_message;
+    };
+
+    last_block_inner_propagation_lut = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+    generate_device_accumulator_bivariate<Torus>(
+        streams[0], gpu_indexes[0],
+        last_block_inner_propagation_lut->get_lut(gpu_indexes[0], 0),
+        params.glwe_dimension, params.polynomial_size, message_modulus,
+        params.carry_modulus, f_last_block_inner_propagation_lut);
+    last_block_inner_propagation_lut->broadcast_lut(streams, gpu_indexes,
+                                                    gpu_indexes[0]);
+  }
+
+  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+               uint32_t gpu_count) {
+    last_block_inner_propagation_lut->release(streams, gpu_indexes, gpu_count);
+    delete last_block_inner_propagation_lut;
+  }
+};
+
+template <typename Torus> struct int_resolve_signed_overflow_memory {
+
+  int_radix_lut<Torus> *resolve_overflow_lut;
+  int_radix_params params;
+
+  Torus *x;
+
+  int_resolve_signed_overflow_memory(cudaStream_t *streams,
+                                     uint32_t *gpu_indexes, uint32_t gpu_count,
+                                     int_radix_params params,
+                                     bool allocate_gpu_memory) {
+
+    this->params = params;
+
+    auto message_modulus = params.message_modulus;
+
+    uint32_t bits_of_message =
+        static_cast<uint32_t>(std::log2(message_modulus));
+
+    x = (Torus *)cuda_malloc_async((params.big_lwe_dimension + 1) *
+                                       sizeof(Torus),
+                                   streams[0], gpu_indexes[0]);
+
+    // declare lambda function for resolve_overflow_lut generation
+    auto f_resolve_overflow_lut = [bits_of_message](Torus x) -> Torus {
+      Torus carry_propagation = x >> bits_of_message;
+      Torus output_carry_of_block = (x >> 1) & 1;
+      Torus input_carry_of_block = x & 1;
+
+      // Resolve the carry that the last bit actually receives as input
+      Torus input_carry_to_last_bit;
+      if (carry_propagation == OUTPUT_CARRY::PROPAGATED) {
+        input_carry_to_last_bit = input_carry_of_block;
+      } else if (carry_propagation == OUTPUT_CARRY::GENERATED) {
+        input_carry_to_last_bit = 1;
+      } else {
+        input_carry_to_last_bit = 0;
+      };
+
+      return input_carry_to_last_bit != output_carry_of_block;
+    };
+
+    resolve_overflow_lut = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
+
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0],
+        resolve_overflow_lut->get_lut(gpu_indexes[0], 0), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        f_resolve_overflow_lut);
+    resolve_overflow_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
+  }
+
+  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+               uint32_t gpu_count) {
+    resolve_overflow_lut->release(streams, gpu_indexes, gpu_count);
+    delete resolve_overflow_lut;
+    cuda_drop_async(x, streams[0], gpu_indexes[0]);
+  }
+};
+
+template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
+  int_radix_params params;
+
+  // memory objects for other operations
+  int_sc_prop_memory<Torus> *scp_mem;
+  int_last_block_inner_propagate_memory<Torus> *las_block_prop_mem;
+  int_resolve_signed_overflow_memory<Torus> *resolve_overflow_mem;
+  // lookupt tables
+
+  // sub streams
+  cudaStream_t *sub_streams_1;
+  cudaStream_t *sub_streams_2;
+
+  // temporary device buffers
+  Torus *result;                       // num_blocks
+  Torus *input_carries;                // num_blocks
+  Torus *output_carry;                 // single block
+  Torus *last_block_inner_propagation; // single block
+
+  // allocate temporary arrays used to calculate
+  // cuda integer signed overflowing add or sub
+  void allocate_temporary_buffers(cudaStream_t *streams, uint32_t *gpu_indexes,
+                                  uint32_t gpu_count, uint32_t num_blocks) {
+    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
+
+    result = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+    input_carries = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+    output_carry = (Torus *)cuda_malloc_async(big_lwe_size * sizeof(Torus),
+                                              streams[0], gpu_indexes[0]);
+    last_block_inner_propagation = (Torus *)cuda_malloc_async(
+        big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+  }
+
+  // constructor without memory reuse
+  int_signed_overflowing_add_or_sub_memory(
+      cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+      int_radix_params params, uint32_t num_blocks, SIGNED_OPERATION op,
+      bool allocate_gpu_memory) {
+    this->params = params;
+
+    allocate_temporary_buffers(streams, gpu_indexes, gpu_count, num_blocks);
+
+    // initialize streams
+    sub_streams_1 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    sub_streams_2 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < gpu_count; j++) {
+      sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
+      sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
+    }
+
+    // initialize memory objects for other operations
+    scp_mem =
+        new int_sc_prop_memory<Torus>(streams, gpu_indexes, gpu_count, params,
+                                      num_blocks, allocate_gpu_memory);
+    las_block_prop_mem = new int_last_block_inner_propagate_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, op, num_blocks,
+        allocate_gpu_memory);
+
+    resolve_overflow_mem = new int_resolve_signed_overflow_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, allocate_gpu_memory);
+  }
+
+  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
+               uint32_t gpu_count) {
+    // memory objects for other operations
+    scp_mem->release(streams, gpu_indexes, gpu_count);
+    las_block_prop_mem->release(streams, gpu_indexes, gpu_count);
+    resolve_overflow_mem->release(streams, gpu_indexes, gpu_count);
+
+    delete scp_mem;
+    delete las_block_prop_mem;
+    delete resolve_overflow_mem;
+
+    // temporary device buffers
+    cuda_drop_async(result, streams[0], gpu_indexes[0]);
+    cuda_drop_async(input_carries, streams[0], gpu_indexes[0]);
+    cuda_drop_async(output_carry, streams[0], gpu_indexes[0]);
+    cuda_drop_async(last_block_inner_propagation, streams[0], gpu_indexes[0]);
+
+    // sub streams
+    for (uint i = 0; i < gpu_count; i++) {
+      cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
+      cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
+    }
+    free(sub_streams_1);
+    free(sub_streams_2);
+  }
+};
 template <typename Torus> struct int_bitop_buffer {
 
   int_radix_params params;
@@ -2981,8 +3228,8 @@ template <typename Torus> struct int_scalar_mul_buffer {
       size_t num_ciphertext_bits = msg_bits * num_radix_blocks;
 
       //// Contains all shifted values of lhs for shift in range (0..msg_bits)
-      //// The idea is that with these we can create all other shift that are in
-      //// range (0..total_bits) for free (block rotation)
+      //// The idea is that with these we can create all other shift that are
+      /// in / range (0..total_bits) for free (block rotation)
       preshifted_buffer = (Torus *)cuda_malloc_async(
           num_ciphertext_bits * lwe_size_bytes, streams[0], gpu_indexes[0]);
 

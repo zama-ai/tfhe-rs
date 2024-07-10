@@ -497,6 +497,19 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
 }
 
 template <typename Torus>
+void host_generate_last_block_inner_propagation(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *last_block_inner_propagation, Torus *lhs, Torus *rhs,
+    int_last_block_inner_propagate_memory<Torus> *mem, void **bsks,
+    Torus **ksks) {
+
+  integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+      streams, gpu_indexes, gpu_count, last_block_inner_propagation, lhs, rhs,
+      bsks, ksks, 1, mem->last_block_inner_propagation_lut,
+      mem->params.message_modulus);
+}
+
+template <typename Torus>
 void host_propagate_single_sub_borrow(cudaStream_t *streams,
                                       uint32_t *gpu_indexes, uint32_t gpu_count,
                                       Torus *overflowed, Torus *lwe_array,
