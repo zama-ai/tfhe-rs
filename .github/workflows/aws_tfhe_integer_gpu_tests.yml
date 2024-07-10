@@ -25,6 +25,9 @@ jobs:
   setup-instance:
     name: Setup instance (cuda-unsigned-integer-tests)
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved')
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:

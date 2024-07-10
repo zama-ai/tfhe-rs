@@ -121,7 +121,7 @@ jobs:
   setup-instance:
     name: Setup instance (cpu-tests)
     if: github.event_name != 'pull_request' ||
-      (github.event_name == 'pull_request' && needs.should-run.outputs.any_file_changed == 'true')
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.any_file_changed == 'true')
     needs: should-run
     runs-on: ubuntu-latest
     outputs:
