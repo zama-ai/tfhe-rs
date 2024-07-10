@@ -61,7 +61,7 @@ int get_active_gpu_count(int num_inputs, int gpu_count) {
   check_cuda_error(
       cudaDeviceGetAttribute(&num_sms, cudaDevAttrMultiProcessorCount, 0));
   for (uint gpus = gpu_count; gpus > 0; gpus--) {
-    if (num_inputs / gpus >= num_sms / 2) {
+    if (num_inputs / gpus >= num_sms / 4) {
       active_gpu_count = gpus;
       break;
     }
