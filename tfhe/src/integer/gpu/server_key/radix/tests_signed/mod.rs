@@ -350,3 +350,42 @@ where
         d_res.to_signed_radix_ciphertext(&context.streams)
     }
 }
+impl<'a, F>
+    FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        (SignedRadixCiphertext, BooleanBlock),
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        &CudaSignedRadixCiphertext,
+        &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaSignedRadixCiphertext =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
+        let d_ctxt_2: CudaSignedRadixCiphertext =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.1, &context.streams);
+
+        let (d_res, d_res_bool) = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
+
+        (
+            d_res.to_signed_radix_ciphertext(&context.streams),
+            d_res_bool.to_boolean_block(&context.streams),
+        )
+    }
+}

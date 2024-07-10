@@ -1683,6 +1683,11 @@ mod cuda {
         display_name: max
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: unchecked_signed_overflowing_add,
+        display_name: overflowing_add
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
         display_name: add,
@@ -1895,6 +1900,11 @@ mod cuda {
         display_name: max
     );
 
+    define_cuda_server_key_bench_clean_input_signed_fn!(
+        method_name: signed_overflowing_add,
+        display_name: overflowing_add
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
         display_name: add,
@@ -2025,6 +2035,7 @@ mod cuda {
         cuda_unchecked_le,
         cuda_unchecked_min,
         cuda_unchecked_max,
+        cuda_unchecked_signed_overflowing_add,
     );
 
     criterion_group!(
@@ -2072,6 +2083,7 @@ mod cuda {
         cuda_min,
         cuda_max,
         cuda_if_then_else,
+        cuda_signed_overflowing_add,
     );
 
     criterion_group!(
