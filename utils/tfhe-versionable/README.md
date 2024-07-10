@@ -1,6 +1,6 @@
 # TFHE-versionable
 This crate provides type level versioning for serialized data. It offers a way to add backward
-compatibility on any data type. The versioning scheme works recursively and is idependant of the
+compatibility on any data type. The versioning scheme works recursively and is independant of the
 chosen serialization backend.
 
 To use it, simply define an enum that have a variant for each version of your target type.
