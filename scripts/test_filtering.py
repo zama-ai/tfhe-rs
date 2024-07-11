@@ -2,6 +2,7 @@
 Script that generates a cargo-nextest filter as an output.
 The string result can be directly injected into a nextest command.
 """
+
 import argparse
 
 parser = argparse.ArgumentParser(allow_abbrev=False)
@@ -24,6 +25,12 @@ parser.add_argument(
     dest="fast_tests",
     action="store_true",
     help="Run only a small subset of test suite",
+)
+parser.add_argument(
+    "--nightly-tests",
+    dest="nightly_tests",
+    action="store_true",
+    help="Run only a subset of test suite",
 )
 parser.add_argument(
     "--big-instance",
@@ -87,6 +94,7 @@ EXCLUDED_BIG_PARAMETERS = [
     "/.*_param_message_4_carry_4_ks_pbs$/",
 ]
 
+
 def filter_integer_tests(input_args):
     multi_bit_filter = "_multi_bit" if input_args.multi_bit else ""
     backend_filter = ""
@@ -109,11 +117,20 @@ def filter_integer_tests(input_args):
         for pattern in EXCLUDED_BIG_PARAMETERS:
             filter_expression.append(f"not test({pattern})")
 
-    if input_args.fast_tests:
-        # Test only fast default operations with only one set of parameters
-        param_group = "_group_2" if input_args.multi_bit else ""
+    if input_args.fast_tests and input_args.nightly_tests:
         filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}_message_2_carry_2{param_group}_.*/)"
+            f"test(/.*_default_.*?_param{multi_bit_filter}_message_[2-3]_carry_[2-3]_.*/)"
+        )
+    elif input_args.fast_tests:
+        # Test only fast default operations with only one set of parameters
+        filter_expression.append(
+            f"test(/.*_default_.*?_param{multi_bit_filter}_message_2_carry_2_.*/)"
+        )
+    elif input_args.nightly_tests:
+        # Test only fast default operations with only one set of parameters
+        # This subset would run slower than fast_tests hence the use of nightly_tests
+        filter_expression.append(
+            f"test(/.*_default_.*?_param{multi_bit_filter}_message_3_carry_3_.*/)"
         )
 
     excluded_tests = (

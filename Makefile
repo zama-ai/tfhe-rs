@@ -16,6 +16,7 @@ GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
+NIGHTLY_TESTS?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22
 FORWARD_COMPAT?=OFF
@@ -481,6 +482,7 @@ test_integer_gpu: install_rs_build_toolchain
 test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--tfhe-package "$(TFHE_SPEC)"
@@ -489,6 +491,7 @@ test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
@@ -497,6 +500,7 @@ test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
@@ -505,6 +509,7 @@ test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--tfhe-package "$(TFHE_SPEC)"
@@ -513,6 +518,7 @@ test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
@@ -521,6 +527,7 @@ test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo
 test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
@@ -587,6 +594,7 @@ test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "$(TFHE_SPEC)"
@@ -595,6 +603,7 @@ test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
@@ -603,6 +612,7 @@ test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
 test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
@@ -611,6 +621,7 @@ test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "$(TFHE_SPEC)"
@@ -619,6 +630,7 @@ test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
@@ -627,6 +639,7 @@ test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nex
 test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
