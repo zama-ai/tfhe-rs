@@ -37,6 +37,9 @@ mod v1 {
     pub struct MyStruct(pub u32);
 
     mod backward_compat {
+        use std::error::Error;
+        use std::fmt::Display;
+
         use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
         use super::MyStruct;
@@ -44,11 +47,23 @@ mod v1 {
         #[derive(Version)]
         pub struct MyStructV0(pub Option<u32>);
 
+        #[derive(Debug, Clone)]
+        pub struct EmptyValueError;
+
+        impl Display for EmptyValueError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "Value is empty")
+            }
+        }
+
+        impl Error for EmptyValueError {}
+
         impl Upgrade<MyStruct> for MyStructV0 {
-            fn upgrade(self) -> Result<MyStruct, String> {
+            type Error = EmptyValueError;
+            fn upgrade(self) -> Result<MyStruct, Self::Error> {
                 match self.0 {
                     Some(val) => Ok(MyStruct(val)),
-                    None => Err("Cannot convert from empty \"MyStructV0\"".to_string()),
+                    None => Err(EmptyValueError),
                 }
             }
         }

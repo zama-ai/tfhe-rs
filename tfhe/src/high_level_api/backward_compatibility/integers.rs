@@ -1,5 +1,7 @@
 #![allow(deprecated)]
 
+use std::convert::Infallible;
+
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
@@ -53,7 +55,9 @@ pub enum CompressedSignedRadixCiphertextV0 {
 }
 
 impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertextV0 {
-    fn upgrade(self) -> Result<CompressedSignedRadixCiphertext, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedSignedRadixCiphertext, Self::Error> {
         match self {
             Self::Seeded(ct) => Ok(CompressedSignedRadixCiphertext::Seeded(ct)),
 
@@ -89,7 +93,9 @@ pub enum CompressedRadixCiphertextV0 {
 }
 
 impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
-    fn upgrade(self) -> Result<CompressedRadixCiphertext, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedRadixCiphertext, Self::Error> {
         match self {
             Self::Seeded(ct) => Ok(CompressedRadixCiphertext::Seeded(ct)),
 

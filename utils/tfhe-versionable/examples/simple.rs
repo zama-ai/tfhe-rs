@@ -1,5 +1,7 @@
 //! Shows a basic usage of this crate
 
+use std::convert::Infallible;
+
 use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispatch};
 
 // The structure that should be versioned, as defined in your code
@@ -21,7 +23,9 @@ struct MyStructV0 {
 // The Upgrade trait tells how to go from the first version to the last. During unversioning, the
 // upgrade method will be called on the deserialized value enough times to go to the last variant.
 impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
-    fn upgrade(self) -> Result<MyStruct<T>, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
         Ok(MyStruct {
             attr: T::default(),
             builtin: self.builtin,
