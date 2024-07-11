@@ -207,7 +207,7 @@ impl VersionizeAttribute {
         } else if let Some(target) = &self.try_from {
             let target_name = format!("{}", target.to_token_stream());
             quote! { #target::unversionize(#arg_name).and_then(|value| TryInto::<Self>::try_into(value)
-                .map_err(|e| #error::conversion(#target_name, &format!("{}", e))))
+                .map_err(|e| #error::conversion(#target_name, e)))
             }
         } else {
             quote! { #arg_name.try_into() }

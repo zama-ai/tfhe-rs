@@ -336,7 +336,7 @@ impl DispatchType {
                                 value
                                 .upgrade()
                                 .map_err(|e|
-                                    #error_ty::upgrade(#src_variant, #dest_variant, &e)
+                                    #error_ty::upgrade(#src_variant, #dest_variant, e)
                                 )
                             })
                         }

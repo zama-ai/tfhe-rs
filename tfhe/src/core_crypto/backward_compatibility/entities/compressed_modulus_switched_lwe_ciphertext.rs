@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
@@ -17,7 +19,9 @@ pub struct CompressedModulusSwitchedLweCiphertextV0<Scalar: UnsignedInteger> {
 impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertext<Scalar>>
     for CompressedModulusSwitchedLweCiphertextV0<Scalar>
 {
-    fn upgrade(self) -> Result<CompressedModulusSwitchedLweCiphertext<Scalar>, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedModulusSwitchedLweCiphertext<Scalar>, Self::Error> {
         let packed_integers = PackedIntegers {
             packed_coeffs: self.packed_coeffs,
             log_modulus: self.log_modulus,
