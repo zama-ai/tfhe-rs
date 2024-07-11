@@ -21,6 +21,7 @@ RUST_TOOLCHAIN="+stable"
 multi_bit_argument=
 sign_argument=
 fast_tests_argument=
+nightly_tests_argument=
 no_big_params_argument=
 cargo_profile="release"
 backend="cpu"
@@ -90,6 +91,10 @@ if [[ "${FAST_TESTS}" == TRUE ]]; then
     fast_tests_argument=--fast-tests
 fi
 
+if [[ "${NIGHTLY_TESTS}" == TRUE ]]; then
+    nightly_tests_argument=--nightly-tests
+fi
+
 if [[ "${NO_BIG_PARAMS}" == TRUE ]]; then
     no_big_params_argument=--no-big-params
 fi
@@ -127,12 +132,16 @@ if [[ "${backend}" == "gpu" ]]; then
     test_threads=6
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
-    echo "Running 'fast' test set'"
+    echo "Running 'fast' test set"
 else
     echo "Running 'slow' test set"
+fi
+
+if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
+    echo "Running 'nightly' test set"
 fi
 
 cargo "${RUST_TOOLCHAIN}" nextest run \
