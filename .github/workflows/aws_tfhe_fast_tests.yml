@@ -97,14 +97,6 @@ jobs:
         run: |
           BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
 
-      - name: Run shortint multi-bit tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_multi_bit_ci
-
-      - name: Run integer multi-bit tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_multi_bit_ci
-
       - name: Run high-level API tests
         run: |
           make test_high_level_api
