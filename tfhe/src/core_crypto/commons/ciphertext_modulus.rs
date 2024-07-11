@@ -7,6 +7,7 @@ use crate::core_crypto::commons::traits::UnsignedInteger;
 use crate::core_crypto::prelude::CastInto;
 use core::num::NonZeroU128;
 use std::cmp::Ordering;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -58,6 +59,31 @@ pub struct SerializableCiphertextModulus {
     pub scalar_bits: usize,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum CiphertextModulusDeserializationError {
+    InvalidBitWidth { expected: usize, found: usize },
+    ZeroCustomModulus,
+}
+
+impl Display for CiphertextModulusDeserializationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidBitWidth { expected, found } => write!(
+                f,
+                "Expected an unsigned integer with {expected} bits, \
+            found {found} bits during deserialization of CiphertextModulus, \
+            have you mixed types during deserialization?",
+            ),
+            Self::ZeroCustomModulus => write!(
+                f,
+                "Got zero modulus for CiphertextModulusInner::Custom variant"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CiphertextModulusDeserializationError {}
+
 impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for SerializableCiphertextModulus {
     fn from(value: CiphertextModulus<Scalar>) -> Self {
         let modulus = match value.inner {
@@ -73,17 +99,14 @@ impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for SerializableCi
 }
 
 impl<Scalar: UnsignedInteger> TryFrom<SerializableCiphertextModulus> for CiphertextModulus<Scalar> {
-    type Error = String;
+    type Error = CiphertextModulusDeserializationError;
 
     fn try_from(value: SerializableCiphertextModulus) -> Result<Self, Self::Error> {
         if value.scalar_bits != Scalar::BITS {
-            return Err(format!(
-                "Expected an unsigned integer with {} bits, \
-            found {} bits during deserialization of CiphertextModulus, \
-            have you mixed types during deserialization?",
-                Scalar::BITS,
-                value.scalar_bits
-            ));
+            return Err(CiphertextModulusDeserializationError::InvalidBitWidth {
+                expected: Scalar::BITS,
+                found: value.scalar_bits,
+            });
         }
 
         let res = if value.modulus == 0 {
@@ -93,9 +116,10 @@ impl<Scalar: UnsignedInteger> TryFrom<SerializableCiphertextModulus> for Ciphert
             }
         } else {
             Self {
-                inner: CiphertextModulusInner::Custom(NonZeroU128::new(value.modulus).ok_or_else(
-                    || "Got zero modulus for CiphertextModulusInner::Custom variant".to_string(),
-                )?),
+                inner: CiphertextModulusInner::Custom(
+                    NonZeroU128::new(value.modulus)
+                        .ok_or(CiphertextModulusDeserializationError::ZeroCustomModulus)?,
+                ),
                 _scalar: PhantomData,
             }
         };

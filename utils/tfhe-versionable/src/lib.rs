@@ -12,6 +12,7 @@ pub mod upgrade;
 use aligned_vec::{ABox, AVec};
 use num_complex::Complex;
 use std::convert::Infallible;
+use std::error::Error;
 use std::fmt::Display;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -70,12 +71,15 @@ pub enum UnversionizeError {
     Upgrade {
         from_vers: String,
         into_vers: String,
-        message: String,
+        source: Box<dyn Error>,
     },
 
     /// An error has been returned in the conversion method provided by the `try_from` parameter
     /// attribute
-    Conversion { from_type: String, message: String },
+    Conversion {
+        from_type: String,
+        source: Box<dyn Error>,
+    },
 }
 
 impl Display for UnversionizeError {
@@ -84,31 +88,40 @@ impl Display for UnversionizeError {
             Self::Upgrade {
                 from_vers,
                 into_vers,
-                message,
+                source,
             } => write!(
                 f,
-                "Failed to upgrade from {from_vers} into {into_vers}: {message}"
+                "Failed to upgrade from {from_vers} into {into_vers}: {source}"
             ),
-            Self::Conversion { from_type, message } => {
-                write!(f, "Failed to convert from {from_type}: {message}")
+            Self::Conversion { from_type, source } => {
+                write!(f, "Failed to convert from {from_type}: {source}")
             }
         }
     }
 }
 
+impl Error for UnversionizeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            UnversionizeError::Upgrade { source, .. } => Some(source.as_ref()),
+            UnversionizeError::Conversion { source, .. } => Some(source.as_ref()),
+        }
+    }
+}
+
 impl UnversionizeError {
-    pub fn upgrade(from_vers: &str, into_vers: &str, message: &str) -> Self {
+    pub fn upgrade<E: Error + 'static>(from_vers: &str, into_vers: &str, source: E) -> Self {
         Self::Upgrade {
             from_vers: from_vers.to_string(),
             into_vers: into_vers.to_string(),
-            message: message.to_string(),
+            source: Box::new(source),
         }
     }
 
-    pub fn conversion(from_type: &str, message: &str) -> Self {
+    pub fn conversion<E: Error + 'static>(from_type: &str, source: E) -> Self {
         Self::Conversion {
             from_type: from_type.to_string(),
-            message: message.to_string(),
+            source: Box::new(source),
         }
     }
 }

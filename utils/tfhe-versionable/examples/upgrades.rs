@@ -37,6 +37,8 @@ mod v1 {
     pub struct MyStruct<T: Default>(pub u32, pub T);
 
     mod backward_compat {
+        use std::convert::Infallible;
+
         use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
         use super::MyStruct;
@@ -45,7 +47,9 @@ mod v1 {
         pub struct MyStructV0(pub u32);
 
         impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
-            fn upgrade(self) -> Result<MyStruct<T>, String> {
+            type Error = Infallible;
+
+            fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
                 Ok(MyStruct(self.0, T::default()))
             }
         }
@@ -81,6 +85,8 @@ mod v2 {
     }
 
     mod backward_compat {
+        use std::convert::Infallible;
+
         use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
         use super::{MyEnum, MyStruct};
@@ -89,7 +95,9 @@ mod v2 {
         pub struct MyStructV0(pub u32);
 
         impl<T: Default> Upgrade<MyStructV1<T>> for MyStructV0 {
-            fn upgrade(self) -> Result<MyStructV1<T>, String> {
+            type Error = Infallible;
+
+            fn upgrade(self) -> Result<MyStructV1<T>, Self::Error> {
                 Ok(MyStructV1(self.0, T::default()))
             }
         }
@@ -98,7 +106,9 @@ mod v2 {
         pub struct MyStructV1<T>(pub u32, pub T);
 
         impl<T: Default> Upgrade<MyStruct<T>> for MyStructV1<T> {
-            fn upgrade(self) -> Result<MyStruct<T>, String> {
+            type Error = Infallible;
+
+            fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
                 Ok(MyStruct {
                     count: self.0,
                     attr: T::default(),

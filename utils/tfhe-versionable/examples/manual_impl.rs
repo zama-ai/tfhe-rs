@@ -1,5 +1,7 @@
 //! The simple example, with manual implementation of the versionize trait
 
+use std::convert::Infallible;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, UnversionizeError, Upgrade, Versionize, VersionizeOwned};
@@ -15,7 +17,9 @@ struct MyStructV0 {
 }
 
 impl<T: Default> Upgrade<MyStruct<T>> for MyStructV0 {
-    fn upgrade(self) -> Result<MyStruct<T>, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<MyStruct<T>, Self::Error> {
         Ok(MyStruct {
             attr: T::default(),
             builtin: self.builtin,
@@ -68,7 +72,7 @@ impl<T: Default + VersionizeOwned + Unversionize + Serialize + DeserializeOwned>
         match versioned {
             MyStructVersionsDispatchOwned::V0(v0) => v0
                 .upgrade()
-                .map_err(|e| UnversionizeError::upgrade("V0", "V1", &e)),
+                .map_err(|e| UnversionizeError::upgrade("V0", "V1", e)),
             MyStructVersionsDispatchOwned::V1(v1) => Ok(Self {
                 attr: T::unversionize(v1.attr)?,
                 builtin: v1.builtin,

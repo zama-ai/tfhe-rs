@@ -71,7 +71,9 @@ pub(crate) struct IntegerClientKeyV0 {
 }
 
 impl Upgrade<IntegerClientKey> for IntegerClientKeyV0 {
-    fn upgrade(self) -> Result<IntegerClientKey, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
         Ok(IntegerClientKey {
             key: self.key,
             wopbs_block_parameters: self.wopbs_block_parameters,
@@ -95,7 +97,9 @@ pub struct IntegerServerKeyV0 {
 }
 
 impl Upgrade<IntegerServerKey> for IntegerServerKeyV0 {
-    fn upgrade(self) -> Result<IntegerServerKey, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
         Ok(IntegerServerKey {
             key: self.key,
             wopbs_key: self.wopbs_key,
@@ -118,7 +122,9 @@ pub struct IntegerCompressedServerKeyV0 {
 }
 
 impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV0 {
-    fn upgrade(self) -> Result<IntegerCompressedServerKey, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
         Ok(IntegerCompressedServerKey {
             key: self.key,
             cpk_key_switching_key_material: None,
