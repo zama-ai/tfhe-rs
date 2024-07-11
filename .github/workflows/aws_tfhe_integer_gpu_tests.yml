@@ -11,6 +11,8 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  FAST_TESTS: TRUE
+  NIGHTLY_TESTS: FALSE
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -20,6 +22,9 @@ on:
       - opened
       - synchronize
       - labeled
+  schedule:
+    # Nightly tests @ 1AM after each work day
+    - cron: "0 1 * * MON-FRI"
 
 jobs:
   setup-instance:
@@ -90,6 +95,14 @@ jobs:
             echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
             echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
             echo "HOME=/home/ubuntu";
+          } >> "${GITHUB_ENV}"
+
+      - name: Should run nightly tests
+        if: github.event_name == 'schedule'
+        run: |
+          {
+            echo "FAST_TESTS=FALSE";
+            echo "NIGHTLY_TESTS=TRUE";
           } >> "${GITHUB_ENV}"
 
       - name: Run unsigned integer tests
