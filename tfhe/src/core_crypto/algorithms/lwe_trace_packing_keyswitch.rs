@@ -15,11 +15,11 @@ use crate::core_crypto::entities::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweTracePackingKeyswitchKey creation
-/// let lwe_dimension = LweDimension(60);
-/// let lwe_count = LweCiphertextCount(25);
-/// let polynomial_size = PolynomialSize(32);
-/// let glwe_dimension = GlweDimension(2);
-/// let lwe_modular_std_dev = StandardDev(0.00000000000000000000001);
+/// let lwe_dimension = LweDimension(800);
+/// let lwe_count = LweCiphertextCount(100);
+/// let polynomial_size = PolynomialSize(256);
+/// let glwe_dimension = GlweDimension(4);
+/// let lwe_modular_std_dev = StandardDev(0.000003925799891201197);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// let mut seeder = new_seeder();
@@ -32,9 +32,9 @@ use crate::core_crypto::entities::*;
 ///
 /// generate_tpksk_output_glwe_secret_key(&lwe_secret_key, &mut glwe_secret_key);
 ///
-/// let decomp_base_log = DecompositionBaseLog(2);
-/// let decomp_level_count = DecompositionLevelCount(8);
-/// let var_small = Variance::from_variance(2f64.powf(-90.0));
+/// let decomp_base_log = DecompositionBaseLog(3);
+/// let decomp_level_count = DecompositionLevelCount(10);
+/// let var_small = Variance::from_variance(0.000000000000000000000070406309659297588492321926110929);
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
@@ -64,8 +64,8 @@ use crate::core_crypto::entities::*;
 ///     ciphertext_modulus,
 /// );
 ///
-/// let msg = 1u64;
-/// let plaintext_list = PlaintextList::new(msg << 56, PlaintextCount(lwe_count.0));
+/// let msg = 7u64;
+/// let plaintext_list = PlaintextList::new(msg << 59, PlaintextCount(lwe_count.0));
 ///
 /// encrypt_lwe_ciphertext_list(
 ///     &lwe_secret_key,
@@ -103,8 +103,8 @@ use crate::core_crypto::entities::*;
 /// );
 ///
 /// // Round and remove encoding
-/// // First create a decomposer working on the high 8 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(8), DecompositionLevelCount(1));
+/// // First create a decomposer working on the high 5 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
 ///
 /// output_plaintext_list
 ///     .iter_mut()
@@ -113,11 +113,9 @@ use crate::core_crypto::entities::*;
 /// // Get the raw vector
 /// let mut cleartext_list = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// // Due to not having an inverse of 2 the packing multiplies each value by polynomial_size
-/// // Hence the encoding delta is multiplied by polynomial_size
 /// cleartext_list
 ///     .iter_mut()
-///     .for_each(|elt| *elt = *elt >> 56 + polynomial_size.log2().0);
+///     .for_each(|elt| *elt = *elt >> 59);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -232,6 +230,34 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
             if ct_0.as_ref().iter().any(|&x| x != Scalar::ZERO)
                 || ct_1.as_ref().iter().any(|&x| x != Scalar::ZERO)
             {
+                // Diving ct_0 and ct_1 by 2
+                for mut pol in glwe_list.get_mut(i).as_mut_polynomial_list().iter_mut() {
+                    pol.iter_mut().for_each(|coef| {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
+                            // We should really divide by two and round up or down randomly
+                            // i.e. sample a random bit b and do *coef = (coef + (-1)**b) >> 1
+                            // Here, as it is just a POC, we always round down for simplicity
+                            *coef = *coef >> 1
+                        } else {
+                            *coef = *coef >> 1
+                        }
+                    }
+                    )
+                }
+                for mut pol in glwe_list.get_mut(j).as_mut_polynomial_list().iter_mut() {
+                    pol.iter_mut().for_each(|coef| {
+                        if *coef % Scalar::TWO != Scalar::ZERO {
+                            // We should really divide by two and round up or down randomly
+                            // i.e. sample a random bit b and do *coef = (coef + (-1)**b) >> 1
+                            // Here, as it is just a POC, we always round down for simplicity
+                            *coef = *coef >> 1
+                        } else {
+                            *coef = *coef >> 1
+                        }
+                    }
+                    )
+                }
+
                 // Rotate ct_1 by N/2^(l+1)
                 for mut pol in glwe_list.get_mut(j).as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign(
@@ -263,19 +289,6 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
                 {
                     polynomial_wrapping_add_assign(&mut pol_minus, &pol_0);
                     polynomial_wrapping_sub_assign(&mut pol_minus, &pol_1);
-                }
-
-                // Now we should scale both ct_plus and ct_minus by 2^-1 mod q = (q+1) / 2 for odd q
-
-                let scalar = Scalar::ONE; // change to (q + 1)/2 for odd q
-                if !ciphertext_modulus.is_power_of_two() {
-                    // Set scalar to (q + 1)/2
-                }
-                for mut pol in ct_plus.as_mut_polynomial_list().iter_mut() {
-                    polynomial_wrapping_scalar_mul_assign(&mut pol, scalar);
-                }
-                for mut pol in ct_minus.as_mut_polynomial_list().iter_mut() {
-                    polynomial_wrapping_scalar_mul_assign(&mut pol, scalar);
                 }
 
                 // Apply the automorphism sending X to X^(2^(l+1) + 1) to ct_minus
@@ -319,7 +332,6 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
         }
     }
     let res = glwe_list.get(0);
-    output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
     for (mut pol_out, pol_res) in output_glwe_ciphertext
         .as_mut_polynomial_list()
         .iter_mut()
