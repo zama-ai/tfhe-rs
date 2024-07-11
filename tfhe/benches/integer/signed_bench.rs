@@ -1224,7 +1224,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let stream = CudaStreams::new_multi_gpu();
@@ -1310,7 +1310,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let stream = CudaStreams::new_multi_gpu();
@@ -1386,7 +1386,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let stream = CudaStreams::new_multi_gpu();
@@ -1476,7 +1476,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let stream = CudaStreams::new_multi_gpu();
@@ -1553,7 +1553,7 @@ mod cuda {
         let mut bench_group = c.benchmark_group("integer::cuda::signed::if_then_else");
         bench_group
             .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
         let stream = CudaStreams::new_multi_gpu();
