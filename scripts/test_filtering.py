@@ -110,10 +110,10 @@ def filter_integer_tests(input_args):
             filter_expression.append(f"not test({pattern})")
 
     if input_args.fast_tests:
-        # Test only fast default operations with only two set of parameters
+        # Test only fast default operations with only one set of parameters
         param_group = "_group_2" if input_args.multi_bit else ""
         filter_expression.append(
-            f"test(/.*_default_.*?_param{multi_bit_filter}_message_[2-3]_carry_[2-3]{param_group}_ks_pbs/)"
+            f"test(/.*_default_.*?_param{multi_bit_filter}_message_2_carry_2{param_group}_.*/)"
         )
 
     excluded_tests = (
