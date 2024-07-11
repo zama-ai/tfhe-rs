@@ -1,5 +1,7 @@
 //! An example of recursive versioning
 
+use std::convert::Infallible;
+
 use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
 #[derive(Versionize)]
@@ -15,7 +17,9 @@ struct MyStructInnerV0 {
 }
 
 impl<T: Default> Upgrade<MyStructInner<T>> for MyStructInnerV0 {
-    fn upgrade(self) -> Result<MyStructInner<T>, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<MyStructInner<T>, Self::Error> {
         Ok(MyStructInner {
             attr: T::default(),
             builtin: 0,

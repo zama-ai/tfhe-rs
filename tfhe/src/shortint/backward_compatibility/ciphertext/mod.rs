@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use crate::core_crypto::prelude::{
     CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
 };
@@ -42,7 +44,9 @@ pub struct CompactCiphertextListV0 {
 }
 
 impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
-    fn upgrade(self) -> Result<CompactCiphertextList, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
         Ok(CompactCiphertextList {
             ct_list: self.ct_list,
             degree: self.degree,
@@ -76,7 +80,9 @@ pub struct CompressedModulusSwitchedCiphertextV0 {
 }
 
 impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV0 {
-    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
         Ok(CompressedModulusSwitchedCiphertext {
             compressed_modulus_switched_lwe_ciphertext:
                 InternalCompressedModulusSwitchedCiphertext::Classic(

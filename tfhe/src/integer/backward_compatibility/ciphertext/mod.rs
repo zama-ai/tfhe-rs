@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::integer::ciphertext::{
@@ -31,7 +33,9 @@ pub struct CompactCiphertextListV0 {
 }
 
 impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
-    fn upgrade(self) -> Result<CompactCiphertextList, String> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
         let radix_count =
             self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer;
         // Since we can't guess the type of data here, we set them by default as unsigned integer.
