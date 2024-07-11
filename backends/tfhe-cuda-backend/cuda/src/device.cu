@@ -107,9 +107,14 @@ void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
     PANIC("Cuda error: invalid device pointer in async copy to GPU.")
   }
 
+  void *pinned_src;
+  cudaMallocHost(&pinned_src, size);
+  memcpy(pinned_src, src, size);
   check_cuda_error(cudaSetDevice(gpu_index));
   check_cuda_error(
-      cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice, stream));
+      cudaMemcpyAsync(dest, pinned_src, size, cudaMemcpyHostToDevice, stream));
+  cuda_synchronize_stream(stream, gpu_index);
+  cudaFreeHost(pinned_src);
 }
 
 /// Copy memory within a GPU asynchronously
