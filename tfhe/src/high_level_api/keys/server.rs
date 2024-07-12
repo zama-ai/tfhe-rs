@@ -1,7 +1,7 @@
-use tfhe_versionable::{Unversionize, Versionize, VersionizeOwned};
+use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::keys::{
-    CompressedServerKeyVersions, ServerKeyVersioned, ServerKeyVersionedOwned,
+    CompressedServerKeyVersions, ServerKeyVersions,
 };
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
@@ -23,7 +23,8 @@ use super::ClientKey;
 // Keys are stored in an Arc, so that cloning them is cheap
 // (compared to an actual clone hundreds of MB / GB), and cheap cloning is needed for
 // multithreading with less overhead)
-#[derive(Clone)]
+#[derive(Clone, Versionize)]
+#[versionize(ServerKeyVersions)]
 pub struct ServerKey {
     pub(crate) key: Arc<IntegerServerKey>,
 }
@@ -133,52 +134,6 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
         DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
             key: Arc::new(deserialized.integer_key),
         })
-    }
-}
-
-#[derive(serde::Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub struct ServerKeyVersion<'vers> {
-    pub(crate) integer_key: <IntegerServerKey as Versionize>::Versioned<'vers>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub struct ServerKeyVersionOwned {
-    pub(crate) integer_key: <IntegerServerKey as VersionizeOwned>::VersionedOwned,
-}
-
-impl Versionize for ServerKey {
-    type Versioned<'vers> = ServerKeyVersioned<'vers>;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        ServerKeyVersioned::V0(ServerKeyVersion {
-            integer_key: self.key.versionize(),
-        })
-    }
-}
-
-impl VersionizeOwned for ServerKey {
-    type VersionedOwned = ServerKeyVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        ServerKeyVersionedOwned::V0(ServerKeyVersionOwned {
-            integer_key: (*self.key).clone().versionize_owned(),
-        })
-    }
-}
-
-impl Unversionize for ServerKey {
-    fn unversionize(
-        versioned: Self::VersionedOwned,
-    ) -> Result<Self, tfhe_versionable::UnversionizeError> {
-        match versioned {
-            ServerKeyVersionedOwned::V0(v0) => {
-                IntegerServerKey::unversionize(v0.integer_key).map(|unversioned| Self {
-                    key: Arc::new(unversioned),
-                })
-            }
-        }
     }
 }
 

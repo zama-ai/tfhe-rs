@@ -1,4 +1,6 @@
-use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
+use std::sync::Arc;
+
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::keys::*;
@@ -8,16 +10,27 @@ pub enum ClientKeyVersions {
     V0(ClientKey),
 }
 
-#[derive(Serialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum ServerKeyVersioned<'vers> {
-    V0(ServerKeyVersion<'vers>),
+// This type was previously versioned using a manual implementation with a conversion
+// to a type where the inner key was name `integer_key`
+#[derive(Version)]
+pub struct ServerKeyV0 {
+    pub(crate) integer_key: Arc<IntegerServerKey>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
-pub enum ServerKeyVersionedOwned {
-    V0(ServerKeyVersionOwned),
+impl Upgrade<ServerKey> for ServerKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ServerKey, Self::Error> {
+        Ok(ServerKey {
+            key: self.integer_key,
+        })
+    }
+}
+
+#[derive(VersionsDispatch)]
+pub enum ServerKeyVersions {
+    V0(ServerKeyV0),
+    V1(ServerKey),
 }
 
 #[derive(VersionsDispatch)]
