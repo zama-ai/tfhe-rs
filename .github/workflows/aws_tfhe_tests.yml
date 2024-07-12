@@ -86,6 +86,8 @@ jobs:
             high_level_api:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
+              - '!tfhe/src/boolean/**'
+              - '!tfhe/src/js_on_wasm_api/**'
             c_api:
               - tfhe/src/**
             examples:
