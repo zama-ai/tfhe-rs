@@ -2214,13 +2214,11 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
           new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
                                    num_radix_blocks, allocate_gpu_memory);
 
-      tree_last_leaf_lut =
-          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                   num_radix_blocks, allocate_gpu_memory);
+      tree_last_leaf_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
 
-      tree_last_leaf_scalar_lut =
-          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 1,
-                                   num_radix_blocks, allocate_gpu_memory);
+      tree_last_leaf_scalar_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, params, 1, 1, allocate_gpu_memory);
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0],
           tree_inner_leaf_lut->get_lut(gpu_indexes[0], 0),
@@ -2649,7 +2647,7 @@ template <typename Torus> struct int_div_rem_memory {
           [shifted_mask](Torus x) -> Torus { return x & shifted_mask; };
 
       masking_luts_1[i] = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true);
       masking_luts_2[i] = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
 
@@ -2763,7 +2761,7 @@ template <typename Torus> struct int_div_rem_memory {
       };
 
       merge_overflow_flags_luts[i] = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, num_blocks, true);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true);
 
       generate_device_accumulator_bivariate<Torus>(
           streams[0], gpu_indexes[0],
