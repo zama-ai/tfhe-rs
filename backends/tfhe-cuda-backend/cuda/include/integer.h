@@ -2868,39 +2868,45 @@ template <typename Torus> struct int_last_block_inner_propagate_memory {
     auto f_last_block_inner_propagation_lut =
         [op, message_modulus, message_bit_mask,
          bits_of_message](Torus lhs_block, Torus rhs_block) -> Torus {
-      Torus local_rhs_block = 0;
+      uint64_t rhs_block_modified;
       if (op == SIGNED_OPERATION::SUBTRACTION) {
-        Torus flipped_rhs = !rhs_block;
-        local_rhs_block = (flipped_rhs << 1) & message_bit_mask;
-      } else {
-        local_rhs_block = (rhs_block << 1) & message_bit_mask;
-      };
+        // Subtraction is done by adding the negation
+        // Negation(x) = bit_flip(x) + 1
+        // Only add the flipped value, the +1 will be resolved by carry
+        // propagation computation
+        uint64_t flipped_rhs = ~rhs_block;
 
-      Torus local_lhs_block = (lhs_block << 1) & message_bit_mask;
+        // Remove the last bit, it's not interesting in this step
+        rhs_block_modified = (flipped_rhs << 1) & message_bit_mask;
+      } else {
+        rhs_block_modified = (rhs_block << 1) & message_bit_mask;
+      }
+
+      uint64_t lhs_block_modified = (lhs_block << 1) & message_bit_mask;
 
       // whole_result contains the result of addition with
       // the carry being in the first bit of carry space
       // the message space contains the message, but with one 0
-      // on the right (lsb)
-      Torus whole_result = local_lhs_block + local_rhs_block;
-      Torus carry = whole_result >> bits_of_message;
-      Torus result = (whole_result & message_bit_mask) >> 1;
-      Torus propagation_result = 0;
+      // on the right (LSB)
+      uint64_t whole_result = lhs_block_modified + rhs_block_modified;
+      uint64_t carry = whole_result >> bits_of_message;
+      uint64_t result = (whole_result & message_bit_mask) >> 1;
+      OUTPUT_CARRY propagation_result;
       if (carry == 1) {
-        // Addition of bits before last one generates a carry
+        // Addition of bits before the last one generates a carry
         propagation_result = OUTPUT_CARRY::GENERATED;
       } else if (result == ((message_modulus - 1) >> 1)) {
-        // Addition of bits before last one puts the bits
-        // in a state that makes it so that an input carry into last block
-        // gets propagated to last bit.
+        // Addition of bits before the last one puts the bits
+        // in a state that makes it so that an input carry into the last block
+        // gets propagated to the last bit.
         propagation_result = OUTPUT_CARRY::PROPAGATED;
       } else {
         propagation_result = OUTPUT_CARRY::NONE;
-      };
+      }
 
-      // Shift the propagation result in carry part
+      // Shift the propagation result in the carry part
       // to have less noise growth later
-      return propagation_result << bits_of_message;
+      return (static_cast<uint64_t>(propagation_result) << bits_of_message);
     };
 
     last_block_inner_propagation_lut = new int_radix_lut<Torus>(
@@ -2999,6 +3005,7 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
   // temporary device buffers
   Torus *result;                       // num_blocks
   Torus *input_carries;                // num_blocks
+  Torus *neg_rhs;                      // num_blocks
   Torus *output_carry;                 // single block
   Torus *last_block_inner_propagation; // single block
 
@@ -3009,6 +3016,9 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
     uint32_t big_lwe_size = params.big_lwe_dimension + 1;
 
     result = (Torus *)cuda_malloc_async(
+        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+    neg_rhs = (Torus *)cuda_malloc_async(
         big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
 
     input_carries = (Torus *)cuda_malloc_async(
@@ -3061,6 +3071,7 @@ template <typename Torus> struct int_signed_overflowing_add_or_sub_memory {
 
     // temporary device buffers
     cuda_drop_async(result, streams[0], gpu_indexes[0]);
+    cuda_drop_async(neg_rhs, streams[0], gpu_indexes[0]);
     cuda_drop_async(input_carries, streams[0], gpu_indexes[0]);
     cuda_drop_async(output_carry, streams[0], gpu_indexes[0]);
     cuda_drop_async(last_block_inner_propagation, streams[0], gpu_indexes[0]);

@@ -85,6 +85,7 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
   assert(radix_params.message_modulus >= 4 && radix_params.carry_modulus >= 4);
 
   auto result = mem_ptr->result;
+  auto neg_rhs = mem_ptr->neg_rhs;
   auto input_carries = mem_ptr->input_carries;
   auto output_carry = mem_ptr->output_carry;
   auto last_block_inner_propagation = mem_ptr->last_block_inner_propagation;
@@ -97,8 +98,11 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     host_addition(streams[0], gpu_indexes[0], result, lhs, rhs,
                   big_lwe_dimension, num_blocks);
   } else {
-    host_subtraction(streams[0], gpu_indexes[0], result, lhs, rhs,
-                     big_lwe_dimension, num_blocks);
+    host_integer_radix_negation(
+        streams, gpu_indexes, gpu_count, neg_rhs, rhs, big_lwe_dimension,
+        num_blocks, radix_params.message_modulus, radix_params.carry_modulus);
+    host_addition(streams[0], gpu_indexes[0], result, lhs, neg_rhs,
+                  big_lwe_dimension, num_blocks);
   }
 
   // phase 2
