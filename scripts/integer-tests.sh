@@ -124,7 +124,8 @@ fi
 
 # Override test-threads number to avoid Out-of-memory issues on GPU instances
 if [[ "${backend}" == "gpu" ]]; then
-    test_threads=6
+    test_threads=5
+    doctest_threads=5
 fi
 
 filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
