@@ -4,12 +4,14 @@ use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCi
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
@@ -439,5 +441,112 @@ impl CudaServerKey {
             .after_overflowing_sub(&rhs.as_ref().info);
 
         (ct_res, ct_overflowed)
+    }
+
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let gpu_index = 0;
+    /// let streams = CudaStreams::new_single_gpu(gpu_index);
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks, &streams);
+    /// let total_bits = num_blocks * cks.parameters().message_modulus().0.ilog2() as usize;
+    /// let modulus = 1 << total_bits;
+    ///
+    /// let msg1: i8 = 120;
+    /// let msg2: i8 = 8;
+    ///
+    /// let ct1 = cks.encrypt_signed(msg1);
+    /// let ct2 = cks.encrypt_signed(msg2);
+    ///
+    /// // Copy to GPU
+    /// let d_ct1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct1, &streams);
+    /// let d_ct2 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct2, &streams);
+    ///
+    /// // Compute homomorphically an overflowing subtraction:
+    /// let (d_ct_res, d_ct_overflowed) = sks.signed_overflowing_sub(&d_ct1, &d_ct2, &streams);
+    ///
+    /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
+    /// let ct_overflowed = d_ct_overflowed.to_boolean_block(&streams);
+    ///
+    /// // Decrypt:
+    /// let dec_result: i8 = cks.decrypt_signed(&ct_res);
+    /// let dec_overflowed: bool = cks.decrypt_bool(&ct_overflowed);
+    /// let (clear_result, clear_overflowed) = msg1.overflowing_sub(msg2);
+    /// assert_eq!(dec_result, clear_result);
+    /// assert_eq!(dec_overflowed, clear_overflowed);
+    /// ```
+    pub fn signed_overflowing_sub(
+        &self,
+        ct_left: &CudaSignedRadixCiphertext,
+        ct_right: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                unsafe {
+                    tmp_rhs = ct_right.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                }
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                unsafe {
+                    tmp_lhs = ct_left.duplicate_async(stream);
+                    tmp_rhs = ct_right.duplicate_async(stream);
+
+                    self.full_propagate_assign_async(&mut tmp_lhs, stream);
+                    self.full_propagate_assign_async(&mut tmp_rhs, stream);
+                }
+
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_signed_overflowing_sub(lhs, rhs, stream)
+    }
+
+    pub fn unchecked_signed_overflowing_sub(
+        &self,
+        ct_left: &CudaSignedRadixCiphertext,
+        ct_right: &CudaSignedRadixCiphertext,
+        stream: &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0,
+            "lhs and rhs must have the name number of blocks ({} vs {})",
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        assert!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 > 0,
+            "inputs cannot be empty"
+        );
+
+        self.unchecked_signed_overflowing_add_or_sub(
+            ct_left,
+            ct_right,
+            SignedOperation::Subtraction,
+            stream,
+        )
     }
 }

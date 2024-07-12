@@ -263,9 +263,14 @@ where
                 (FheInt::new(result), FheBool::new(overflow))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                todo!("Cuda devices do not support signed integer");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, overflow) = cuda_key.key.signed_overflowing_sub(
+                    &self.ciphertext.on_gpu(),
+                    &other.ciphertext.on_gpu(),
+                    streams,
+                );
+                (FheInt::new(result), FheBool::new(overflow))
+            }),
         })
     }
 }
