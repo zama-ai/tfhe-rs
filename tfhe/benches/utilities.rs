@@ -1,19 +1,138 @@
-use itertools::iproduct;
 use serde::Serialize;
 use std::path::PathBuf;
-use std::vec::IntoIter;
 use std::{env, fs};
-#[cfg(feature = "boolean")]
-use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
-#[cfg(all(feature = "shortint", feature = "gpu"))]
-use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-#[cfg(all(feature = "shortint", not(feature = "gpu")))]
-use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+
+#[cfg(feature = "boolean")]
+pub mod boolean_utils {
+    use super::*;
+    #[cfg(feature = "boolean")]
+    use tfhe::boolean::parameters::BooleanParameters;
+
+    #[cfg(feature = "boolean")]
+    impl From<BooleanParameters> for CryptoParametersRecord<u32> {
+        fn from(params: BooleanParameters) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(params.lwe_dimension),
+                glwe_dimension: Some(params.glwe_dimension),
+                polynomial_size: Some(params.polynomial_size),
+                lwe_noise_distribution: Some(params.lwe_noise_distribution),
+                glwe_noise_distribution: Some(params.glwe_noise_distribution),
+                pbs_base_log: Some(params.pbs_base_log),
+                pbs_level: Some(params.pbs_level),
+                ks_base_log: Some(params.ks_base_log),
+                ks_level: Some(params.ks_level),
+                ciphertext_modulus: Some(CiphertextModulus::<u32>::new_native()),
+                ..Default::default()
+            }
+        }
+    }
+}
+
+#[allow(unused_imports)]
+#[cfg(feature = "boolean")]
+pub use boolean_utils::*;
+
 #[cfg(feature = "shortint")]
-use tfhe::shortint::parameters::{ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
+pub mod shortint_utils {
+    use super::*;
+    use itertools::iproduct;
+    use std::vec::IntoIter;
+    #[cfg(feature = "gpu")]
+    use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+    #[cfg(not(feature = "gpu"))]
+    use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+    use tfhe::shortint::parameters::{
+        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    };
+    use tfhe::shortint::PBSParameters;
+
+    /// An iterator that yields a succession of combinations
+    /// of parameters and a num_block to achieve a certain bit_size ciphertext
+    /// in radix decomposition
+    pub struct ParamsAndNumBlocksIter {
+        params_and_bit_sizes:
+            itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
+    }
+
+    impl Default for ParamsAndNumBlocksIter {
+        fn default() -> Self {
+            let env_config = EnvConfig::new();
+
+            if env_config.is_multi_bit {
+                #[cfg(feature = "gpu")]
+                let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
+                #[cfg(not(feature = "gpu"))]
+                let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            } else {
+                // FIXME One set of parameter is tested since we want to benchmark only quickest
+                // operations.
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
+
+                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                Self {
+                    params_and_bit_sizes,
+                }
+            }
+        }
+    }
+
+    impl Iterator for ParamsAndNumBlocksIter {
+        type Item = (tfhe::shortint::PBSParameters, usize, usize);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let (param, bit_size) = self.params_and_bit_sizes.next()?;
+            let num_block =
+                (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
+
+            Some((param, num_block, bit_size))
+        }
+    }
+
+    impl From<PBSParameters> for CryptoParametersRecord<u64> {
+        fn from(params: PBSParameters) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(params.lwe_dimension()),
+                glwe_dimension: Some(params.glwe_dimension()),
+                polynomial_size: Some(params.polynomial_size()),
+                lwe_noise_distribution: Some(params.lwe_noise_distribution()),
+                glwe_noise_distribution: Some(params.glwe_noise_distribution()),
+                pbs_base_log: Some(params.pbs_base_log()),
+                pbs_level: Some(params.pbs_level()),
+                ks_base_log: Some(params.ks_base_log()),
+                ks_level: Some(params.ks_level()),
+                message_modulus: Some(params.message_modulus().0),
+                carry_modulus: Some(params.carry_modulus().0),
+                ciphertext_modulus: Some(
+                    params
+                        .ciphertext_modulus()
+                        .try_to()
+                        .expect("failed to convert ciphertext modulus"),
+                ),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord<u64> {
+        fn from(params: ShortintKeySwitchingParameters) -> Self {
+            CryptoParametersRecord {
+                ks_base_log: Some(params.ks_base_log),
+                ks_level: Some(params.ks_level),
+                ..Default::default()
+            }
+        }
+    }
+}
+
+#[allow(unused_imports)]
 #[cfg(feature = "shortint")]
-use tfhe::shortint::PBSParameters;
+pub use shortint_utils::*;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
@@ -36,62 +155,6 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub message_modulus: Option<usize>,
     pub carry_modulus: Option<usize>,
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
-}
-
-#[cfg(feature = "boolean")]
-impl From<BooleanParameters> for CryptoParametersRecord<u32> {
-    fn from(params: BooleanParameters) -> Self {
-        CryptoParametersRecord {
-            lwe_dimension: Some(params.lwe_dimension),
-            glwe_dimension: Some(params.glwe_dimension),
-            polynomial_size: Some(params.polynomial_size),
-            lwe_noise_distribution: Some(params.lwe_noise_distribution),
-            glwe_noise_distribution: Some(params.glwe_noise_distribution),
-            pbs_base_log: Some(params.pbs_base_log),
-            pbs_level: Some(params.pbs_level),
-            ks_base_log: Some(params.ks_base_log),
-            ks_level: Some(params.ks_level),
-            ciphertext_modulus: Some(CiphertextModulus::<u32>::new_native()),
-            ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "shortint")]
-impl From<PBSParameters> for CryptoParametersRecord<u64> {
-    fn from(params: PBSParameters) -> Self {
-        CryptoParametersRecord {
-            lwe_dimension: Some(params.lwe_dimension()),
-            glwe_dimension: Some(params.glwe_dimension()),
-            polynomial_size: Some(params.polynomial_size()),
-            lwe_noise_distribution: Some(params.lwe_noise_distribution()),
-            glwe_noise_distribution: Some(params.glwe_noise_distribution()),
-            pbs_base_log: Some(params.pbs_base_log()),
-            pbs_level: Some(params.pbs_level()),
-            ks_base_log: Some(params.ks_base_log()),
-            ks_level: Some(params.ks_level()),
-            message_modulus: Some(params.message_modulus().0),
-            carry_modulus: Some(params.carry_modulus().0),
-            ciphertext_modulus: Some(
-                params
-                    .ciphertext_modulus()
-                    .try_to()
-                    .expect("failed to convert ciphertext modulus"),
-            ),
-            ..Default::default()
-        }
-    }
-}
-
-#[cfg(feature = "shortint")]
-impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord<u64> {
-    fn from(params: ShortintKeySwitchingParameters) -> Self {
-        CryptoParametersRecord {
-            ks_base_log: Some(params.ks_base_log),
-            ks_level: Some(params.ks_level),
-            ..Default::default()
-        }
-    }
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {
@@ -271,53 +334,6 @@ impl EnvConfig {
         } else {
             BENCH_BIT_SIZES.to_vec()
         }
-    }
-}
-
-/// An iterator that yields a succession of combinations
-/// of parameters and a num_block to achieve a certain bit_size ciphertext
-/// in radix decomposition
-pub struct ParamsAndNumBlocksIter {
-    params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
-}
-
-impl Default for ParamsAndNumBlocksIter {
-    fn default() -> Self {
-        let env_config = EnvConfig::new();
-
-        if env_config.is_multi_bit {
-            #[cfg(feature = "gpu")]
-            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
-            #[cfg(not(feature = "gpu"))]
-            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
-
-            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-            Self {
-                params_and_bit_sizes,
-            }
-        } else {
-            // FIXME One set of parameter is tested since we want to benchmark only quickest
-            // operations.
-            let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
-
-            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-            Self {
-                params_and_bit_sizes,
-            }
-        }
-    }
-}
-
-impl Iterator for ParamsAndNumBlocksIter {
-    type Item = (tfhe::shortint::PBSParameters, usize, usize);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (param, bit_size) = self.params_and_bit_sizes.next()?;
-        let num_block =
-            (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
-
-        Some((param, num_block, bit_size))
     }
 }
 
