@@ -2066,6 +2066,21 @@ mod cuda {
     );
 
     criterion_group!(
+        default_cuda_dedup_ops,
+        cuda_add,
+        cuda_mul,
+        cuda_div_rem,
+        cuda_bitand,
+        cuda_bitnot,
+        cuda_left_shift,
+        cuda_rotate_left,
+        cuda_eq,
+        cuda_gt,
+        cuda_max,
+        cuda_default_if_then_else,
+    );
+
+    criterion_group!(
         default_scalar_cuda_ops,
         cuda_scalar_sub,
         cuda_scalar_add,
@@ -2181,8 +2196,8 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::{
-    cuda_cast_ops, default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops,
-    unchecked_scalar_cuda_ops,
+    cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
+    unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
 
 criterion_group!(
@@ -2278,6 +2293,21 @@ criterion_group!(
     le_parallelized,
     gt_parallelized,
     ge_parallelized,
+    if_then_else_parallelized,
+);
+
+criterion_group!(
+    default_dedup_ops,
+    add_parallelized,
+    mul_parallelized,
+    div_rem_parallelized,
+    bitand_parallelized,
+    bitnot,
+    left_shift_parallelized,
+    rotate_left_parallelized,
+    max_parallelized,
+    eq_parallelized,
+    gt_parallelized,
     if_then_else_parallelized,
 );
 
@@ -2523,6 +2553,9 @@ fn go_through_gpu_bench_groups(val: &str) {
             default_scalar_cuda_ops();
             cuda_cast_ops();
         }
+        "fast_default" => {
+            default_cuda_dedup_ops();
+        }
         "unchecked" => {
             unchecked_cuda_ops();
             unchecked_scalar_cuda_ops()
@@ -2540,6 +2573,9 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_scalar_parallelized_ops_comp();
             cast_ops();
             oprf()
+        }
+        "fast_default" => {
+            default_dedup_ops();
         }
         "smart" => {
             smart_ops();
