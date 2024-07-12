@@ -14,6 +14,7 @@ use num_complex::Complex;
 use std::convert::Infallible;
 use std::fmt::Display;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 pub use derived_traits::{Version, VersionsDispatch};
 pub use upgrade::Upgrade;
@@ -360,6 +361,32 @@ impl<T> Unversionize for PhantomData<T> {
 }
 
 impl<T> NotVersioned for PhantomData<T> {}
+
+impl<T: Versionize> Versionize for Arc<T> {
+    type Versioned<'vers> = T::Versioned<'vers>
+    where
+        T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.as_ref().versionize()
+    }
+}
+
+impl<T: VersionizeOwned + Clone> VersionizeOwned for Arc<T> {
+    type VersionedOwned = T::VersionedOwned;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        Arc::unwrap_or_clone(self).versionize_owned()
+    }
+}
+
+impl<T: Unversionize + Clone> Unversionize for Arc<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(Arc::new(T::unversionize(versioned)?))
+    }
+}
+
+impl<T: NotVersioned> NotVersioned for Arc<T> {}
 
 impl<T: Versionize> Versionize for Complex<T> {
     type Versioned<'vers> = Complex<T::Versioned<'vers>> where T: 'vers;

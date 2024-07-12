@@ -8,6 +8,7 @@ documentation = "https://docs.rs/tfhe_versionable"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "tfhe-versionable: Add versioning informations/backward compatibility on rust types used for serialization"
+rust-version = "1.76"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
