@@ -1,78 +1,20 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, EnvConfig, OperatorType};
+use crate::utilities::{write_to_json, EnvConfig, OperatorType, ParamsAndNumBlocksIter};
 use criterion::{criterion_group, Criterion};
-use itertools::iproduct;
 use rand::prelude::*;
 use std::env;
-use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
-#[cfg(feature = "gpu")]
-use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-#[cfg(not(feature = "gpu"))]
-use tfhe::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
     let clearlow = rng.gen::<u128>();
     let clearhigh = rng.gen::<u128>();
 
     tfhe::integer::I256::from((clearlow, clearhigh))
-}
-
-/// An iterator that yields a succession of combinations
-/// of parameters and a num_block to achieve a certain bit_size ciphertext
-/// in radix decomposition
-struct ParamsAndNumBlocksIter {
-    params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
-}
-
-impl Default for ParamsAndNumBlocksIter {
-    fn default() -> Self {
-        let env_config = EnvConfig::new();
-
-        if env_config.is_multi_bit {
-            #[cfg(feature = "gpu")]
-            let params = vec![PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()];
-            #[cfg(not(feature = "gpu"))]
-            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
-
-            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-            Self {
-                params_and_bit_sizes,
-            }
-        } else {
-            // FIXME One set of parameter is tested since we want to benchmark only quickest
-            // operations.
-            let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-                // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
-                // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
-            ];
-
-            let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-            Self {
-                params_and_bit_sizes,
-            }
-        }
-    }
-}
-
-impl Iterator for ParamsAndNumBlocksIter {
-    type Item = (tfhe::shortint::PBSParameters, usize, usize);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (param, bit_size) = self.params_and_bit_sizes.next()?;
-        let num_block =
-            (bit_size as f64 / param.message_modulus().0.ilog2() as f64).ceil() as usize;
-
-        Some((param, num_block, bit_size))
-    }
 }
 
 /// Base function to bench a server key function that is a binary operation, input ciphertext will
