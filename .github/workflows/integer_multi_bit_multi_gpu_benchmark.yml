@@ -4,8 +4,12 @@ name: Integer multi GPU Multi-bit benchmarks
 on:
   workflow_dispatch:
     inputs:
-      full_benchmark:
+      all_precisions:
         description: "Run all precisions"
+        type: boolean
+        default: false
+      fast_default:
+        description: "Run only deduplicated default operations without scalar variants"
         type: boolean
         default: false
 
@@ -24,6 +28,7 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_BENCH: TRUE
+  BENCH_OP_FLAVOR: default
 
 jobs:
   setup-instance:
@@ -112,14 +117,19 @@ jobs:
           path: slab
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
-      - name: Should run full benchmarks
-        if: inputs.full_benchmark
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
         run: |
           echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
 
+      - name: Should run fast subset benchmarks
+        if: inputs.fast_default
+        run: |
+          echo "BENCH_OP_FLAVOR=fast_default" >> "${GITHUB_ENV}"
+
       - name: Run multi-bit benchmarks with AVX512
         run: |
-          make FAST_BENCH=${{ env.FAST_BENCH }} BENCH_OP_FLAVOR=default bench_unsigned_integer_multi_bit_gpu
+          make bench_unsigned_integer_multi_bit_gpu
 
       - name: Parse results
         run: |
