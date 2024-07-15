@@ -146,6 +146,9 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             public_params
                 .serialize_with_mode(&mut crs_data, Compress::No)
                 .unwrap();
+
+            println!("CRS size: {}", crs_data.len());
+
             let test_name = format!("zk::crs_sizes::{param_name}_{bits}_bits_packed");
 
             write_result(&mut file, &test_name, crs_data.len());
@@ -177,6 +180,24 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     .extend(messages.iter().copied())
                     .build_with_proof_packed(public_params, compute_load)
                     .unwrap();
+
+                let proof_serialized = bincode::serialize(&ct1).unwrap();
+
+                println!("proof size: {}", proof_serialized.len());
+
+                let test_name =
+                    format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}");
+
+                write_result(&mut file, &test_name, proof_serialized.len());
+                write_to_json::<u64, _>(
+                    &test_name,
+                    shortint_params,
+                    param_name,
+                    "pke_zk_proof",
+                    &OperatorType::Atomic,
+                    0,
+                    vec![],
+                );
 
                 bench_group.bench_function(&bench_id_verify, |b| {
                     b.iter(|| {
