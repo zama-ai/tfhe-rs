@@ -31,7 +31,8 @@ jobs:
   setup-instance:
     name: Setup instance (signed-integer-tests)
     if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
-        github.event_name != 'pull_request' || contains(github.event.label.name, 'approved')
+        (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+        (github.event_name != 'push' && github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
