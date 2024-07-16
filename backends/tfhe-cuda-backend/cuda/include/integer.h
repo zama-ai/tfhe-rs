@@ -1035,6 +1035,7 @@ template <typename Torus> struct int_fullprop_buffer {
                uint32_t gpu_count) {
 
     lut->release(streams, gpu_indexes, 1);
+    delete lut;
 
     cuda_drop_async(tmp_small_lwe_vector, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_big_lwe_vector, streams[0], gpu_indexes[0]);
@@ -3258,6 +3259,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
                uint32_t gpu_count) {
     sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
+    delete sum_ciphertexts_vec_mem;
     cuda_drop_async(all_shifted_buffer, streams[0], gpu_indexes[0]);
   }
 };
