@@ -100,6 +100,9 @@ def filter_integer_tests(input_args):
     backend_filter = ""
     if input_args.backend == "gpu":
         backend_filter = "gpu::"
+        if multi_bit_filter:
+            # For now, GPU only has specific parameters set for multi-bit
+            multi_bit_filter = "_gpu_multi_bit"
 
     filter_expression = [f"test(/^integer::{backend_filter}.*/)"]
 
