@@ -156,6 +156,7 @@ pub enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_ff
 }
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum SerializableShortintBootstrappingKeyVersion<'vers> {
     Classic(FourierLweBootstrapKeyVersioned<'vers>),
     MultiBit {
@@ -165,6 +166,7 @@ pub enum SerializableShortintBootstrappingKeyVersion<'vers> {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum SerializableShortintBootstrappingKeyVersionOwned {
     Classic(FourierLweBootstrapKeyVersionedOwned),
     MultiBit {

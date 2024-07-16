@@ -102,6 +102,8 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 // The inner `Arc` are used to make copying a server key more performant before a `set_server_key`
 // in multi-threading scenarios.
 #[derive(serde::Serialize)]
+// We directly versionize the `ServerKey` without having to use this intermediate type.
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 struct SerializableServerKey<'a> {
     pub(crate) integer_key: &'a IntegerServerKey,
 }
@@ -135,11 +137,13 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
 }
 
 #[derive(serde::Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub struct ServerKeyVersion<'vers> {
     pub(crate) integer_key: <IntegerServerKey as Versionize>::Versioned<'vers>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub struct ServerKeyVersionOwned {
     pub(crate) integer_key: <IntegerServerKey as VersionizeOwned>::VersionedOwned,
 }

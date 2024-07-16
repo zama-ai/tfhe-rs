@@ -11,6 +11,7 @@ use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use crate::core_crypto::prelude::{Container, FourierLweBootstrapKey, IntoContainerOwned};
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierPolynomialListVersioned<'vers> {
     V0(FourierPolynomialList<&'vers [c64]>),
 }
@@ -29,6 +30,7 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierPolynomialList<C>>
 
 // Here we do not derive "VersionsDispatch" so that we can implement a non recursive Versionize
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierPolynomialListVersionedOwned {
     V0(FourierPolynomialList<ABox<[c64]>>),
 }
@@ -59,6 +61,7 @@ impl<C: IntoContainerOwned<Element = c64>> From<FourierPolynomialListVersionedOw
 }
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierLweBootstrapKeyVersioned<'vers> {
     V0(FourierLweBootstrapKeyVersion<'vers>),
 }
@@ -72,6 +75,7 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweBootstrapKey<C>>
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierLweBootstrapKeyVersionedOwned {
     V0(FourierLweBootstrapKeyVersionOwned),
 }
