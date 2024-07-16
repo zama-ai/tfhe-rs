@@ -403,6 +403,7 @@ pub struct FourierLweMultiBitBootstrapKey<C: Container<Element = c64>> {
 }
 
 #[derive(serde::Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub struct FourierLweMultiBitBootstrapKeyVersion<'vers> {
     fourier: FourierPolynomialListVersioned<'vers>,
     input_lwe_dimension: <LweDimension as Versionize>::Versioned<'vers>,
@@ -413,6 +414,7 @@ pub struct FourierLweMultiBitBootstrapKeyVersion<'vers> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub struct FourierLweMultiBitBootstrapKeyVersionOwned {
     fourier: FourierPolynomialListVersionedOwned,
     input_lwe_dimension: <LweDimension as VersionizeOwned>::VersionedOwned,

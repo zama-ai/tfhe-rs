@@ -9,11 +9,13 @@ pub enum ClientKeyVersions {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum ServerKeyVersioned<'vers> {
     V0(ServerKeyVersion<'vers>),
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum ServerKeyVersionedOwned {
     V0(ServerKeyVersionOwned),
 }

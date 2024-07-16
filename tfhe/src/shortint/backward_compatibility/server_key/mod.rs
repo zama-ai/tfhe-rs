@@ -5,6 +5,7 @@ use crate::core_crypto::prelude::{Container, IntoContainerOwned};
 use crate::shortint::server_key::*;
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum SerializableShortintBootstrappingKeyVersioned<'vers> {
     V0(SerializableShortintBootstrappingKeyVersion<'vers>),
 }
@@ -19,6 +20,7 @@ impl<'vers, C: Container<Element = concrete_fft::c64>>
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum SerializableShortintBootstrappingKeyVersionedOwned {
     V0(SerializableShortintBootstrappingKeyVersionOwned),
 }
