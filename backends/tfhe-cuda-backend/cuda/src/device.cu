@@ -32,6 +32,23 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
   return ptr;
 }
 
+/// Unsafe function that allocates pinned memory on the GPU
+void *cuda_malloc_host(uint64_t size) {
+  void *ptr;
+  check_cuda_error(cudaMallocHost((void **)&ptr, size));
+  return ptr;
+}
+
+/// Unsafe function that copies data between two CPU arrays
+void host_memcpy(void *dest, void *src, uint64_t size) {
+  memcpy(dest, src, size);
+}
+
+/// Free data on the CPU
+void host_free(void *ptr) {
+  cudaFreeHost(ptr);
+}
+
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream,

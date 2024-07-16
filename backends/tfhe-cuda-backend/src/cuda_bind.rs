@@ -12,6 +12,15 @@ extern "C" {
     /// Allocate `size` memory on GPU `gpu_index` asynchronously
     pub fn cuda_malloc_async(size: u64, stream: *mut c_void, gpu_index: u32) -> *mut c_void;
 
+    /// Allocate `size` pinned memory on CPU
+    pub fn cuda_malloc_host(size: u64) -> *mut c_void;
+
+    /// Copy data between two pointers on the CPU
+    pub fn host_memcpy(dest: *mut c_void, src: *const c_void, size: u64);
+
+    /// Free data on the CPU
+    pub fn host_free(ptr: *mut c_void);
+
     /// Copy `size` memory asynchronously from `src` on GPU `gpu_index` to `dest` on CPU using
     /// the Cuda stream `v_stream`.
     pub fn cuda_memcpy_async_to_cpu(

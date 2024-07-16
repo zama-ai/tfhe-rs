@@ -11,7 +11,6 @@ use crate::core_crypto::prelude::{
 };
 pub use algorithms::*;
 pub use entities::*;
-use rayon::prelude::*;
 use std::ffi::c_void;
 pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 
@@ -273,7 +272,36 @@ pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
     dest: &mut CudaVec<T>,
     src: &[T],
 ) {
-    dest.copy_from_cpu_multi_gpu_async(src, streams);
+    assert!(dest.len() >= src.len());
+    let size: u64 = std::mem::size_of_val(src) as u64;
+    if size > 0 {
+        let pinned_src: *mut c_void = cuda_malloc_host(size);
+        host_memcpy(pinned_src, src.as_ptr().cast(), size);
+        dest.gpu_indexes.iter().for_each(|&gpu_index| {
+            cuda_synchronize_stream(
+                streams.ptr[gpu_index as usize],
+                streams.gpu_indexes[gpu_index as usize],
+            );
+        });
+        dest.gpu_indexes.iter().for_each(|&gpu_index| {
+            // We have to check that src is not empty, because Rust slice with size 0 results in an
+            // invalid pointer being passed to copy_to_gpu_async
+            cuda_memcpy_async_to_gpu(
+                dest.get_mut_c_ptr(gpu_index),
+                pinned_src,
+                size,
+                streams.ptr[gpu_index as usize],
+                streams.gpu_indexes[gpu_index as usize],
+            );
+        });
+        dest.gpu_indexes.iter().for_each(|&gpu_index| {
+            cuda_synchronize_stream(
+                streams.ptr[gpu_index as usize],
+                streams.gpu_indexes[gpu_index as usize],
+            );
+        });
+        host_free(pinned_src);
+    }
 }
 
 /// Convert programmable bootstrap key
@@ -293,7 +321,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
-    streams.gpu_indexes.par_iter().for_each(|&gpu_index| {
+    streams.gpu_indexes.iter().for_each(|&gpu_index| {
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
         cuda_convert_lwe_programmable_bootstrap_key_64(
             streams.ptr[gpu_index as usize],

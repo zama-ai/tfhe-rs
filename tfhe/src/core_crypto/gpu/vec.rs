@@ -1,7 +1,6 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
 use crate::core_crypto::prelude::Numeric;
-use rayon::prelude::*;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -153,10 +152,10 @@ impl<T: Numeric> CudaVec<T> {
     where
         T: Into<u64>,
     {
-        for &gpu_index in self.gpu_indexes.clone().iter() {
-            let size = self.len() * std::mem::size_of::<T>();
-            // We check that self is not empty to avoid invalid pointers
-            if size > 0 {
+        let size = self.len() * std::mem::size_of::<T>();
+        // We check that self is not empty to avoid invalid pointers
+        if size > 0 {
+            for &gpu_index in self.gpu_indexes.clone().iter() {
                 cuda_memset_async(
                     self.as_mut_c_ptr(gpu_index),
                     value.into(),
@@ -204,13 +203,12 @@ impl<T: Numeric> CudaVec<T> {
     where
         T: Numeric,
     {
-        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
-            assert!(self.len() >= src.len());
-            let size = std::mem::size_of_val(src);
-
-            // We have to check that src is not empty, because Rust slice with size 0 results in an
-            // invalid pointer being passed to copy_to_gpu_async
-            if size > 0 {
+        assert!(self.len() >= src.len());
+        let size = std::mem::size_of_val(src);
+        if size > 0 {
+            self.gpu_indexes.iter().for_each(|&gpu_index| {
+                // We have to check that src is not empty, because Rust slice with size 0 results in
+                // an invalid pointer being passed to copy_to_gpu_async
                 cuda_memcpy_async_to_gpu(
                     self.get_mut_c_ptr(gpu_index),
                     src.as_ptr().cast(),
@@ -218,8 +216,8 @@ impl<T: Numeric> CudaVec<T> {
                     streams.ptr[gpu_index as usize],
                     streams.gpu_indexes[gpu_index as usize],
                 );
-            }
-        });
+            });
+        }
     }
 
     /// Copies data between two `CudaVec`
@@ -439,7 +437,7 @@ unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
-        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
+        self.gpu_indexes.iter().for_each(|&gpu_index| {
             // Synchronizes the device to be sure no stream is still using this pointer
             synchronize_device(gpu_index);
             unsafe { cuda_drop(self.get_mut_c_ptr(gpu_index), gpu_index) };

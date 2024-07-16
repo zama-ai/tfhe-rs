@@ -35,6 +35,12 @@ void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index);
 
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 
+void *cuda_malloc_host(uint64_t size);
+
+void host_memcpy(void *dest, void *src, uint64_t size);
+
+void host_free(void *ptr);
+
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
