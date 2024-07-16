@@ -6,10 +6,8 @@ use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "boolean")]
 pub mod boolean_utils {
     use super::*;
-    #[cfg(feature = "boolean")]
     use tfhe::boolean::parameters::BooleanParameters;
 
-    #[cfg(feature = "boolean")]
     impl From<BooleanParameters> for CryptoParametersRecord<u32> {
         fn from(params: BooleanParameters) -> Self {
             CryptoParametersRecord {
@@ -38,6 +36,8 @@ pub mod shortint_utils {
     use super::*;
     use itertools::iproduct;
     use std::vec::IntoIter;
+    use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
+    use tfhe::shortint::parameters::list_compression::CompressionParameters;
     #[cfg(feature = "gpu")]
     use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
     #[cfg(not(feature = "gpu"))]
@@ -124,6 +124,25 @@ pub mod shortint_utils {
             CryptoParametersRecord {
                 ks_base_log: Some(params.ks_base_log),
                 ks_level: Some(params.ks_level),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<CompactPublicKeyEncryptionParameters> for CryptoParametersRecord<u64> {
+        fn from(params: CompactPublicKeyEncryptionParameters) -> Self {
+            CryptoParametersRecord {
+                message_modulus: Some(params.message_modulus.0),
+                carry_modulus: Some(params.carry_modulus.0),
+                ciphertext_modulus: Some(params.ciphertext_modulus),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<CompressionParameters> for CryptoParametersRecord<u64> {
+        fn from(_params: CompressionParameters) -> Self {
+            CryptoParametersRecord {
                 ..Default::default()
             }
         }
