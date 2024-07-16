@@ -21,11 +21,13 @@ use serde::{Deserialize, Serialize};
 
 // Manual impl
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub(crate) enum SignedRadixCiphertextVersionedOwned {
     V0(SignedRadixCiphertextVersionOwned),
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub(crate) enum UnsignedRadixCiphertextVersionedOwned {
     V0(UnsignedRadixCiphertextVersionOwned),
 }
