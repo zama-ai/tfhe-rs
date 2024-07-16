@@ -63,6 +63,7 @@ impl<'de> serde::Deserialize<'de> for RadixCiphertext {
 
 // Only CPU data are serialized so we only version the CPU type.
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub(crate) struct RadixCiphertextVersionOwned(
     <crate::integer::RadixCiphertext as VersionizeOwned>::VersionedOwned,
 );

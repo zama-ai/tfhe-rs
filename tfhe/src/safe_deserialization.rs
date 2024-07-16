@@ -20,6 +20,8 @@ const SERIALIZATION_VERSION: &str = "0.4";
 
 /// Tells if this serialized object is versioned or not
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
+// This type should not be versioned because it is part of a wrapper of versioned messages.
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 enum SerializationMode {
     /// Serialize with type versioning for backward compatibility
     Versioned,
@@ -29,6 +31,8 @@ enum SerializationMode {
 
 /// Header with global metadata about the serialized object.
 #[derive(Serialize, Deserialize)]
+// This type should not be versioned because it is part of a wrapper of versioned messages.
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 struct SerializationHeader {
     mode: SerializationMode,
     version: Cow<'static, str>,

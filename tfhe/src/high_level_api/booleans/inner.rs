@@ -52,6 +52,7 @@ impl<'de> serde::Deserialize<'de> for InnerBoolean {
 
 // Only CPU data are serialized so we only versionize the CPU type.
 #[derive(serde::Serialize, serde::Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub(crate) struct InnerBooleanVersionOwned(
     <crate::integer::BooleanBlock as VersionizeOwned>::VersionedOwned,
 );

@@ -17,6 +17,7 @@ where
 }
 
 #[derive(Serialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierLweMultiBitBootstrapKeyVersioned<'vers> {
     V0(FourierLweMultiBitBootstrapKeyVersion<'vers>),
 }
@@ -30,6 +31,7 @@ impl<'vers, C: Container<Element = c64>> From<&'vers FourierLweMultiBitBootstrap
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 pub enum FourierLweMultiBitBootstrapKeyVersionedOwned {
     V0(FourierLweMultiBitBootstrapKeyVersionOwned),
 }
