@@ -68,7 +68,7 @@ __host__ void scratch_cuda_integer_signed_overflowing_add_or_sub_kb(
  * Addition - signed_operation = 1
  * Subtraction - signed_operation = -1
  */
-template <typename Torus, class params>
+template <typename Torus>
 __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *lhs, Torus *rhs, Torus *overflowed, SIGNED_OPERATION op, void **bsks,

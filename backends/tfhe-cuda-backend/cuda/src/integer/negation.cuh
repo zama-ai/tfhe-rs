@@ -98,7 +98,7 @@ __host__ void scratch_cuda_integer_overflowing_sub_kb(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
 }
 
-template <typename Torus, class params>
+template <typename Torus>
 __host__ void host_integer_overflowing_sub_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *radix_lwe_out, Torus *radix_lwe_overflowed, Torus *radix_lwe_left,
