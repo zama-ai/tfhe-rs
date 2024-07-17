@@ -1,4 +1,6 @@
 pub mod ciphertext;
+pub mod client_key;
+pub mod list_compression;
 pub mod server_key;
 
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
@@ -12,6 +14,7 @@ use crate::integer::{ClientKey, RadixClientKey};
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use server_key::CudaServerKey;
 use std::cmp::min;
+
 use tfhe_cuda_backend::cuda_bind::*;
 
 #[repr(u32)]
@@ -266,6 +269,160 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     );
 
     cleanup_cuda_integer_radix_scalar_mul(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    glwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    fp_keyswitch_key: &CudaVec<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    compression_glwe_dimension: GlweDimension,
+    compression_polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    lwe_per_glwe: u32,
+    storage_log_modulus: u32,
+    num_blocks: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_array_out.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_in.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        fp_keyswitch_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_compress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        compression_glwe_dimension.0 as u32,
+        compression_polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        PBSType::Classical as u32,
+        lwe_per_glwe,
+        storage_log_modulus,
+        true,
+    );
+
+    cuda_integer_compress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        glwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        fp_keyswitch_key.ptr.as_ptr(),
+        num_blocks,
+        mem_ptr,
+    );
+
+    cleanup_cuda_integer_compress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    glwe_in: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<B>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    encryption_glwe_dimension: GlweDimension,
+    encryption_polynomial_size: PolynomialSize,
+    compression_glwe_dimension: GlweDimension,
+    compression_polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    storage_log_modulus: u32,
+    vec_indexes: &CudaVec<u32>,
+    num_blocks: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_out.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_in.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_decompress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        encryption_glwe_dimension.0 as u32,
+        encryption_polynomial_size.0 as u32,
+        compression_glwe_dimension.0 as u32,
+        compression_polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        PBSType::Classical as u32,
+        storage_log_modulus,
+        true,
+    );
+
+    cuda_integer_decompress_radix_ciphertext_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        lwe_array_out.as_mut_c_ptr(0),
+        glwe_in.as_c_ptr(0),
+        vec_indexes.as_c_ptr(0),
+        vec_indexes.len as u32,
+        bootstrapping_key.ptr.as_ptr(),
+        mem_ptr,
+    );
+
+    cleanup_cuda_integer_decompress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,

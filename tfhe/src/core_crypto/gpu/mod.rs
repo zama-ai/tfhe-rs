@@ -13,7 +13,6 @@ pub use algorithms::*;
 pub use entities::*;
 use std::ffi::c_void;
 pub(crate) use tfhe_cuda_backend::cuda_bind::*;
-
 #[derive(Debug)]
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
@@ -258,6 +257,56 @@ pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
     src: &[T],
 ) {
     dest.copy_from_cpu_multi_gpu_async(src, streams);
+}
+
+/// Applies packing keyswitch on a vector of LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    glwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    input_lwe_dimension: LweDimension,
+    output_glwe_dimension: GlweDimension,
+    output_polynomial_size: PolynomialSize,
+    packing_keyswitch_key: &CudaVec<T>,
+    base_log: DecompositionBaseLog,
+    l_gadget: DecompositionLevelCount,
+    num_lwes: LweCiphertextCount,
+) {
+    let mut fp_ks_buffer: *mut i8 = std::ptr::null_mut();
+    scratch_packing_keyswitch_lwe_list_to_glwe_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(fp_ks_buffer),
+        output_glwe_dimension.0 as u32,
+        output_polynomial_size.0 as u32,
+        num_lwes.0 as u32,
+        true,
+    );
+    cuda_packing_keyswitch_lwe_list_to_glwe_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        glwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        packing_keyswitch_key.as_c_ptr(0),
+        fp_ks_buffer,
+        input_lwe_dimension.0 as u32,
+        output_glwe_dimension.0 as u32,
+        output_polynomial_size.0 as u32,
+        base_log.0 as u32,
+        l_gadget.0 as u32,
+        num_lwes.0 as u32,
+    );
+    cleanup_packing_keyswitch_lwe_list_to_glwe(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        std::ptr::addr_of_mut!(fp_ks_buffer),
+    );
 }
 
 /// Convert programmable bootstrap key

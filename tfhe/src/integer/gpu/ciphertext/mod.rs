@@ -1,4 +1,5 @@
 pub mod boolean_value;
+pub mod compressed_ciphertext_list;
 pub mod info;
 
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;

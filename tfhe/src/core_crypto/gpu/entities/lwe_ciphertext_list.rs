@@ -199,51 +199,6 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         LweCiphertext::from_container(container, self.ciphertext_modulus())
     }
 
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextModulus, LweCiphertextCount, LweCiphertextList, LweSize,
-    /// };
-    ///
-    /// let mut streams = CudaStreams::new_single_gpu(0);
-    ///
-    /// let lwe_size = LweSize(743);
-    /// let ciphertext_modulus = CiphertextModulus::new_native();
-    /// let lwe_ciphertext_count = LweCiphertextCount(2);
-    ///
-    /// // Create a new LweCiphertextList
-    /// let lwe_list = LweCiphertextList::new(0u64, lwe_size, lwe_ciphertext_count, ciphertext_modulus);
-    ///
-    /// // Copy to GPU
-    /// let d_lwe_list = CudaLweCiphertextList::from_lwe_ciphertext_list(&lwe_list, &mut streams);
-    /// let d_lwe_list_copied = d_lwe_list.duplicate(&mut streams);
-    ///
-    /// let lwe_list_copied = d_lwe_list_copied.to_lwe_ciphertext_list(&mut streams);
-    ///
-    /// assert_eq!(lwe_list, lwe_list_copied);
-    /// ```
-    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
-        let lwe_dimension = self.lwe_dimension();
-        let lwe_ciphertext_count = self.lwe_ciphertext_count();
-        let ciphertext_modulus = self.ciphertext_modulus();
-
-        // Copy to the GPU
-        let mut d_vec = CudaVec::new(self.0.d_vec.len(), streams, 0);
-        unsafe {
-            d_vec.copy_from_gpu_async(&self.0.d_vec, streams, 0);
-        }
-        streams.synchronize();
-
-        let cuda_lwe_list = CudaLweList {
-            d_vec,
-            lwe_ciphertext_count,
-            lwe_dimension,
-            ciphertext_modulus,
-        };
-        Self(cuda_lwe_list)
-    }
-
     pub(crate) fn lwe_dimension(&self) -> LweDimension {
         self.0.lwe_dimension
     }

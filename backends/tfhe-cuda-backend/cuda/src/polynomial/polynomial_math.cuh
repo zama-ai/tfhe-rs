@@ -55,21 +55,22 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   }
 }
 
-// If init_accumulator is set, assumes that result was not initialized and does
-// that with the outcome of first * second
-template <typename T, class params>
-__device__ void
-polynomial_product_accumulate_by_monomial(T *result, const T *__restrict__ poly,
-                                          uint64_t monomial_degree,
-                                          bool init_accumulator = false) {
-  // monomial_degree \in [0, 2 * params::degree)
-  int full_cycles_count = monomial_degree / params::degree;
-  int remainder_degrees = monomial_degree % params::degree;
+// This method expects to work with polynomial_size / compression_params::opt
+// threads in the x-block If init_accumulator is set, assumes that result was
+// not initialized and does that with the outcome of first * second
+template <typename T>
+__device__ void polynomial_accumulate_monic_monomial_mul(
+    T *result, const T *__restrict__ poly, uint64_t monomial_degree,
+    uint32_t tid, uint32_t polynomial_size, int coeff_per_thread,
+    bool init_accumulator = false) {
+  // monomial_degree \in [0, 2 * compression_params::degree)
+  int full_cycles_count = monomial_degree / polynomial_size;
+  int remainder_degrees = monomial_degree % polynomial_size;
 
-  int pos = threadIdx.x;
-  for (int i = 0; i < params::opt; i++) {
+  int pos = tid;
+  for (int i = 0; i < coeff_per_thread; i++) {
     T element = poly[pos];
-    int new_pos = (pos + monomial_degree) % params::degree;
+    int new_pos = (pos + monomial_degree) % polynomial_size;
 
     T x = SEL(element, -element, full_cycles_count % 2); // monomial coefficient
     x = SEL(-x, x, new_pos >= remainder_degrees);
@@ -78,7 +79,7 @@ polynomial_product_accumulate_by_monomial(T *result, const T *__restrict__ poly,
       result[new_pos] = x;
     else
       result[new_pos] += x;
-    pos += params::degree / params::opt;
+    pos += polynomial_size / coeff_per_thread;
   }
 }
 

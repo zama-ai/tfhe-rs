@@ -311,6 +311,40 @@ extern "C" {
         num_samples: u32,
     );
 
+    /// This scratch function allocates the necessary amount of data on the GPU for
+    /// the public function packing keyswitch implementation on 64-bit
+    pub fn scratch_packing_keyswitch_lwe_list_to_glwe_64(
+        stream: *mut c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    /// Perform public functional packing keyswitch on a vector of 64-bit LWE ciphertexts
+    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_64(
+        stream: *mut c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
+        fp_ksk_array: *const c_void,
+        fp_ks_buffer: *mut i8,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_lwes: u32,
+    );
+
+    pub fn cleanup_packing_keyswitch_lwe_list_to_glwe(
+        stream: *mut c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+    );
+
     /// Perform the negation of a u64 input LWE ciphertext vector.
     /// - `v_stream` is a void pointer to the Cuda stream to be used in the kernel launch
     /// - `gpu_index` is the index of the GPU to be used in the kernel launch
@@ -478,6 +512,80 @@ extern "C" {
     );
 
     pub fn cleanup_cuda_integer_mult(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
+
+    pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        num_lwes: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        lwe_per_glwe: u32,
+        storage_log_modulus: u32,
+        allocate_gpu_memory: bool,
+    );
+    pub fn scratch_cuda_integer_decompress_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        encryption_glwe_dimension: u32,
+        encryption_polynomial_size: u32,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        num_lwes: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        storage_log_modulus: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        glwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
+        fp_ksk: *const *mut c_void,
+        num_lwes: u32,
+        mem_ptr: *mut i8,
+    );
+
+    pub fn cuda_integer_decompress_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_out: *mut c_void,
+        glwe_array_in: *const c_void,
+        indexes_array: *const c_void,
+        indexes_array_size: u32,
+        bsks: *const *mut c_void,
+        mem_ptr: *mut i8,
+    );
+
+    pub fn cleanup_cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
+    pub fn cleanup_cuda_integer_decompress_radix_ciphertext_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
