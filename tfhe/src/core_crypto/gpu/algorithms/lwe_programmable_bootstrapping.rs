@@ -26,10 +26,56 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
 {
-    assert_eq!(input.ciphertext_modulus(), output.ciphertext_modulus());
     assert_eq!(
+        input.lwe_dimension(),
+        bsk.input_lwe_dimension(),
+        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        input.lwe_dimension(),
+        bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        output.lwe_dimension(),
+        bsk.output_lwe_dimension(),
+        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
+        output.lwe_dimension(),
+        bsk.output_lwe_dimension(),
+    );
+
+    assert_eq!(
+        accumulator.glwe_dimension(),
+        bsk.glwe_dimension(),
+        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        FourierLweMultiBitBootstrapKey GlweSize {:?}.",
+        accumulator.glwe_dimension(),
+        bsk.glwe_dimension(),
+    );
+
+    assert_eq!(
+        accumulator.polynomial_size(),
+        bsk.polynomial_size(),
+        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
+        accumulator.polynomial_size(),
+        bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        accumulator.ciphertext_modulus()
+        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
+        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
     );
 
     programmable_bootstrap_async(
