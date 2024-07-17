@@ -6,6 +6,9 @@ use crate::integer::backward_compatibility::client_key::RadixClientKeyVersions;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::BooleanBlock;
+use crate::shortint::list_compression::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionPrivateKeys,
+};
 use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -130,6 +133,15 @@ impl RadixClientKey {
 
     pub fn num_blocks(&self) -> usize {
         self.num_blocks
+    }
+
+    pub fn new_compressed_compression_decompression_keys(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+    ) -> (CompressedCompressionKey, CompressedDecompressionKey) {
+        self.key
+            .key
+            .new_compressed_compression_decompression_keys(private_compression_key)
     }
 }
 

@@ -4,7 +4,7 @@ use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
-fn glwe_packing(c: &mut Criterion) {
+fn cpu_glwe_packing(c: &mut Criterion) {
     let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -28,7 +28,6 @@ fn glwe_packing(c: &mut Criterion) {
         32,
         64,
         128,
-        256,
         256,
         comp_param.lwe_per_glwe.0 * log_message_modulus,
     ] {
@@ -73,9 +72,10 @@ fn glwe_packing(c: &mut Criterion) {
     }
 }
 
-criterion_group!(glwe_packing2, glwe_packing);
+criterion_group!(cpu_glwe_packing2, cpu_glwe_packing);
 
 fn main() {
-    glwe_packing2();
+    cpu_glwe_packing2();
+
     Criterion::default().configure_from_args().final_summary();
 }
