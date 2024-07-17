@@ -513,7 +513,7 @@ template <typename Torus>
 void host_propagate_single_sub_borrow(cudaStream_t *streams,
                                       uint32_t *gpu_indexes, uint32_t gpu_count,
                                       Torus *overflowed, Torus *lwe_array,
-                                      int_single_borrow_prop_memory<Torus> *mem,
+                                      int_overflowing_sub_memory<Torus> *mem,
                                       void **bsks, Torus **ksks,
                                       uint32_t num_blocks) {
   auto params = mem->params;

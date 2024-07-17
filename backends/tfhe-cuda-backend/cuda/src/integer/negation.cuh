@@ -113,9 +113,9 @@ __host__ void host_integer_overflowing_sub_kb(
       radix_params.message_modulus, radix_params.carry_modulus,
       radix_params.message_modulus - 1);
 
-  host_propagate_single_sub_borrow<Torus>(
-      streams, gpu_indexes, gpu_count, radix_lwe_overflowed, radix_lwe_out,
-      mem_ptr->borrow_prop_mem, bsks, ksks, num_blocks);
+  host_propagate_single_sub_borrow<Torus>(streams, gpu_indexes, gpu_count,
+                                          radix_lwe_overflowed, radix_lwe_out,
+                                          mem_ptr, bsks, ksks, num_blocks);
 }
 
 #endif
