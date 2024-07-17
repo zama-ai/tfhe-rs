@@ -173,7 +173,7 @@ __host__ void scratch_cuda_integer_div_rem_kb(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
 }
 
-template <typename Torus, class params>
+template <typename Torus>
 __host__ void
 host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                         uint32_t gpu_count, Torus *quotient, Torus *remainder,
@@ -439,7 +439,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     //  `subtraction_overflowed` - single ciphertext
     auto do_overflowing_sub = [&](cudaStream_t *streams, uint32_t *gpu_indexes,
                                   uint32_t gpu_count) {
-      host_integer_overflowing_sub_kb<Torus, params>(
+      host_integer_overflowing_sub_kb<Torus>(
           streams, gpu_indexes, gpu_count, new_remainder.data,
           subtraction_overflowed.data, merged_interesting_remainder.data,
           interesting_divisor.data, bsks, ksks, mem_ptr->overflow_sub_mem,

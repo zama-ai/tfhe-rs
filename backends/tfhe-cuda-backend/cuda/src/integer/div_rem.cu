@@ -26,54 +26,11 @@ void cuda_integer_div_rem_radix_ciphertext_kb_64(
 
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 
-  switch (mem->params.polynomial_size) {
-  case 512:
-    host_integer_div_rem_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  case 1024:
-
-    host_integer_div_rem_kb<uint64_t, Degree<1024>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  case 2048:
-    host_integer_div_rem_kb<uint64_t, Degree<2048>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  case 4096:
-    host_integer_div_rem_kb<uint64_t, Degree<4096>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  case 8192:
-    host_integer_div_rem_kb<uint64_t, Degree<8192>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  case 16384:
-    host_integer_div_rem_kb<uint64_t, Degree<16384>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-        static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
-        bsks, (uint64_t **)(ksks), mem, num_blocks);
-    break;
-  default:
-    PANIC("Cuda error (integer div_rem): unsupported polynomial size. "
-          "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
-  }
+  host_integer_div_rem_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
+      static_cast<uint64_t *>(numerator), static_cast<uint64_t *>(divisor),
+      bsks, (uint64_t **)(ksks), mem, num_blocks);
 }
 
 void cleanup_cuda_integer_div_rem(void **streams, uint32_t *gpu_indexes,

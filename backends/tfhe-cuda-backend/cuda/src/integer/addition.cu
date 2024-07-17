@@ -31,55 +31,11 @@ void cuda_signed_overflowing_add_or_sub_radix_ciphertext_kb_64(
   SIGNED_OPERATION op = (signed_operation == 1) ? SIGNED_OPERATION::ADDITION
                                                 : SIGNED_OPERATION::SUBTRACTION;
 
-  switch (mem->params.polynomial_size) {
-  case 512:
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  case 1024:
-
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  case 2048:
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  case 4096:
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  case 8192:
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  case 16384:
-    host_integer_signed_overflowing_add_or_sub_kb<uint64_t, Degree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-        static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
-        static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
-        num_blocks);
-    break;
-  default:
-    PANIC("Cuda error (integer signed_overflowing_add_or_sub): unsupported "
-          "polynomial size. "
-          "Only N = 512, 1024, 2048, 4096, 8192, 16384 is supported")
-  }
+  host_integer_signed_overflowing_add_or_sub_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(lhs), static_cast<uint64_t *>(rhs),
+      static_cast<uint64_t *>(overflowed), op, bsks, (uint64_t **)(ksks), mem,
+      num_blocks);
 }
 
 void cleanup_signed_overflowing_add_or_sub(void **streams,
