@@ -3197,8 +3197,6 @@ template <typename Torus> struct int_bitop_buffer {
         lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
       }
     }
-
-    lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
   }
 
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
