@@ -1157,7 +1157,7 @@ template <typename Torus> struct int_sc_prop_memory {
   }
 };
 
-template <typename Torus> struct int_single_borrow_prop_memory {
+template <typename Torus> struct int_overflowing_sub_memory {
   Torus *generates_or_propagates;
   Torus *step_output;
 
@@ -1169,10 +1169,10 @@ template <typename Torus> struct int_single_borrow_prop_memory {
 
   int_radix_params params;
 
-  int_single_borrow_prop_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
-                                uint32_t gpu_count, int_radix_params params,
-                                uint32_t num_radix_blocks,
-                                bool allocate_gpu_memory) {
+  int_overflowing_sub_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
+                             uint32_t gpu_count, int_radix_params params,
+                             uint32_t num_radix_blocks,
+                             bool allocate_gpu_memory) {
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1354,60 +1354,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     scp_mem->release(streams, gpu_indexes, gpu_count);
 
     delete scp_mem;
-  }
-};
-
-template <typename Torus> struct int_overflowing_sub_memory {
-  int_radix_params params;
-  int_radix_lut<Torus> *luts_message_carry;
-  int_single_borrow_prop_memory<Torus> *borrow_prop_mem;
-  int_overflowing_sub_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
-                             uint32_t gpu_count, int_radix_params params,
-                             uint32_t num_blocks, bool allocate_gpu_memory) {
-    this->params = params;
-    auto message_modulus = params.message_modulus;
-    auto carry_modulus = params.carry_modulus;
-
-    borrow_prop_mem = new int_single_borrow_prop_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_blocks,
-        allocate_gpu_memory);
-
-    int max_pbs_count = num_blocks * 2;
-
-    // create lut object for message and carry
-    luts_message_carry =
-        new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
-                                 max_pbs_count, allocate_gpu_memory);
-
-    auto message_acc = luts_message_carry->get_lut(gpu_indexes[0], 0);
-    auto carry_acc = luts_message_carry->get_lut(gpu_indexes[0], 1);
-
-    // define functions for each accumulator
-    auto lut_f_message = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
-    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
-      return x / message_modulus;
-    };
-
-    // generate accumulators
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], message_acc, params.glwe_dimension,
-        params.polynomial_size, message_modulus, carry_modulus, lut_f_message);
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], carry_acc, params.glwe_dimension,
-        params.polynomial_size, message_modulus, carry_modulus, lut_f_carry);
-
-    luts_message_carry->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
-  }
-
-  void release(cudaStream_t *streams, uint32_t *gpu_indexes,
-               uint32_t gpu_count) {
-    luts_message_carry->release(streams, gpu_indexes, gpu_count);
-    borrow_prop_mem->release(streams, gpu_indexes, gpu_count);
-
-    delete luts_message_carry;
-    delete borrow_prop_mem;
   }
 };
 
