@@ -1,28 +1,20 @@
 # Run all integer benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Integer full benchmarks
+name: Integer benchmarks
 
 on:
   workflow_dispatch:
     inputs:
-      instance_id:
-        description: "Instance ID"
-        type: string
-      instance_image_id:
-        description: "Instance AMI ID"
-        type: string
-      instance_type:
-        description: "Instance product type"
-        type: string
-      runner_name:
-        description: "Action runner name"
-        type: string
-      request_id:
-        description: "Slab request ID"
-        type: string
-      user_inputs:
-        description: "Type of benchmarks to run"
-        type: string
-        default: "weekly_benchmarks"
+      all_precisions:
+        description: "Run all precisions"
+        type: boolean
+        default: false
+
+  schedule:
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
+    # Quarterly benchmarks will be triggered right before end of quarter, the 25th of the current month at 4a.m.
+    # These benchmarks are far longer to execute hence the reason to run them only four time a year.
+    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,21 +22,29 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  FAST_BENCH: TRUE
 
 jobs:
   prepare-matrix:
     name: Prepare operations matrix
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
     steps:
       - name: Weekly benchmarks
-        if: ${{ github.event.inputs.user_inputs == 'weekly_benchmarks' }}
+        if: github.event_name == 'workflow_dispatch' ||
+          github.event.schedule == '0 1 * * 6'
         run: |
           echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
 
       - name: Quarterly benchmarks
-        if: ${{ github.event.inputs.user_inputs == 'quarterly_benchmarks' }}
+        if: github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *'
         run: |
           echo "OP_FLAVOR=[\"default\", \"smart\", \"unchecked\", \"misc\"]" >> "${GITHUB_ENV}"
 
@@ -53,11 +53,31 @@ jobs:
          run: |
           echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
 
+  setup-instance:
+    name: Setup instance (integer-benchmarks)
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: bench
+
   integer-benchmarks:
     name: Execute integer benchmarks for all operations flavor
-    needs: prepare-matrix
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !cancelled() }}
+    needs: [ prepare-matrix, setup-instance ]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     continue-on-error: true
     timeout-minutes: 1440  # 24 hours
     strategy:
@@ -66,13 +86,6 @@ jobs:
         command: [ integer, integer_multi_bit]
         op_flavor: ${{ fromJson(needs.prepare-matrix.outputs.op_flavor) }}
     steps:
-      - name: Instance configuration used
-        run: |
-          echo "IDs: ${{ inputs.instance_id }}"
-          echo "AMI: ${{ inputs.instance_image_id }}"
-          echo "Type: ${{ inputs.instance_type }}"
-          echo "Request ID: ${{ inputs.request_id }}"
-
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -103,6 +116,11 @@ jobs:
           path: slab
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
+        run: |
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks with AVX512
         run: |
           make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}
@@ -111,7 +129,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware ${{ inputs.instance_type }} \
+          --hardware "hpc7a.96xlarge" \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
           --commit-date "${{ env.COMMIT_DATE }}" \
@@ -140,19 +158,34 @@ jobs:
           -d @${{ env.RESULTS_FILENAME }} \
           ${{ secrets.SLAB_URL }}
 
-  slack-notification:
-    name: Slack Notification
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ failure() }}
-    needs: integer-benchmarks
-    steps:
-      - name: Notify
+      - name: Slack Notification
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "Integer full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  teardown-instance:
+    name: Teardown instance (integer-benchmarks)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, integer-benchmarks ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (integer-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

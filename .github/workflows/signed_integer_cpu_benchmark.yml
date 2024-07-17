@@ -1,11 +1,20 @@
-# Run boolean benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Boolean benchmarks
+# Run all signed integer benchmarks on an AWS instance and return parsed results to Slab CI bot.
+name: Signed Integer full benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      all_precisions:
+        description: "Run all precisions"
+        type: boolean
+        default: false
+
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
     - cron: '0 1 * * 6'
+    # Quarterly benchmarks will be triggered right before end of quarter, the 25th of the current month at 4a.m.
+    # These benchmarks are far longer to execute hence the reason to run them only four time a year.
+    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,13 +26,37 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  FAST_BENCH: TRUE
 
 jobs:
-  setup-instance:
-    name: Setup instance (boolean-benchmarks)
+  prepare-matrix:
+    name: Prepare operations matrix
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    outputs:
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+    steps:
+      - name: Weekly benchmarks
+        if: github.event_name == 'workflow_dispatch' ||
+          github.event.schedule == '0 1 * * 6'
+        run: |
+          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
+
+      - name: Quarterly benchmarks
+        if: github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *'
+        run: |
+          echo "OP_FLAVOR=[\"default\", \"unchecked\"]" >> "${GITHUB_ENV}"
+
+      - name: Set operation flavor output
+        id: set_op_flavor
+        run: |
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+
+  setup-instance:
+    name: Setup instance (signed-integer-benchmarks)
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -38,14 +71,20 @@ jobs:
           backend: aws
           profile: bench
 
-  boolean-benchmarks:
-    name: Execute boolean benchmarks in EC2
-    needs: setup-instance
+  signed-integer-benchmarks:
+    name: Execute signed integer benchmarks for all operations flavor
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     continue-on-error: true
+    timeout-minutes: 1440  # 24 hours
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: [ integer, integer_multi_bit ]
+        op_flavor: [ default, unchecked ]
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
@@ -70,9 +109,21 @@ jobs:
         with:
           toolchain: nightly
 
+      - name: Checkout Slab repo
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
+
+      - name: Should run benchmarks with all precisions
+        if: inputs.all_precisions
+        run: |
+          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
+
       - name: Run benchmarks with AVX512
         run: |
-          make bench_boolean
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_signed_${{ matrix.command }}
 
       - name: Parse results
         run: |
@@ -87,28 +138,11 @@ jobs:
           --name-suffix avx512 \
           --throughput
 
-      - name: Measure key sizes
-        run: |
-          make measure_boolean_key_sizes
-
-      - name: Parse key sizes results
-        run: |
-          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
-          --append-results
-
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
-          name: ${{ github.sha }}_boolean
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}
           path: ${{ env.RESULTS_FILENAME }}
-
-      - name: Checkout Slab repo
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-        with:
-          repository: zama-ai/slab
-          path: slab
-          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Send data to Slab
         shell: bash
@@ -130,12 +164,12 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Boolean benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Signed integer full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: Teardown instance (boolean-benchmarks)
+    name: Teardown instance (integer-benchmarks)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, boolean-benchmarks ]
+    needs: [ setup-instance, signed-integer-benchmarks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -154,4 +188,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (boolean-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (signed-integer-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
