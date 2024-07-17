@@ -1,6 +1,7 @@
 #ifndef CUDA_INTEGER_H
 #define CUDA_INTEGER_H
 
+#include "keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "programmable_bootstrap.h"
 #include "programmable_bootstrap_multibit.h"
@@ -15,7 +16,6 @@ enum SHIFT_OR_ROTATE_TYPE {
   LEFT_ROTATE = 2,
   RIGHT_ROTATE = 3
 };
-enum LUT_TYPE { OPERATOR = 0, MAXVALUE = 1, ISNONZERO = 2, BLOCKSLEN = 3 };
 enum BITOP_TYPE {
   BITAND = 0,
   BITOR = 1,
@@ -475,7 +475,8 @@ struct int_radix_params {
         message_modulus(message_modulus), carry_modulus(carry_modulus){};
 
   void print() {
-    printf("pbs_type: %u, glwe_dimension: %u, polynomial_size: %u, "
+    printf("pbs_type: %u, glwe_dimension: %u, "
+           "polynomial_size: %u, "
            "big_lwe_dimension: %u, "
            "small_lwe_dimension: %u, ks_level: %u, ks_base_log: %u, pbs_level: "
            "%u, pbs_base_log: "
@@ -812,7 +813,6 @@ template <typename Torus> struct int_radix_lut {
     }
   }
 };
-
 template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
   int_radix_lut<Torus> *lut;
