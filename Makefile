@@ -21,8 +21,9 @@ BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=22.4
 FORWARD_COMPAT?=OFF
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
-BACKWARD_COMPAT_DATA_BRANCH=v0.1
-BACKWARD_COMPAT_DATA_DIR=tfhe-backward-compat-data
+BACKWARD_COMPAT_DATA_BRANCH?=v0.1
+BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
+BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
 # sed: -n, do not print input stream, -e means a script/expression
 # 1,/version/ indicates from the first line, to the line matching version at the start of the line
 # p indicates to print, so we keep only the start of the Cargo.toml until we hit the first version
@@ -744,9 +745,12 @@ test_versionable: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-versionable
 
+# The backward compat data repo holds historical binary data but also rust code to generate and load them.
+# Here we use the "patch" functionality of Cargo to make sure the repo used for the data is the same as the one used for the code.
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci: install_rs_build_toolchain
 	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tfhe/$(BACKWARD_COMPAT_DATA_DIR)\"" \
 		--features=$(TARGET_ARCH_FEATURE),shortint,integer -p $(TFHE_SPEC) test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
