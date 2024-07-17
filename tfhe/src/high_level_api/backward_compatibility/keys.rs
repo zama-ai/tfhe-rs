@@ -151,3 +151,8 @@ pub(in crate::high_level_api) enum IntegerCompactPublicKeyVersions {
 pub(in crate::high_level_api) enum IntegerCompressedCompactPublicKeyVersions {
     V0(IntegerCompressedCompactPublicKey),
 }
+
+#[derive(VersionsDispatch)]
+pub enum KeySwitchingKeyVersions {
+    V0(KeySwitchingKey),
+}
