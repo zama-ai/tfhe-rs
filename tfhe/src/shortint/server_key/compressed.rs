@@ -395,4 +395,11 @@ impl CompressedServerKey {
             engine.new_compressed_server_key_with_max_degree(cks, max_degree)
         })
     }
+
+    pub fn ciphertext_lwe_dimension(&self) -> LweDimension {
+        match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
+            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+        }
+    }
 }

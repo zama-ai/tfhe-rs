@@ -733,4 +733,108 @@ impl CompressedKeySwitchingKey {
                 .map(CompressedServerKey::decompress),
         }
     }
+
+    /// Deconstruct a [`CompressedKeySwitchingKey`] into its constituents.
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        CompressedKeySwitchingKeyMaterial,
+        CompressedServerKey,
+        Option<CompressedServerKey>,
+    ) {
+        let Self {
+            key_switching_key_material,
+            dest_server_key,
+            src_server_key,
+        } = self;
+
+        (key_switching_key_material, dest_server_key, src_server_key)
+    }
+
+    /// Construct a [`CompressedKeySwitchingKey`] from its constituents.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided raw parts are not compatible with each other, i.e.:
+    ///
+    /// if the provided source [`CompressedServerKey`] ciphertext
+    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match the
+    /// input [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of the
+    /// [`SeededLweKeyswitchKeyOwned`] in the provided [`CompressedKeySwitchingKeyMaterial`] or if
+    /// the provided destination [`CompressedServerKey`] ciphertext
+    /// [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) does not match
+    /// the output [`LweDimension`](`crate::core_crypto::commons::parameters::LweDimension`) of
+    /// the [`SeededLweKeyswitchKeyOwned`] in the provided [`CompressedKeySwitchingKeyMaterial`].
+    pub fn from_raw_parts(
+        key_switching_key_material: CompressedKeySwitchingKeyMaterial,
+        dest_server_key: CompressedServerKey,
+        src_server_key: Option<CompressedServerKey>,
+    ) -> Self {
+        match src_server_key {
+            Some(ref src_server_key) => {
+                let src_lwe_dimension = src_server_key.ciphertext_lwe_dimension();
+
+                assert_eq!(
+                    src_lwe_dimension,
+                    key_switching_key_material
+                        .key_switching_key
+                        .input_key_lwe_dimension(),
+                    "Mismatch between the source CompressedServerKey ciphertext LweDimension ({:?}) \
+                    and the SeededLweKeyswitchKey input LweDimension ({:?})",
+                    src_lwe_dimension,
+                    key_switching_key_material
+                        .key_switching_key
+                        .input_key_lwe_dimension(),
+                );
+
+                assert_eq!(
+                    src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+                    "Mismatch between the source CompressedServerKey CiphertextModulus ({:?}) \
+                    and the destination CompressedServerKey CiphertextModulus ({:?})",
+                    src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+                );
+            }
+            None => assert!(
+                key_switching_key_material.cast_rshift >= 0,
+                "Trying to build a shortint::CompressedKeySwitchingKey with a negative cast_rshift \
+                without providing a source CompressedServerKey, this is not supported"
+            ),
+        }
+
+        let dst_lwe_dimension = match key_switching_key_material.destination_key {
+            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
+        };
+
+        assert_eq!(
+            dst_lwe_dimension,
+            key_switching_key_material
+                .key_switching_key
+                .output_key_lwe_dimension(),
+            "Mismatch between the destination CompressedServerKey ciphertext LweDimension ({:?}) \
+            and the SeededLweKeyswitchKey output LweDimension ({:?})",
+            dst_lwe_dimension,
+            key_switching_key_material
+                .key_switching_key
+                .output_key_lwe_dimension(),
+        );
+        assert_eq!(
+            key_switching_key_material
+                .key_switching_key
+                .ciphertext_modulus(),
+            dest_server_key.ciphertext_modulus,
+            "Mismatch between the SeededLweKeyswitchKey CiphertextModulus ({:?}) \
+            and the destination CompressedServerKey CiphertextModulus ({:?})",
+            key_switching_key_material
+                .key_switching_key
+                .ciphertext_modulus(),
+            dest_server_key.ciphertext_modulus,
+        );
+
+        Self {
+            key_switching_key_material,
+            dest_server_key,
+            src_server_key,
+        }
+    }
 }
