@@ -13,6 +13,7 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_TESTS: TRUE
   NIGHTLY_TESTS: FALSE
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -27,12 +28,42 @@ on:
     - cron: "0 1 * * MON-FRI"
 
 jobs:
+  should-run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@cc733854b1f224978ef800d29e4709d5ee2883e4
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            gpu:
+              - tfhe/Cargo.toml
+              - tfhe/build.rs
+              - backends/tfhe-cuda-backend/**
+              - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/gpu/**
+              - tfhe/shortint/parameters/**
+              - tfhe/src/high_level_api/**
+              - tfhe/src/c_api/**
+              - 'tfhe/docs/**.md'
+
   setup-instance:
     name: Setup instance (cuda-signed-integer-tests)
     runs-on: ubuntu-latest
+    needs: should-run
     if: github.event_name != 'pull_request' ||
-      github.event.action != 'labeled' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved')
+      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -49,7 +80,9 @@ jobs:
 
   cuda-signed-integer-tests:
     name: CUDA signed integer tests
-    needs: setup-instance
+    needs: [ should-run, setup-instance ]
+    if: github.event_name != 'pull_request' ||
+      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
