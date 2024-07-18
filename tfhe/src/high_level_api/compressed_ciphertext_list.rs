@@ -76,7 +76,7 @@ impl CompressedCiphertextListBuilder {
 pub struct CompressedCiphertextList(crate::integer::ciphertext::CompressedCiphertextList);
 
 impl Named for CompressedCiphertextList {
-    const NAME: &'static str = "high_level_api::CompactCiphertextList";
+    const NAME: &'static str = "high_level_api::CompressedCiphertextList";
 }
 
 impl CompressedCiphertextList {
