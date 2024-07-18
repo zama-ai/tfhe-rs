@@ -47,7 +47,7 @@ fn main() {
 The default configuration for x86 Unix machines is as follows:
 
 ```toml
-tfhe = { version = "0.7.1", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.7.2", features = ["integer", "x86_64-unix"]}
 ```
 
 Refer to the [installation documentation](installation.md) for configuration options of different platforms.Learn more about homomorphic types features in the [configuration documentation.](../guides/rust\_configuration.md)
