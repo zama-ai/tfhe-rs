@@ -565,8 +565,6 @@ template <typename Torus> struct int_radix_lut {
       cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes,
                                num_radix_blocks * sizeof(Torus), streams[0],
                                gpu_indexes[0]);
-      cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                               host_free_on_stream_callback, h_lwe_indexes);
 
       // Keyswitch
       Torus big_size =
@@ -577,6 +575,8 @@ template <typename Torus> struct int_radix_lut {
           (Torus *)cuda_malloc_async(big_size, streams[0], gpu_indexes[0]);
       tmp_lwe_after_ks =
           (Torus *)cuda_malloc_async(small_size, streams[0], gpu_indexes[0]);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      free(h_lwe_indexes);
     }
   }
 
@@ -644,8 +644,8 @@ template <typename Torus> struct int_radix_lut {
     cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes,
                              num_radix_blocks * sizeof(Torus), streams[0],
                              gpu_indexes[0]);
-    cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                             host_free_on_stream_callback, h_lwe_indexes);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    free(h_lwe_indexes);
   }
 
   // Return a pointer to idx-ith lut at gpu_index's global memory
@@ -770,8 +770,6 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
           num_radix_blocks * bits_per_block * sizeof(Torus), streams[0],
           gpu_indexes[0]);
       lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
-      cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                               host_free_on_stream_callback, h_lut_indexes);
 
       /**
        * the input indexes should take the first bits_per_block PBS to target
@@ -788,8 +786,6 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                                num_radix_blocks * bits_per_block *
                                    sizeof(Torus),
                                streams[0], gpu_indexes[0]);
-      cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                               host_free_on_stream_callback, h_lwe_indexes_in);
 
       /**
        * the output should aim different lwe ciphertexts, so lwe_indexes_out =
@@ -805,8 +801,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                                num_radix_blocks * bits_per_block *
                                    sizeof(Torus),
                                streams[0], gpu_indexes[0]);
-      cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                               host_free_on_stream_callback, h_lwe_indexes_out);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      free(h_lut_indexes);
+      free(h_lwe_indexes_in);
+      free(h_lwe_indexes_out);
     }
   }
 
@@ -1012,8 +1010,6 @@ template <typename Torus> struct int_fullprop_buffer {
       Torus *lwe_indexes = lut->get_lut_indexes(gpu_indexes[0], 0);
       cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes, lwe_indexes_size,
                                streams[0], gpu_indexes[0]);
-      cuda_stream_add_callback(streams[0], gpu_indexes[0],
-                               host_free_on_stream_callback, h_lwe_indexes);
 
       lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
@@ -1028,6 +1024,8 @@ template <typename Torus> struct int_fullprop_buffer {
           small_vector_size, streams[0], gpu_indexes[0]);
       tmp_big_lwe_vector = (Torus *)cuda_malloc_async(
           big_vector_size, streams[0], gpu_indexes[0]);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      free(h_lwe_indexes);
     }
   }
 

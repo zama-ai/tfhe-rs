@@ -248,15 +248,3 @@ int cuda_get_max_shared_memory(uint32_t gpu_index) {
   check_cuda_error(cudaGetLastError());
   return max_shared_memory;
 }
-
-void cuda_stream_add_callback(cudaStream_t stream, uint32_t gpu_index,
-                              cudaStreamCallback_t callback, void *user_data) {
-
-  check_cuda_error(cudaSetDevice(gpu_index));
-  check_cuda_error(cudaStreamAddCallback(stream, callback, user_data, 0));
-}
-
-void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
-                                  void *host_pointer) {
-  free(host_pointer);
-}

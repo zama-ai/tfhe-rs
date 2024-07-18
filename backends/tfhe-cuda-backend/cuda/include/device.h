@@ -64,13 +64,7 @@ void cuda_drop(void *ptr, uint32_t gpu_index);
 void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index);
 
 int cuda_get_max_shared_memory(uint32_t gpu_index);
-
-void cuda_stream_add_callback(cudaStream_t stream, uint32_t gpu_index,
-                              cudaStreamCallback_t callback, void *user_data);
 }
-
-void host_free_on_stream_callback(cudaStream_t stream, cudaError_t status,
-                                  void *host_pointer);
 
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,

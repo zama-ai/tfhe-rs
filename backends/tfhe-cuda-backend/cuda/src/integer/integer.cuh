@@ -340,9 +340,8 @@ void generate_device_accumulator_bivariate(
                                sizeof(Torus),
                            stream, gpu_index);
 
-  // Release memory when possible
-  cuda_stream_add_callback(stream, gpu_index, host_free_on_stream_callback,
-                           h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 /*
@@ -374,9 +373,8 @@ void generate_device_accumulator_bivariate_with_factor(
                                sizeof(Torus),
                            stream, gpu_index);
 
-  // Release memory when possible
-  cuda_stream_add_callback(stream, gpu_index, host_free_on_stream_callback,
-                           h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 /*
@@ -408,9 +406,8 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index);
 
-  // Release memory when possible
-  cuda_stream_add_callback(stream, gpu_index, host_free_on_stream_callback,
-                           h_lut);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
 }
 
 template <typename Torus>
