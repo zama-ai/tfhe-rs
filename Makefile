@@ -989,7 +989,7 @@ bench_web_js_api_parallel: build_web_js_api_parallel
 .PHONY: bench_web_js_api_parallel_ci # Run benchmarks for the web wasm api
 bench_web_js_api_parallel_ci: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
-	nvm use node && \
+	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
 
 #
