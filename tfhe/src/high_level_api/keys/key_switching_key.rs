@@ -1,6 +1,3 @@
-use tfhe_versionable::Versionize;
-
-use crate::backward_compatibility::keys::KeySwitchingKeyVersions;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::BooleanBlock;
 use crate::prelude::FheKeyswitch;
@@ -19,8 +16,6 @@ impl Display for IncompatibleParameters {
 
 impl std::error::Error for IncompatibleParameters {}
 
-#[derive(serde::Deserialize, serde::Serialize, Versionize)]
-#[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
     key: crate::integer::key_switching_key::KeySwitchingKey,
 }
