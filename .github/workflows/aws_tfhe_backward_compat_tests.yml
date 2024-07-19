@@ -1,0 +1,119 @@
+# Run backward compatibility tests
+name: Backward compatibility Tests on CPU
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  setup-instance:
+    name: Setup instance (backward-compat-tests)
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-small
+
+  backward-compat-tests:
+    name: Backward compatibility tests
+    needs: [ setup-instance ]
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: 'false'
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@21dc36fb71dd22e3317045c0c31a3f4249868b17
+        with:
+          toolchain: stable
+
+      - name: Install git-lfs
+        run: |
+          sudo apt update && sudo apt -y install git-lfs
+
+      - name: Use specific data branch
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
+        env:
+          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          echo "BACKWARD_COMPAT_DATA_BRANCH=${PR_BRANCH}" >> "${GITHUB_ENV}"
+
+      - name: Get backward compat branch
+        id: backward_compat_branch
+        run: |
+          BRANCH="$(make backward_compat_branch)"
+          echo "branch=${BRANCH}" >> "${GITHUB_OUTPUT}"
+
+      - name: Clone test data
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          repository: zama-ai/tfhe-backward-compat-data
+          path: tfhe/tfhe-backward-compat-data
+          lfs: 'true'
+          ref: ${{ steps.backward_compat_branch.outputs.branch }}
+
+      - name: Run backward compatibility tests
+        run: |
+          make test_backward_compatibility_ci
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Backward compatibility tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: Teardown instance (backward-compat-tests)
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [ setup-instance, backward-compat-tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@447a2d0fd2d1a9d647aa0d0723a6e9255372f261
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (backward-compat-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
