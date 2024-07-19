@@ -258,12 +258,12 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   bool release_reused_lut = false;
   if (reused_lut == nullptr) {
     release_reused_lut = true;
-    size_t ch_amount = r / chunk_size;
-    if (!ch_amount)
-      ch_amount++;
+    size_t ct_amount = r / chunk_size;
+    if (!ct_amount)
+      ct_amount++;
     reused_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
                                           mem_ptr->params, 2,
-                                          2 * ch_amount * num_blocks, true);
+                                          2 * ct_amount * num_blocks, true);
   }
   int_radix_lut<Torus> *luts_message_carry = reused_lut;
   auto message_acc = luts_message_carry->get_lut(gpu_indexes[0], 0);
@@ -288,10 +288,10 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
   while (r > 2) {
     size_t cur_total_blocks = r * num_blocks;
-    size_t ch_amount = r / chunk_size;
-    if (!ch_amount)
-      ch_amount++;
-    dim3 add_grid(ch_amount, num_blocks, 1);
+    size_t ct_amount = r / chunk_size;
+    if (!ct_amount)
+      ct_amount++;
+    dim3 add_grid(ct_amount, num_blocks, 1);
     size_t sm_size = big_lwe_size * sizeof(Torus);
 
     cudaSetDevice(gpu_indexes[0]);
@@ -311,9 +311,10 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
 
     generate_ids_update_degrees(
         terms_degree, h_lwe_idx_in, h_lwe_idx_out, h_smart_copy_in,
-        h_smart_copy_out, ch_amount, r, num_blocks, chunk_size, message_max,
+        h_smart_copy_out, ct_amount, num_blocks, chunk_size, message_max,
         total_count, message_count, carry_count, sm_copy_count);
 
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
     auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
     luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
@@ -432,7 +433,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     }
 
     int rem_blocks = (r > chunk_size) ? r % chunk_size * num_blocks : 0;
-    int new_blocks_created = 2 * ch_amount * num_blocks;
+    int new_blocks_created = 2 * ct_amount * num_blocks;
     copy_size = rem_blocks * big_lwe_size * sizeof(Torus);
 
     auto cur_dst = &new_blocks[new_blocks_created * big_lwe_size];
