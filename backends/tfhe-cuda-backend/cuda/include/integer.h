@@ -2012,6 +2012,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
                uint32_t gpu_count) {
     for (auto &lut : is_equal_to_lut_map) {
       lut.second->release(streams, gpu_indexes, gpu_count);
+      delete (lut.second);
     }
     is_equal_to_lut_map.clear();
 
