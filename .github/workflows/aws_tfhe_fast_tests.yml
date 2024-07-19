@@ -216,12 +216,24 @@ jobs:
         run: |
           make test_safe_deserialization
 
+      - name: Use specific data branch
+        if: ${{ contains(github.event.label.name, 'data_PR') }}
+        run: |
+          echo "BACKWARD_COMPAT_DATA_BRANCH=${{ github.ref }}" >> "${GITHUB_ENV}"
+
+      - name: Get backward compat branch
+        id: backward_compat_branch
+        run: |
+          BRANCH="$(make backward_compat_branch)"
+          echo "branch=${BRANCH}" >> "${GITHUB_OUTPUT}"
+
       - name: Clone test data
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           repository: zama-ai/tfhe-backward-compat-data
           path: tfhe/tfhe-backward-compat-data
           lfs: 'true'
+          ref: ${{ steps.backward_compat_branch.outputs.branch }}
 
       - name: Run backward compatibility tests
         run: |

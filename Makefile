@@ -747,6 +747,10 @@ test_backward_compatibility_ci: install_rs_build_toolchain
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
 test_backward_compatibility: tfhe/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
 
+.PHONY: backward_compat_branch # Prints the required backward compatibility branch
+backward_compat_branch:
+	@echo "$(BACKWARD_COMPAT_DATA_BRANCH)"
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	@# Even though we are not in docs.rs, this allows to "just" build the doc
