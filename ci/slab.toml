@@ -42,8 +42,9 @@ spawn_retry_duration = 60
 region = "us-east-1"
 image_id = "ami-08f0d5468c82263f2"
 instance_type = "p5.48xlarge"
-spawn_retry_attempts = 240
-spawn_retry_duration = 60
+# One spawn attempt every 30 seconds for 5 hours
+spawn_retry_attempts = 600
+spawn_retry_duration = 300
 
 [backend.hyperstack.single-h100]
 environment_name = "canada"
