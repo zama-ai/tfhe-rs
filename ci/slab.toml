@@ -38,6 +38,13 @@ instance_type = "p3.2xlarge"
 spawn_retry_attempts = 120
 spawn_retry_duration = 60
 
+[backend.aws.multi-h100-nvlink]
+region = "us-east-1"
+image_id = "ami-08f0d5468c82263f2"
+instance_type = "p5.48xlarge"
+spawn_retry_attempts = 240
+spawn_retry_duration = 60
+
 [backend.hyperstack.single-h100]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
