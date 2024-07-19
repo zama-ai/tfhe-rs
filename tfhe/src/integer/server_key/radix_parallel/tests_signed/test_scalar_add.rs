@@ -195,7 +195,7 @@ where
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
-        let (tmp_ct, tmp_o) = sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_1);
+        let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp_ct, "Failed determinism check");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check");

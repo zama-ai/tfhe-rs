@@ -3,12 +3,14 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_scalar_add::{
-    signed_default_scalar_add_test, signed_unchecked_scalar_add_test,
+    signed_default_overflowing_scalar_add_test, signed_default_scalar_add_test,
+    signed_unchecked_scalar_add_test,
 };
 use crate::shortint::parameters::*;
 
 create_gpu_parametrized_test!(integer_signed_unchecked_scalar_add);
 create_gpu_parametrized_test!(integer_signed_scalar_add);
+create_gpu_parametrized_test!(integer_signed_overflowing_scalar_add);
 
 fn integer_signed_unchecked_scalar_add<P>(param: P)
 where
@@ -24,4 +26,12 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_add);
     signed_default_scalar_add_test(param, executor);
+}
+
+fn integer_signed_overflowing_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::signed_overflowing_scalar_add);
+    signed_default_overflowing_scalar_add_test(param, executor);
 }

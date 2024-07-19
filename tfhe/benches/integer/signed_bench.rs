@@ -1801,6 +1801,18 @@ mod cuda {
         rng_func: default_signed_scalar
     );
 
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: signed_overflowing_scalar_add,
+        display_name: overflowing_add,
+        rng_func: default_signed_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
+        method_name: signed_overflowing_scalar_sub,
+        display_name: overflowing_sub,
+        rng_func: default_signed_scalar
+    );
+
     //===========================================
     // Default
     //===========================================
@@ -2132,6 +2144,8 @@ mod cuda {
         cuda_scalar_le,
         cuda_scalar_min,
         cuda_scalar_max,
+        cuda_signed_overflowing_scalar_add,
+        cuda_signed_overflowing_scalar_sub,
     );
 
     fn cuda_bench_server_key_signed_cast_function<F>(
