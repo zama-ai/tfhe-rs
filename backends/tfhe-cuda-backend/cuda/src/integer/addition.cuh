@@ -12,6 +12,7 @@
 #include "programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include "utils/helper_profile.cuh"
 #include <fstream>
 #include <iostream>
 #include <omp.h>
@@ -92,6 +93,7 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
   cuda_memcpy_async_gpu_to_gpu(result, lhs, num_blocks * big_lwe_size_bytes,
                                streams[0], gpu_indexes[0]);
 
+  PUSH_RANGE("Phase1");
   // phase 1
   if (op == SIGNED_OPERATION::ADDITION) {
     host_addition(streams[0], gpu_indexes[0], result, lhs, rhs,
@@ -100,30 +102,33 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     host_subtraction(streams[0], gpu_indexes[0], result, lhs, rhs,
                      big_lwe_dimension, num_blocks);
   }
-
   // phase 2
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
-
+  POP_RANGE();
+  PUSH_RANGE("Parallel sections");
 #pragma omp parallel sections
   {
     // generate input_carries and output_carry
 #pragma omp section
-    {
+    { PUSH_RANGE("Propagate single carry");  
       host_propagate_single_carry(
           mem_ptr->sub_streams_1, gpu_indexes, gpu_count, result, output_carry,
           input_carries, mem_ptr->scp_mem, bsks, ksks, num_blocks);
+
+      POP_RANGE();
     }
 
     // generate generate_last_block_inner_propagation
 #pragma omp section
-    {
+    { PUSH_RANGE("Generate last block inner prop");
       host_generate_last_block_inner_propagation(
           mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
           last_block_inner_propagation, &lhs[(num_blocks - 1) * big_lwe_size],
           &rhs[(num_blocks - 1) * big_lwe_size], mem_ptr->las_block_prop_mem,
           bsks, ksks);
+      POP_RANGE();
     }
   }
 
@@ -131,16 +136,17 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
     cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
   }
-
+  POP_RANGE();
   // phase 3
   auto input_carry = &input_carries[(num_blocks - 1) * big_lwe_size];
-
+  PUSH_RANGE("Resolve signed overflow");
   host_resolve_signed_overflow(
       streams, gpu_indexes, gpu_count, overflowed, last_block_inner_propagation,
       input_carry, output_carry, mem_ptr->resolve_overflow_mem, bsks, ksks);
 
   cuda_memcpy_async_gpu_to_gpu(lhs, result, num_blocks * big_lwe_size_bytes,
                                streams[0], gpu_indexes[0]);
+  POP_RANGE();
 }
 
 #endif // TFHE_RS_ADDITION_CUH

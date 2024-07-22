@@ -11,6 +11,7 @@
 #include "programmable_bootstrap.h"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include "utils/helper_profile.cuh"
 #include <functional>
 
 // function rotates right  radix ciphertext with specific value
@@ -439,13 +440,13 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
   auto luts_array = mem->luts_array;
   auto luts_carry_propagation_sum = mem->luts_carry_propagation_sum;
   auto message_acc = mem->message_acc;
-
+  PUSH_RANGE("Apply first univariate lut")
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, generates_or_propagates, lwe_array, bsks,
       ksks, num_blocks, luts_array);
-
+  POP_RANGE();
   // compute prefix sum with hillis&steele
-
+  PUSH_RANGE("Hillis&Steele");
   int num_steps = ceil(log2((double)num_blocks));
   int space = 1;
   cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
@@ -468,6 +469,7 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
         big_lwe_size_bytes * cur_total_blocks, streams[0], gpu_indexes[0]);
     space *= 2;
   }
+  POP_RANGE();
 
   host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
                                  generates_or_propagates, 1, num_blocks,
@@ -488,9 +490,11 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
   host_addition(streams[0], gpu_indexes[0], lwe_array, lwe_array, step_output,
                 glwe_dimension * polynomial_size, num_blocks);
 
+  PUSH_RANGE("Apply last univariate lut")
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
       num_blocks, message_acc);
+  POP_RANGE();
 }
 
 template <typename Torus>
@@ -499,11 +503,12 @@ void host_generate_last_block_inner_propagation(
     Torus *last_block_inner_propagation, Torus *lhs, Torus *rhs,
     int_last_block_inner_propagate_memory<Torus> *mem, void **bsks,
     Torus **ksks) {
-
+  PUSH_RANGE("Apply bivariate lut last block");
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, last_block_inner_propagation, lhs, rhs,
       bsks, ksks, 1, mem->last_block_inner_propagation_lut,
       mem->params.message_modulus);
+  POP_RANGE();
 }
 
 template <typename Torus>

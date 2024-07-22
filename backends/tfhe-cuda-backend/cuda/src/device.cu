@@ -74,8 +74,9 @@ void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
 ///  true otherwise
 bool cuda_check_support_cooperative_groups() {
   int cooperative_groups_supported = 0;
-  check_cuda_error(cudaDeviceGetAttribute(&cooperative_groups_supported,
-                                          cudaDevAttrCooperativeLaunch, 0));
+  //Brute force disabling cooperative groups
+  //check_cuda_error(cudaDeviceGetAttribute(&cooperative_groups_supported,
+  //                                        cudaDevAttrCooperativeLaunch, 0));
 
   return cooperative_groups_supported > 0;
 }

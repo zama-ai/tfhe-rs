@@ -3,6 +3,7 @@ project(tfhe_cuda_backend LANGUAGES CXX)
 
 # See if the minimum CUDA version is available. If not, only enable documentation building.
 set(MINIMUM_SUPPORTED_CUDA_VERSION 10.0)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 include(CheckLanguage)
 # See if CUDA is available
 check_language(CUDA)
@@ -71,7 +72,7 @@ add_compile_definitions(CUDA_ARCH=${CUDA_ARCH})
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} -O3 \
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC")
+  --use_fast_math -Xcompiler -fPIC -lnvToolsExt -lineinfo")
 
 set(INCLUDE_DIR include)
 
