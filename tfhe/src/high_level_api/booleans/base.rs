@@ -96,6 +96,10 @@ impl FheBool {
         self.ciphertext.current_device()
     }
 
+    pub fn num_bits() -> usize {
+        1
+    }
+
     /// Moves (in-place) the ciphertext to the desired device.
     ///
     /// Does nothing if the ciphertext is already in the desired device

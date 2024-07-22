@@ -151,6 +151,10 @@ where
         }
     }
 
+    pub fn num_bits() -> usize {
+        Id::num_bits()
+    }
+
     pub(in crate::high_level_api) fn move_to_device_of_server_key_if_set(&mut self) {
         self.ciphertext.move_to_device_of_server_key_if_set();
     }
