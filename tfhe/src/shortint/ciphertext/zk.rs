@@ -109,6 +109,10 @@ impl ProvenCompactCiphertextList {
             ZkVerificationOutCome::Invalid
         }
     }
+
+    pub fn proof_size(&self) -> usize {
+        self.proved_lists.len() * core::mem::size_of::<CompactPkeProof>()
+    }
 }
 
 #[cfg(test)]
