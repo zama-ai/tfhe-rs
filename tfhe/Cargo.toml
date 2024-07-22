@@ -218,6 +218,12 @@ path = "benches/shortint/glwe_packing_compression.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
+[[bench]]
+name = "glwe_packing_compression-integer-bench"
+path = "benches/integer/glwe_packing_compression.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
 
 [[bench]]
 name = "integer-bench"
@@ -329,5 +335,5 @@ crate-type = ["lib", "staticlib", "cdylib"]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(bench)',
     'cfg(tarpaulin)',
-    'cfg(tfhe_lints)'
+    'cfg(tfhe_lints)',
 ] }

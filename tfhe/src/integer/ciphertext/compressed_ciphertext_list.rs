@@ -43,6 +43,7 @@ impl Compressible for SignedRadixCiphertext {
     }
 }
 
+#[derive(Clone)]
 pub struct CompressedCiphertextListBuilder {
     pub(crate) ciphertexts: Vec<Ciphertext>,
     pub(crate) info: Vec<DataKind>,
