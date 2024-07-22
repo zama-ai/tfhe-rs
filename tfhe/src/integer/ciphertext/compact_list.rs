@@ -622,6 +622,10 @@ impl ProvenCompactCiphertextList {
     pub fn needs_casting(&self) -> bool {
         self.ct_list.proved_lists[0].0.needs_casting()
     }
+
+    pub fn proof_size(&self) -> usize {
+        self.ct_list.proof_size()
+    }
 }
 
 #[cfg(feature = "zk-pok")]
