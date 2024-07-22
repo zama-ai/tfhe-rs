@@ -106,6 +106,10 @@ where
         }
     }
 
+    pub fn num_bits() -> usize {
+        Id::num_bits()
+    }
+
     /// Moves (in-place) the ciphertext to the desired device.
     ///
     /// Does nothing if the ciphertext is already in the desired device
