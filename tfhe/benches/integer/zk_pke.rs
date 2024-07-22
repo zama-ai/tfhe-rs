@@ -181,14 +181,38 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     .build_with_proof_packed(public_params, compute_load)
                     .unwrap();
 
-                let proof_serialized = bincode::serialize(&ct1).unwrap();
+                let proven_ciphertext_list_serialized = bincode::serialize(&ct1).unwrap();
 
-                println!("proof size: {}", proof_serialized.len());
+                println!(
+                    "proven list size: {}",
+                    proven_ciphertext_list_serialized.len()
+                );
+
+                let test_name =
+                    format!("zk::proven_list_size::{param_name}_{bits}_bits_packed_{zk_load}");
+
+                write_result(
+                    &mut file,
+                    &test_name,
+                    proven_ciphertext_list_serialized.len(),
+                );
+                write_to_json::<u64, _>(
+                    &test_name,
+                    shortint_params,
+                    param_name,
+                    "pke_zk_proof",
+                    &OperatorType::Atomic,
+                    0,
+                    vec![],
+                );
+
+                let proof_size = ct1.proof_size();
+                println!("proof size: {}", ct1.proof_size());
 
                 let test_name =
                     format!("zk::proof_sizes::{param_name}_{bits}_bits_packed_{zk_load}");
 
-                write_result(&mut file, &test_name, proof_serialized.len());
+                write_result(&mut file, &test_name, proof_size);
                 write_to_json::<u64, _>(
                     &test_name,
                     shortint_params,
