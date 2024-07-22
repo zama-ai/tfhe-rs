@@ -150,15 +150,13 @@ impl CompressedCiphertextList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::{RadixCiphertext, RadixClientKey};
+    use crate::integer::ClientKey;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     #[test]
     fn test_heterogeneous_ciphertext_compression_ci_run_filter() {
-        let num_blocks = 2;
-
-        let cks = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, num_blocks);
+        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
 
         let private_compression_key =
             cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
@@ -166,9 +164,9 @@ mod tests {
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
 
-        let ct1 = cks.encrypt(3_u32);
+        let ct1 = cks.encrypt_radix(3_u32, 16);
 
-        let ct2 = cks.encrypt_signed(-2);
+        let ct2 = cks.encrypt_signed_radix(-2, 16);
 
         let ct3 = cks.encrypt_bool(true);
 
@@ -178,20 +176,20 @@ mod tests {
             .push(ct3)
             .build(&compression_key);
 
-        let a = compressed.blocks_of(0, &decompression_key).unwrap();
+        let decompressed1 = compressed.get(0, &decompression_key).unwrap().unwrap();
 
-        let decrypted: u32 = cks.decrypt(&RadixCiphertext::from_expanded_blocks(a.0, a.1).unwrap());
+        let decrypted: u32 = cks.decrypt_radix(&decompressed1);
+
         assert_eq!(decrypted, 3_u32);
 
-        let b = compressed.blocks_of(1, &decompression_key).unwrap();
+        let decompressed2 = compressed.get(1, &decompression_key).unwrap().unwrap();
 
-        let decrypted: i32 =
-            cks.decrypt_signed(&SignedRadixCiphertext::from_expanded_blocks(b.0, b.1).unwrap());
+        let decrypted2: i32 = cks.decrypt_signed_radix(&decompressed2);
 
-        assert_eq!(decrypted, -2);
+        assert_eq!(decrypted2, -2);
 
-        let c = compressed.blocks_of(2, &decompression_key).unwrap();
+        let decompressed3 = compressed.get(2, &decompression_key).unwrap().unwrap();
 
-        assert!(cks.decrypt_bool(&BooleanBlock::from_expanded_blocks(c.0, c.1).unwrap()));
+        assert!(cks.decrypt_bool(&decompressed3));
     }
 }
