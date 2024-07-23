@@ -59,7 +59,8 @@ jobs:
   setup-instance:
     name: Setup instance (cuda-unsigned-integer-tests)
     needs: should-run
-    if: github.event_name != 'pull_request' ||
+    if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     runs-on: ubuntu-latest
