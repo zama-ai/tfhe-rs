@@ -24,16 +24,7 @@ BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.gi
 BACKWARD_COMPAT_DATA_BRANCH?=v0.1
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
-# sed: -n, do not print input stream, -e means a script/expression
-# 1,/version/ indicates from the first line, to the line matching version at the start of the line
-# p indicates to print, so we keep only the start of the Cargo.toml until we hit the first version
-# entry which should be the version of tfhe
-TFHE_CURRENT_VERSION:=\
-$(shell sed -n -e '1,/^version/p' tfhe/Cargo.toml | \
-grep '^version[[:space:]]*=' | cut -d '=' -f 2 | xargs)
-# Cargo has a hard time distinguishing between our package from the workspace and a package that
-# could be a dependency, so we build an unambiguous spec here
-TFHE_SPEC:=tfhe@$(TFHE_CURRENT_VERSION)
+TFHE_SPEC:=tfhe
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
