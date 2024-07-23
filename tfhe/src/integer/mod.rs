@@ -176,6 +176,9 @@ where
 
 /// Generate a couple of client and server keys with given parameters.
 ///
+/// Note: the resulting [`ServerKey`] can be fairly large, if needed you can generate a
+/// [`CompressedServerKey`] instead to reduce storage and network bandwidth usage.
+///
 /// ```rust
 /// use tfhe::integer::gen_keys_radix;
 /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
@@ -195,6 +198,9 @@ where
 }
 
 /// Generate a couple of client and server keys with given parameters.
+///
+/// Note: the resulting [`ServerKey`] can be fairly large, if needed you can generate a
+/// [`CompressedServerKey`] instead to reduce storage and network bandwidth usage.
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_crt;
