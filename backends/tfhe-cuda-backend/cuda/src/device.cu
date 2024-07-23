@@ -166,19 +166,21 @@ __global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n) {
-  cudaPointerAttributes attr;
-  check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
-  if (attr.type != cudaMemoryTypeDevice) {
-    PANIC("Cuda error: invalid dest device pointer in cuda set value.")
-  }
-  check_cuda_error(cudaSetDevice(gpu_index));
-  int block_size = 256;
-  int num_blocks = (n + block_size - 1) / block_size;
+  if (n > 0) {
+    cudaPointerAttributes attr;
+    check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
+    if (attr.type != cudaMemoryTypeDevice) {
+      PANIC("Cuda error: invalid dest device pointer in cuda set value.")
+    }
+    check_cuda_error(cudaSetDevice(gpu_index));
+    int block_size = 256;
+    int num_blocks = (n + block_size - 1) / block_size;
 
-  // Launch the kernel
-  cuda_set_value_kernel<<<num_blocks, block_size, 0, stream>>>(d_array, value,
-                                                               n);
-  check_cuda_error(cudaGetLastError());
+    // Launch the kernel
+    cuda_set_value_kernel<<<num_blocks, block_size, 0, stream>>>(d_array, value,
+                                                                 n);
+    check_cuda_error(cudaGetLastError());
+  }
 }
 
 /// Explicitly instantiate cuda_set_value_async for 32 and 64 bits
