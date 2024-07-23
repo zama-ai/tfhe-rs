@@ -14,8 +14,6 @@ include_directories(${TFHE_C_API_RELEASE})
 include_directories(${TFHE_C_API_RELEASE}/deps)
 add_library(Tfhe STATIC IMPORTED)
 set_target_properties(Tfhe PROPERTIES IMPORTED_LOCATION ${TFHE_C_API_RELEASE}/libtfhe.a)
-add_library(TfheDynamicBuffer STATIC IMPORTED)
-set_target_properties(TfheDynamicBuffer PROPERTIES IMPORTED_LOCATION ${TFHE_C_API_RELEASE}/deps/libtfhe_c_api_dynamic_buffer.a)
 
 if(APPLE)
     find_library(SECURITY_FRAMEWORK Security)
@@ -40,7 +38,7 @@ foreach (testsourcefile ${TEST_CASES})
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
     )
     target_include_directories(${testname} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(${testname} LINK_PUBLIC Tfhe TfheDynamicBuffer m pthread dl)
+    target_link_libraries(${testname} LINK_PUBLIC Tfhe m pthread dl)
 
     if (WITH_FEATURE_GPU)
         target_link_libraries(${testname} LINK_PUBLIC CUDA::cudart -lstdc++ OpenMP::OpenMP_CXX)
