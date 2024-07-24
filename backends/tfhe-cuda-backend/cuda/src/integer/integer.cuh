@@ -530,6 +530,9 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
                                gpu_indexes[0]);
 
   for (int step = 0; step < num_steps; step++) {
+    if (space > num_blocks - 1)
+      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
+            "propagation")
     auto cur_blocks = &step_output[space * big_lwe_size];
     auto prev_blocks = generates_or_propagates;
     int cur_total_blocks = num_blocks - space;
@@ -615,6 +618,9 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
                                gpu_indexes[0]);
 
   for (int step = 0; step < num_steps; step++) {
+    if (space > num_blocks - 1)
+      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
+            "propagation")
     auto cur_blocks = &step_output[space * big_lwe_size];
     auto prev_blocks = generates_or_propagates;
     int cur_total_blocks = num_blocks - space;
