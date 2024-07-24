@@ -74,8 +74,8 @@ __global__ void device_programmable_bootstrap_step_one(
     // First iteration
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
-    rescale_torus_element(block_lwe_array_in[lwe_dimension], b_hat,
-                          2 * params::degree);
+    modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                   params::log2_degree + 1);
     // The y-dimension is used to select the element of the GLWE this block will
     // compute
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
@@ -93,8 +93,8 @@ __global__ void device_programmable_bootstrap_step_one(
 
   // Put "a" in [0, 2N[
   Torus a_hat = 0;
-  rescale_torus_element(block_lwe_array_in[lwe_iteration], a_hat,
-                        2 * params::degree); // 2 * params::log2_degree + 1);
+  modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
+                 params::log2_degree + 1); // 2 * params::log2_degree + 1);
 
   synchronize_threads_in_block();
 

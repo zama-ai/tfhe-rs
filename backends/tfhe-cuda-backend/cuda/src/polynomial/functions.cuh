@@ -189,37 +189,28 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
   }
 }
 
-// Extracts the body of a GLWE.
-// k is the offset to find the body element / polynomial in the lwe_array_out /
-// accumulator
+// Extracts the body of the nth-LWE in a GLWE.
 template <typename Torus, class params>
 __device__ void sample_extract_body(Torus *lwe_array_out, Torus *accumulator,
-                                    uint32_t k) {
+                                    uint32_t glwe_dimension, uint32_t nth = 0) {
   // Set first coefficient of the accumulator as the body of the LWE sample
-  lwe_array_out[k * params::degree] = accumulator[k * params::degree];
+  lwe_array_out[glwe_dimension * params::degree] =
+      accumulator[glwe_dimension * params::degree + nth];
 }
 
-// Extracts the mask from num_poly polynomials individually
+// Extracts the mask from the nth-LWE in a GLWE.
 template <typename Torus, class params>
 __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *accumulator,
-                                    uint32_t num_poly = 1) {
+                                    uint32_t num_poly = 1, uint32_t nth = 0) {
   for (int z = 0; z < num_poly; z++) {
     Torus *lwe_array_out_slice =
         (Torus *)lwe_array_out + (ptrdiff_t)(z * params::degree);
     Torus *accumulator_slice =
         (Torus *)accumulator + (ptrdiff_t)(z * params::degree);
 
-    // Set ACC = -ACC
-    int tid = threadIdx.x;
-#pragma unroll
-    for (int i = 0; i < params::opt; i++) {
-      accumulator_slice[tid] = -accumulator_slice[tid];
-      tid = tid + params::degree / params::opt;
-    }
     synchronize_threads_in_block();
-
     // Reverse the accumulator
-    tid = threadIdx.x;
+    int tid = threadIdx.x;
     Torus result[params::opt];
 #pragma unroll
     for (int i = 0; i < params::opt; i++) {
@@ -227,10 +218,13 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *accumulator,
       tid = tid + params::degree / params::opt;
     }
     synchronize_threads_in_block();
+
+    // Set ACC = -ACC
     tid = threadIdx.x;
 #pragma unroll
     for (int i = 0; i < params::opt; i++) {
-      accumulator_slice[tid] = result[i];
+      accumulator_slice[tid] =
+          SEL(-result[i], result[i], tid >= params::degree - nth);
       tid = tid + params::degree / params::opt;
     }
     synchronize_threads_in_block();
@@ -244,14 +238,8 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *accumulator,
       //  result[i] = -accumulator_slice[tid - 1 + params::degree];
       // else
       //  result[i] = accumulator_slice[tid - 1];
-      int x = tid - 1 + SEL(0, params::degree, tid < 1);
+      int x = tid - 1 + SEL(0, params::degree - nth, tid < 1);
       result[i] = SEL(1, -1, tid < 1) * accumulator_slice[x];
-      tid += params::degree / params::opt;
-    }
-    synchronize_threads_in_block();
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      accumulator_slice[tid] = result[i];
       tid += params::degree / params::opt;
     }
     synchronize_threads_in_block();
@@ -260,7 +248,7 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *accumulator,
     tid = threadIdx.x;
 #pragma unroll
     for (int i = 0; i < params::opt; i++) {
-      lwe_array_out_slice[tid] = accumulator_slice[tid];
+      lwe_array_out_slice[tid] = result[i];
       tid = tid + params::degree / params::opt;
     }
   }
