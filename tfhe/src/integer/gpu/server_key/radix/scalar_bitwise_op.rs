@@ -32,7 +32,7 @@ impl CudaServerKey {
             .collect::<Vec<_>>();
 
         let clear_blocks =
-            CudaVec::from_cpu_async(&h_clear_blocks, streams, streams.gpu_indexes[0]);
+            CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {

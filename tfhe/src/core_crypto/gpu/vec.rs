@@ -204,7 +204,7 @@ impl<T: Numeric> CudaVec<T> {
     where
         T: Numeric,
     {
-        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
+        for &gpu_index in streams.gpu_indexes.iter() {
             assert!(self.len() >= src.len());
             let size = std::mem::size_of_val(src);
 
@@ -219,7 +219,7 @@ impl<T: Numeric> CudaVec<T> {
                     streams.gpu_indexes[gpu_index as usize],
                 );
             }
-        });
+        }
     }
 
     /// Copies data between two `CudaVec`
@@ -439,11 +439,10 @@ unsafe impl<T> Sync for CudaVec<T> where T: Sync + Numeric {}
 impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
-        self.gpu_indexes.par_iter().for_each(|&gpu_index| {
-            // Synchronizes the device to be sure no stream is still using this pointer
+        for &gpu_index in self.gpu_indexes.iter() {
             synchronize_device(gpu_index);
             unsafe { cuda_drop(self.get_mut_c_ptr(gpu_index), gpu_index) };
-        });
+        }
     }
 }
 

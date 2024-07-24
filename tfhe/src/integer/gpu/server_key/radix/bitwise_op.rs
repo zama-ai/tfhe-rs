@@ -89,7 +89,7 @@ impl CudaServerKey {
         d_decomposed_scalar.copy_from_cpu_async(
             scalar_vector.as_slice(),
             streams,
-            streams.gpu_indexes[0],
+            0,
         );
 
         cuda_lwe_ciphertext_plaintext_add_assign(

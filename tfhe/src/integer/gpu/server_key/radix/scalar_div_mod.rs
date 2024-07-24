@@ -474,7 +474,12 @@ impl CudaServerKey {
             println!("Here first case");
             // Issue q = SRA(n + SRL(SRA(n, l − 1), N − l), l);
             let l = chosen_multiplier.l;
-            println!("l = {}, l - 1 = {}, numerator bits - l {}", l, l - 1, numerator_bits - l);
+            println!(
+                "l = {}, l - 1 = {}, numerator bits - l {}",
+                l,
+                l - 1,
+                numerator_bits - l
+            );
 
             // SRA(n, l − 1)
             let mut tmp = self.unchecked_scalar_right_shift(numerator, l - 1, streams);

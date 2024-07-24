@@ -488,7 +488,7 @@ impl CudaServerKey {
             extended_ct_vec.copy_from_gpu_async(
                 &ct.as_ref().d_blocks.0.d_vec,
                 streams,
-                streams.gpu_indexes[0],
+                0,
             );
         }
         streams.synchronize();
@@ -562,7 +562,7 @@ impl CudaServerKey {
                 0,
             );
         }
-        streams.synchronize();
+        streams.synchronize_one(0);
         let trimmed_ct_list = CudaLweCiphertextList::from_cuda_vec(
             trimmed_ct_vec,
             LweCiphertextCount(new_num_blocks),
@@ -698,13 +698,13 @@ impl CudaServerKey {
         let mut output_radix = CudaVec::new(
             new_num_ct_blocks * lwe_size,
             streams,
-            streams.gpu_indexes[0],
+            0,
         );
         unsafe {
             output_radix.copy_from_gpu_async(
                 &ct.as_ref().d_blocks.0.d_vec,
                 streams,
-                streams.gpu_indexes[0],
+                0,
             );
             // Get the last ct block
             let last_block = ct
@@ -779,7 +779,7 @@ impl CudaServerKey {
                 let mut output_block = new_blocks
                     .get_mut(lwe_size * i..lwe_size * (i + 1), streams.gpu_indexes[0])
                     .unwrap();
-                output_block.copy_from_gpu_async(&padding_block, streams, streams.gpu_indexes[0]);
+                output_block.copy_from_gpu_async(&padding_block, streams, 0);
             }
         }
         streams.synchronize();
