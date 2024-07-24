@@ -39,36 +39,19 @@ __device__ inline T round_to_closest_multiple(T x, uint32_t base_log,
 }
 
 template <typename T>
-__device__ __forceinline__ void rescale_torus_element(T element, T &output,
-                                                      uint32_t log_shift) {
-  output =
-      round((double)element / (double(std::numeric_limits<T>::max()) + 1.0) *
-            (double)log_shift);
+__device__ __forceinline__ void modulus_switch(T input, T &output,
+                                               uint32_t log_modulus) {
+  constexpr uint32_t BITS = sizeof(T) * 8;
+
+  output = input + (((T)1) << (BITS - log_modulus - 1));
+  output >>= (BITS - log_modulus);
 }
 
 template <typename T>
-__device__ __forceinline__ T rescale_torus_element(T element,
-                                                   uint32_t log_shift) {
-  return round((double)element / (double(std::numeric_limits<T>::max()) + 1.0) *
-               (double)log_shift);
+__device__ __forceinline__ T modulus_switch(T input, uint32_t log_modulus) {
+  T output;
+  modulus_switch(input, output, log_modulus);
+  return output;
 }
 
-template <>
-__device__ __forceinline__ void
-rescale_torus_element<uint32_t>(uint32_t element, uint32_t &output,
-                                uint32_t log_shift) {
-  output =
-      round(__uint2double_rn(element) /
-            (__uint2double_rn(std::numeric_limits<uint32_t>::max()) + 1.0) *
-            __uint2double_rn(log_shift));
-}
-
-template <>
-__device__ __forceinline__ void
-rescale_torus_element<uint64_t>(uint64_t element, uint64_t &output,
-                                uint32_t log_shift) {
-  output = round(__ull2double_rn(element) /
-                 (__ull2double_rn(std::numeric_limits<uint64_t>::max()) + 1.0) *
-                 __uint2double_rn(log_shift));
-}
 #endif // CNCRT_TORUS_H

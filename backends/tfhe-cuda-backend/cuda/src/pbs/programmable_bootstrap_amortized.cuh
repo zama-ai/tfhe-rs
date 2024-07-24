@@ -89,8 +89,8 @@ __global__ void device_programmable_bootstrap_amortized(
 
   // Put "b", the body, in [0, 2N[
   Torus b_hat = 0;
-  rescale_torus_element(block_lwe_array_in[lwe_dimension], b_hat,
-                        2 * params::degree); // 2 * params::log2_degree + 1);
+  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                 params::log2_degree + 1);
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
@@ -105,8 +105,8 @@ __global__ void device_programmable_bootstrap_amortized(
 
     // Put "a" in [0, 2N[ instead of Zq
     Torus a_hat = 0;
-    rescale_torus_element(block_lwe_array_in[iteration], a_hat,
-                          2 * params::degree); // 2 * params::log2_degree + 1);
+    modulus_switch(block_lwe_array_in[iteration], a_hat,
+                   params::log2_degree + 1);
 
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
