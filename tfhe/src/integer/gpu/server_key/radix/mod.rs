@@ -409,11 +409,10 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
         let shift = num_blocks * lwe_size.0;
 
-        let mut extended_ct_vec = unsafe {
-            CudaVec::new_async(new_num_blocks * lwe_size.0, streams, streams.gpu_indexes[0])
-        };
+        let mut extended_ct_vec =
+            unsafe { CudaVec::new_async(new_num_blocks * lwe_size.0, streams, 0) };
         unsafe {
-            extended_ct_vec.memset_async(0u64, streams, streams.gpu_indexes[0]);
+            extended_ct_vec.memset_async(0u64, streams, 0);
             extended_ct_vec.copy_self_range_gpu_to_gpu_async(
                 shift..,
                 &ct.as_ref().d_blocks.0.d_vec,
@@ -480,16 +479,11 @@ impl CudaServerKey {
         let ciphertext_modulus = ct.as_ref().d_blocks.ciphertext_modulus();
         let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
 
-        let mut extended_ct_vec = unsafe {
-            CudaVec::new_async(new_num_blocks * lwe_size.0, streams, streams.gpu_indexes[0])
-        };
+        let mut extended_ct_vec =
+            unsafe { CudaVec::new_async(new_num_blocks * lwe_size.0, streams, 0) };
         unsafe {
-            extended_ct_vec.memset_async(0u64, streams, streams.gpu_indexes[0]);
-            extended_ct_vec.copy_from_gpu_async(
-                &ct.as_ref().d_blocks.0.d_vec,
-                streams,
-                streams.gpu_indexes[0],
-            );
+            extended_ct_vec.memset_async(0u64, streams, 0);
+            extended_ct_vec.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, streams, 0);
         }
         streams.synchronize();
         let extended_ct_list = CudaLweCiphertextList::from_cuda_vec(
@@ -551,9 +545,8 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
         let shift = num_blocks * lwe_size.0;
 
-        let mut trimmed_ct_vec = unsafe {
-            CudaVec::new_async(new_num_blocks * lwe_size.0, streams, streams.gpu_indexes[0])
-        };
+        let mut trimmed_ct_vec =
+            unsafe { CudaVec::new_async(new_num_blocks * lwe_size.0, streams, 0) };
         unsafe {
             trimmed_ct_vec.copy_src_range_gpu_to_gpu_async(
                 shift..,
@@ -619,9 +612,8 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
         let shift = new_num_blocks * lwe_size.0;
 
-        let mut trimmed_ct_vec = unsafe {
-            CudaVec::new_async(new_num_blocks * lwe_size.0, streams, streams.gpu_indexes[0])
-        };
+        let mut trimmed_ct_vec =
+            unsafe { CudaVec::new_async(new_num_blocks * lwe_size.0, streams, 0) };
         unsafe {
             trimmed_ct_vec.copy_src_range_gpu_to_gpu_async(
                 0..shift,
@@ -695,17 +687,9 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
 
         // Allocate the necessary amount of memory
-        let mut output_radix = CudaVec::new(
-            new_num_ct_blocks * lwe_size,
-            streams,
-            streams.gpu_indexes[0],
-        );
+        let mut output_radix = CudaVec::new(new_num_ct_blocks * lwe_size, streams, 0);
         unsafe {
-            output_radix.copy_from_gpu_async(
-                &ct.as_ref().d_blocks.0.d_vec,
-                streams,
-                streams.gpu_indexes[0],
-            );
+            output_radix.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, streams, 0);
             // Get the last ct block
             let last_block = ct
                 .as_ref()
@@ -779,7 +763,7 @@ impl CudaServerKey {
                 let mut output_block = new_blocks
                     .get_mut(lwe_size * i..lwe_size * (i + 1), streams.gpu_indexes[0])
                     .unwrap();
-                output_block.copy_from_gpu_async(&padding_block, streams, streams.gpu_indexes[0]);
+                output_block.copy_from_gpu_async(&padding_block, streams, 0);
             }
         }
         streams.synchronize();

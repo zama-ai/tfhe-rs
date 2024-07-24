@@ -11,7 +11,6 @@ use crate::core_crypto::prelude::{
 };
 pub use algorithms::*;
 pub use entities::*;
-use rayon::prelude::*;
 use std::ffi::c_void;
 pub(crate) use tfhe_cuda_backend::cuda_bind::*;
 
@@ -284,7 +283,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
-    streams.gpu_indexes.par_iter().for_each(|&gpu_index| {
+    for &gpu_index in streams.gpu_indexes.iter() {
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
         cuda_convert_lwe_programmable_bootstrap_key_64(
             streams.ptr[gpu_index as usize],
@@ -296,7 +295,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
             l_gadget.0 as u32,
             polynomial_size.0 as u32,
         );
-    });
+    }
 }
 
 /// Convert multi-bit programmable bootstrap key
