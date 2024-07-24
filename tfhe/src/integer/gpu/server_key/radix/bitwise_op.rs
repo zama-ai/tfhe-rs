@@ -81,16 +81,9 @@ impl CudaServerKey {
         let shift_plaintext = u64::from(scalar) * delta;
 
         let scalar_vector = vec![shift_plaintext; ct_blocks];
-        let mut d_decomposed_scalar = CudaVec::<u64>::new_async(
-            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-            streams,
-            streams.gpu_indexes[0],
-        );
-        d_decomposed_scalar.copy_from_cpu_async(
-            scalar_vector.as_slice(),
-            streams,
-            streams.gpu_indexes[0],
-        );
+        let mut d_decomposed_scalar =
+            CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0);
+        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
 
         cuda_lwe_ciphertext_plaintext_add_assign(
             &mut ct.as_mut().d_blocks,
