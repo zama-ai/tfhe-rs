@@ -48,6 +48,17 @@ pub struct KeySwitchingKeyMaterial {
 }
 
 impl KeySwitchingKeyMaterial {
+    pub fn into_raw_parts(self) -> crate::shortint::key_switching_key::KeySwitchingKeyMaterial {
+        let Self { material } = self;
+        material
+    }
+
+    pub fn from_raw_parts(
+        material: crate::shortint::key_switching_key::KeySwitchingKeyMaterial,
+    ) -> Self {
+        Self { material }
+    }
+
     pub fn as_view(&self) -> KeySwitchingKeyMaterialView<'_> {
         KeySwitchingKeyMaterialView {
             material: self.material.as_view(),
