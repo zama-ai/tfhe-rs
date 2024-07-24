@@ -89,6 +89,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
         lut_bivariate->params.message_modulus);
 
   } else {
+      printf("Here logical shift, rotations = %d\n", rotations);
     // right shift
     host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
                                   rotated_buffer, lwe_array, rotations,
@@ -111,6 +112,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     auto partial_next_blocks = &rotated_buffer[big_lwe_size];
 
     size_t partial_block_count = num_blocks - rotations;
+    printf("partial block count: %d\n", partial_block_count);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
@@ -195,6 +197,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       return;
     }
 
+      printf("Here now\n");
     // In the arithmetic shift case we have to pad with the value of the sign
     // bit. This creates the need for a different shifting lut than in the
     // logical shift case. We also need another PBS to create the padding block.

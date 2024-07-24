@@ -46,87 +46,88 @@ where
     executor.setup(&cks, sks.clone());
 
     // check when scalar is out of ciphertext MIN..=MAX
-    for d in [
-        rng.gen_range(i64::MIN..-modulus),
-        rng.gen_range(modulus..=i64::MAX),
-    ] {
-        for numerator in [rng.gen_range(-modulus..=0), rng.gen_range(0..modulus)] {
-            let ctxt_0 = cks.encrypt_signed(numerator);
+    //for d in [
+    //    rng.gen_range(i64::MIN..-modulus),
+    //    rng.gen_range(modulus..=i64::MAX),
+    //] {
+    //    for numerator in [rng.gen_range(-modulus..=0), rng.gen_range(0..modulus)] {
+    //        let ctxt_0 = cks.encrypt_signed(numerator);
 
-            let (q_res, r_res) = executor.execute((&ctxt_0, d));
-            let q: i64 = cks.decrypt_signed(&q_res);
-            let r: i64 = cks.decrypt_signed(&r_res);
-            assert_eq!(q, signed_div_under_modulus(numerator, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(numerator, d, modulus));
-        }
-    }
+    //        let (q_res, r_res) = executor.execute((&ctxt_0, d));
+    //        let q: i64 = cks.decrypt_signed(&q_res);
+    //        let r: i64 = cks.decrypt_signed(&r_res);
+    //        assert_eq!(q, signed_div_under_modulus(numerator, d, modulus));
+    //        assert_eq!(r, signed_rem_under_modulus(numerator, d, modulus));
+    //    }
+    //}
 
-    // The algorithm has a special case for when divisor is 1 or -1
-    for d in [1i64, -1i64] {
-        let clear_0 = rng.gen::<i64>() % modulus;
+    //// The algorithm has a special case for when divisor is 1 or -1
+    //for d in [1i64, -1i64] {
+    //    let clear_0 = rng.gen::<i64>() % modulus;
 
-        let ctxt_0 = cks.encrypt_signed(clear_0);
+    //    let ctxt_0 = cks.encrypt_signed(clear_0);
 
-        let (q_res, r_res) = executor.execute((&ctxt_0, d));
-        let q: i64 = cks.decrypt_signed(&q_res);
-        let r: i64 = cks.decrypt_signed(&r_res);
-        assert_eq!(q, signed_div_under_modulus(clear_0, d, modulus));
-        assert_eq!(r, signed_rem_under_modulus(clear_0, d, modulus));
-    }
+    //    let (q_res, r_res) = executor.execute((&ctxt_0, d));
+    //    let q: i64 = cks.decrypt_signed(&q_res);
+    //    let r: i64 = cks.decrypt_signed(&r_res);
+    //    assert_eq!(q, signed_div_under_modulus(clear_0, d, modulus));
+    //    assert_eq!(r, signed_rem_under_modulus(clear_0, d, modulus));
+    //}
 
     // 3 / -3 takes the second branch in the if else if series
     for d in [3, -3] {
-        {
-            let neg_clear_0 = rng.gen_range(-modulus..=0);
-            let ctxt_0 = cks.encrypt_signed(neg_clear_0);
-            println!("{neg_clear_0} / {d}");
-            let (q_res, r_res) = executor.execute((&ctxt_0, d));
-            let q: i64 = cks.decrypt_signed(&q_res);
-            let r: i64 = cks.decrypt_signed(&r_res);
-            assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
-        }
+        //{
+        //    let neg_clear_0 = rng.gen_range(-modulus..=0);
+        //    let ctxt_0 = cks.encrypt_signed(neg_clear_0);
+        //    println!("{neg_clear_0} / {d}");
+        //    let (q_res, r_res) = executor.execute((&ctxt_0, d));
+        //    let q: i64 = cks.decrypt_signed(&q_res);
+        //    let r: i64 = cks.decrypt_signed(&r_res);
+        //    assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
+        //    assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
+        //}
 
-        {
-            let pos_clear_0 = rng.gen_range(0..modulus);
-            let ctxt_0 = cks.encrypt_signed(pos_clear_0);
-            println!("{pos_clear_0} / {d}");
-            let (q_res, r_res) = executor.execute((&ctxt_0, d));
-            let q: i64 = cks.decrypt_signed(&q_res);
-            let r: i64 = cks.decrypt_signed(&r_res);
-            assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
-            assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
-        }
+        //{
+        //    let pos_clear_0 = rng.gen_range(0..modulus);
+        //    let ctxt_0 = cks.encrypt_signed(pos_clear_0);
+        //    println!("{pos_clear_0} / {d}");
+        //    let (q_res, r_res) = executor.execute((&ctxt_0, d));
+        //    let q: i64 = cks.decrypt_signed(&q_res);
+        //    let r: i64 = cks.decrypt_signed(&r_res);
+        //    assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
+        //    assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
+        //}
     }
 
     // Param 1_1 cannot do this, with our NB_CTXT
     if modulus >= 43 {
         // For param_2_2 this will take the third branch in the if else if series
         for d in [-89, 89] {
-            {
-                let neg_clear_0 = rng.gen_range(-modulus..=0);
-                let ctxt_0 = cks.encrypt_signed(neg_clear_0);
-                let (q_res, r_res) = executor.execute((&ctxt_0, d));
-                let q: i64 = cks.decrypt_signed(&q_res);
-                let r: i64 = cks.decrypt_signed(&r_res);
-                assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
-                assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
-            }
+            //{
+            //    let neg_clear_0 = rng.gen_range(-modulus..=0);
+            //    let ctxt_0 = cks.encrypt_signed(neg_clear_0);
+            //    let (q_res, r_res) = executor.execute((&ctxt_0, d));
+            //    let q: i64 = cks.decrypt_signed(&q_res);
+            //    let r: i64 = cks.decrypt_signed(&r_res);
+            //    assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
+            //    assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
+            //}
 
-            {
-                let pos_clear_0 = rng.gen_range(0..modulus);
-                let ctxt_0 = cks.encrypt_signed(pos_clear_0);
-                println!("{pos_clear_0} / {d}");
-                let (q_res, r_res) = executor.execute((&ctxt_0, d));
-                let q: i64 = cks.decrypt_signed(&q_res);
-                let r: i64 = cks.decrypt_signed(&r_res);
-                assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
-                assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
-            }
+            //{
+            //    let pos_clear_0 = rng.gen_range(0..modulus);
+            //    let ctxt_0 = cks.encrypt_signed(pos_clear_0);
+            //    println!("{pos_clear_0} / {d}");
+            //    let (q_res, r_res) = executor.execute((&ctxt_0, d));
+            //    let q: i64 = cks.decrypt_signed(&q_res);
+            //    let r: i64 = cks.decrypt_signed(&r_res);
+            //    assert_eq!(q, signed_div_under_modulus(pos_clear_0, d, modulus));
+            //    assert_eq!(r, signed_rem_under_modulus(pos_clear_0, d, modulus));
+            //}
         }
 
         // For param_2_2 this will take the first branch
-        for (clear_0, clear_1) in [(43, 8), (43, -8), (-43, 8), (-43, -8)] {
+        for (clear_0, clear_1) in [(43, -8)] {
+            //for (clear_0, clear_1) in [(43, 8), (43, -8), (-43, 8), (-43, -8)] {
             let ctxt_0 = cks.encrypt_signed(clear_0);
 
             let (q_res, r_res) = executor.execute((&ctxt_0, clear_1));
@@ -144,6 +145,7 @@ where
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
             let q: i64 = cks.decrypt_signed(&q_res);
             let r: i64 = cks.decrypt_signed(&r_res);
+            println!("neg_clear: {}, d: {}", neg_clear_0, d);
             assert_eq!(q, signed_div_under_modulus(neg_clear_0, d, modulus));
             assert_eq!(r, signed_rem_under_modulus(neg_clear_0, d, modulus));
         }

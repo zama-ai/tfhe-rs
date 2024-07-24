@@ -73,9 +73,13 @@ host_radix_blocks_rotate_right(cudaStream_t *streams, uint32_t *gpu_indexes,
     PANIC("Cuda error (blocks_rotate_right): the source and destination "
           "pointers should be different");
   }
-  cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_right<<<blocks_count, 1024, 0, streams[0]>>>(
-      dst, src, value, blocks_count, lwe_size);
+    if (value == 0) {
+        cuda_memcpy_async_gpu_to_gpu(dst, src, blocks_count * lwe_size * sizeof (Torus), streams[0], gpu_indexes[0]);
+    } else {
+        cudaSetDevice(gpu_indexes[0]);
+        radix_blocks_rotate_right<<<blocks_count, 1024, 0, streams[0]>>>(
+                dst, src, value, blocks_count, lwe_size);
+    }
 }
 
 // rotate radix ciphertext left with specific value
@@ -90,9 +94,13 @@ host_radix_blocks_rotate_left(cudaStream_t *streams, uint32_t *gpu_indexes,
     PANIC("Cuda error (blocks_rotate_left): the source and destination "
           "pointers should be different");
   }
-  cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_left<<<blocks_count, 1024, 0, streams[0]>>>(
-      dst, src, value, blocks_count, lwe_size);
+  if (value == 0) {
+      cuda_memcpy_async_gpu_to_gpu(dst, src, blocks_count * lwe_size * sizeof (Torus), streams[0], gpu_indexes[0]);
+  } else {
+      cudaSetDevice(gpu_indexes[0]);
+      radix_blocks_rotate_left<<<blocks_count, 1024, 0, streams[0]>>>(
+              dst, src, value, blocks_count, lwe_size);
+  }
 }
 
 // polynomial_size threads

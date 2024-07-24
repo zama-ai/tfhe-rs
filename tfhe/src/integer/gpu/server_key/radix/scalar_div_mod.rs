@@ -471,8 +471,10 @@ impl CudaServerKey {
 
         let quotient;
         if absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize) {
+            println!("Here first case");
             // Issue q = SRA(n + SRL(SRA(n, l − 1), N − l), l);
             let l = chosen_multiplier.l;
+            println!("l = {}, l - 1 = {}, numerator bits - l {}", l, l - 1, numerator_bits - l);
 
             // SRA(n, l − 1)
             let mut tmp = self.unchecked_scalar_right_shift(numerator, l - 1, streams);
@@ -485,7 +487,6 @@ impl CudaServerKey {
                     streams,
                 );
             }
-            streams.synchronize();
             // n + SRL(SRA(n, l − 1), N − l)
             self.add_assign(&mut tmp, numerator, streams);
             // SRA(n + SRL(SRA(n, l − 1), N − l), l);
@@ -493,6 +494,7 @@ impl CudaServerKey {
         } else if chosen_multiplier.multiplier
             < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
         {
+            println!("Here second case");
             // in the condition above works (it makes more values take this branch,
             // but results still seemed correct)
 
@@ -529,6 +531,7 @@ impl CudaServerKey {
             self.sub_assign(&mut tmp, &xsign, streams);
             quotient = tmp;
         } else {
+            println!("Here third case");
             // Issue q = SRA(n + MULSH(m − 2^N , n), shpost) − XSIGN(n);
             // Note from the paper: m - 2^N is negative
 
@@ -609,9 +612,12 @@ impl CudaServerKey {
         Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
+        // TODO check if numerator changes
+        println!("divisor: {:?}", divisor);
         let quotient = self.unchecked_signed_scalar_div(numerator, divisor, streams);
 
         // remainder = numerator - (quotient * divisor)
+        println!("divisor: {:?}", divisor);
         let tmp = self.unchecked_scalar_mul(&quotient, divisor, streams);
         let remainder = self.sub(numerator, &tmp, streams);
 
