@@ -1726,8 +1726,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   Torus *tmp_rotated;
 
-  cudaStream_t *local_streams_1;
-  cudaStream_t *local_streams_2;
   uint32_t active_gpu_count;
 
   int_arithmetic_scalar_shift_buffer(cudaStream_t *streams,
@@ -1740,14 +1738,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     // In the arithmetic shift, a PBS has to be applied to the last rotated
     // block twice: once to shift it, once to compute the padding block to be
     // copied onto all blocks to the left of the last rotated block
-    local_streams_1 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    local_streams_2 =
-        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-    for (uint j = 0; j < active_gpu_count; j++) {
-      local_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
-      local_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
-    }
     this->shift_type = shift_type;
     this->params = params;
 
@@ -1877,12 +1867,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   void release(cudaStream_t *streams, uint32_t *gpu_indexes,
                uint32_t gpu_count) {
-    for (uint j = 0; j < active_gpu_count; j++) {
-      cuda_destroy_stream(local_streams_1[j], gpu_indexes[j]);
-      cuda_destroy_stream(local_streams_2[j], gpu_indexes[j]);
-    }
-    free(local_streams_1);
-    free(local_streams_2);
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(streams, gpu_indexes, gpu_count);
       delete buffer;
