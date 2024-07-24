@@ -211,7 +211,7 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt(msg);
     ///
-    /// // Compute homomorphically a right shift:
+    /// // Compute homomorphically a left shift:
     /// let ct_res = sks.unchecked_scalar_left_shift(&ct1, shift);
     ///
     /// // Decrypt:
