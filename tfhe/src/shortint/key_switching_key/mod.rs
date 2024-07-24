@@ -35,6 +35,27 @@ pub struct KeySwitchingKeyMaterial {
 }
 
 impl KeySwitchingKeyMaterial {
+    pub fn into_raw_parts(self) -> (LweKeyswitchKeyOwned<u64>, i8, EncryptionKeyChoice) {
+        let Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+        } = self;
+        (key_switching_key, cast_rshift, destination_key)
+    }
+
+    pub fn from_raw_parts(
+        key_switching_key: LweKeyswitchKeyOwned<u64>,
+        cast_rshift: i8,
+        destination_key: EncryptionKeyChoice,
+    ) -> Self {
+        Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+        }
+    }
+
     pub fn as_view(&self) -> KeySwitchingKeyMaterialView<'_> {
         KeySwitchingKeyMaterialView {
             key_switching_key: &self.key_switching_key,
