@@ -255,17 +255,19 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   // create lut object for message and carry
   // we allocate luts_message_carry in the host function (instead of scratch)
   // to reduce average memory consumption
-  bool release_reused_lut = false;
+  int_radix_lut<Torus> *luts_message_carry;
+  size_t ch_amount = r / chunk_size;
+  if (!ch_amount)
+    ch_amount++;
   if (reused_lut == nullptr) {
-    release_reused_lut = true;
-    size_t ch_amount = r / chunk_size;
-    if (!ch_amount)
-      ch_amount++;
-    reused_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
-                                          mem_ptr->params, 2,
-                                          2 * ch_amount * num_blocks, true);
+    luts_message_carry = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, mem_ptr->params, 2,
+        2 * ch_amount * num_blocks, true);
+  } else {
+    luts_message_carry = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, mem_ptr->params, 2,
+        2 * ch_amount * num_blocks, reused_lut);
   }
-  int_radix_lut<Torus> *luts_message_carry = reused_lut;
   auto message_acc = luts_message_carry->get_lut(gpu_indexes[0], 0);
   auto carry_acc = luts_message_carry->get_lut(gpu_indexes[0], 1);
 
@@ -442,10 +444,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     std::swap(new_blocks, old_blocks);
     r = (new_blocks_created + rem_blocks) / num_blocks;
   }
-  if (release_reused_lut) {
-    reused_lut->release(streams, gpu_indexes, gpu_count);
-    delete (reused_lut);
-  }
+  luts_message_carry->release(streams, gpu_indexes, gpu_count);
+  delete (luts_message_carry);
 
   host_addition(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
                 &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
