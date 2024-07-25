@@ -110,6 +110,10 @@ jobs:
             echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
           } >> "${GITHUB_ENV}"
 
+      - name: Check device is detected
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
+
       - name: Run benchmarks with AVX512
         run: |
           make FAST_BENCH=TRUE BENCH_OP_FLAVOR=default bench_integer_gpu

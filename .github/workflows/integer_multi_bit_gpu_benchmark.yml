@@ -133,6 +133,10 @@ jobs:
         run: |
           echo "BENCH_OP_FLAVOR=fast_default" >> "${GITHUB_ENV}"
 
+      - name: Check device is detected
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
+
       - name: Run multi-bit benchmarks with AVX512
         run: |
           make bench_unsigned_integer_multi_bit_gpu
