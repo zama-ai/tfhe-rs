@@ -134,7 +134,7 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
-      - name:
+      - name: Check device is detected
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
