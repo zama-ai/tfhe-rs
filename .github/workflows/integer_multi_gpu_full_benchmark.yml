@@ -129,7 +129,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --database tfhe_rs \
-          --hardware "n3-H100x8-nvlink" \
+          --hardware "n3-H100x8-NVLink" \
           --backend gpu \
           --project-version "${{ env.COMMIT_HASH }}" \
           --branch ${{ github.ref_name }} \
