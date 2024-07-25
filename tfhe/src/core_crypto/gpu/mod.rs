@@ -328,6 +328,32 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
     }
 }
 
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    glwe_array_in: &CudaVec<T>,
+    nth_array: &CudaVec<u32>,
+    num_nths: u32,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+) {
+    cuda_glwe_sample_extract_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0],
+        lwe_array_out.as_mut_c_ptr(0),
+        glwe_array_in.as_c_ptr(0),
+        nth_array.as_c_ptr(0).cast::<u32>(),
+        num_nths,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+    );
+}
+
 /// Discarding addition of a vector of LWE ciphertexts
 ///
 /// # Safety

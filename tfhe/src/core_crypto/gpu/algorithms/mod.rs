@@ -2,6 +2,7 @@ pub mod lwe_linear_algebra;
 pub mod lwe_multi_bit_programmable_bootstrapping;
 pub mod lwe_programmable_bootstrapping;
 
+pub mod glwe_sample_extraction;
 mod lwe_keyswitch;
 #[cfg(test)]
 mod test;
