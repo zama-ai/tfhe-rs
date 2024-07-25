@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 #[path = "../utilities.rs"]
 mod utilities;
 
