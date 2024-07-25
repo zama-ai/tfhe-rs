@@ -52,8 +52,6 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
   Torus *full_rotated_buffer = mem->tmp_rotated;
   Torus *rotated_buffer = &full_rotated_buffer[big_lwe_size];
 
-  auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
-
   // rotate right all the blocks in radix ciphertext
   // copy result in new buffer
   // 1024 threads are used in every block
@@ -76,6 +74,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
       return;
     }
 
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
     auto partial_current_blocks = &lwe_array[rotations * big_lwe_size];
     auto partial_previous_blocks =
         &full_rotated_buffer[rotations * big_lwe_size];
@@ -109,6 +108,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     auto partial_current_blocks = lwe_array;
     auto partial_next_blocks = &rotated_buffer[big_lwe_size];
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
     size_t partial_block_count = num_blocks - rotations;
 
@@ -139,8 +139,6 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void **bsks, Torus **ksks,
     uint32_t num_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
-
   auto params = mem->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -160,14 +158,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
   size_t shift_within_block = shift % num_bits_in_block;
 
   Torus *rotated_buffer = mem->tmp_rotated;
-  Torus *padding_block = &rotated_buffer[num_blocks * big_lwe_size];
+  Torus *padding_block = &rotated_buffer[(num_blocks + 1) * big_lwe_size];
   Torus *last_block_copy = &padding_block[big_lwe_size];
-
-  auto lut_univariate_shift_last_block =
-      mem->lut_buffers_univariate[shift_within_block - 1];
-  auto lut_univariate_padding_block =
-      mem->lut_buffers_univariate[num_bits_in_block - 1];
-  auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
   if (mem->shift_type == RIGHT_SHIFT) {
     host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
@@ -197,59 +189,70 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       return;
     }
 
-    // In the arithmetic shift case we have to pad with the value of the sign
-    // bit. This creates the need for a different shifting lut than in the
-    // logical shift case. We also need another PBS to create the padding block.
-    Torus *last_block = lwe_array + (num_blocks - rotations - 1) * big_lwe_size;
-    cuda_memcpy_async_gpu_to_gpu(
-        last_block_copy,
-        rotated_buffer + (num_blocks - rotations - 1) * big_lwe_size,
-        big_lwe_size_bytes, streams[0], gpu_indexes[0]);
-    auto partial_current_blocks = lwe_array;
-    auto partial_next_blocks = &rotated_buffer[big_lwe_size];
-    size_t partial_block_count = num_blocks - rotations;
-    if (shift_within_block != 0 && rotations != num_blocks) {
-      integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-          streams, gpu_indexes, gpu_count, partial_current_blocks,
-          partial_current_blocks, partial_next_blocks, bsks, ksks,
-          partial_block_count, lut_bivariate,
-          lut_bivariate->params.message_modulus);
-    }
-    // Since our CPU threads will be working on different streams we shall
-    // assert the work in the main stream is completed
-    for (uint j = 0; j < gpu_count; j++) {
-      cuda_synchronize_stream(streams[j], gpu_indexes[j]);
-    }
-#pragma omp parallel sections
-    {
-      // All sections may be executed in parallel
-#pragma omp section
-      {
-        integer_radix_apply_univariate_lookup_table_kb(
-            mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
-            last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
-        // Replace blocks 'pulled' from the left with the correct padding block
-        for (uint i = 0; i < rotations; i++) {
-          cuda_memcpy_async_gpu_to_gpu(
-              lwe_array + (num_blocks - rotations + i) * big_lwe_size,
-              padding_block, big_lwe_size_bytes, mem->local_streams_1[0],
-              gpu_indexes[0]);
-        }
-      }
-#pragma omp section
-      {
-        if (shift_within_block != 0 && rotations != num_blocks) {
-          integer_radix_apply_univariate_lookup_table_kb(
-              mem->local_streams_2, gpu_indexes, gpu_count, last_block,
-              last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
-        }
-      }
-    }
-    for (uint j = 0; j < mem->active_gpu_count; j++) {
-      cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
-      cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
-    }
+    if (num_blocks != rotations) {
+      // In the arithmetic shift case we have to pad with the value of the sign
+      // bit. This creates the need for a different shifting lut than in the
+      // logical shift case. We also need another PBS to create the padding
+      // block.
+      Torus *last_block =
+          lwe_array + (num_blocks - rotations - 1) * big_lwe_size;
+      cuda_memcpy_async_gpu_to_gpu(
+          last_block_copy,
+          rotated_buffer + (num_blocks - rotations - 1) * big_lwe_size,
+          big_lwe_size_bytes, streams[0], gpu_indexes[0]);
+      if (shift_within_block != 0) {
+        auto partial_current_blocks = lwe_array;
+        auto partial_next_blocks = &rotated_buffer[big_lwe_size];
+        size_t partial_block_count = num_blocks - rotations;
+        auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
+        integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+            streams, gpu_indexes, gpu_count, partial_current_blocks,
+            partial_current_blocks, partial_next_blocks, bsks, ksks,
+            partial_block_count, lut_bivariate,
+            lut_bivariate->params.message_modulus);
+      }
+      // Since our CPU threads will be working on different streams we shall
+      // assert the work in the main stream is completed
+      for (uint j = 0; j < gpu_count; j++) {
+        cuda_synchronize_stream(streams[j], gpu_indexes[j]);
+      }
+#pragma omp parallel sections
+      {
+        // All sections may be executed in parallel
+#pragma omp section
+        {
+          auto lut_univariate_padding_block =
+              mem->lut_buffers_univariate[num_bits_in_block - 1];
+          integer_radix_apply_univariate_lookup_table_kb(
+              mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
+              last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
+          // Replace blocks 'pulled' from the left with the correct padding
+          // block
+          for (uint i = 0; i < rotations; i++) {
+            cuda_memcpy_async_gpu_to_gpu(
+                lwe_array + (num_blocks - rotations + i) * big_lwe_size,
+                padding_block, big_lwe_size_bytes, mem->local_streams_1[0],
+                gpu_indexes[0]);
+          }
+        }
+#pragma omp section
+        {
+          if (shift_within_block != 0) {
+            auto lut_univariate_shift_last_block =
+                mem->lut_buffers_univariate[shift_within_block - 1];
+            integer_radix_apply_univariate_lookup_table_kb(
+                mem->local_streams_2, gpu_indexes, gpu_count, last_block,
+                last_block_copy, bsks, ksks, 1,
+                lut_univariate_shift_last_block);
+          }
+        }
+      }
+      for (uint j = 0; j < mem->active_gpu_count; j++) {
+        cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
+        cuda_synchronize_stream(mem->local_streams_2[j], gpu_indexes[j]);
+      }
+    }
   } else {
     PANIC("Cuda error (scalar shift): left scalar shift is never of the "
           "arithmetic type")
