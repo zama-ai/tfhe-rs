@@ -1755,12 +1755,12 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       uint32_t big_lwe_size = params.big_lwe_dimension + 1;
       uint32_t big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-      tmp_rotated = (Torus *)cuda_malloc_async((num_radix_blocks + 2) *
+      tmp_rotated = (Torus *)cuda_malloc_async((num_radix_blocks + 3) *
                                                    big_lwe_size_bytes,
                                                streams[0], gpu_indexes[0]);
 
       cuda_memset_async(tmp_rotated, 0,
-                        (num_radix_blocks + 2) * big_lwe_size_bytes, streams[0],
+                        (num_radix_blocks + 3) * big_lwe_size_bytes, streams[0],
                         gpu_indexes[0]);
 
       uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
