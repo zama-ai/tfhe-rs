@@ -181,6 +181,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     // Message 0 Carry 0
     let cipher = ck1.unchecked_encrypt(0);
     let output_of_cast = ksk.cast(&cipher);
+    assert_eq!(output_of_cast.degree.get(), 3);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -190,6 +191,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     // Message 1 Carry 0
     let cipher = ck1.unchecked_encrypt(1);
     let output_of_cast = ksk.cast(&cipher);
+    assert_eq!(output_of_cast.degree.get(), 3);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 1);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -199,6 +201,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     // Message 0 Carry 1
     let cipher = ck1.unchecked_encrypt(2);
     let output_of_cast = ksk.cast(&cipher);
+    assert_eq!(output_of_cast.degree.get(), 3);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -208,6 +211,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     // Message 1 Carry 1
     let cipher = ck1.unchecked_encrypt(3);
     let output_of_cast = ksk.cast(&cipher);
+    assert_eq!(output_of_cast.degree.get(), 3);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 1);
     let ct_carry = sk2.carry_extract(&output_of_cast);
@@ -222,6 +226,7 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     assert_eq!((clear, carry), (0, 3));
 
     let output_of_cast = ksk.cast(&cipher);
+    assert_eq!(output_of_cast.degree.get(), 3);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 0);
     let ct_carry = sk2.carry_extract(&output_of_cast);
