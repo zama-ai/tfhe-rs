@@ -1,5 +1,6 @@
 use crate::core_crypto::algorithms::test::*;
 
+mod glwe_sample_extraction;
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
 mod lwe_multi_bit_programmable_bootstrapping;
