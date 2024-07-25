@@ -19,6 +19,8 @@ template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t max_shared_memory) {
+  // forcing to pick the cg
+  return false;
 #if CUDA_ARCH >= 900
   switch (polynomial_size) {
   case 256:
@@ -495,18 +497,29 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
           polynomial_size);
 
   int max_blocks_per_sm;
-  if (max_shared_memory < full_sm_keybundle)
+  if (max_shared_memory < full_sm_keybundle) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
         polynomial_size / params::opt, full_sm_keybundle);
-  else
+
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               NOSM>,
+        polynomial_size / params::opt, full_sm_keybundle);
+  } else {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
                                                           FULLSM>,
         polynomial_size / params::opt, 0);
-
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               FULLSM>,
+        polynomial_size / params::opt, 0);
+  }
   int num_sms = 0;
   check_cuda_error(cudaDeviceGetAttribute(
       &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));

@@ -147,6 +147,122 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
+__global__ void device_multi_bit_programmable_bootstrap_keybundle_pack(
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t lwe_offset,
+    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+    int8_t *device_mem, uint64_t device_memory_size_per_block,
+    uint32_t blockIdx_offset, uint32_t global_gridDimx) {
+
+  extern __shared__ int8_t sharedmem[];
+  int8_t *selected_memory = sharedmem;
+  int global_blockIdx = blockIdx.x + blockIdx_offset;
+
+  if constexpr (SMD == FULLSM) {
+    selected_memory = sharedmem;
+  } else {
+    int block_index = global_blockIdx + blockIdx.y * global_gridDimx +
+                      blockIdx.z * global_gridDimx * gridDim.y;
+    selected_memory = &device_mem[block_index * device_memory_size_per_block];
+  }
+
+  // Ids
+  uint32_t level_id = blockIdx.z;
+  uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
+  uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
+  uint32_t lwe_iteration = (global_blockIdx % lwe_chunk_size + lwe_offset);
+  uint32_t input_idx = global_blockIdx / lwe_chunk_size;
+
+  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
+    //
+    Torus *accumulator = (Torus *)selected_memory;
+
+    const Torus *block_lwe_array_in =
+        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+    double2 *keybundle = keybundle_array +
+                         // select the input
+                         input_idx * keybundle_size_per_input;
+
+    ////////////////////////////////////////////////////////////
+    // Computes all keybundles
+    uint32_t rev_lwe_iteration =
+        ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
+
+    // ////////////////////////////////
+    // Keygen guarantees the first term is a constant term of the polynomial, no
+    // polynomial multiplication required
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+        bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
+        grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
+    const Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+
+    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+        bsk_poly, accumulator);
+
+    // Accumulate the other terms
+    for (int g = 1; g < (1 << grouping_factor); g++) {
+
+      const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+          bootstrapping_key, g, rev_lwe_iteration, glwe_id, level_id,
+          grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
+      const Torus *bsk_poly = bsk_slice + poly_id * params::degree;
+
+      // Calculates the monomial degree
+      const Torus *lwe_array_group =
+          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+      uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
+          lwe_array_group, g, grouping_factor);
+
+      synchronize_threads_in_block();
+      // Multiply by the bsk element
+      polynomial_product_accumulate_by_monomial<Torus, params>(
+          accumulator, bsk_poly, monomial_degree, false);
+    }
+
+    synchronize_threads_in_block();
+
+    double2 *fft = (double2 *)selected_memory;
+
+    // Move accumulator to local memory
+    double2 temp[params::opt / 2];
+    int tid = threadIdx.x;
+#pragma unroll
+    for (int i = 0; i < params::opt / 2; i++) {
+      temp[i].x = __ll2double_rn((int64_t)accumulator[tid]);
+      temp[i].y =
+          __ll2double_rn((int64_t)accumulator[tid + params::degree / 2]);
+      temp[i].x /= (double)std::numeric_limits<Torus>::max();
+      temp[i].y /= (double)std::numeric_limits<Torus>::max();
+      tid += params::degree / params::opt;
+    }
+
+    synchronize_threads_in_block();
+    // Move from local memory back to shared memory but as complex
+    tid = threadIdx.x;
+#pragma unroll
+    for (int i = 0; i < params::opt / 2; i++) {
+      fft[tid] = temp[i];
+      tid += params::degree / params::opt;
+    }
+    synchronize_threads_in_block();
+    NSMFFT_direct<HalfDegree<params>>(fft);
+
+    // lwe iteration
+    auto keybundle_out = get_ith_mask_kth_block(
+        keybundle, global_blockIdx % lwe_chunk_size, glwe_id, level_id,
+        polynomial_size, glwe_dimension, level_count);
+    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
+
+    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+        fft, keybundle_poly);
+  }
+}
+
+template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_one(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes,
@@ -402,6 +518,15 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
         cudaFuncCachePreferShared);
+
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               NOSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+    cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               NOSM>,
+        cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
@@ -411,6 +536,14 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
                                                           FULLSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
+    cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                               FULLSM>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -529,6 +662,66 @@ __host__ void execute_compute_keybundle(
 }
 
 template <typename Torus, class params>
+__host__ void execute_compute_keybundle_pack(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_in,
+    Torus *lwe_input_indexes, Torus *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
+    uint32_t max_shared_memory, uint32_t lwe_chunk_size, int lwe_offset,
+    int pack_iteration, int num_packs) {
+
+  cudaSetDevice(gpu_index);
+  uint32_t chunk_size =
+      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+
+  uint32_t keybundle_size_per_input =
+      lwe_chunk_size * level_count * (glwe_dimension + 1) *
+      (glwe_dimension + 1) * (polynomial_size / 2);
+
+  uint64_t full_sm_keybundle =
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
+          polynomial_size);
+
+  auto d_mem = buffer->d_mem_keybundle;
+  auto keybundle_fft = buffer->keybundle_fft;
+
+  uint32_t global_gridDimx = num_samples * chunk_size;
+  // I divide only the samples, since i don't want to have chunks distributed on
+  // packs
+  uint32_t samples_to_process = num_samples / num_packs;
+  uint32_t blockIdx_offset = samples_to_process * chunk_size * pack_iteration;
+  // Naive way of distributing remaining work if there is any
+  // The last pack deals with it
+  if (pack_iteration == num_packs - 1) {
+    samples_to_process = num_samples - samples_to_process * pack_iteration;
+  }
+  // Compute a keybundle
+  dim3 grid_keybundle(samples_to_process * chunk_size,
+                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  if (max_shared_memory < full_sm_keybundle)
+    device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params, NOSM>
+        <<<grid_keybundle, thds, 0, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            base_log, level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, full_sm_keybundle, blockIdx_offset,
+            global_gridDimx);
+  else
+    device_multi_bit_programmable_bootstrap_keybundle_pack<Torus, params,
+                                                           FULLSM>
+        <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            base_log, level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, 0, blockIdx_offset,
+            global_gridDimx);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus, class params>
 __host__ void
 execute_step_one(cudaStream_t stream, uint32_t gpu_index, Torus *lut_vector,
                  Torus *lut_vector_indexes, Torus *lwe_array_in,
@@ -642,18 +835,27 @@ __host__ void host_multi_bit_programmable_bootstrap(
     lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
         gpu_index, num_samples, polynomial_size, max_shared_memory);
 
+  // At first I will chose a fixed number of packs, a clever system needs
+  // to be developed
+  int num_packs = 4;
+
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
-    // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, max_shared_memory,
-        lwe_chunk_size, lwe_offset);
-    // Accumulate
     uint32_t chunk_size = std::min(
         lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+
+    // Compute a keybundle in packs, here I am just testing the packed keybundle
+    // works
+    for (int pack_iteration = 0; pack_iteration < num_packs; pack_iteration++) {
+      execute_compute_keybundle_pack<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, base_log, level_count, max_shared_memory,
+          lwe_chunk_size, lwe_offset, pack_iteration, num_packs);
+    }
+
+    // Accumulate
     for (int j = 0; j < chunk_size; j++) {
       execute_step_one<Torus, params>(
           stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
