@@ -8,9 +8,13 @@ use crate::integer::{
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
 use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::{
+    PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
 use crate::shortint::parameters::{
-    ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ClassicPBSParameters, CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
@@ -160,12 +164,11 @@ fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     assert_eq!(clear, 228);
 }
 
-#[test]
-fn test_cpk_encrypt_cast_compute_ci_run_filter() {
-    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
+fn test_case_cpk_encrypt_cast_compute(
+    param_pke_only: CompactPublicKeyEncryptionParameters,
+    param_fhe: ClassicPBSParameters,
+    param_ksk: ShortintKeySwitchingParameters,
+) {
     let num_block = 4usize;
 
     assert_eq!(param_pke_only.message_modulus, param_fhe.message_modulus);
@@ -224,4 +227,22 @@ fn test_cpk_encrypt_cast_compute_ci_run_filter() {
     // High level decryption and test
     let clear = cks_fhe.decrypt_radix::<u64>(&ct1_extracted_and_cast) % modulus;
     assert_eq!(clear, (input_msg * multiplier) % modulus);
+}
+
+#[test]
+fn test_cpk_encrypt_cast_to_small_compute_big_ci_run_filter() {
+    test_case_cpk_encrypt_cast_compute(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
+}
+
+#[test]
+fn test_cpk_encrypt_cast_to_big_compute_big_ci_run_filter() {
+    test_case_cpk_encrypt_cast_compute(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    )
 }
