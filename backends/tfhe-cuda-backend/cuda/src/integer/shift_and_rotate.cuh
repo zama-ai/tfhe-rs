@@ -37,8 +37,6 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   auto big_lwe_size = big_lwe_dimension + 1;
   auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
-  cudaSetDevice(gpu_indexes[0]);
-
   // Extract all bits
   auto bits = mem->tmp_bits;
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, bits, lwe_array, bsks,

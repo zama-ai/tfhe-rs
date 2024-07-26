@@ -762,8 +762,9 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
                           Torus *lwe_array_out, Torus *lwe_array_in,
                           uint32_t lwe_dimension, uint32_t num_radix_blocks,
                           uint32_t factor) {
+  if (num_radix_blocks == 0)
+    return;
   cudaSetDevice(gpu_index);
-
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
