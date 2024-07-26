@@ -255,18 +255,19 @@ where
     let cks = cks.as_ref();
 
     let max_degree_acceptable = cks.key.parameters.message_modulus().0 - 1;
+    let num_blocks = ct.blocks.len();
 
     for (i, block) in ct.blocks.iter().enumerate() {
         assert_eq!(
             block.noise_level,
             NoiseLevel::NOMINAL,
-            "Block at index {i} has a non nominal noise level: {:?}",
+            "Block at index {i} / {num_blocks} has a non nominal noise level: {:?}",
             block.noise_level
         );
 
         assert!(
             block.degree.get() <= max_degree_acceptable,
-            "Block at index {i} has a degree {:?} that exceeds the maximum ({}) for a clean block",
+            "Block at index {i} / {num_blocks} has a degree {:?} that exceeds the maximum ({}) for a clean block",
             block.degree,
             max_degree_acceptable
         );

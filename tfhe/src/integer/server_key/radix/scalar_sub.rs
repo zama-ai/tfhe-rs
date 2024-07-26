@@ -65,7 +65,7 @@ impl ServerKey {
     // - `None` if scalar is zero
     // - `Some` if scalar is non-zero
     //
-    fn create_negated_block_decomposer<Scalar>(
+    pub(crate) fn create_negated_block_decomposer<Scalar>(
         &self,
         scalar: Scalar,
     ) -> Option<impl Iterator<Item = u8>>

@@ -1881,6 +1881,9 @@ where
 
         clear = (clear_0 + clear_1) % modulus;
 
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear, dec_res);
+
         // Add multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
             let tmp = executor.execute((&ct_res, clear_1));
@@ -2346,7 +2349,11 @@ where
     let ct_res = executor.execute((&ct, scalar));
 
     let dec_res: u128 = cks.decrypt(&ct_res);
-    assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+    assert_eq!(
+        clear.wrapping_mul(scalar as u128),
+        dec_res,
+        "Invalid result {clear} * {scalar}"
+    );
 }
 
 pub(crate) fn default_scalar_bitand_test<P, T>(param: P, mut executor: T)
