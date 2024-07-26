@@ -49,8 +49,6 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
   Torus *rotated_buffer = mem->tmp_rotated;
 
-  auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
-
   // rotate right all the blocks in radix ciphertext
   // copy result in new buffer
   // 256 threads are used in every block
@@ -76,6 +74,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
                                    giver_blocks, lwe_array, 1, num_blocks,
                                    big_lwe_size);
 
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
+
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
         giver_blocks, bsks, ksks, num_blocks, lut_bivariate,
@@ -99,6 +99,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
     auto giver_blocks = rotated_buffer;
     host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count, giver_blocks,
                                   lwe_array, 1, num_blocks, big_lwe_size);
+
+    auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,

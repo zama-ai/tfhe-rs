@@ -138,7 +138,6 @@ template <typename Torus, class params>
 __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
                                         Torus *msb_blocks,
                                         uint32_t glwe_dimension,
-                                        uint32_t lsb_count, uint32_t msb_count,
                                         uint32_t num_blocks) {
   size_t big_lwe_dimension = glwe_dimension * params::degree + 1;
   size_t big_lwe_id = blockIdx.x;
@@ -321,8 +320,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
                                         h_lwe_idx_in, h_lwe_idx_out);
 
-    size_t copy_size = total_count * sizeof(Torus);
-    copy_size = sm_copy_count * sizeof(int32_t);
+    size_t copy_size = sm_copy_count * sizeof(int32_t);
     cuda_memcpy_async_to_gpu(d_smart_copy_in, h_smart_copy_in, copy_size,
                              streams[0], gpu_indexes[0]);
     cuda_memcpy_async_to_gpu(d_smart_copy_out, h_smart_copy_out, copy_size,
@@ -551,8 +549,7 @@ __host__ void host_integer_mult_radix_kb(
   fill_radix_from_lsb_msb<Torus, params>
       <<<num_blocks * num_blocks, params::degree / params::opt, 0,
          streams[0]>>>(vector_result_sb, vector_result_lsb, vector_result_msb,
-                       glwe_dimension, lsb_vector_block_count,
-                       msb_vector_block_count, num_blocks);
+                       glwe_dimension, num_blocks);
   check_cuda_error(cudaGetLastError());
 
   int terms_degree[2 * num_blocks * num_blocks];

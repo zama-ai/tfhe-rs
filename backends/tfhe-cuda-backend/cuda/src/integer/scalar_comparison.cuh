@@ -565,6 +565,8 @@ __host__ void scalar_compare_radix_blocks_kb(
     int_comparison_buffer<Torus> *mem_ptr, void **bsks, Torus **ksks,
     uint32_t num_radix_blocks) {
 
+  if (num_radix_blocks == 0)
+    return;
   auto params = mem_ptr->params;
   auto big_lwe_dimension = params.big_lwe_dimension;
   auto message_modulus = params.message_modulus;
