@@ -694,7 +694,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::{multi_bit_benchmark_parameters_64bits, throughput_benchmark_parameters_64bits};
-    use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+    use crate::utilities::{write_to_json, CryptoParametersRecord, EnvConfig, OperatorType};
     use criterion::{black_box, Criterion};
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -1181,13 +1181,17 @@ mod cuda {
                 &stream,
             );
 
-            const NUM_CTS: usize = 8192;
+            let mut num_cts: usize = 8192;
+            let env_config = EnvConfig::new();
+            if env_config.is_fast_bench {
+                num_cts = 1024;
+            }
 
-            let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
+            let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(num_cts));
             let mut lwe_list = LweCiphertextList::new(
                 Scalar::ZERO,
                 params.lwe_dimension.unwrap().to_lwe_size(),
-                LweCiphertextCount(NUM_CTS),
+                LweCiphertextCount(num_cts),
                 params.ciphertext_modulus.unwrap(),
             );
             encrypt_lwe_ciphertext_list(
@@ -1208,7 +1212,7 @@ mod cuda {
             let output_lwe_list = LweCiphertextList::new(
                 Scalar::ZERO,
                 big_lwe_dimension.to_lwe_size(),
-                LweCiphertextCount(NUM_CTS),
+                LweCiphertextCount(num_cts),
                 params.ciphertext_modulus.unwrap(),
             );
             let lwe_ciphertext_in_gpu =
@@ -1225,8 +1229,8 @@ mod cuda {
 
             let mut out_pbs_ct_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext_list(&output_lwe_list, &stream);
-            let mut h_indexes: [Scalar; NUM_CTS] = [Scalar::ZERO; NUM_CTS];
-            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
+            let mut h_indexes: Vec<Scalar> = vec![Scalar::ZERO; num_cts];
+            let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(num_cts, &stream, 0) };
             unsafe {
                 d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
@@ -1235,15 +1239,15 @@ mod cuda {
                 *index = Scalar::cast_from(i);
             }
             stream.synchronize();
-            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
-            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(NUM_CTS, &stream, 0) };
+            let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_cts, &stream, 0) };
+            let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_cts, &stream, 0) };
             unsafe {
                 d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
                 d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
             }
             stream.synchronize();
 
-            let id = format!("{bench_name}::{name}::{NUM_CTS}chunk");
+            let id = format!("{bench_name}::{name}::{num_cts}chunk");
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
                     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(

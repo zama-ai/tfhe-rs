@@ -965,7 +965,7 @@ bench_pbs128: install_rs_check_toolchain
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_FAST_BENCH=$(FAST_BENCH) cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
