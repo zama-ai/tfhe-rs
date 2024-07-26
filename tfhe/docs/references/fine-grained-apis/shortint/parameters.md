@@ -21,7 +21,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+   let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 2;
@@ -55,6 +55,9 @@ use tfhe::shortint::prelude::*;
 use tfhe::shortint::parameters::DynamicDistribution;
 
 fn main() {
+    // WARNING: might be insecure and/or incorrect
+    // You can create your own set of parameters
+    #[allow(unused_unsafe)]
     let param = unsafe {
         ClassicPBSParameters::new(
             LweDimension(656),

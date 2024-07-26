@@ -28,12 +28,12 @@ pub fn main() {
     set_server_key(sks);
 
     // Compute and get the PBS count for the 32 bits multiplication
-    let c = &a * &b;
+    let _c = &a * &b;
     let mul_32_count = get_pbs_count();
 
     // Reset the PBS count, and get the PBS count for a 32 bits bitwise AND
     reset_pbs_count();
-    let d = &a & &b;
+    let _d = &a & &b;
     let and_32_count = get_pbs_count();
 
     // Display the result

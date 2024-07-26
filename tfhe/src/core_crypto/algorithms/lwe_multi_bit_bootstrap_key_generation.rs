@@ -16,9 +16,6 @@ use rayon::prelude::*;
 /// // computations
 /// // Define parameters for LweBootstrapKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_noise_distribution =
-///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
 /// let glwe_dimension = GlweDimension(1);
@@ -66,7 +63,7 @@ use rayon::prelude::*;
 ///
 /// let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 ///
-/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
+/// for (ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
 ///     input_lwe_secret_key
 ///         .as_ref()
 ///         .chunks_exact(grouping_factor.0),
@@ -223,9 +220,6 @@ where
 /// // computations
 /// // Define parameters for LweBootstrapKey creation
 /// let input_lwe_dimension = LweDimension(742);
-/// let lwe_noise_distribution =
-///     Gaussian::from_dispersion_parameter(StandardDev(0.000007069849454709433), 0.0);
-/// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
 /// let glwe_dimension = GlweDimension(1);
@@ -284,7 +278,7 @@ where
 ///
 /// let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 ///
-/// for (mut ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
+/// for (ggsw_group, input_key_elements) in bsk.chunks_exact(ggsw_per_multi_bit_element.0).zip(
 ///     input_lwe_secret_key
 ///         .as_ref()
 ///         .chunks_exact(grouping_factor.0),

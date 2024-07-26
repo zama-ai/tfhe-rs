@@ -63,7 +63,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededGlweCiphertextList
-    /// let mut seeded_glwe_list = SeededGlweCiphertextList::new(
+    /// let seeded_glwe_list = SeededGlweCiphertextList::new(
     ///     0u64,
     ///     glwe_size,
     ///     polynomial_size,

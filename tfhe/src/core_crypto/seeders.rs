@@ -62,10 +62,10 @@ mod wasm_seeder {
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 ///
-/// let mut first_seed = seeder.seed();
-/// let mut second_seed = seeder.seed();
+/// let first_seed = seeder.seed();
+/// let second_seed = seeder.seed();
 /// assert_ne!(first_seed, second_seed);
 /// ```
 pub fn new_seeder() -> Box<dyn Seeder> {

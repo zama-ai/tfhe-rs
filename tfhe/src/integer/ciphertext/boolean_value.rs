@@ -23,7 +23,7 @@ use tfhe_versionable::Versionize;
 /// ## Converting a [BooleanBlock] to a [RadixCiphertext]
 ///
 /// ```rust
-/// use tfhe::integer::{gen_keys_radix, BooleanBlock};
+/// use tfhe::integer::gen_keys_radix;
 /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 ///
 /// // We have 4 * 2 = 8 bits of message
@@ -141,7 +141,7 @@ impl BooleanBlock {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext, SignedRadixCiphertext};
+    /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // 8 bits

@@ -618,7 +618,7 @@ impl ServerKey {
     ///
     /// let msg = 14u8;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let ct_is_ge = sks.scalar_ge_parallelized(&ct, 10);
     /// let ct_is_le = sks.scalar_le_parallelized(&ct, 15);
@@ -652,7 +652,7 @@ impl ServerKey {
     ///
     /// let msg = 14u8;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let ct_is_ge = sks.scalar_ge_parallelized(&ct, 10);
     /// let ct_is_le = sks.scalar_le_parallelized(&ct, 15);
@@ -686,7 +686,7 @@ impl ServerKey {
     ///
     /// let msg = 14u8;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let ct_is_ge = sks.scalar_ge_parallelized(&ct, 10);
     /// let ct_is_le = sks.scalar_le_parallelized(&ct, 15);

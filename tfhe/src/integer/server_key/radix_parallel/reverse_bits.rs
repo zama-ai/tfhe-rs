@@ -8,7 +8,7 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let num_blocks = 4;
@@ -21,7 +21,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let mut ct_res = sks.reverse_bits_parallelized(&ct);
+    /// let ct_res = sks.reverse_bits_parallelized(&ct);
     ///
     /// // Decrypt:
     /// let res: u8 = cks.decrypt(&ct_res);

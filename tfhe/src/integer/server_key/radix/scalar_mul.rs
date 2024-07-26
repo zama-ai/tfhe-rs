@@ -221,7 +221,8 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
-    /// sks.checked_small_scalar_mul_assign(&mut ct, scalar);
+    /// sks.checked_small_scalar_mul_assign(&mut ct, scalar)
+    ///     .unwrap();
     ///
     /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, msg * scalar);

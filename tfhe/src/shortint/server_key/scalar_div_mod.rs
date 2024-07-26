@@ -58,7 +58,7 @@ impl ServerKey {
     /// let clear_2 = 2;
     ///
     /// // Encrypt one message
-    /// let mut ct_1 = cks.encrypt(clear_1);
+    /// let ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
@@ -70,7 +70,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt one message
-    /// let mut ct_1 = cks.encrypt(clear_1);
+    /// let ct_1 = cks.encrypt(clear_1);
     ///
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.unchecked_scalar_div(&ct_1, clear_2);
@@ -148,7 +148,7 @@ impl ServerKey {
     ///
     /// let msg = 3;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:
@@ -160,7 +160,7 @@ impl ServerKey {
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let modulus: u8 = 2;
     /// // Compute homomorphically an addition:

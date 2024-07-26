@@ -31,7 +31,7 @@
 //! use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 //!
 //! // We generate a set of client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+//! let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 //!
 //! let msg1 = 1;
 //! let msg2 = 0;

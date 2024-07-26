@@ -244,8 +244,8 @@ fn main() {
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
-    let mut ct_2 = client_key.encrypt(msg2);
-    let mut ct_3 = client_key.encrypt(msg3);
+    let ct_2 = client_key.encrypt(msg2);
+    let ct_3 = client_key.encrypt(msg3);
 
     server_key.scalar_mul_assign_parallelized(&mut ct_1, scalar);
 

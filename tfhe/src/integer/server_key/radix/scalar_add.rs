@@ -81,7 +81,6 @@ impl ServerKey {
     ///
     /// // Encrypt two messages:
     /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
     /// sks.is_scalar_add_possible(&ct1, scalar).unwrap();
@@ -132,7 +131,7 @@ impl ServerKey {
     /// let msg = 4;
     /// let scalar = 40;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
     /// let ct_res = sks.checked_scalar_add(&ct, scalar).unwrap();

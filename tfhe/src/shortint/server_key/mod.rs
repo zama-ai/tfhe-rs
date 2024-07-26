@@ -601,7 +601,7 @@ impl ServerKey {
     /// use tfhe::shortint::{gen_keys, ServerKey};
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (cks, _sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
