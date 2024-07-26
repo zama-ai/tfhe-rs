@@ -200,18 +200,25 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
         &self,
         lwe_ct_parameters: &GlweCiphertextConformanceParameters<Scalar>,
     ) -> bool {
-        let log_modulus = self.packed_integers.log_modulus.0;
+        let Self {
+            packed_integers,
+            glwe_dimension,
+            polynomial_size,
+            bodies_count,
+            uncompressed_ciphertext_modulus,
+        } = self;
+        let log_modulus = packed_integers.log_modulus.0;
 
         let number_bits_to_unpack =
-            (self.glwe_dimension.0 * self.polynomial_size.0 + self.bodies_count.0) * log_modulus;
+            (glwe_dimension.0 * polynomial_size.0 + bodies_count.0) * log_modulus;
 
         let len = number_bits_to_unpack.div_ceil(Scalar::BITS);
 
-        self.packed_integers.packed_coeffs.len() == len
-            && self.glwe_dimension == lwe_ct_parameters.glwe_dim
-            && self.polynomial_size == lwe_ct_parameters.polynomial_size
+        packed_integers.packed_coeffs.len() == len
+            && *glwe_dimension == lwe_ct_parameters.glwe_dim
+            && *polynomial_size == lwe_ct_parameters.polynomial_size
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
-            && self.uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+            && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
     }
 }
 

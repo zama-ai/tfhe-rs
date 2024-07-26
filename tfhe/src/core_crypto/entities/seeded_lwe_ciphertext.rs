@@ -25,11 +25,18 @@ impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
     type ParameterSet = LweCiphertextParameters<T>;
 
     fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<T>) -> bool {
+        let Self {
+            data,
+            lwe_size,
+            compression_seed: _,
+            ciphertext_modulus,
+        } = self;
+
         check_encrypted_content_respects_mod::<T, &[T]>(
-            &std::slice::from_ref(self.get_body().data),
+            &std::slice::from_ref(data),
             lwe_ct_parameters.ct_modulus,
-        ) && self.lwe_size == lwe_ct_parameters.lwe_dim.to_lwe_size()
-            && self.ciphertext_modulus() == lwe_ct_parameters.ct_modulus
+        ) && *lwe_size == lwe_ct_parameters.lwe_dim.to_lwe_size()
+            && *ciphertext_modulus == lwe_ct_parameters.ct_modulus
     }
 }
 

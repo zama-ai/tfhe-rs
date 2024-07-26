@@ -39,6 +39,7 @@ impl ParameterSetConformant for CompactCiphertextList {
             expansion_kind,
             noise_level,
         } = self;
+
         let CiphertextListConformanceParams {
             ct_list_params,
             message_modulus: param_message_modulus,
@@ -47,6 +48,7 @@ impl ParameterSetConformant for CompactCiphertextList {
             noise_level: param_noise_level,
             expansion_kind: param_expansion_kind,
         } = param;
+
         ct_list.is_conformant(ct_list_params)
             && *message_modulus == *param_message_modulus
             && *carry_modulus == *param_carry_modulus

@@ -1,5 +1,6 @@
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::packed_integers::PackedIntegersVersions;
 use crate::core_crypto::prelude::*;
 
@@ -164,5 +165,23 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
                 (first_part | second_part) & mask
             }
         })
+    }
+}
+
+impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> {
+    type ParameterSet = usize;
+
+    fn is_conformant(&self, len: &usize) -> bool {
+        let Self {
+            packed_coeffs,
+            log_modulus,
+            initial_len,
+        } = self;
+
+        let number_packed_bits = *len * log_modulus.0;
+
+        let packed_len = number_packed_bits.div_ceil(Scalar::BITS);
+
+        *len == *initial_len && packed_coeffs.len() == packed_len
     }
 }

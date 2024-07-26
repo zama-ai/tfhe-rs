@@ -643,9 +643,19 @@ where
         &self,
         glwe_ct_parameters: &GlweCiphertextConformanceParameters<C::Element>,
     ) -> bool {
+        let Self {
+            data,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
-            && self.glwe_size() == glwe_ct_parameters.glwe_dim.to_glwe_size()
-            && self.polynomial_size() == glwe_ct_parameters.polynomial_size
-            && self.ciphertext_modulus() == glwe_ct_parameters.ct_modulus
+            && data.container_len()
+                == glwe_ciphertext_size(
+                    glwe_ct_parameters.glwe_dim.to_glwe_size(),
+                    glwe_ct_parameters.polynomial_size,
+                )
+            && *polynomial_size == glwe_ct_parameters.polynomial_size
+            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
     }
 }
