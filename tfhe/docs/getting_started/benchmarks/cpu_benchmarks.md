@@ -1,6 +1,6 @@
 # Benchmarks
 
-This document details the performance benchmarks of homomorphic operations using **TFHE-rs**.
+This document details the CPU performance benchmarks of homomorphic operations using **TFHE-rs**.
 
 By their nature, homomorphic operations run slower than their cleartext equivalents. The following are the timings for basic operations, including benchmarks from other libraries for comparison.
 

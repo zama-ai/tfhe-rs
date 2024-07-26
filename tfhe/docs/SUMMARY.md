@@ -8,7 +8,10 @@
 * [Installation](getting\_started/installation.md)
 * [Quick start](getting\_started/quick\_start.md)
 * [Types & Operations](getting\_started/operations.md)
-* [Benchmarks](getting\_started/benchmarks.md)
+* Benchmarks
+  * [CPU Benchmarks](getting_started/benchmarks/cpu_benchmarks.md)
+  * [GPU Benchmarks](getting_started/benchmarks/gpu_benchmarks.md)
+  * [Zero-knowledge proof benchmarks](getting_started/benchmarks/zk_proof_benchmarks.md)
 * [Security and cryptography](getting\_started/security\_and\_cryptography.md)
 
 ## Fundamentals
