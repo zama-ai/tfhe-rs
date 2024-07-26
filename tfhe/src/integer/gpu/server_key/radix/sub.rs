@@ -1,3 +1,4 @@
+use super::add::SignedOperation;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweBskGroupingFactor, LweCiphertextCount};
@@ -11,7 +12,6 @@ use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_async, PBSType,
 };
-use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {

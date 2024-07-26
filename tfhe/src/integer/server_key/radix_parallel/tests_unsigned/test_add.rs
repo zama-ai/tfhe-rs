@@ -6,6 +6,7 @@ use super::{
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
@@ -14,29 +15,29 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
+create_parametrized_test!(integer_unchecked_add);
+create_parametrized_test!(integer_unchecked_add_assign);
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(integer_unchecked_add);
-create_parametrized_test!(integer_unchecked_add_assign);
-create_parametrized_test!(
-    integer_default_add_work_efficient {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
-        }
+create_parametrized_test!(integer_advanced_add_assign_with_carry_at_least_4_bits {
+    coverage => {
+        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+    },
+    no_coverage => {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
     }
-);
+});
+create_parametrized_test!(integer_advanced_add_assign_with_carry_sequential);
+
+const MAX_NB_CTXT: usize = 8;
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -70,11 +71,41 @@ where
     default_add_test(param, executor);
 }
 
-fn integer_default_add_work_efficient<P>(param: P)
+fn integer_advanced_add_assign_with_carry_at_least_4_bits<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized_work_efficient);
+    // We explicitly call the 4 bit function to make sure it's being tested,
+    // no matter the number of blocks / threads available
+    let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
+        let mut result = lhs.clone();
+        sks.advanced_add_assign_with_carry_at_least_4_bits(
+            &mut result.blocks,
+            &rhs.blocks,
+            None,
+            OutputFlag::None,
+        );
+        result
+    };
+    let executor = CpuFunctionExecutor::new(&func);
+    default_add_test(param, executor);
+}
+
+fn integer_advanced_add_assign_with_carry_sequential<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
+        let mut result = lhs.clone();
+        sks.advanced_add_assign_with_carry_sequential_parallelized(
+            &mut result.blocks,
+            &rhs.blocks,
+            None,
+            OutputFlag::None,
+        );
+        result
+    };
+    let executor = CpuFunctionExecutor::new(&func);
     default_add_test(param, executor);
 }
 
@@ -301,18 +332,18 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
     executor.setup(&cks, sks);
 
     let mut clear;
 
-    for _ in 0..nb_tests_smaller {
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
+
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let ctxt_0 = cks.encrypt(clear_0);
-        let ctxt_1 = cks.encrypt(clear_1);
+        let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
+        let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
 
         let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
@@ -322,16 +353,25 @@ where
 
         clear = clear_0.wrapping_add(clear_1) % modulus;
         let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear, dec_res);
+        assert_eq!(
+            clear, dec_res,
+            "Invalid result for {clear_0} + {clear_1}, expected: {clear}, got: {dec_res}\n\
+             num_blocks={num_blocks}, modulus={modulus}"
+        );
 
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
             panic_if_any_block_is_not_clean(&ct_res, &cks);
 
-            clear = (clear + clear_0) % modulus;
+            let result = (clear + clear_0) % modulus;
 
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear, dec_res);
+            assert_eq!(
+                result, dec_res,
+                "Invalid result for {clear} + {clear_0}, expected: {result}, got: {dec_res}\n\
+             num_blocks={num_blocks}, modulus={modulus}"
+            );
+            clear = result;
         }
     }
 }

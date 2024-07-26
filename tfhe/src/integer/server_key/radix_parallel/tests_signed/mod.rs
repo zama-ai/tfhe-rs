@@ -813,9 +813,12 @@ fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
 
         // Make the degree non-fresh
         let offset = random_non_zero_value(&mut rng, modulus);
+        println!("offset: {offset}");
         sks.unchecked_scalar_add_assign(&mut ctxt_0, offset);
         clear_lhs = signed_add_under_modulus(clear_lhs, offset, modulus);
         assert!(!ctxt_0.block_carries_are_empty());
+        let sanity_decryption: i64 = cks.decrypt_signed_radix(&ctxt_0);
+        assert_eq!(sanity_decryption, clear_lhs);
 
         let (q_res, r_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
         let q: i64 = cks.decrypt_signed_radix(&q_res);

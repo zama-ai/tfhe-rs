@@ -11,8 +11,13 @@ use crate::integer::gpu::{
     unchecked_signed_overflowing_add_or_sub_radix_kb_assign_async,
     unchecked_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
-use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::shortint::ciphertext::NoiseLevel;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum SignedOperation {
+    Addition,
+    Subtraction,
+}
 
 impl CudaServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
