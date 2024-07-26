@@ -761,9 +761,14 @@ where
     type ParameterSet = LweCiphertextParameters<C::Element>;
 
     fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<C::Element>) -> bool {
-        check_encrypted_content_respects_mod(self, lwe_ct_parameters.ct_modulus)
+        let Self {
+            data,
+            ciphertext_modulus,
+        } = self;
+
+        check_encrypted_content_respects_mod(data, lwe_ct_parameters.ct_modulus)
             && self.lwe_size() == lwe_ct_parameters.lwe_dim.to_lwe_size()
-            && self.ciphertext_modulus() == lwe_ct_parameters.ct_modulus
+            && *ciphertext_modulus == lwe_ct_parameters.ct_modulus
     }
 }
 

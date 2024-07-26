@@ -343,17 +343,24 @@ impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwne
     type ParameterSet = LweCiphertextListParameters<T>;
 
     fn is_conformant(&self, param: &LweCiphertextListParameters<T>) -> bool {
+        let Self {
+            data,
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+        } = self;
+
         param
             .lwe_ciphertext_count_constraint
-            .is_valid(self.lwe_ciphertext_count.0)
-            && self.data.len()
+            .is_valid(lwe_ciphertext_count.0)
+            && data.len()
                 == lwe_compact_ciphertext_list_size(
-                    self.lwe_size.to_lwe_dimension(),
-                    self.lwe_ciphertext_count,
+                    lwe_size.to_lwe_dimension(),
+                    *lwe_ciphertext_count,
                 )
             && check_encrypted_content_respects_mod(self, param.ct_modulus)
-            && self.lwe_size == param.lwe_dim.to_lwe_size()
-            && self.ciphertext_modulus == param.ct_modulus
+            && *lwe_size == param.lwe_dim.to_lwe_size()
+            && *ciphertext_modulus == param.ct_modulus
     }
 }
 

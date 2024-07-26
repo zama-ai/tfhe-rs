@@ -147,16 +147,22 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
     type ParameterSet = LweCiphertextParameters<Scalar>;
 
     fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
-        let lwe_size = self.lwe_dimension.to_lwe_size().0;
+        let Self {
+            packed_integers,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+        } = self;
 
-        let number_bits_to_pack = lwe_size * self.packed_integers.log_modulus.0;
+        let lwe_size = lwe_dimension.to_lwe_size().0;
+
+        let number_bits_to_pack = lwe_size * packed_integers.log_modulus.0;
 
         let len = number_bits_to_pack.div_ceil(Scalar::BITS);
 
-        self.packed_integers.packed_coeffs.len() == len
-            && self.lwe_dimension == lwe_ct_parameters.lwe_dim
+        packed_integers.packed_coeffs.len() == len
+            && *lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
-            && self.uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+            && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
             && matches!(
                 lwe_ct_parameters.ms_decompression_method,
                 MsDecompressionType::ClassicPbs

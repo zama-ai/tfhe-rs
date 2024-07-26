@@ -29,12 +29,21 @@ impl ParameterSetConformant for Ciphertext {
     type ParameterSet = CiphertextConformanceParams;
 
     fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
-        self.ct.is_conformant(&param.ct_params)
-            && self.message_modulus == param.message_modulus
-            && self.carry_modulus == param.carry_modulus
-            && self.pbs_order == param.pbs_order
-            && self.degree == param.degree
-            && self.noise_level == param.noise_level
+        let Self {
+            ct,
+            degree,
+            noise_level,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        } = self;
+
+        ct.is_conformant(&param.ct_params)
+            && *message_modulus == param.message_modulus
+            && *carry_modulus == param.carry_modulus
+            && *pbs_order == param.pbs_order
+            && *degree == param.degree
+            && *noise_level == param.noise_level
     }
 }
 

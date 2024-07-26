@@ -403,24 +403,33 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
 impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetConformant
     for CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>
 {
-    type ParameterSet = LweCiphertextParameters<u64>;
+    type ParameterSet = LweCiphertextParameters<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<u64>) -> bool {
-        let lwe_dim = self.lwe_dimension.0;
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<Scalar>) -> bool {
+        let Self {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        } = self;
 
-        let number_mask_bits_to_pack = lwe_dim * self.packed_mask.log_modulus.0;
+        let lwe_dim = lwe_dimension.0;
 
-        let len = number_mask_bits_to_pack.div_ceil(Scalar::BITS);
-
-        self.body >> self.packed_mask.log_modulus.0 == 0
-            && self.packed_mask.packed_coeffs.len() == len
-            && self.lwe_dimension == lwe_ct_parameters.lwe_dim
+        body >> packed_mask.log_modulus.0 == 0
+            && packed_mask.is_conformant(&lwe_dim)
+            && packed_diffs
+                .as_ref()
+                .map_or(true, |packed_diffs| packed_diffs.is_conformant(&lwe_dim))
+            && *lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && match lwe_ct_parameters.ms_decompression_method {
                 MsDecompressionType::ClassicPbs => false,
                 MsDecompressionType::MultiBitPbs(expected_gouping_factor) => {
-                    expected_gouping_factor.0 == self.grouping_factor.0
+                    expected_gouping_factor.0 == grouping_factor.0
                 }
             }
+            && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
     }
 }

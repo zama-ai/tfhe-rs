@@ -52,12 +52,19 @@ impl ParameterSetConformant for CompressedModulusSwitchedCiphertext {
     type ParameterSet = CiphertextConformanceParams;
 
     fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
-        self.compressed_modulus_switched_lwe_ciphertext
-            .is_conformant(&param.ct_params)
-            && self.message_modulus == param.message_modulus
-            && self.carry_modulus == param.carry_modulus
-            && self.pbs_order == param.pbs_order
-            && self.degree == param.degree
+        let Self {
+            compressed_modulus_switched_lwe_ciphertext,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        } = self;
+
+        compressed_modulus_switched_lwe_ciphertext.is_conformant(&param.ct_params)
+            && *message_modulus == param.message_modulus
+            && *carry_modulus == param.carry_modulus
+            && *pbs_order == param.pbs_order
+            && *degree == param.degree
     }
 }
 
