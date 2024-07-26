@@ -134,20 +134,5 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Benchmarks
-Benchmarks for the proofs have been run on a `m6i.4xlarge` with 16 cores to simulate an usual client configuration.  The verification are done on a `hpc7a.96xlarge` AWS instances to mimic a powerful server. 
-
-Timings in the case where the workload is mainly on the prover, i.e., with the  `ZkComputeLoad::Proof` option.
-
-| Inputs       | Proving | Verifying |
-|--------------|---------|-----------|
-| 1xFheUint64  | 2.79s   | 197ms     |
-| 10xFheUint64 | 3.68s   | 251ms     |
- 
-
-Timings in the case where the workload is mainly on the verifier, i.e., with the  `ZkComputeLoad::Verify` option.
-
-| Inputs       | Proving | Verifying |
-|--------------|---------|-----------|
-| 1xFheUint64  | 730ms   | 522ms     |
-| 10xFheUint64 | 1.08s   | 682ms     |
+## Benchmark 
+Please refer to the [Zero-knowledge proof benchmarks](../getting_started/benchmarks/zk_proof_benchmarks.md) for detailed performance benchmark results.
