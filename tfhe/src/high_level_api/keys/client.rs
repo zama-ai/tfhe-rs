@@ -6,7 +6,7 @@ use super::{CompressedServerKey, ServerKey};
 use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
-use crate::shortint::list_compression::CompressionPrivateKeys;
+use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::shortint::MessageModulus;
 use concrete_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;

@@ -90,14 +90,35 @@ impl Upgrade<IntegerClientKeyV1> for IntegerClientKeyV0 {
     }
 }
 
-impl Upgrade<IntegerClientKey> for IntegerClientKeyV1 {
+impl Upgrade<IntegerClientKeyV2> for IntegerClientKeyV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKeyV2, Self::Error> {
+        Ok(IntegerClientKeyV2 {
+            key: self.key,
+            dedicated_compact_private_key: self.dedicated_compact_private_key,
+            compression_key: self.compression_key,
+        })
+    }
+}
+
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV2 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<crate::shortint::list_compression::CompressionPrivateKeys>,
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV2 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
         Ok(IntegerClientKey {
             key: self.key,
             dedicated_compact_private_key: self.dedicated_compact_private_key,
-            compression_key: self.compression_key,
+            compression_key: self
+                .compression_key
+                .map(crate::integer::compression_keys::CompressionPrivateKeys),
         })
     }
 }
@@ -107,7 +128,8 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV1 {
 pub(crate) enum IntegerClientKeyVersions {
     V0(IntegerClientKeyV0),
     V1(IntegerClientKeyV1),
-    V2(IntegerClientKey),
+    V2(IntegerClientKeyV2),
+    V3(IntegerClientKey),
 }
 
 #[derive(Version)]
@@ -140,11 +162,11 @@ impl Upgrade<IntegerServerKeyV1> for IntegerServerKeyV0 {
     }
 }
 
-impl Upgrade<IntegerServerKey> for IntegerServerKeyV1 {
+impl Upgrade<IntegerServerKeyV2> for IntegerServerKeyV1 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
-        Ok(IntegerServerKey {
+    fn upgrade(self) -> Result<IntegerServerKeyV2, Self::Error> {
+        Ok(IntegerServerKeyV2 {
             key: self.key,
             cpk_key_switching_key_material: self.cpk_key_switching_key_material,
             compression_key: self.compression_key,
@@ -153,11 +175,38 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV1 {
     }
 }
 
+#[derive(Version)]
+pub struct IntegerServerKeyV2 {
+    pub(crate) key: crate::integer::ServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<crate::shortint::list_compression::CompressionKey>,
+    pub(crate) decompression_key: Option<crate::shortint::list_compression::DecompressionKey>,
+}
+
+impl Upgrade<IntegerServerKey> for IntegerServerKeyV2 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
+        Ok(IntegerServerKey {
+            key: self.key,
+            cpk_key_switching_key_material: self.cpk_key_switching_key_material,
+            compression_key: self
+                .compression_key
+                .map(crate::integer::compression_keys::CompressionKey),
+            decompression_key: self
+                .decompression_key
+                .map(crate::integer::compression_keys::DecompressionKey),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
     V0(IntegerServerKeyV0),
     V1(IntegerServerKeyV1),
-    V2(IntegerServerKey),
+    V2(IntegerServerKeyV2),
+    V3(IntegerServerKey),
 }
 
 #[derive(Version)]
