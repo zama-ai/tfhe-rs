@@ -105,10 +105,15 @@ __host__ void host_integer_scalar_mul_radix(
     for (int i = 0; i < j * num_radix_blocks; i++) {
       terms_degree[i] = message_modulus - 1;
     }
-    host_integer_sum_ciphertexts_vec_kb<T, params>(
+    host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer,
         terms_degree, bsks, ksks, mem->sum_ciphertexts_vec_mem,
         num_radix_blocks, j);
+
+    auto scp_mem_ptr = mem->sum_ciphertexts_vec_mem->scp_mem;
+    host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,
+                                   nullptr, nullptr, scp_mem_ptr, bsks, ksks,
+                                   num_radix_blocks);
   }
 }
 

@@ -8,8 +8,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
     unchecked_add_integer_radix_assign_async,
-    unchecked_signed_overflowing_add_or_sub_radix_kb_assign_async,
-    unchecked_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
+    unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async,
+    unchecked_signed_overflowing_add_or_sub_radix_kb_assign_async, PBSType,
 };
 use crate::shortint::ciphertext::NoiseLevel;
 
@@ -231,10 +231,10 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn unchecked_sum_ciphertexts_assign_async(
+    pub unsafe fn unchecked_partial_sum_ciphertexts_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
-        result: &mut CudaUnsignedRadixCiphertext,
-        ciphertexts: &[CudaUnsignedRadixCiphertext],
+        result: &mut T,
+        ciphertexts: &[T],
         streams: &CudaStreams,
     ) {
         if ciphertexts.is_empty() {
@@ -275,7 +275,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_sum_ciphertexts_integer_radix_kb_assign_async(
+                unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async(
                     streams,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &mut terms.0.d_vec,
@@ -299,7 +299,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_sum_ciphertexts_integer_radix_kb_assign_async(
+                unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async(
                     streams,
                     &mut result.as_mut().d_blocks.0.d_vec,
                     &mut terms.0.d_vec,
@@ -323,13 +323,46 @@ impl CudaServerKey {
                 );
             }
         }
+        self.propagate_single_carry_assign_async(result, streams);
     }
 
-    pub fn unchecked_sum_ciphertexts(
+    pub fn unchecked_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
         &self,
-        ciphertexts: &[CudaUnsignedRadixCiphertext],
+        ciphertexts: &[T],
         streams: &CudaStreams,
-    ) -> Option<CudaUnsignedRadixCiphertext> {
+    ) -> T {
+        let mut result = unsafe {
+            self.unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
+                .unwrap()
+        };
+
+        unsafe {
+            self.propagate_single_carry_assign_async(&mut result, streams);
+        }
+        streams.synchronize();
+        assert!(result.block_carries_are_empty());
+        result
+    }
+
+    pub fn unchecked_partial_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ciphertexts: &[T],
+        streams: &CudaStreams,
+    ) -> Option<T> {
+        let result = unsafe { self.unchecked_partial_sum_ciphertexts_async(ciphertexts, streams) };
+        streams.synchronize();
+        result
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_partial_sum_ciphertexts_async<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ciphertexts: &[T],
+        streams: &CudaStreams,
+    ) -> Option<T> {
         if ciphertexts.is_empty() {
             return None;
         }
@@ -340,16 +373,16 @@ impl CudaServerKey {
             return Some(result);
         }
 
-        unsafe { self.unchecked_sum_ciphertexts_assign_async(&mut result, ciphertexts, streams) };
-        streams.synchronize();
+        self.unchecked_partial_sum_ciphertexts_assign_async(&mut result, ciphertexts, streams);
+
         Some(result)
     }
 
-    pub fn sum_ciphertexts(
+    pub fn sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
         &self,
-        mut ciphertexts: Vec<CudaUnsignedRadixCiphertext>,
+        mut ciphertexts: Vec<T>,
         streams: &CudaStreams,
-    ) -> Option<CudaUnsignedRadixCiphertext> {
+    ) -> Option<T> {
         if ciphertexts.is_empty() {
             return None;
         }
@@ -363,7 +396,7 @@ impl CudaServerKey {
                 });
         }
 
-        self.unchecked_sum_ciphertexts(&ciphertexts, streams)
+        Some(self.unchecked_sum_ciphertexts(&ciphertexts, streams))
     }
 
     /// ```rust

@@ -202,7 +202,7 @@ void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
 
-void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t lwe_dimension,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
@@ -215,13 +215,13 @@ void scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus);
-  scratch_cuda_integer_sum_ciphertexts_vec_kb<uint64_t>(
+  scratch_cuda_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sum_ciphertexts_vec_memory<uint64_t> **)mem_ptr, num_blocks_in_radix,
       max_num_radix_in_vec, params, allocate_gpu_memory);
 }
 
-void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     void *radix_lwe_out, void *radix_lwe_vec, uint32_t num_radix_in_vec,
     int8_t *mem_ptr, void **bsks, void **ksks, uint32_t num_blocks_in_radix) {
@@ -237,42 +237,47 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
 
   switch (mem->params.polynomial_size) {
   case 512:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<512>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<512>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
         (uint64_t **)(ksks), mem, num_blocks_in_radix, num_radix_in_vec);
     break;
   case 1024:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<1024>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
+                                                AmortizedDegree<1024>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
         (uint64_t **)(ksks), mem, num_blocks_in_radix, num_radix_in_vec);
     break;
   case 2048:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<2048>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
+                                                AmortizedDegree<2048>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
         (uint64_t **)(ksks), mem, num_blocks_in_radix, num_radix_in_vec);
     break;
   case 4096:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<4096>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
+                                                AmortizedDegree<4096>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
         (uint64_t **)(ksks), mem, num_blocks_in_radix, num_radix_in_vec);
     break;
   case 8192:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<8192>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
+                                                AmortizedDegree<8192>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
         (uint64_t **)(ksks), mem, num_blocks_in_radix, num_radix_in_vec);
     break;
   case 16384:
-    host_integer_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<16384>>(
+    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
+                                                AmortizedDegree<16384>>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(radix_lwe_out),
         static_cast<uint64_t *>(radix_lwe_vec), terms_degree, bsks,
@@ -286,10 +291,9 @@ void cuda_integer_radix_sum_ciphertexts_vec_kb_64(
   free(terms_degree);
 }
 
-void cleanup_cuda_integer_radix_sum_ciphertexts_vec(void **streams,
-                                                    uint32_t *gpu_indexes,
-                                                    uint32_t gpu_count,
-                                                    int8_t **mem_ptr_void) {
+void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void) {
   int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr =
       (int_sum_ciphertexts_vec_memory<uint64_t> *)(*mem_ptr_void);
 

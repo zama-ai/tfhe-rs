@@ -99,6 +99,35 @@ host_radix_blocks_rotate_left(cudaStream_t *streams, uint32_t *gpu_indexes,
       dst, src, value, blocks_count, lwe_size);
 }
 
+// reverse the blocks in a list
+// each cuda block swaps a couple of blocks
+template <typename Torus>
+__global__ void radix_blocks_reverse_lwe_inplace(Torus *src,
+                                                 uint32_t blocks_count,
+                                                 uint32_t lwe_size) {
+
+  size_t idx = blockIdx.x;
+  size_t rev_idx = blocks_count - 1 - idx;
+
+  for (int j = threadIdx.x; j < lwe_size; j += blockDim.x) {
+    Torus back_element = src[rev_idx * lwe_size + j];
+    Torus front_element = src[idx * lwe_size + j];
+    src[idx * lwe_size + j] = back_element;
+    src[rev_idx * lwe_size + j] = front_element;
+  }
+}
+
+template <typename Torus>
+__host__ void
+host_radix_blocks_reverse_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
+                                  Torus *src, uint32_t blocks_count,
+                                  uint32_t lwe_size) {
+  cudaSetDevice(gpu_indexes[0]);
+  int num_blocks = blocks_count / 2, num_threads = 1024;
+  radix_blocks_reverse_lwe_inplace<<<num_blocks, num_threads, 0, streams[0]>>>(
+      src, blocks_count, lwe_size);
+}
+
 // polynomial_size threads
 template <typename Torus>
 __global__ void
@@ -501,6 +530,43 @@ void scratch_cuda_propagate_single_carry_kb_inplace(
 }
 
 template <typename Torus>
+void host_compute_prefix_sum_hillis_steele(
+    cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    Torus *step_output, Torus *generates_or_propagates, int_radix_params params,
+    int_radix_lut<Torus> *luts, void **bsks, Torus **ksks,
+    uint32_t num_blocks) {
+
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto big_lwe_size = glwe_dimension * polynomial_size + 1;
+  auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
+
+  int num_steps = ceil(log2((double)num_blocks));
+  int space = 1;
+  cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
+                               big_lwe_size_bytes * num_blocks, streams[0],
+                               gpu_indexes[0]);
+
+  for (int step = 0; step < num_steps; step++) {
+    if (space > num_blocks - 1)
+      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
+            "propagation")
+    auto cur_blocks = &step_output[space * big_lwe_size];
+    auto prev_blocks = generates_or_propagates;
+    int cur_total_blocks = num_blocks - space;
+
+    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, cur_blocks, cur_blocks, prev_blocks,
+        bsks, ksks, cur_total_blocks, luts, luts->params.message_modulus);
+
+    cuda_memcpy_async_gpu_to_gpu(
+        &generates_or_propagates[space * big_lwe_size], cur_blocks,
+        big_lwe_size_bytes * cur_total_blocks, streams[0], gpu_indexes[0]);
+    space *= 2;
+  }
+}
+
+template <typename Torus>
 void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  uint32_t gpu_count, Torus *lwe_array,
                                  Torus *carry_out, Torus *input_carries,
@@ -524,32 +590,9 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
       ksks, num_blocks, luts_array);
 
   // compute prefix sum with hillis&steele
-
-  int num_steps = ceil(log2((double)num_blocks));
-  int space = 1;
-  cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
-                               big_lwe_size_bytes * num_blocks, streams[0],
-                               gpu_indexes[0]);
-
-  for (int step = 0; step < num_steps; step++) {
-    if (space > num_blocks - 1)
-      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
-            "propagation")
-    auto cur_blocks = &step_output[space * big_lwe_size];
-    auto prev_blocks = generates_or_propagates;
-    int cur_total_blocks = num_blocks - space;
-
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, cur_blocks, cur_blocks, prev_blocks,
-        bsks, ksks, cur_total_blocks, luts_carry_propagation_sum,
-        luts_carry_propagation_sum->params.message_modulus);
-
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_gpu_to_gpu(
-        &generates_or_propagates[space * big_lwe_size], cur_blocks,
-        big_lwe_size_bytes * cur_total_blocks, streams[0], gpu_indexes[0]);
-    space *= 2;
-  }
+  host_compute_prefix_sum_hillis_steele(
+      streams, gpu_indexes, gpu_count, step_output, generates_or_propagates,
+      params, luts_carry_propagation_sum, bsks, ksks, num_blocks);
 
   host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
                                  generates_or_propagates, 1, num_blocks,
@@ -613,30 +656,9 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
       ksks, num_blocks, luts_array);
 
   // compute prefix sum with hillis&steele
-  int num_steps = ceil(log2((double)num_blocks));
-  int space = 1;
-  cuda_memcpy_async_gpu_to_gpu(step_output, generates_or_propagates,
-                               big_lwe_size_bytes * num_blocks, streams[0],
-                               gpu_indexes[0]);
-
-  for (int step = 0; step < num_steps; step++) {
-    if (space > num_blocks - 1)
-      PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
-            "propagation")
-    auto cur_blocks = &step_output[space * big_lwe_size];
-    auto prev_blocks = generates_or_propagates;
-    int cur_total_blocks = num_blocks - space;
-
-    integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, cur_blocks, cur_blocks, prev_blocks,
-        bsks, ksks, cur_total_blocks, luts_carry_propagation_sum,
-        luts_carry_propagation_sum->params.message_modulus);
-
-    cuda_memcpy_async_gpu_to_gpu(
-        &generates_or_propagates[space * big_lwe_size], cur_blocks,
-        big_lwe_size_bytes * cur_total_blocks, streams[0], gpu_indexes[0]);
-    space *= 2;
-  }
+  host_compute_prefix_sum_hillis_steele<Torus>(
+      streams, gpu_indexes, gpu_count, step_output, generates_or_propagates,
+      params, luts_carry_propagation_sum, bsks, ksks, num_blocks);
 
   cuda_memcpy_async_gpu_to_gpu(
       overflowed, &generates_or_propagates[big_lwe_size * (num_blocks - 1)],

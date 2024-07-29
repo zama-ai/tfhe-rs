@@ -3,6 +3,7 @@ pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
+pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
@@ -24,7 +25,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
+    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -62,6 +63,34 @@ where
     }
 
     fn execute(&mut self, input: &'a SignedRadixCiphertext) -> SignedRadixCiphertext {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>
+    for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock),
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
+impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &SignedRadixCiphertext) -> RadixCiphertext,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> RadixCiphertext {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input)
     }
@@ -419,22 +448,6 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
 
 create_parametrized_test!(integer_signed_default_absolute_value);
 
-create_parametrized_test!(integer_signed_default_trailing_zeros);
-create_parametrized_test!(integer_signed_default_trailing_ones);
-create_parametrized_test!(integer_signed_default_leading_zeros);
-create_parametrized_test!(integer_signed_default_leading_ones);
-create_parametrized_test!(integer_signed_default_ilog2);
-create_parametrized_test!(integer_signed_default_checked_ilog2 {
-    // uses comparison so 1_1 parameters are not supported
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-
 fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
@@ -469,58 +482,6 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
         let ct_res2 = sks.abs_parallelized(&ctxt_0);
         assert_eq!(ct_res2, ct_res);
     }
-}
-
-fn integer_signed_default_trailing_zeros<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_trailing_zeros_test(
-        param,
-    );
-}
-
-fn integer_signed_default_trailing_ones<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_trailing_ones_test(
-        param,
-    );
-}
-
-fn integer_signed_default_leading_zeros<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_leading_zeros_test(
-        param,
-    );
-}
-
-fn integer_signed_default_leading_ones<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_leading_ones_test(
-        param,
-    );
-}
-
-fn integer_signed_default_ilog2<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_ilog2_test(param);
-}
-
-fn integer_signed_default_checked_ilog2<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    crate::integer::server_key::radix_parallel::ilog2::tests_signed::default_checked_ilog2_test(
-        param,
-    );
 }
 
 //================================================================================

@@ -1838,12 +1838,6 @@ where
     }
 }
 
-// Re-exports to still have tests case accessible from the same location
-pub(crate) use crate::integer::server_key::radix_parallel::ilog2::tests_unsigned::{
-    default_checked_ilog2_test, default_ilog2_test, default_leading_ones_test,
-    default_leading_zeros_test, default_trailing_ones_test, default_trailing_zeros_test,
-};
-
 //=============================================================================
 // Default Scalar Tests
 //=============================================================================

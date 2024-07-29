@@ -41,7 +41,7 @@ impl CudaServerKey {
             stream,
         );
         let mut block_info = ct_left.as_ref().info.blocks[0];
-        block_info.degree = Degree::new(0);
+        block_info.degree = Degree::new(1);
         let ct_info = vec![block_info];
         let ct_info = CudaRadixCiphertextInfo { blocks: ct_info };
 

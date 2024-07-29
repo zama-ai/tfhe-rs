@@ -169,7 +169,7 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
   }
 }
 template <typename Torus>
-__host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
+__host__ void scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_sum_ciphertexts_vec_memory<Torus> **mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
@@ -181,7 +181,7 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
 }
 
 template <typename Torus, class params>
-__host__ void host_integer_sum_ciphertexts_vec_kb(
+__host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     Torus *radix_lwe_out, Torus *terms, int *terms_degree, void **bsks,
     uint64_t **ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
@@ -425,10 +425,6 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   host_addition(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
                 &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
                 num_blocks);
-
-  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
-                                     radix_lwe_out, nullptr, nullptr,
-                                     mem_ptr->scp_mem, bsks, ksks, num_blocks);
 }
 
 template <typename Torus, class params>
@@ -539,10 +535,15 @@ __host__ void host_integer_mult_radix_kb(
     terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
   }
 
-  host_integer_sum_ciphertexts_vec_kb<Torus, params>(
+  host_integer_partial_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb,
       terms_degree, bsks, ksks, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks, mem_ptr->luts_array);
+
+  auto scp_mem_ptr = mem_ptr->sum_ciphertexts_mem->scp_mem;
+  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count,
+                                     radix_lwe_out, nullptr, nullptr,
+                                     scp_mem_ptr, bsks, ksks, num_blocks);
 }
 
 template <typename Torus>
