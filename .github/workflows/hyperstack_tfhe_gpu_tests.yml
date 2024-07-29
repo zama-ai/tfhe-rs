@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: TFHE Cuda Backend - Full tests on H100
+name: TFHE Cuda Backend - Base tests on H100
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,6 +48,10 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
+              - Makefile
+              - '.github/workflows/hyperstack**'
+              - scripts/**
+              - ci/**
 
   setup-instance:
     name: Setup instance (cuda-h100-tests)
@@ -143,14 +147,6 @@ jobs:
           make test_core_crypto_gpu
           make test_cuda_backend
 
-      - name: Run integer tests
-        run: |
-          make test_integer_gpu_ci
-
-      - name: Run integer multi-bit tests
-        run: |
-          make test_integer_multi_bit_gpu_ci
-
       - name: Run user docs tests
         run: |
           make test_user_doc_gpu
@@ -174,7 +170,7 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Integer GPU H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Base H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-h100-tests)

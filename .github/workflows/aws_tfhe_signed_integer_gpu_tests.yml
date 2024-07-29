@@ -63,8 +63,7 @@ jobs:
     needs: should-run
     if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true') ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
+      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -138,11 +137,6 @@ jobs:
             echo "FAST_TESTS=FALSE";
             echo "NIGHTLY_TESTS=TRUE";
           } >> "${GITHUB_ENV}"
-
-      - name: Run signed integer tests
-        if: github.event_name != 'pull_request' || contains(github.event.label.name, 'approved')
-        run: |
-          make test_signed_integer_gpu_ci
 
       - name: Run signed integer multi-bit tests
         run: |
