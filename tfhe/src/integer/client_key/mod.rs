@@ -20,9 +20,9 @@ use crate::integer::block_decomposition::BlockRecomposer;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
 use crate::integer::client_key::utils::i_crt;
+use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use crate::shortint::parameters::{CompressionParameters, MessageModulus};
 use crate::shortint::{
     Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
@@ -720,14 +720,22 @@ impl ClientKey {
         &self,
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
-        self.key.new_compression_private_key(params)
+        CompressionPrivateKeys {
+            key: self.key.new_compression_private_key(params),
+        }
     }
 
     pub fn new_compression_decompression_keys(
         &self,
         private_compression_key: &CompressionPrivateKeys,
     ) -> (CompressionKey, DecompressionKey) {
-        self.key
-            .new_compression_decompression_keys(private_compression_key)
+        let (comp_key, decomp_key) = self
+            .key
+            .new_compression_decompression_keys(&private_compression_key.key);
+
+        (
+            CompressionKey { key: comp_key },
+            DecompressionKey { key: decomp_key },
+        )
     }
 }

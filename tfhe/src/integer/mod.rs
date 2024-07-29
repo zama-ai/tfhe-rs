@@ -55,6 +55,7 @@ pub mod backward_compatibility;
 pub mod bigint;
 pub mod ciphertext;
 pub mod client_key;
+pub mod compression_keys;
 pub mod key_switching_key;
 #[cfg(any(test, feature = "internal-keycache"))]
 pub mod keycache;

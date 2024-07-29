@@ -1,12 +1,12 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::high_level_api::backward_compatibility::keys::*;
-use crate::integer::public_key::CompactPublicKey;
-use crate::integer::CompressedCompactPublicKey;
-use crate::shortint::list_compression::{
+use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
 };
+use crate::integer::public_key::CompactPublicKey;
+use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::MessageModulus;
 use crate::Error;
@@ -103,11 +103,11 @@ impl IntegerClientKey {
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters.into());
 
+        let key = crate::integer::ClientKey::from(cks);
+
         let compression_key = config
             .compression_parameters
-            .map(|params| cks.new_compression_private_key(params));
-
-        let key = crate::integer::ClientKey::from(cks);
+            .map(|params| key.new_compression_private_key(params));
 
         let dedicated_compact_private_key = config
             .dedicated_compact_public_key_parameters
@@ -193,7 +193,7 @@ impl From<IntegerConfig> for IntegerClientKey {
 
         let compression_key = config
             .compression_parameters
-            .map(|params| key.key.new_compression_private_key(params));
+            .map(|params| key.new_compression_private_key(params));
 
         Self {
             key,
@@ -225,7 +225,7 @@ impl IntegerServerKey {
             || (None, None),
             |a| {
                 let (compression_key, decompression_key) =
-                    cks.key.new_compression_decompression_keys(a);
+                    cks.new_compression_decompression_keys(a);
                 (Some(compression_key), Some(decompression_key))
             },
         );
@@ -312,7 +312,6 @@ impl IntegerCompressedServerKey {
                 .as_ref()
                 .map_or((None, None), |compression_private_key| {
                     let (compression_keys, decompression_keys) = client_key
-                        .key
                         .key
                         .new_compressed_compression_decompression_keys(compression_private_key);
 
