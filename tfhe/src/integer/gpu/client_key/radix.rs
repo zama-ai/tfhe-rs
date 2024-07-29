@@ -4,13 +4,13 @@ use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_packing_keyswitch_key, par_generate_lwe_bootstrap_key,
     LweBootstrapKey,
 };
+use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys};
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey,
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::RadixClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys};
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 
 impl RadixClientKey {
@@ -19,6 +19,8 @@ impl RadixClientKey {
         private_compression_key: &CompressionPrivateKeys,
         streams: &CudaStreams,
     ) -> (CudaCompressionKey, CudaDecompressionKey) {
+        let private_compression_key = &private_compression_key.key;
+
         let cks_params: ClassicPBSParameters = match self.parameters() {
             PBSParameters::PBS(a) => a,
             PBSParameters::MultiBitPBS(_) => {
@@ -47,9 +49,11 @@ impl RadixClientKey {
         });
 
         let glwe_compression_key = CompressionKey {
-            packing_key_switching_key,
-            lwe_per_glwe: params.lwe_per_glwe,
-            storage_log_modulus: private_compression_key.params.storage_log_modulus,
+            key: crate::shortint::list_compression::CompressionKey {
+                packing_key_switching_key,
+                lwe_per_glwe: params.lwe_per_glwe,
+                storage_log_modulus: private_compression_key.params.storage_log_modulus,
+            },
         };
 
         let cuda_compression_key =

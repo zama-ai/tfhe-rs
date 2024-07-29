@@ -1,8 +1,8 @@
 use super::{DataKind, Expandable, RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
+use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
 use crate::integer::BooleanBlock;
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
-use crate::shortint::list_compression::{CompressionKey, DecompressionKey};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -84,7 +84,9 @@ impl CompressedCiphertextListBuilder {
     }
 
     pub fn build(&self, comp_key: &CompressionKey) -> CompressedCiphertextList {
-        let packed_list = comp_key.compress_ciphertexts_into_list(&self.ciphertexts);
+        let packed_list = comp_key
+            .key
+            .compress_ciphertexts_into_list(&self.ciphertexts);
 
         CompressedCiphertextList {
             packed_list,
@@ -128,7 +130,7 @@ impl CompressedCiphertextList {
         Some((
             (start_block_index..end_block_index)
                 .into_par_iter()
-                .map(|i| decomp_key.unpack(&self.packed_list, i).unwrap())
+                .map(|i| decomp_key.key.unpack(&self.packed_list, i).unwrap())
                 .collect(),
             current_info,
         ))

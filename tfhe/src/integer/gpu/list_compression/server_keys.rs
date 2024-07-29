@@ -4,13 +4,13 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount};
+use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
-use crate::shortint::list_compression::CompressionKey;
 use crate::shortint::PBSParameters;
 use itertools::Itertools;
 
@@ -38,11 +38,11 @@ impl CudaCompressionKey {
     pub fn from_compression_key(compression_key: &CompressionKey, streams: &CudaStreams) -> Self {
         Self {
             packing_key_switching_key: CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(
-                &compression_key.packing_key_switching_key,
+                &compression_key.key.packing_key_switching_key,
                 streams,
             ),
-            lwe_per_glwe: compression_key.lwe_per_glwe,
-            storage_log_modulus: compression_key.storage_log_modulus,
+            lwe_per_glwe: compression_key.key.lwe_per_glwe,
+            storage_log_modulus: compression_key.key.storage_log_modulus,
         }
     }
 
