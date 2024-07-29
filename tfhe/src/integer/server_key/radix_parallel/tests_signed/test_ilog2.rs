@@ -2,12 +2,10 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
-    create_iterator_of_signed_random_pairs, random_non_zero_value, signed_add_under_modulus,
-    signed_overflowing_add_under_modulus, NB_CTXT,
+    random_non_zero_value, signed_add_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, nb_unchecked_tests_for_params,
-    CpuFunctionExecutor,
+    nb_tests_smaller_for_params, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{
@@ -40,52 +38,58 @@ fn integer_signed_default_trailing_zeros<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_trailing_zeros_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros_parallelized);
+    default_trailing_zeros_test(param, executor);
 }
 
 fn integer_signed_default_trailing_ones<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_trailing_ones_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones_parallelized);
+    default_trailing_ones_test(param, executor);
 }
 
 fn integer_signed_default_leading_zeros<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_leading_zeros_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros_parallelized);
+    default_leading_zeros_test(param, executor);
 }
 
 fn integer_signed_default_leading_ones<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_leading_ones_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones_parallelized);
+    default_leading_ones_test(param, executor);
 }
 
 fn integer_signed_default_ilog2<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_ilog2_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
+    default_ilog2_test(param, executor);
 }
 
 fn integer_signed_default_checked_ilog2<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    default_checked_ilog2_test(param);
+    let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
+    default_checked_ilog2_test(param, executor);
 }
 
-pub(crate) fn default_test_count_consecutive_bits<P, F>(
+pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
     direction: Direction,
     bit_value: BitValue,
     param: P,
-    sks_method: F,
+    mut executor: T,
 ) where
     P: Into<PBSParameters>,
-    F: for<'a> Fn(&'a ServerKey, &'a SignedRadixCiphertext) -> RadixCiphertext,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
@@ -135,8 +139,8 @@ pub(crate) fn default_test_count_consecutive_bits<P, F>(
     for clear in input_values {
         let ctxt = cks.encrypt_signed(clear);
 
-        let ct_res = sks_method(&sks, &ctxt);
-        let tmp = sks_method(&sks, &ctxt);
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
 
@@ -159,7 +163,7 @@ pub(crate) fn default_test_count_consecutive_bits<P, F>(
             let d0: i64 = cks.decrypt_signed(&ctxt);
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
-            let ct_res = sks_method(&sks, &ctxt);
+            let ct_res = executor.execute(&ctxt);
             assert!(ct_res.block_carries_are_empty());
 
             let expected_result = compute_expected_clear(clear);
@@ -180,7 +184,7 @@ pub(crate) fn default_test_count_consecutive_bits<P, F>(
     for clear in input_values {
         let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
 
-        let ct_res = sks_method(&sks, &ctxt);
+        let ct_res = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -193,57 +197,47 @@ pub(crate) fn default_test_count_consecutive_bits<P, F>(
     }
 }
 
-pub(crate) fn default_trailing_zeros_test<P>(param: P)
+pub(crate) fn default_trailing_zeros_test<P, T>(param: P, executor: T)
 where
     P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
-    default_test_count_consecutive_bits(
+    signed_default_count_consecutive_bits_test(
         Direction::Trailing,
         BitValue::Zero,
         param,
-        ServerKey::trailing_zeros_parallelized,
+        executor,
     );
 }
 
-pub(crate) fn default_trailing_ones_test<P>(param: P)
+pub(crate) fn default_trailing_ones_test<P, T>(param: P, executor: T)
 where
     P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
-    default_test_count_consecutive_bits(
-        Direction::Trailing,
-        BitValue::One,
-        param,
-        ServerKey::trailing_ones_parallelized,
-    );
+    signed_default_count_consecutive_bits_test(Direction::Trailing, BitValue::One, param, executor);
 }
 
-pub(crate) fn default_leading_zeros_test<P>(param: P)
+pub(crate) fn default_leading_zeros_test<P, T>(param: P, executor: T)
 where
     P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
-    default_test_count_consecutive_bits(
-        Direction::Leading,
-        BitValue::Zero,
-        param,
-        ServerKey::leading_zeros_parallelized,
-    );
+    signed_default_count_consecutive_bits_test(Direction::Leading, BitValue::Zero, param, executor);
 }
 
-pub(crate) fn default_leading_ones_test<P>(param: P)
+pub(crate) fn default_leading_ones_test<P, T>(param: P, executor: T)
 where
     P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
-    default_test_count_consecutive_bits(
-        Direction::Leading,
-        BitValue::One,
-        param,
-        ServerKey::leading_ones_parallelized,
-    );
+    signed_default_count_consecutive_bits_test(Direction::Leading, BitValue::One, param, executor);
 }
 
-pub(crate) fn default_ilog2_test<P>(param: P)
+pub(crate) fn default_ilog2_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
@@ -251,6 +245,8 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+    executor.setup(&cks, sks.clone());
 
     let mut rng = rand::thread_rng();
 
@@ -264,7 +260,7 @@ where
         for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
             let ctxt = cks.encrypt_signed(clear);
 
-            let ct_res = sks.ilog2_parallelized(&ctxt);
+            let ct_res = executor.execute(&ctxt);
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -296,8 +292,8 @@ where
     for clear in input_values {
         let ctxt = cks.encrypt_signed(clear);
 
-        let ct_res = sks.ilog2_parallelized(&ctxt);
-        let tmp = sks.ilog2_parallelized(&ctxt);
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
 
@@ -326,7 +322,7 @@ where
             let d0: i64 = cks.decrypt_signed(&ctxt);
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
-            let ct_res = sks.ilog2_parallelized(&ctxt);
+            let ct_res = executor.execute(&ctxt);
             assert!(ct_res.block_carries_are_empty());
 
             let expected_result = clear.ilog2();
@@ -351,8 +347,8 @@ where
     for clear in input_values {
         let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
-        let ct_res = sks.ilog2_parallelized(&ctxt);
-        let tmp = sks.ilog2_parallelized(&ctxt);
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
 
@@ -370,7 +366,7 @@ where
 pub(crate) fn default_checked_ilog2_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext), SignedRadixCiphertext>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
@@ -381,7 +377,7 @@ where
 
     let mut rng = rand::thread_rng();
     let sks = Arc::new(sks);
-    executor.setup(&cks, sks);
+    executor.setup(&cks, sks.clone());
 
     // message_modulus^vec_length
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
@@ -393,7 +389,7 @@ where
         for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
             let ctxt = cks.encrypt_signed(clear);
 
-            let (ct_res, is_ok) = executor.execute((&ctxt));
+            let (ct_res, is_ok) = executor.execute(&ctxt);
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -427,8 +423,8 @@ where
     for clear in input_values {
         let ctxt = cks.encrypt_signed(clear);
 
-        let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
-        let (tmp, tmp_is_ok) = sks.checked_ilog2_parallelized(&ctxt);
+        let (ct_res, is_ok) = executor.execute(&ctxt);
+        let (tmp, tmp_is_ok) = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
         assert_eq!(is_ok, tmp_is_ok);
@@ -460,7 +456,7 @@ where
             let d0: i64 = cks.decrypt_signed(&ctxt);
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
-            let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
+            let (ct_res, is_ok) = executor.execute(&ctxt);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(is_ok.as_ref().degree.get(), 1);
 
@@ -488,7 +484,7 @@ where
     for clear in input_values {
         let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
-        let (ct_res, is_ok) = sks.checked_ilog2_parallelized(&ctxt);
+        let (ct_res, is_ok) = executor.execute(&ctxt);
         assert!(ct_res.block_carries_are_empty());
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
