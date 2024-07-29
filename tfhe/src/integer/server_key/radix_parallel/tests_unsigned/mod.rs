@@ -4,6 +4,7 @@ pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 pub(crate) mod test_div_mod;
+pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
@@ -483,22 +484,6 @@ create_parametrized_test!(
 );
 // left/right rotations
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
-create_parametrized_test!(integer_default_trailing_zeros);
-create_parametrized_test!(integer_default_trailing_ones);
-create_parametrized_test!(integer_default_leading_zeros);
-create_parametrized_test!(integer_default_leading_ones);
-create_parametrized_test!(integer_default_ilog2);
-create_parametrized_test!(integer_default_checked_ilog2 {
-    // This uses comparisons, so require more than 1 bit
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-});
-
 create_parametrized_test!(
     integer_full_propagate {
         coverage => {
@@ -699,54 +684,6 @@ where
 //=============================================================================
 // Default Tests
 //=============================================================================
-
-fn integer_default_trailing_zeros<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros_parallelized);
-    default_trailing_zeros_test(param, executor);
-}
-
-fn integer_default_trailing_ones<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones_parallelized);
-    default_trailing_ones_test(param, executor);
-}
-
-fn integer_default_leading_zeros<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros_parallelized);
-    default_leading_zeros_test(param, executor);
-}
-
-fn integer_default_leading_ones<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones_parallelized);
-    default_leading_ones_test(param, executor);
-}
-
-fn integer_default_ilog2<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
-    default_ilog2_test(param, executor);
-}
-
-fn integer_default_checked_ilog2<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
-    default_checked_ilog2_test(param, executor);
-}
 
 #[test]
 #[cfg(not(tarpaulin))]

@@ -2,6 +2,7 @@ pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
+pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_rotate;
@@ -48,6 +49,60 @@ where
         let gpu_result = (self.func)(&context.sks, &d_ctxt, &context.streams);
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+//For ilog2
+impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext> for GpuFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, &CudaSignedRadixCiphertext, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input, &context.streams);
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt, &context.streams);
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<'a, F> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input, &context.streams);
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt, &context.streams);
+
+        (
+            gpu_result.0.to_radix_ciphertext(&context.streams),
+            gpu_result.1.to_boolean_block(&context.streams),
+        )
     }
 }
 

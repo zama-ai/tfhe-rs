@@ -477,6 +477,8 @@ impl CudaRadixCiphertextInfo {
         &self,
         num_blocks: usize,
     ) -> Self {
+        assert!(num_blocks > 0);
+
         let mut new_block_info = Self {
             blocks: Vec::with_capacity(self.blocks.len() + num_blocks),
         };
@@ -506,6 +508,8 @@ impl CudaRadixCiphertextInfo {
     }
 
     pub(crate) fn after_trim_radix_blocks_msb(&self, num_blocks: usize) -> Self {
+        assert!(num_blocks > 0);
+
         let mut new_block_info = Self {
             blocks: Vec::with_capacity(self.blocks.len().saturating_sub(num_blocks)),
         };

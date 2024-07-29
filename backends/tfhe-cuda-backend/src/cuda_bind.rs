@@ -1043,7 +1043,7 @@ extern "C" {
         mem_ptr: *mut *mut i8,
     );
 
-    pub fn scratch_cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+    pub fn scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -1064,7 +1064,7 @@ extern "C" {
         allocate_gpu_memory: bool,
     );
 
-    pub fn cuda_integer_radix_sum_ciphertexts_vec_kb_64(
+    pub fn cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -1077,7 +1077,7 @@ extern "C" {
         num_blocks_in_radix: u32,
     );
 
-    pub fn cleanup_cuda_integer_radix_sum_ciphertexts_vec(
+    pub fn cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -1209,5 +1209,54 @@ extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         mem_ptr: *mut *mut i8,
+    );
+    pub fn scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        input_lut: *const c_void,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: u32,
+        allocate_gpu_memory: bool,
+    );
+
+    pub fn cuda_integer_compute_prefix_sum_hillis_steele_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_radix_lwe: *mut c_void,
+        input_radix_lwe: *const c_void,
+        mem_ptr: *mut i8,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
+        num_blocks: u32,
+        shift: u32,
+    );
+
+    pub fn cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+    );
+
+    pub fn cuda_integer_reverse_blocks_64_inplace(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_radix_lwe: *mut c_void,
+        num_blocks: u32,
+        lwe_size: u32,
     );
 } // extern "C"

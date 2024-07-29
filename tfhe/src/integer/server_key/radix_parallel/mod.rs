@@ -21,7 +21,7 @@ mod shift;
 pub(crate) mod sub;
 mod sum;
 
-mod ilog2;
+pub(crate) mod ilog2;
 mod reverse_bits;
 #[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
