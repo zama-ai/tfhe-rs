@@ -108,8 +108,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
     synchronize_threads_in_block();
 
-    double2 *fft = (double2 *)selected_memory;
-
     // Move accumulator to local memory
     double2 temp[params::opt / 2];
     int tid = threadIdx.x;
@@ -126,6 +124,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     synchronize_threads_in_block();
     // Move from local memory back to shared memory but as complex
     tid = threadIdx.x;
+    double2 *fft = (double2 *)selected_memory;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
       fft[tid] = temp[i];
@@ -332,7 +331,7 @@ template <typename Torus>
 __host__ __device__ uint64_t
 get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size; // accumulator
+  return sizeof(double2) * polynomial_size / 2; // accumulator
 }
 template <typename Torus>
 __host__ __device__ uint64_t
@@ -371,7 +370,7 @@ __host__ __device__ uint64_t get_buffer_size_multibit_programmable_bootstrap(
   return buffer_size + buffer_size % sizeof(double2);
 }
 
-template <typename Torus, typename STorus, typename params>
+template <typename Torus, typename params>
 __host__ void scratch_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, MULTI_BIT> **buffer, uint32_t lwe_dimension,
@@ -380,7 +379,6 @@ __host__ void scratch_multi_bit_programmable_bootstrap(
     uint32_t max_shared_memory, bool allocate_gpu_memory,
     uint32_t lwe_chunk_size = 0) {
 
-  cudaSetDevice(gpu_index);
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);
@@ -624,7 +622,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus, typename STorus, class params>
+template <typename Torus, class params>
 __host__ void host_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
@@ -632,8 +630,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t lwe_chunk_size = 0) {
+    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(gpu_index);
 
   // If a chunk size is not passed to this function, select one.

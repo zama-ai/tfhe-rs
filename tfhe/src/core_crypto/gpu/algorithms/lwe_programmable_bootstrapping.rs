@@ -3,9 +3,7 @@ use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{programmable_bootstrap_async, CudaStreams};
-use crate::core_crypto::prelude::{
-    CastInto, LweCiphertextCount, LweCiphertextIndex, UnsignedTorus,
-};
+use crate::core_crypto::prelude::{CastInto, LweCiphertextCount, UnsignedTorus};
 
 /// # Safety
 ///
@@ -93,7 +91,6 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
-        LweCiphertextIndex(0),
     );
 }
 
