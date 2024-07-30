@@ -168,13 +168,6 @@ extern "C" {
     /// - `base_log`: log base used for the gadget matrix - B = 2^base_log (~8)
     /// - `level_count`: number of decomposition levels in the gadget matrix (~4)
     /// - `num_samples`: number of encrypted input messages
-    /// - `num_lut_vectors`: parameter to set the actual number of test vectors to be used
-    /// - `lwe_idx`: the index of the LWE input to consider for the GPU of index gpu_index. In case
-    ///   of multi-GPU computing, it is assumed that only a part of the input LWE array is copied to
-    ///   each GPU, but the whole LUT array is copied (because the case when the number of LUTs is
-    ///   smaller than the number of input LWEs is not trivial to take into account in the data
-    ///   repartition on the GPUs). `lwe_idx` is used to determine which LUT to consider for a given
-    ///   LWE input in the LUT array `lut_vector`.
     ///  - `max_shared_memory` maximum amount of shared memory to be used inside device functions
     ///
     /// This function calls a wrapper to a device kernel that performs the
@@ -212,10 +205,7 @@ extern "C" {
         base_log: u32,
         level: u32,
         num_samples: u32,
-        num_lut_vectors: u32,
-        lwe_idx: u32,
         max_shared_memory: u32,
-        gpu_offset: u32,
     );
 
     /// This cleanup function frees the data for the low latency PBS on GPU
@@ -269,13 +259,6 @@ extern "C" {
     /// - `base_log`: log base used for the gadget matrix - B = 2^base_log (~8)
     /// - `level_count`: number of decomposition levels in the gadget matrix (~4)
     /// - `num_samples`: number of encrypted input messages
-    /// - `num_lut_vectors`: parameter to set the actual number of test vectors to be used
-    /// - `lwe_idx`: the index of the LWE input to consider for the GPU of index gpu_index. In case
-    ///   of multi-GPU computing, it is assumed that only a part of the input LWE array is copied to
-    ///   each GPU, but the whole LUT array is copied (because the case when the number of LUTs is
-    ///   smaller than the number of input LWEs is not trivial to take into account in the data
-    ///   repartition on the GPUs). `lwe_idx` is used to determine which LUT to consider for a given
-    ///   LWE input in the LUT array `lut_vector`.
     ///  - `max_shared_memory` maximum amount of shared memory to be used inside device functions
     pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         stream: *mut c_void,
@@ -295,10 +278,7 @@ extern "C" {
         base_log: u32,
         level: u32,
         num_samples: u32,
-        num_lut_vectors: u32,
-        lwe_idx: u32,
         max_shared_memory: u32,
-        gpu_offset: u32,
         lwe_chunk_size: u32,
     );
 

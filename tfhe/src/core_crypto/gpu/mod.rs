@@ -6,8 +6,8 @@ pub mod vec;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
-    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweCiphertextIndex, LweDimension,
-    PolynomialSize, UnsignedInteger,
+    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize,
+    UnsignedInteger,
 };
 pub use algorithms::*;
 pub use entities::*;
@@ -110,7 +110,6 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
     num_samples: u32,
-    lwe_idx: LweCiphertextIndex,
 ) {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_programmable_bootstrap_64(
@@ -141,10 +140,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
-        num_samples,
-        lwe_idx.0 as u32,
         get_max_shared_memory(streams.gpu_indexes[0]) as u32,
-        0,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],
@@ -176,7 +172,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     level: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
     num_samples: u32,
-    lwe_idx: LweCiphertextIndex,
 ) {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_multi_bit_programmable_bootstrap_64(
@@ -211,10 +206,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
-        num_samples,
-        lwe_idx.0 as u32,
         get_max_shared_memory(0) as u32,
-        0u32,
         0,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(

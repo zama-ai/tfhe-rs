@@ -127,8 +127,8 @@ void execute_pbs_async(
     std::vector<int8_t *> pbs_buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, uint32_t num_luts, uint32_t lwe_idx,
-    uint32_t max_shared_memory, PBS_TYPE pbs_type) {
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
+    PBS_TYPE pbs_type) {
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits
@@ -160,8 +160,8 @@ void execute_pbs_async(
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory);
+            polynomial_size, base_log, level_count, num_inputs_on_gpu,
+            max_shared_memory);
       }
       break;
     default:
@@ -200,7 +200,7 @@ void execute_pbs_async(
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
             polynomial_size, grouping_factor, base_log, level_count,
-            num_inputs_on_gpu, num_luts, lwe_idx, max_shared_memory);
+            num_inputs_on_gpu, max_shared_memory);
       }
       break;
     case CLASSICAL:
@@ -228,8 +228,8 @@ void execute_pbs_async(
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], pbs_buffer[i], lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, num_inputs_on_gpu, num_luts,
-            lwe_idx, max_shared_memory);
+            polynomial_size, base_log, level_count, num_inputs_on_gpu,
+            max_shared_memory);
       }
       break;
     default:

@@ -166,7 +166,7 @@ get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 
-template <typename Torus, typename STorus, typename params>
+template <typename Torus, typename params>
 __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, MULTI_BIT> **buffer, uint32_t lwe_dimension,
@@ -357,7 +357,7 @@ __host__ void execute_tbc_external_product_loop(
   }
 }
 
-template <typename Torus, typename STorus, class params>
+template <typename Torus, class params>
 __host__ void host_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus *lwe_output_indexes, Torus *lut_vector, Torus *lut_vector_indexes,
@@ -365,8 +365,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_luts, uint32_t lwe_idx, uint32_t max_shared_memory,
-    uint32_t lwe_chunk_size = 0) {
+    uint32_t max_shared_memory, uint32_t lwe_chunk_size = 0) {
   cudaSetDevice(gpu_index);
 
   if (!lwe_chunk_size)

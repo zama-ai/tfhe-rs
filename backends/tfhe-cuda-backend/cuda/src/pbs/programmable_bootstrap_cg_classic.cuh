@@ -156,7 +156,7 @@ __global__ void device_programmable_bootstrap_cg(
   }
 }
 
-template <typename Torus, typename STorus, typename params>
+template <typename Torus, typename params>
 __host__ void scratch_programmable_bootstrap_cg(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t glwe_dimension,
@@ -204,7 +204,7 @@ __host__ void host_programmable_bootstrap_cg(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_luts, uint32_t max_shared_memory) {
+    uint32_t max_shared_memory) {
   cudaSetDevice(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to

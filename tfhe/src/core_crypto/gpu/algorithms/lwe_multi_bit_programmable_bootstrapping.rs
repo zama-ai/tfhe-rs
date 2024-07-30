@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextLis
 use crate::core_crypto::gpu::entities::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{programmable_bootstrap_multi_bit_async, CudaStreams};
-use crate::core_crypto::prelude::{CastInto, LweCiphertextIndex, UnsignedTorus};
+use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
 /// # Safety
 ///
@@ -91,7 +91,6 @@ pub unsafe fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_async<Scalar>
         multi_bit_bsk.decomp_level_count(),
         multi_bit_bsk.grouping_factor(),
         input.lwe_ciphertext_count().0 as u32,
-        LweCiphertextIndex(0),
     );
 }
 

@@ -128,8 +128,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, pbs_buffer,
           lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-          pbs_level, number_of_inputs, 1, 0,
-          cuda_get_max_shared_memory(gpu_index));
+          pbs_level, number_of_inputs, cuda_get_max_shared_memory(gpu_index));
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                (glwe_dimension * polynomial_size + 1) *
@@ -191,8 +190,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
           (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, pbs_buffer,
           lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-          pbs_level, number_of_inputs, 1, 0,
-          cuda_get_max_shared_memory(gpu_index));
+          pbs_level, number_of_inputs, cuda_get_max_shared_memory(gpu_index));
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                (glwe_dimension * polynomial_size + 1) *
