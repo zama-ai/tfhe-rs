@@ -48,6 +48,10 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
+              - Makefile
+              - '.github/workflows/aws_tfhe_multi_gpu**'
+              - scripts/**
+              - ci/**
 
   setup-instance:
     name: Setup instance (cuda-tests-multi-gpu)
