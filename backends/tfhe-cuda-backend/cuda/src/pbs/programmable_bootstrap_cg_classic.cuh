@@ -161,15 +161,14 @@ __host__ void scratch_programmable_bootstrap_cg(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
-    bool allocate_gpu_memory) {
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  cudaSetDevice(gpu_index);
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           polynomial_size);
+  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
@@ -203,9 +202,7 @@ __host__ void host_programmable_bootstrap_cg(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t max_shared_memory) {
-  cudaSetDevice(gpu_index);
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count) {
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -215,6 +212,9 @@ __host__ void host_programmable_bootstrap_cg(
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap_cg<Torus>(
           polynomial_size);
+
+  int max_shared_memory = cuda_get_max_shared_memory(0);
+  cudaSetDevice(gpu_index);
 
   uint64_t full_dm = full_sm;
 
@@ -265,8 +265,7 @@ __host__ void host_programmable_bootstrap_cg(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
-    int glwe_dimension, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    int glwe_dimension, int level_count, int num_samples) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -286,6 +285,7 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
   int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
 
+  int max_shared_memory = cuda_get_max_shared_memory(0);
   if (max_shared_memory < partial_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
@@ -311,37 +311,30 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    int glwe_dimension, int polynomial_size, int level_count, int num_samples) {
   switch (polynomial_size) {
   case 256:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
+        Torus, AmortizedDegree<256>>(glwe_dimension, level_count, num_samples);
   case 512:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
-                                     max_shared_memory);
+        Torus, AmortizedDegree<512>>(glwe_dimension, level_count, num_samples);
   case 1024:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        Torus, AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples);
   case 2048:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        Torus, AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples);
   case 4096:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples);
   case 8192:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
+        Torus, AmortizedDegree<8192>>(glwe_dimension, level_count, num_samples);
   case 16384:
     return verify_cuda_programmable_bootstrap_cg_grid_size<
-        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count, num_samples,
-                                       max_shared_memory);
+        Torus, AmortizedDegree<16384>>(glwe_dimension, level_count,
+                                       num_samples);
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"

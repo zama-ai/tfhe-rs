@@ -5,10 +5,9 @@
  */
 uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
     uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
+    uint32_t input_lwe_ciphertext_count) {
   return get_buffer_size_programmable_bootstrap_amortized<uint64_t>(
-      glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-      max_shared_memory);
+      glwe_dimension, polynomial_size, input_lwe_ciphertext_count);
 }
 
 /*
@@ -20,51 +19,50 @@ uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
 void scratch_cuda_programmable_bootstrap_amortized_32(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
-    bool allocate_gpu_memory) {
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   switch (polynomial_size) {
   case 256:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 512:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 1024:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 2048:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 4096:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 8192:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 16384:
     scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
@@ -81,51 +79,50 @@ void scratch_cuda_programmable_bootstrap_amortized_32(
 void scratch_cuda_programmable_bootstrap_amortized_64(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory,
-    bool allocate_gpu_memory) {
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   switch (polynomial_size) {
   case 256:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 512:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 1024:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 2048:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 4096:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 8192:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   case 16384:
     scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        max_shared_memory, allocate_gpu_memory);
+        allocate_gpu_memory);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
@@ -143,7 +140,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
     void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory) {
+    uint32_t num_samples) {
 
   if (base_log > 32)
     PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
@@ -157,7 +154,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 512:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<512>>(
@@ -166,7 +163,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 1024:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<1024>>(
@@ -175,7 +172,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 2048:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<2048>>(
@@ -184,7 +181,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 4096:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<4096>>(
@@ -193,7 +190,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 8192:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<8192>>(
@@ -202,7 +199,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 16384:
     host_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
@@ -211,7 +208,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
         (uint32_t *)lut_vector_indexes, (uint32_t *)lwe_array_in,
         (uint32_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
@@ -254,8 +251,6 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
  * - level_count: number of decomposition levels in the gadget matrix (~4)
  * - num_samples: number of encrypted input messages
  * used
- *  - 'max_shared_memory' maximum amount of shared memory to be used inside
- * device functions
  *
  * This function calls a wrapper to a device kernel that performs the
  * bootstrapping:
@@ -283,7 +278,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
     void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
     int8_t *pbs_buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory) {
+    uint32_t num_samples) {
 
   if (base_log > 64)
     PANIC("Cuda error (amortized PBS): base log should be > number of bits in "
@@ -297,7 +292,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 512:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<512>>(
@@ -306,7 +301,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 1024:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<1024>>(
@@ -315,7 +310,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 2048:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<2048>>(
@@ -324,7 +319,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 4096:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<4096>>(
@@ -333,7 +328,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 8192:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<8192>>(
@@ -342,7 +337,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   case 16384:
     host_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
@@ -351,7 +346,7 @@ void cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_64(
         (uint64_t *)lut_vector_indexes, (uint64_t *)lwe_array_in,
         (uint64_t *)lwe_input_indexes, (double2 *)bootstrapping_key, pbs_buffer,
         glwe_dimension, lwe_dimension, polynomial_size, base_log, level_count,
-        num_samples, max_shared_memory);
+        num_samples);
     break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "

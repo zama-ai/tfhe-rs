@@ -3,7 +3,7 @@ pub mod server_key;
 
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{get_max_shared_memory, CudaStreams};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, Numeric, PolynomialSize, UnsignedInteger,
@@ -368,7 +368,6 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         grouping_factor.0 as u32,
         num_blocks,
         pbs_type as u32,
-        get_max_shared_memory(streams.gpu_indexes[0]) as u32,
         true,
     );
     cuda_integer_mult_radix_ciphertext_kb_64(

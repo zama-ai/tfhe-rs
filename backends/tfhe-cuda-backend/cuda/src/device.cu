@@ -243,7 +243,6 @@ void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index) {
 
 /// Get the maximum size for the shared memory
 int cuda_get_max_shared_memory(uint32_t gpu_index) {
-  check_cuda_error(cudaSetDevice(gpu_index));
   int max_shared_memory = 0;
   cudaDeviceGetAttribute(&max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock,
                          gpu_index);
