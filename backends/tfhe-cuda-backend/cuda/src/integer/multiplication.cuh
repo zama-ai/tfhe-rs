@@ -187,21 +187,6 @@ __host__ void scratch_cuda_integer_sum_ciphertexts_vec_kb(
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
-    check_cuda_error(cudaFuncSetAttribute(
-        tree_add_chunks<Torus, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
-    cudaFuncSetCacheConfig(tree_add_chunks<Torus, FULLSM>,
-                           cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else {
-    check_cuda_error(
-        cudaFuncSetAttribute(tree_add_chunks<Torus, NOSM>,
-                             cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-    cudaFuncSetCacheConfig(tree_add_chunks<Torus, NOSM>, cudaFuncCachePreferL1);
-    check_cuda_error(cudaGetLastError());
-  }
   *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks_in_radix,
       max_num_radix_in_vec, allocate_gpu_memory);
@@ -576,22 +561,6 @@ __host__ void scratch_cuda_integer_mult_radix_ciphertext_kb(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_mul_memory<Torus> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
-  size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
-    check_cuda_error(cudaFuncSetAttribute(
-        tree_add_chunks<Torus, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, sm_size));
-    cudaFuncSetCacheConfig(tree_add_chunks<Torus, FULLSM>,
-                           cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else {
-    check_cuda_error(
-        cudaFuncSetAttribute(tree_add_chunks<Torus, NOSM>,
-                             cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-    cudaFuncSetCacheConfig(tree_add_chunks<Torus, NOSM>, cudaFuncCachePreferL1);
-    check_cuda_error(cudaGetLastError());
-  }
-
   *mem_ptr = new int_mul_memory<Torus>(streams, gpu_indexes, gpu_count, params,
                                        num_radix_blocks, allocate_gpu_memory);
 }

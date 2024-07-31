@@ -33,22 +33,6 @@ __host__ void scratch_cuda_integer_radix_scalar_mul_kb(
     int_scalar_mul_buffer<T> **mem_ptr, uint32_t num_radix_blocks,
     int_radix_params params, bool allocate_gpu_memory) {
 
-  size_t sm_size = (params.big_lwe_dimension + 1) * sizeof(T);
-  if (sm_size < cuda_get_max_shared_memory(gpu_indexes[0])) {
-    check_cuda_error(cudaFuncSetAttribute(
-        tree_add_chunks<T, FULLSM>, cudaFuncAttributeMaxDynamicSharedMemorySize,
-        sm_size));
-    cudaFuncSetCacheConfig(tree_add_chunks<T, FULLSM>,
-                           cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else {
-    check_cuda_error(
-        cudaFuncSetAttribute(tree_add_chunks<T, NOSM>,
-                             cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-    cudaFuncSetCacheConfig(tree_add_chunks<T, NOSM>, cudaFuncCachePreferL1);
-    check_cuda_error(cudaGetLastError());
-  }
-
   *mem_ptr =
       new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
                                    num_radix_blocks, allocate_gpu_memory);
