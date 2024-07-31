@@ -71,14 +71,14 @@ pub enum UnversionizeError {
     Upgrade {
         from_vers: String,
         into_vers: String,
-        source: Box<dyn Error>,
+        source: Box<dyn Error + Send + Sync>,
     },
 
     /// An error has been returned in the conversion method provided by the `try_from` parameter
     /// attribute
     Conversion {
         from_type: String,
-        source: Box<dyn Error>,
+        source: Box<dyn Error + Send + Sync>,
     },
 }
 
@@ -110,7 +110,11 @@ impl Error for UnversionizeError {
 }
 
 impl UnversionizeError {
-    pub fn upgrade<E: Error + 'static>(from_vers: &str, into_vers: &str, source: E) -> Self {
+    pub fn upgrade<E: Error + 'static + Send + Sync>(
+        from_vers: &str,
+        into_vers: &str,
+        source: E,
+    ) -> Self {
         Self::Upgrade {
             from_vers: from_vers.to_string(),
             into_vers: into_vers.to_string(),
@@ -118,7 +122,7 @@ impl UnversionizeError {
         }
     }
 
-    pub fn conversion<E: Error + 'static>(from_type: &str, source: E) -> Self {
+    pub fn conversion<E: Error + 'static + Send + Sync>(from_type: &str, source: E) -> Self {
         Self::Conversion {
             from_type: from_type.to_string(),
             source: Box::new(source),
