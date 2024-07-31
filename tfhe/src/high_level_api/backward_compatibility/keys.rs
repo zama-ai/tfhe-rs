@@ -1,9 +1,8 @@
+use crate::high_level_api::keys::*;
+use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
 use std::convert::Infallible;
 use std::sync::Arc;
-
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
-
-use crate::high_level_api::keys::*;
 
 #[derive(VersionsDispatch)]
 pub enum ClientKeyVersions {
@@ -70,14 +69,35 @@ pub(crate) struct IntegerClientKeyV0 {
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
 }
 
-impl Upgrade<IntegerClientKey> for IntegerClientKeyV0 {
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV1 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
+    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<CompressionPrivateKeys>,
+}
+
+impl Upgrade<IntegerClientKeyV1> for IntegerClientKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKeyV1, Self::Error> {
+        Ok(IntegerClientKeyV1 {
+            key: self.key,
+            wopbs_block_parameters: self.wopbs_block_parameters,
+            dedicated_compact_private_key: None,
+            compression_key: None,
+        })
+    }
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV1 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
         Ok(IntegerClientKey {
             key: self.key,
-            dedicated_compact_private_key: None,
-            compression_key: None,
+            dedicated_compact_private_key: self.dedicated_compact_private_key,
+            compression_key: self.compression_key,
         })
     }
 }
@@ -86,7 +106,8 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV0 {
 #[allow(unused)]
 pub(crate) enum IntegerClientKeyVersions {
     V0(IntegerClientKeyV0),
-    V1(IntegerClientKey),
+    V1(IntegerClientKeyV1),
+    V2(IntegerClientKey),
 }
 
 #[derive(Version)]
@@ -95,12 +116,23 @@ pub struct IntegerServerKeyV0 {
     pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
 }
 
-impl Upgrade<IntegerServerKey> for IntegerServerKeyV0 {
+#[derive(Version)]
+pub struct IntegerServerKeyV1 {
+    pub(crate) key: crate::integer::ServerKey,
+    pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressionKey>,
+    pub(crate) decompression_key: Option<DecompressionKey>,
+}
+
+impl Upgrade<IntegerServerKeyV1> for IntegerServerKeyV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
-        Ok(IntegerServerKey {
+    fn upgrade(self) -> Result<IntegerServerKeyV1, Self::Error> {
+        Ok(IntegerServerKeyV1 {
             key: self.key,
+            wopbs_key: self.wopbs_key,
             cpk_key_switching_key_material: None,
             compression_key: None,
             decompression_key: None,
@@ -108,10 +140,24 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV0 {
     }
 }
 
+impl Upgrade<IntegerServerKey> for IntegerServerKeyV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
+        Ok(IntegerServerKey {
+            key: self.key,
+            cpk_key_switching_key_material: self.cpk_key_switching_key_material,
+            compression_key: self.compression_key,
+            decompression_key: self.decompression_key,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum IntegerServerKeyVersions {
     V0(IntegerServerKeyV0),
-    V1(IntegerServerKey),
+    V1(IntegerServerKeyV1),
+    V2(IntegerServerKey),
 }
 
 #[derive(Version)]
