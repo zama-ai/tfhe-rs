@@ -1,4 +1,5 @@
 # GPU Benchmarks
+
 This document details the GPU performance benchmarks of homomorphic operations using **TFHE-rs**.
 
 All GPU benchmarks presented here were obtained on H100 GPUs, and rely on the multithreaded PBS algorithm. The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.

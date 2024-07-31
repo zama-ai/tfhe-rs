@@ -1,4 +1,4 @@
-# Benchmarks
+# CPU Benchmarks
 
 This document details the CPU performance benchmarks of homomorphic operations using **TFHE-rs**.
 
@@ -45,64 +45,24 @@ The next table shows the operation timings on CPU when the left input is encrypt
 | Left / Right Shifts (`<<`, `>>`)                       | 19.5 ms    | 20.2 ms     | 20.7 ms     | 22.1 ms     | 23.8 ms      | 25.6 ms      |
 | Left / Right Rotations (`left_rotate`, `right_rotate`) | 19.0 ms    | 20.0 ms     | 20.8 ms     | 21.7 ms     | 23.9 ms      | 25.7 ms      |
 
-All timings are based on parallelized Radix-based integer operations where each block is encrypted using the default parameters `PARAM_MESSAGE_2_CARRY_2_KS_PBS`. To ensure predictable timings, we perform operations in the `default` mode, which propagates the carry bit as needed. You can minimize operational costs by selecting from 'unchecked', 'checked', or 'smart' modes, each balancing performance and security differently.
+All timings are based on parallelized Radix-based integer operations where each block is encrypted using the default parameters `PARAM_MESSAGE_2_CARRY_2_KS_PBS`. To ensure predictable timings, we perform operations in the `default` mode, which ensures that the input and output encoding are similar (i.e., the carries are always emptied). 
 
-For more details about parameters, see [here](../references/fine-grained-apis/shortint/parameters.md). You can find the benchmark results on GPU for all these operations [here](../guides/run\_on\_gpu.md#benchmarks).
+You can minimize operational costs by selecting from 'unchecked', 'checked', or 'smart' modes from [the fine-grained APIs](../../references/fine-grained-apis/quick_start.md), each balancing performance and correctness differently.
+For more details about parameters, see [here](../../references/fine-grained-apis/shortint/parameters.md). You can find the benchmark results on GPU for all these operations [here](../../guides/run\_on\_gpu.md#benchmarks).
+
+## Programmable bootstrapping
+The next table shows the execution time of a keyswitch followed by a programmable bootstrapping depending on the precision of the input message. The associated parameter set is given.
+The configuration is Concrete FFT + AVX-512.
 
 ## Shortint operations
 
 The next table shows the execution time of some operations using various parameter sets of tfhe-rs::shortint. Except for `unchecked_add`, we perform all the operations in the `default` mode. This mode ensures predictable timings along the entire circuit by clearing the carry space after each operation. The configuration is Concrete FFT + AVX-512.
 
-| Parameter set                      | PARAM\_MESSAGE\_1\_CARRY\_1 | PARAM\_MESSAGE\_2\_CARRY\_2 | PARAM\_MESSAGE\_3\_CARRY\_3 | PARAM\_MESSAGE\_4\_CARRY\_4 |
-| ---------------------------------- |-----------------------------|-----------------------------|-----------------------------|-----------------------------|
-| unchecked\_add                     | 559 ns                      | 544 ns                      | 2.26 µs                     | 9.53 µs                     |
-| add                                | 9.98 ms                     | 14.1 ms                     | 113 ms                      | 873 ms                      |
-| mul\_lsb                           | 9.79 ms                     | 13.8 ms                     | 113 ms                      | 794 ms                      |
-| keyswitch\_programmable\_bootstrap | 9.85 ms                     | 13.9 ms                     | 114 ms                      | 791 ms                      |
+| Precision                          | 2 bits                        | 4 bits                         | 6 bits                        | 8 bits                        |
+| `Parameter set`                    | `PARAM\_MESSAGE\_1\_CARRY\_1` | ``PARAM\_MESSAGE\_2\_CARRY\_2` | `PARAM\_MESSAGE\_3\_CARRY\_3` | `PARAM\_MESSAGE\_4\_CARRY\_4` |
+|------------------------------------|-------------------------------|--------------------------------|-------------------------------|-------------------------------|
+| keyswitch\_programmable\_bootstrap | 9.85 ms                       | 13.9 ms                        | 114 ms                        | 791 ms                        |
 
-## Boolean operations
-
-The next table shows the execution time of a single binary Boolean gate.
-
-### tfhe-rs::boolean
-
-| Parameter set                                        | Concrete FFT + AVX-512 |
-| ---------------------------------------------------- |------------------------|
-| DEFAULT\_PARAMETERS\_KS\_PBS                         | 9.98 ms                |
-| PARAMETERS\_ERROR\_PROB\_2\_POW\_MINUS\_165\_KS\_PBS | 17.0 ms                |
-| TFHE\_LIB\_PARAMETERS                                | 9.64 ms                |
-
-#### tfhe-lib
-
-Using the same hpc7a.96xlarge machine as the one for tfhe-rs, the timings are as follows:
-
-| Parameter set                                    | spqlios-fma |
-| ------------------------------------------------ | ----------- |
-| default\_128bit\_gate\_bootstrapping\_parameters | 13.5 ms     |
-
-### OpenFHE (v1.1.2)
-
-Following the official instructions from OpenFHE, we use `clang14` and the following command to setup the project: `cmake -DNATIVE_SIZE=32 -DWITH_NATIVEOPT=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DWITH_OPENMP=OFF ..`
-
-The following example shows how to initialize the configuration to use the HEXL library:
-
-```bash
-export CXX=clang++
-export CC=clang
-
-scripts/configure.sh
-Release -> y
-hexl -> y
-
-scripts/build-openfhe-development-hexl.sh
-```
-
-Using the same hpc7a.96xlarge machine as the one for tfhe-rs, the timings are as follows:
-
-| Parameter set                     | GINX    | GINX w/ Intel HEXL |
-| --------------------------------- | ------- |--------------------|
-| FHEW\_BINGATE/STD128\_OR          | 25.5 ms | 24,0 ms            |
-| FHEW\_BINGATE/STD128\_LMKCDEY\_OR | 25.4 ms | 23.6 ms            |
 
 ## Reproducing TFHE-rs benchmarks
 
