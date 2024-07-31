@@ -526,8 +526,7 @@ template <typename Torus> struct int_radix_lut {
       execute_scratch_pbs<Torus>(
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
-          params.grouping_factor, num_blocks_on_gpu,
-          cuda_get_max_shared_memory(gpu_indexes[i]), params.pbs_type,
+          params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
           allocate_gpu_memory);
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);

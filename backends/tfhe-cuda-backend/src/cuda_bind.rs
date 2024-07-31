@@ -67,9 +67,6 @@ extern "C" {
     /// Free memory for pointer `ptr` on GPU `gpu_index` synchronously
     pub fn cuda_drop(ptr: *mut c_void, gpu_index: u32);
 
-    /// Get the maximum amount of shared memory on GPU `gpu_index`
-    pub fn cuda_get_max_shared_memory(gpu_index: u32) -> i32;
-
     pub fn cuda_setup_multi_gpu() -> i32;
 
     /// Copy a bootstrap key `src` represented with 64 bits in the standard domain from the CPU to
@@ -136,7 +133,6 @@ extern "C" {
         polynomial_size: u32,
         level_count: u32,
         input_lwe_ciphertext_count: u32,
-        max_shared_memory: u32,
         allocate_gpu_memory: bool,
     );
 
@@ -168,7 +164,6 @@ extern "C" {
     /// - `base_log`: log base used for the gadget matrix - B = 2^base_log (~8)
     /// - `level_count`: number of decomposition levels in the gadget matrix (~4)
     /// - `num_samples`: number of encrypted input messages
-    ///  - `max_shared_memory` maximum amount of shared memory to be used inside device functions
     ///
     /// This function calls a wrapper to a device kernel that performs the
     /// bootstrapping:
@@ -205,7 +200,6 @@ extern "C" {
         base_log: u32,
         level: u32,
         num_samples: u32,
-        max_shared_memory: u32,
     );
 
     /// This cleanup function frees the data for the low latency PBS on GPU
@@ -228,7 +222,6 @@ extern "C" {
         level_count: u32,
         grouping_factor: u32,
         input_lwe_ciphertext_count: u32,
-        max_shared_memory: u32,
         allocate_gpu_memory: bool,
         lwe_chunk_size: u32,
     );
@@ -259,7 +252,6 @@ extern "C" {
     /// - `base_log`: log base used for the gadget matrix - B = 2^base_log (~8)
     /// - `level_count`: number of decomposition levels in the gadget matrix (~4)
     /// - `num_samples`: number of encrypted input messages
-    ///  - `max_shared_memory` maximum amount of shared memory to be used inside device functions
     pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         stream: *mut c_void,
         gpu_index: u32,
@@ -278,7 +270,6 @@ extern "C" {
         base_log: u32,
         level: u32,
         num_samples: u32,
-        max_shared_memory: u32,
         lwe_chunk_size: u32,
     );
 
@@ -471,7 +462,6 @@ extern "C" {
         grouping_factor: u32,
         num_blocks: u32,
         pbs_type: u32,
-        max_shared_memory: u32,
         allocate_gpu_memory: bool,
     );
 

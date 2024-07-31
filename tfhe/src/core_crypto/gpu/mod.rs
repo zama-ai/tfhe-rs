@@ -119,7 +119,6 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         polynomial_size.0 as u32,
         level.0 as u32,
         num_samples,
-        get_max_shared_memory(0) as u32,
         true,
     );
     cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -139,7 +138,6 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
-        get_max_shared_memory(streams.gpu_indexes[0]) as u32,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],
@@ -183,7 +181,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         level.0 as u32,
         grouping_factor.0 as u32,
         num_samples,
-        get_max_shared_memory(0) as u32,
         true,
         0u32,
     );
@@ -205,7 +202,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
-        get_max_shared_memory(0) as u32,
         0,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(
@@ -577,11 +573,6 @@ pub struct CudaGlweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
-/// Get the maximum amount of shared memory on a device
-pub fn get_max_shared_memory(gpu_index: u32) -> i32 {
-    unsafe { cuda_get_max_shared_memory(gpu_index) }
-}
-
 /// Get the number of GPUs on the machine
 pub fn get_number_of_gpus() -> i32 {
     unsafe { cuda_get_number_of_gpus() }
@@ -611,8 +602,6 @@ mod tests {
     #[test]
     fn print_gpu_info() {
         println!("Number of GPUs: {}", get_number_of_gpus());
-        let gpu_index: u32 = 0;
-        println!("Max shared memory: {}", get_max_shared_memory(gpu_index))
     }
     #[test]
     fn allocate_and_copy() {
