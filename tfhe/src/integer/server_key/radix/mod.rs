@@ -7,6 +7,7 @@ mod scalar_add;
 pub(super) mod scalar_mul;
 pub(super) mod scalar_sub;
 mod shift;
+pub(super) mod slice;
 mod sub;
 
 use super::ServerKey;
