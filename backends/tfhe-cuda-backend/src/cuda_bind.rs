@@ -223,7 +223,6 @@ extern "C" {
         grouping_factor: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        lwe_chunk_size: u32,
     );
 
     /// Perform bootstrapping on a batch of input u64 LWE ciphertexts using the multi-bit algorithm.
@@ -270,7 +269,6 @@ extern "C" {
         base_log: u32,
         level: u32,
         num_samples: u32,
-        lwe_chunk_size: u32,
     );
 
     /// This cleanup function frees the data for the multi-bit PBS on GPU

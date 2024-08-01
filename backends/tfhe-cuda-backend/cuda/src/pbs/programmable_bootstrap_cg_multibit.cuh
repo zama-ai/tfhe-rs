@@ -176,8 +176,7 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    uint32_t lwe_chunk_size = 0) {
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
@@ -242,9 +241,8 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  if (!lwe_chunk_size)
-    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-        gpu_index, input_lwe_ciphertext_count, polynomial_size);
+  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+      gpu_index, input_lwe_ciphertext_count, polynomial_size);
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
@@ -336,12 +334,10 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     Torus *lwe_array_in, Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t lwe_chunk_size = 0) {
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
-  if (!lwe_chunk_size)
-    lwe_chunk_size = get_lwe_chunk_size<Torus, params>(gpu_index, num_samples,
-                                                       polynomial_size);
+  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
+      gpu_index, num_samples, polynomial_size);
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
