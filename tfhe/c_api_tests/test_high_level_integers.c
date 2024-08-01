@@ -599,7 +599,7 @@ void test_oprf(const ClientKey *client_key) {
 
     fhe_uint8_destroy(ct);
 
-    status = generate_oblivious_pseudo_random_bits_fhe_uint8(&ct, 0, 0, 2);
+    status = generate_oblivious_pseudo_random_bounded_fhe_uint8(&ct, 0, 0, 2);
     assert(status == 0);
 
     status = fhe_uint8_decrypt(ct, client_key, &decrypted);
@@ -613,7 +613,7 @@ void test_oprf(const ClientKey *client_key) {
   {
     FheInt8 *ct = NULL;
 
-    int status = generate_oblivious_pseudo_random_full_signed_range_fhe_int8(&ct, 0, 0);
+    int status = generate_oblivious_pseudo_random_fhe_int8(&ct, 0, 0);
     assert(status == 0);
 
     int8_t decrypted;
@@ -623,7 +623,7 @@ void test_oprf(const ClientKey *client_key) {
 
     fhe_int8_destroy(ct);
 
-    status = generate_oblivious_pseudo_random_unsigned_fhe_int8(&ct, 0, 0, 2);
+    status = generate_oblivious_pseudo_random_bounded_fhe_int8(&ct, 0, 0, 2);
     assert(status == 0);
 
     status = fhe_int8_decrypt(ct, client_key, &decrypted);

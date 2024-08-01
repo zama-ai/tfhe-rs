@@ -1,14 +1,49 @@
 use super::{FheIntId, FheUintId};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::oprf::SignedRandomizationSpec;
 use crate::{FheInt, FheUint, Seed};
 
 impl<Id: FheUintId> FheUint<Id> {
+    /// Generates an encrypted unsigned integer
+    /// taken uniformly in its full range using the given seed.
+    /// The encryted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
+    ///
+    /// ```rust
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
+    ///
+    /// let dec_result: u16 = ct_res.decrypt(&client_key);
+    /// ```
+    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let ct = key
+                    .pbs_key()
+                    .par_generate_oblivious_pseudo_random_unsigned_integer(
+                        seed,
+                        Id::num_blocks(key.message_modulus()) as u64,
+                    );
+
+                Self::new(ct, key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                todo!("Cuda devices do not yet support oblivious pseudo random generation")
+            }
+        })
+    }
     /// Generates an encrypted `num_block` blocks unsigned integer
-    /// taken uniformly in `[0, 2^random_bits_count[` using the given seed
-    /// The encryted value is oblivious to the server
-    /// It can be useful to make server random generation deterministic
+    /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
+    /// The encryted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
@@ -21,17 +56,17 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let random_bits_count = 3;
     ///
-    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0), random_bits_count);
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < (1 << random_bits_count));
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: Seed, random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let ct = key
                     .pbs_key()
-                    .par_generate_oblivious_pseudo_random_unsigned_integer(
+                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         seed,
                         random_bits_count,
                         Id::num_blocks(key.message_modulus()) as u64,
@@ -48,42 +83,77 @@ impl<Id: FheUintId> FheUint<Id> {
 }
 
 impl<Id: FheIntId> FheInt<Id> {
-    /// Generates an encrypted `num_block` blocks signed integer
-    /// using the given seed following the randomizer spec
-    /// The encryted value is oblivious to the server
-    /// It can be useful to make server random generation deterministic
+    /// Generates an encrypted signed integer
+    /// taken uniformly in its full range using the given seed.
+    /// The encryted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed, SignedRandomizationSpec,
-    /// };
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res =
-    ///     FheInt8::generate_oblivious_pseudo_random(Seed(0), SignedRandomizationSpec::FullSigned);
+    /// let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < 1 << 7);
     /// assert!(dec_result >= -(1 << 7));
     /// ```
-    pub fn generate_oblivious_pseudo_random(
-        seed: Seed,
-        randomizer: SignedRandomizationSpec,
-    ) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let ct = key
                     .pbs_key()
                     .par_generate_oblivious_pseudo_random_signed_integer(
                         seed,
-                        randomizer,
                         Id::num_blocks(key.message_modulus()) as u64,
                     );
+                Self::new(ct, key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                todo!("Cuda devices do not yet support oblivious pseudo random generation")
+            }
+        })
+    }
+
+    /// Generates an encrypted `num_block` blocks signed integer
+    /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
+    /// The encryted value is oblivious to the server.
+    /// It can be useful to make server random generation deterministic.
+    ///
+    /// ```rust
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let random_bits_count = 3;
+    ///
+    /// let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
+    ///
+    /// let dec_result: i16 = ct_res.decrypt(&client_key);
+    /// assert!(dec_result >= 0);
+    /// assert!(dec_result < 1 << random_bits_count);
+    /// ```
+    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let ct = key
+                    .pbs_key()
+                    .par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(key.message_modulus()) as u64,
+                    );
+
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]

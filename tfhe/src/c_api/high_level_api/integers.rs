@@ -491,7 +491,6 @@ macro_rules! impl_oprf_for_uint {
                 seed_low_bytes: u64,
                 seed_high_bytes: u64,
             ) -> c_int {
-                use crate::high_level_api::IntegerId;
                 $crate::c_api::utils::catch_panic(|| {
                     let seed_low_bytes: u128 = seed_low_bytes.into();
                     let seed_high_bytes: u128 = seed_high_bytes.into();
@@ -499,7 +498,6 @@ macro_rules! impl_oprf_for_uint {
 
                     let result = crate::FheUint::generate_oblivious_pseudo_random(
                         seed,
-                        <crate::[<$name Id>] as IntegerId>::num_bits() as u64
                     );
                     *out_result = Box::into_raw(Box::new($name(result)));
                 })
@@ -508,7 +506,7 @@ macro_rules! impl_oprf_for_uint {
 
         ::paste::paste! {
             #[no_mangle]
-            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bits_ $name:snake>](
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bounded_ $name:snake>](
                 out_result: *mut *mut $name,
                 seed_low_bytes: u64,
                 seed_high_bytes: u64,
@@ -520,7 +518,7 @@ macro_rules! impl_oprf_for_uint {
                     let seed_high_bytes: u128 = seed_high_bytes.into();
                     let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
 
-                    let result = crate::FheUint::generate_oblivious_pseudo_random(seed, random_bits_count);
+                    let result = crate::FheUint::generate_oblivious_pseudo_random_bounded(seed, random_bits_count);
                     *out_result = Box::into_raw(Box::new($name(result)));
                 })
             }
@@ -532,35 +530,9 @@ macro_rules! impl_oprf_for_int {
     (
         name: $name:ident
     ) => {
-
         ::paste::paste! {
             #[no_mangle]
-            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_unsigned_ $name:snake>](
-                out_result: *mut *mut $name,
-                seed_low_bytes: u64,
-                seed_high_bytes: u64,
-                random_bits_count: u64,
-            ) -> c_int {
-                $crate::c_api::utils::catch_panic(|| {
-                    let seed_low_bytes: u128 = seed_low_bytes.into();
-                    let seed_high_bytes: u128 = seed_high_bytes.into();
-                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
-
-                    let result =
-                        crate::FheInt::generate_oblivious_pseudo_random(
-                            seed,
-                            crate::high_level_api::SignedRandomizationSpec::Unsigned {
-                                random_bits_count
-                            },
-                        );
-                    *out_result = Box::into_raw(Box::new($name(result)));
-                })
-            }
-        }
-
-        ::paste::paste! {
-            #[no_mangle]
-            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_full_signed_range_ $name:snake>](
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_ $name:snake>](
                 out_result: *mut *mut $name,
                 seed_low_bytes: u64,
                 seed_high_bytes: u64,
@@ -572,8 +544,30 @@ macro_rules! impl_oprf_for_int {
 
                     let result = crate::FheInt::generate_oblivious_pseudo_random(
                         seed,
-                        crate::high_level_api::SignedRandomizationSpec::FullSigned,
                     );
+                    *out_result = Box::into_raw(Box::new($name(result)));
+                })
+            }
+        }
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bounded_ $name:snake>](
+                out_result: *mut *mut $name,
+                seed_low_bytes: u64,
+                seed_high_bytes: u64,
+                random_bits_count: u64,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let seed_low_bytes: u128 = seed_low_bytes.into();
+                    let seed_high_bytes: u128 = seed_high_bytes.into();
+                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+
+                    let result =
+                        crate::FheInt::generate_oblivious_pseudo_random_bounded(
+                            seed,
+                            random_bits_count,
+                        );
                     *out_result = Box::into_raw(Box::new($name(result)));
                 })
             }
