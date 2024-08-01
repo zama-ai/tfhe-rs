@@ -672,7 +672,6 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
   for (int i = 0; i < num_blocks; i++) {
     auto cur_input_block = &input_blocks[i * big_lwe_size];
 
-    cudaSetDevice(gpu_indexes[0]);
     /// Since the keyswitch is done on one input only, use only 1 GPU
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, mem_ptr->tmp_small_lwe_vector,
@@ -713,12 +712,10 @@ void scratch_cuda_full_propagation(cudaStream_t *streams, uint32_t *gpu_indexes,
                                    uint32_t gpu_count,
                                    int_fullprop_buffer<Torus> **mem_ptr,
                                    int_radix_params params,
-                                   uint32_t num_radix_blocks,
                                    bool allocate_gpu_memory) {
 
-  *mem_ptr =
-      new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
-                                     num_radix_blocks, allocate_gpu_memory);
+  *mem_ptr = new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count,
+                                            params, allocate_gpu_memory);
 }
 
 // (lwe_dimension+1) threads
