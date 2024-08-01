@@ -84,9 +84,8 @@ void scratch_cuda_full_propagation_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t ks_level, uint32_t ks_base_log, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory);
+    uint32_t pbs_base_log, uint32_t grouping_factor, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory);
 
 void cuda_full_propagation_64_inplace(void **streams, uint32_t *gpu_indexes,
                                       uint32_t gpu_count, void *input_blocks,
@@ -1035,10 +1034,10 @@ template <typename Torus> struct int_fullprop_buffer {
 
   int_fullprop_buffer(cudaStream_t *streams, uint32_t *gpu_indexes,
                       uint32_t gpu_count, int_radix_params params,
-                      uint32_t num_radix_blocks, bool allocate_gpu_memory) {
+                      bool allocate_gpu_memory) {
     this->params = params;
-    lut = new int_radix_lut<Torus>(streams, gpu_indexes, 1, params, 2,
-                                   num_radix_blocks, allocate_gpu_memory);
+    lut = new int_radix_lut<Torus>(streams, gpu_indexes, 1, params, 2, 2,
+                                   allocate_gpu_memory);
 
     if (allocate_gpu_memory) {
 
@@ -1064,9 +1063,9 @@ template <typename Torus> struct int_fullprop_buffer {
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           lut_f_carry);
 
-      Torus lwe_indexes_size = num_radix_blocks * sizeof(Torus);
+      Torus lwe_indexes_size = 2 * sizeof(Torus);
       Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
-      for (int i = 0; i < num_radix_blocks; i++)
+      for (int i = 0; i < 2; i++)
         h_lwe_indexes[i] = i;
       Torus *lwe_indexes = lut->get_lut_indexes(gpu_indexes[0], 0);
       cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes, lwe_indexes_size,

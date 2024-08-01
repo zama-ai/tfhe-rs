@@ -828,7 +828,6 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        num_blocks,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
