@@ -43,8 +43,14 @@ impl IntegerConfig {
     }
 
     pub(in crate::high_level_api) fn default_big() -> Self {
+        #[cfg(not(feature = "gpu"))]
+        let params = crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into();
+        #[cfg(feature = "gpu")]
+        let params =
+            crate::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
+                .into();
         Self {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+            block_parameters: params,
             dedicated_compact_public_key_parameters: None,
             compression_parameters: None,
         }

@@ -24,6 +24,8 @@ impl Config {
 ///
 /// The configuration is needed to select parameters you wish to use for these types
 /// (whether it is the default parameters or some custom parameters).
+/// The default parameters are specialized for GPU execution
+/// in case the gpu feature is activated.
 #[derive(Clone)]
 pub struct ConfigBuilder {
     config: Config,
@@ -43,6 +45,8 @@ impl ConfigBuilder {
     }
 
     /// Use default parameters with big encryption
+    /// The returned parameters are specialized for the GPU
+    /// in case the gpu feature is activated
     ///
     /// For more information see [crate::core_crypto::prelude::PBSOrder::KeyswitchBootstrap]
     pub fn default_with_big_encryption() -> Self {
