@@ -11,6 +11,10 @@ import sys
 sys.path.insert(1, "lattice-estimator")
 from estimator import *
 
+# sys args to split lists to manage memory for the CI
+split = 3
+part = int(sys.argv[1])
+name = sys.argv[2]
 
 model = RC.MATZOV
 
@@ -34,7 +38,10 @@ def check_security(filename):
     to_update = []
     to_watch = []
 
-    for param in all_params:
+    import numpy as np
+
+    # split the list to help with memory consumption
+    for param in list(np.array_split(all_params,split)[part]):
         if param.tag.startswith("TFHE_LIB_PARAMETERS"):
             # This third-party parameters set is known to be less secure, just skip the analysis.
             continue
@@ -87,14 +94,17 @@ if __name__ == "__main__":
     params_to_update = []
     params_to_watch = []
 
-    for params_filename in (
-        "boolean_parameters_lattice_estimator.sage",
-        "shortint_classic_parameters_lattice_estimator.sage",
-        "shortint_multi_bit_parameters_lattice_estimator.sage",
-    ):
-        to_update, to_watch = check_security(params_filename)
-        params_to_update.extend(to_update)
-        params_to_watch.extend(to_watch)
+    params_filename = "{}.sage".format(name)
+    
+    #in (
+    #    "boolean_parameters_lattice_estimator.sage",
+    #    "shortint_classic_parameters_lattice_estimator.sage",
+    #    "shortint_multi_bit_parameters_lattice_estimator.sage",
+    #):
+    
+    to_update, to_watch = check_security(params_filename)
+    params_to_update.extend(to_update)
+    params_to_watch.extend(to_watch)
 
     if params_to_watch:
         print("Some parameters need attention")

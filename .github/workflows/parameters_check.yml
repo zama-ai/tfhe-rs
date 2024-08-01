@@ -24,7 +24,7 @@ jobs:
         with:
           repository: malb/lattice-estimator
           path: lattice_estimator
-          ref: '53508253629d3b5d31a2ad110e85dc69391ccb95'
+          ref: 'e80ec6bbbba212428b0e92d0467c18629cf9ed67'
 
       - name: Install Sage
         run: |
@@ -37,7 +37,15 @@ jobs:
 
       - name: Perform security check
         run: |
-          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 0 "boolean_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 1 "boolean_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 2 "boolean_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 0 "shortint_classic_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 1 "shortint_classic_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 2 "shortint_classic_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 0 "shortint_multi_bit_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 1 "shortint_multi_bit_parameters_lattice_estimator"
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage 2 "shortint_multi_bit_parameters_lattice_estimator"
 
       - name: Slack Notification
         if: ${{ always() }}
