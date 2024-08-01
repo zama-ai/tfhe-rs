@@ -144,11 +144,11 @@ jobs:
 
       - name: Run signed integer tests
         run: |
-          make test_signed_integer_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE make test_signed_integer_gpu_ci
 
       - name: Run signed integer multi-bit tests
         run: |
-          make test_signed_integer_multi_bit_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE make test_signed_integer_multi_bit_gpu_ci
 
   slack-notify:
     name: Slack Notification
