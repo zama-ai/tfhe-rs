@@ -14,7 +14,6 @@ typedef struct {
   int pbs_level;
   int input_lwe_ciphertext_count;
   int grouping_factor;
-  int chunk_size;
 } MultiBitPBSBenchmarkParams;
 
 typedef struct {
@@ -56,8 +55,6 @@ protected:
   uint64_t *d_lwe_output_indexes;
   int8_t *buffer;
 
-  int chunk_size;
-
 public:
   void SetUp(const ::benchmark::State &state) {
     stream = cuda_create_stream(gpu_index);
@@ -69,7 +66,6 @@ public:
     pbs_level = state.range(4);
     input_lwe_ciphertext_count = state.range(5);
     grouping_factor = state.range(6);
-    chunk_size = state.range(7);
 
     DynamicDistribution lwe_modular_variance =
         new_gaussian_from_std_dev(sqrt(0.000007069849454709433));
@@ -182,7 +178,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
   scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
       stream, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer, lwe_dimension,
       glwe_dimension, polynomial_size, pbs_level, grouping_factor,
-      input_lwe_ciphertext_count, true, chunk_size);
+      input_lwe_ciphertext_count, true);
 
   for (auto _ : st) {
     // Execute PBS
@@ -191,7 +187,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
         d_lut_pbs_indexes, d_lwe_ct_in_array, d_lwe_input_indexes, d_bsk,
         (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
         glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-        pbs_level, input_lwe_ciphertext_count, chunk_size);
+        pbs_level, input_lwe_ciphertext_count);
     cuda_synchronize_stream(stream);
   }
 
@@ -211,7 +207,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
   scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true, chunk_size);
+      true);
 
   for (auto _ : st) {
     // Execute PBS
@@ -220,7 +216,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count, chunk_size);
+        pbs_base_log, pbs_level, input_lwe_ciphertext_count);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -232,7 +228,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
   scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
       lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      grouping_factor, input_lwe_ciphertext_count, true, chunk_size);
+      grouping_factor, input_lwe_ciphertext_count, true);
 
   for (auto _ : st) {
     // Execute PBS
@@ -241,7 +237,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count, chunk_size);
+        pbs_base_log, pbs_level, input_lwe_ciphertext_count);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -362,9 +358,9 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // input_lwe_ciphertext_count
   std::vector<MultiBitPBSBenchmarkParams> params = {
       // 4_bits_multi_bit_group_2
-      (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2, 0},
+      (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2},
       // 4_bits_multi_bit_group_3
-      (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3, 0},
+      (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3},
   };
 
   // Add to the list of parameters to benchmark
@@ -373,18 +369,7 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
          input_lwe_ciphertext_count *= 2) {
       b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
                x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
-               x.grouping_factor, 0});
-      for (int lwe_chunk_size = 1;
-           lwe_chunk_size <= x.lwe_dimension / x.grouping_factor;
-           lwe_chunk_size *= 2)
-        b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
-                 x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
-                 x.grouping_factor, lwe_chunk_size});
-
-      int lwe_chunk_size = x.lwe_dimension / x.grouping_factor;
-      b->Args({x.lwe_dimension, x.glwe_dimension, x.polynomial_size,
-               x.pbs_base_log, x.pbs_level, input_lwe_ciphertext_count,
-               x.grouping_factor, lwe_chunk_size});
+               x.grouping_factor});
     }
   }
 }
@@ -413,20 +398,20 @@ BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, TbcMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
-                "grouping_factor", "chunk_size"});
+                "grouping_factor"});
 #endif
 
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, CgMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
-                "grouping_factor", "chunk_size"});
+                "grouping_factor"});
 
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, DefaultMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
-                "grouping_factor", "chunk_size"});
+                "grouping_factor"});
 
 #if CUDA_ARCH >= 900
 BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, TbcPBC)

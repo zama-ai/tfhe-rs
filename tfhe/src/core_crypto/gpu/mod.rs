@@ -182,7 +182,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         grouping_factor.0 as u32,
         num_samples,
         true,
-        0u32,
     );
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
         streams.ptr[0],
@@ -202,7 +201,6 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
-        0,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(
         streams.ptr[0],
