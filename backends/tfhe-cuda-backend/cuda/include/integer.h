@@ -2795,7 +2795,7 @@ template <typename Torus> struct int_div_rem_memory {
   int_div_rem_memory(cudaStream_t *streams, uint32_t *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_blocks, bool allocate_gpu_memory) {
-    active_gpu_count = get_active_gpu_count(num_blocks, gpu_count);
+    active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
 
     this->params = params;
     shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(

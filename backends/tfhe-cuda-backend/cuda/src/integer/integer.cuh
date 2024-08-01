@@ -409,6 +409,7 @@ void generate_device_accumulator_bivariate(
                                          message_modulus, carry_modulus, f);
 
   // copy host lut and lut_indexes_vec to device
+  cuda_synchronize_stream(stream, gpu_index);
   cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
                            (glwe_dimension + 1) * polynomial_size *
                                sizeof(Torus),
@@ -440,6 +441,7 @@ void generate_device_accumulator_bivariate_with_factor(
       h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus, f,
       factor);
 
+  cuda_synchronize_stream(stream, gpu_index);
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
                            (glwe_dimension + 1) * polynomial_size *
@@ -465,7 +467,6 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
                                  uint32_t carry_modulus,
                                  std::function<Torus(Torus)> f) {
 
-  cudaSetDevice(gpu_index);
   // host lut
   Torus *h_lut =
       (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
@@ -474,6 +475,7 @@ void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
   generate_lookup_table<Torus>(h_lut, glwe_dimension, polynomial_size,
                                message_modulus, carry_modulus, f);
 
+  cuda_synchronize_stream(stream, gpu_index);
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
