@@ -6,6 +6,360 @@
 #include "twiddles.cuh"
 #include "types/complex/operations.cuh"
 
+using Index = unsigned;
+
+constexpr inline Index warpsize() { return 32; }
+
+template <Index SIZE> __device__ inline void sync_fft_step() {
+  if constexpr (SIZE < warpsize()) {
+    __syncwarp();
+  } else {
+    __syncthreads();
+  }
+}
+
+__device__ constexpr bool coalesce_mem_access() { return false; }
+
+__device__ inline void direct_butterfly(double2 *a0, double2 *a1, double2 w) {
+  double2 b0 = *a0;
+  double2 b1 = *a1 * w;
+
+  *a0 = b0 + b1;
+  *a1 = b0 - b1;
+}
+
+__device__ inline void inverse_butterfly(double2 *a0, double2 *a1, double2 w) {
+  double2 b0 = *a0 + *a1;
+  double2 b1 = *a0 - *a1;
+
+  *a0 = b0;
+  *a1 = mul_conj(b1, w);
+}
+
+template <Index M, Index T>
+__device__ inline void NSMFFT_direct_2warpsize(double2 *a0, double2 *a1,
+                                               Index const tid) {
+  if constexpr (T > 0) {
+    if constexpr (T < warpsize()) {
+      // thread 0:
+      // a0: 0 * T
+      // a1: 2 * T
+      // thread 1:
+      // a0: 1 * T
+      // a1: 3 * T
+
+      bool is_lower = ((tid >> tfhe_log2(T)) & 1) == 0;
+      double2 tmp = is_lower ? *a1 : *a0;
+      // thread 0:
+      // tmp: 2 * T
+      // thread 1:
+      // tmp: 1 * T
+
+      tmp.x = __shfl_xor_sync(0xFFFFFFFF, tmp.x, T, 2 * T);
+      tmp.y = __shfl_xor_sync(0xFFFFFFFF, tmp.y, T, 2 * T);
+      // thread 0:
+      // tmp: 1 * T
+      // thread 1:
+      // tmp: 2 * T
+
+      *a0 = is_lower ? *a0 : tmp;
+      *a1 = is_lower ? tmp : *a1;
+
+      // thread 0:
+      // a0: 0 * T
+      // a1: 1 * T
+      // thread 1:
+      // a0: 2 * T
+      // a1: 3 * T
+    }
+    double2 w1 = negtwiddles[M + (tid / T)];
+    direct_butterfly(a0, a1, w1);
+    NSMFFT_direct_2warpsize<M * 2, T / 2>(a0, a1, tid);
+  }
+}
+
+template <Index M, Index T>
+__device__ inline void NSMFFT_inverse_2warpsize(double2 *a0, double2 *a1,
+                                                Index const tid) {
+  if constexpr (T > 0) {
+    NSMFFT_inverse_2warpsize<M * 2, T / 2>(a0, a1, tid);
+    double2 w1 = negtwiddles[M + (tid / T)];
+    inverse_butterfly(a0, a1, w1);
+
+    if constexpr (T < warpsize()) {
+      // thread 0:
+      // a0: 0 * T
+      // a1: 1 * T
+      // thread 1:
+      // a0: 2 * T
+      // a1: 3 * T
+
+      bool is_lower = ((tid >> tfhe_log2(T)) & 1) == 0;
+      double2 tmp = is_lower ? *a1 : *a0;
+      // thread 0:
+      // tmp: 1 * T
+      // thread 1:
+      // tmp: 2 * T
+
+      tmp.x = __shfl_xor_sync(0xFFFFFFFF, tmp.x, T, 2 * T);
+      tmp.y = __shfl_xor_sync(0xFFFFFFFF, tmp.y, T, 2 * T);
+      // thread 0:
+      // tmp: 2 * T
+      // thread 1:
+      // tmp: 1 * T
+
+      *a0 = is_lower ? *a0 : tmp;
+      *a1 = is_lower ? tmp : *a1;
+
+      // thread 0:
+      // a0: 0 * T
+      // a1: 2 * T
+      // thread 1:
+      // a0: 1 * T
+      // a1: 3 * T
+    }
+  }
+}
+
+template <Index RADIX, Index DEGREE, Index M>
+__device__ inline void NSMFFT_direct_step(double2 *A, Index const tid) {
+  constexpr Index SIZE = DEGREE / M;
+  constexpr Index T = SIZE / RADIX;
+
+  Index i;
+  double2 w1;
+
+  if constexpr (M == 1) {
+    i = 0;
+    w1 = (double2){
+        0.707106781186547461715008466854,
+        0.707106781186547461715008466854,
+    };
+  } else {
+    i = tid / T;
+    w1 = negtwiddles[M + i];
+  }
+
+  Index j = i * SIZE + (tid % T);
+
+  if constexpr (RADIX == 4) {
+    double2 w2 = negtwiddles[2 * (M + i) + 0];
+    double2 w3 = negtwiddles[2 * (M + i) + 1];
+
+    Index j0 = j + 0 * T;
+    Index j1 = j + 1 * T;
+    Index j2 = j + 2 * T;
+    Index j3 = j + 3 * T;
+
+    double2 a0 = A[j0];
+    double2 a1 = A[j1];
+    double2 a2 = A[j2];
+    double2 a3 = A[j3];
+
+    direct_butterfly(&a0, &a2, w1);
+    direct_butterfly(&a1, &a3, w1);
+    direct_butterfly(&a0, &a1, w2);
+    direct_butterfly(&a2, &a3, w3);
+
+    A[j0] = a0;
+    A[j1] = a1;
+    A[j2] = a2;
+    A[j3] = a3;
+  } else if constexpr (RADIX == 2) {
+    Index j0 = j + 0 * T;
+    Index j1 = j + 1 * T;
+
+    double2 a0 = A[j0];
+    double2 a1 = A[j1];
+
+    direct_butterfly(&a0, &a1, w1);
+
+    A[j0] = a0;
+    A[j1] = a1;
+  }
+}
+
+template <Index RADIX, Index DEGREE, Index M>
+__device__ inline void NSMFFT_inverse_step(double2 *A, Index const tid) {
+  constexpr Index SIZE = DEGREE / M;
+  constexpr Index T = SIZE / RADIX;
+
+  Index i;
+  double2 w1;
+
+  if constexpr (M == 1) {
+    i = 0;
+    w1 = (double2){
+        0.707106781186547461715008466854,
+        0.707106781186547461715008466854,
+    };
+  } else {
+    i = tid / T;
+    w1 = negtwiddles[M + i];
+  }
+
+  Index j = i * SIZE + (tid % T);
+
+  if constexpr (RADIX == 4) {
+    double2 w2 = negtwiddles[2 * (M + i) + 0];
+    double2 w3 = negtwiddles[2 * (M + i) + 1];
+
+    Index j0 = j + 0 * T;
+    Index j1 = j + 1 * T;
+    Index j2 = j + 2 * T;
+    Index j3 = j + 3 * T;
+
+    double2 a0 = A[j0];
+    double2 a1 = A[j1];
+    double2 a2 = A[j2];
+    double2 a3 = A[j3];
+
+    if constexpr (M == 1) {
+      a0 *= 1.0 / double(DEGREE);
+      a1 *= 1.0 / double(DEGREE);
+      a2 *= 1.0 / double(DEGREE);
+      a3 *= 1.0 / double(DEGREE);
+    }
+
+    inverse_butterfly(&a0, &a1, w2);
+    inverse_butterfly(&a2, &a3, w3);
+    inverse_butterfly(&a0, &a2, w1);
+    inverse_butterfly(&a1, &a3, w1);
+
+    A[j0] = a0;
+    A[j1] = a1;
+    A[j2] = a2;
+    A[j3] = a3;
+  } else if constexpr (RADIX == 2) {
+    Index j0 = j + 0 * T;
+    Index j1 = j + 1 * T;
+
+    double2 a0 = A[j0];
+    double2 a1 = A[j1];
+
+    if constexpr (M == 1) {
+      a0 *= 1.0 / double(DEGREE);
+      a1 *= 1.0 / double(DEGREE);
+    }
+
+    inverse_butterfly(&a0, &a1, w1);
+
+    A[j0] = a0;
+    A[j1] = a1;
+  }
+}
+
+template <Index RADIX, Index DEGREE, Index OPT, Index M>
+__device__ inline void NSMFFT_direct_impl(double2 *A, Index const tid) {
+  static_assert(OPT >= RADIX,
+                "params::opt should be larger than or equal to the fft radix");
+
+  constexpr Index SIZE = DEGREE / M;
+
+  if constexpr (coalesce_mem_access()) {
+    constexpr Index WARPSIZE = warpsize();
+
+    if constexpr (SIZE >= 2 * WARPSIZE) {
+      constexpr Index radix = (SIZE == 2 * WARPSIZE)                   ? 2
+                              : ((SIZE / (2 * WARPSIZE)) % RADIX != 0) ? 2
+                                                                       : RADIX;
+
+      __syncthreads();
+
+#pragma unroll
+      for (Index k = 0; k < OPT / radix; ++k) {
+        if constexpr (SIZE == 2 * WARPSIZE) {
+          static_assert(radix == 2, "");
+
+          Index i = tid / WARPSIZE;
+          Index j = i * SIZE + (tid % WARPSIZE);
+          Index j0 = j + 0 * WARPSIZE;
+          Index j1 = j + 1 * WARPSIZE;
+
+          double2 a0 = A[j0];
+          double2 a1 = A[j1];
+          NSMFFT_direct_2warpsize<M, WARPSIZE>(&a0, &a1, tid);
+          A[j0] = a0;
+          A[j1] = a1;
+        } else {
+          static_assert(SIZE > 2 * WARPSIZE, "");
+          NSMFFT_direct_step<radix, DEGREE, M>(A, tid + k * (DEGREE / OPT));
+        }
+      }
+
+      NSMFFT_direct_impl<RADIX, DEGREE, OPT, radix * M>(A, tid);
+    }
+  } else {
+    if constexpr (SIZE > 1) {
+      constexpr Index radix = (SIZE % RADIX != 0) ? 2 : RADIX;
+      sync_fft_step<SIZE>();
+
+#pragma unroll
+      for (Index k = 0; k < OPT / radix; ++k) {
+        NSMFFT_direct_step<radix, DEGREE, M>(A, tid + k * (DEGREE / OPT));
+      }
+
+      NSMFFT_direct_impl<RADIX, DEGREE, OPT, radix * M>(A, tid);
+    }
+  }
+}
+
+template <Index RADIX, Index DEGREE, Index OPT, Index M>
+__device__ inline void NSMFFT_inverse_impl(double2 *A, Index const tid) {
+  static_assert(OPT >= RADIX,
+                "params::opt should be larger than or equal to the fft radix");
+
+  constexpr Index SIZE = DEGREE / M;
+
+  if constexpr (coalesce_mem_access()) {
+    constexpr Index WARPSIZE = warpsize();
+
+    if constexpr (SIZE >= 2 * WARPSIZE) {
+      constexpr Index radix = (SIZE == 2 * WARPSIZE)                   ? 2
+                              : ((SIZE / (2 * WARPSIZE)) % RADIX != 0) ? 2
+                                                                       : RADIX;
+
+      NSMFFT_inverse_impl<RADIX, DEGREE, OPT, radix * M>(A, tid);
+
+#pragma unroll
+      for (Index k = 0; k < OPT / radix; ++k) {
+        if constexpr (SIZE == 2 * WARPSIZE) {
+          static_assert(radix == 2, "");
+
+          Index i = tid / WARPSIZE;
+          Index j = i * SIZE + (tid % WARPSIZE);
+          Index j0 = j + 0 * WARPSIZE;
+          Index j1 = j + 1 * WARPSIZE;
+
+          double2 a0 = A[j0];
+          double2 a1 = A[j1];
+          NSMFFT_inverse_2warpsize<M, WARPSIZE>(&a0, &a1, tid);
+          A[j0] = a0;
+          A[j1] = a1;
+        } else {
+          static_assert(SIZE > 2 * WARPSIZE, "");
+          NSMFFT_inverse_step<radix, DEGREE, M>(A, tid + k * (DEGREE / OPT));
+        }
+      }
+
+      __syncthreads();
+    }
+  } else {
+    if constexpr (SIZE > 1) {
+      constexpr Index radix = (SIZE % RADIX != 0) ? 2 : RADIX;
+
+      NSMFFT_inverse_impl<RADIX, DEGREE, OPT, radix * M>(A, tid);
+
+#pragma unroll
+      for (Index k = 0; k < OPT / radix; ++k) {
+        NSMFFT_inverse_step<radix, DEGREE, M>(A, tid + k * (DEGREE / OPT));
+      }
+
+      sync_fft_step<SIZE>();
+    }
+  }
+}
+
 /*
  * Direct negacyclic FFT:
  *   - before the FFT the N real coefficients are stored into a
@@ -22,593 +376,19 @@
  *     is replaced with:
  *     \zeta_j,k = exp(-i pi (2j-1)/2^k)
  */
-template <class params> __device__ void NSMFFT_direct(double2 *A) {
-
-  /* We don't make bit reverse here, since twiddles are already reversed
-   *  Each thread is always in charge of "opt/2" pairs of coefficients,
-   *  which is why we always loop through N/2 by N/opt strides
-   *  The pragma unroll instruction tells the compiler to unroll the
-   *  full loop, which should increase performance
-   */
-
-  size_t tid = threadIdx.x;
-  size_t twid_id;
-  size_t i1, i2;
-  double2 u, v, w;
-  // level 1
-  // we don't make actual complex multiplication on level1 since we have only
-  // one twiddle, it's real and image parts are equal, so we can multiply
-  // it with simpler operations
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    i1 = tid;
-    i2 = tid + params::degree / 2;
-
-    u = A[i1];
-    v = A[i2] * (double2){0.707106781186547461715008466854,
-                          0.707106781186547461715008466854};
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
+template <class params, int radix = tfhe_fft_default_radix()>
+__device__ void NSMFFT_direct(double2 *A) {
+  NSMFFT_direct_impl<radix, params::degree, params::opt, 1>(A, threadIdx.x);
   __syncthreads();
-
-  // level 2
-  // from this level there are more than one twiddles and none of them has equal
-  // real and imag parts, so complete complex multiplication is needed
-  // for each level params::degree / 2^level represents number of coefficients
-  // inside divided chunk of specific level
-  //
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 4);
-    i1 = 2 * (params::degree / 4) * twid_id + (tid & (params::degree / 4 - 1));
-    i2 = i1 + params::degree / 4;
-
-    w = negtwiddles[twid_id + 2];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 3
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 8);
-    i1 = 2 * (params::degree / 8) * twid_id + (tid & (params::degree / 8 - 1));
-    i2 = i1 + params::degree / 8;
-
-    w = negtwiddles[twid_id + 4];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 4
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 16);
-    i1 =
-        2 * (params::degree / 16) * twid_id + (tid & (params::degree / 16 - 1));
-    i2 = i1 + params::degree / 16;
-
-    w = negtwiddles[twid_id + 8];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 5
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 32);
-    i1 =
-        2 * (params::degree / 32) * twid_id + (tid & (params::degree / 32 - 1));
-    i2 = i1 + params::degree / 32;
-
-    w = negtwiddles[twid_id + 16];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 6
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 64);
-    i1 =
-        2 * (params::degree / 64) * twid_id + (tid & (params::degree / 64 - 1));
-    i2 = i1 + params::degree / 64;
-
-    w = negtwiddles[twid_id + 32];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 7
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 128);
-    i1 = 2 * (params::degree / 128) * twid_id +
-         (tid & (params::degree / 128 - 1));
-    i2 = i1 + params::degree / 128;
-
-    w = negtwiddles[twid_id + 64];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // from level 8, we need to check size of params degree, because we support
-  // minimum actual polynomial size = 256,  when compressed size is halfed and
-  // minimum supported compressed size is 128, so we always need first 7
-  // levels of butterfly operation, since butterfly levels are hardcoded
-  // we need to check if polynomial size is big enough to require specific level
-  // of butterfly.
-  if constexpr (params::degree >= 256) {
-    // level 8
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 256);
-      i1 = 2 * (params::degree / 256) * twid_id +
-           (tid & (params::degree / 256 - 1));
-      i2 = i1 + params::degree / 256;
-
-      w = negtwiddles[twid_id + 128];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 512) {
-    // level 9
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 512);
-      i1 = 2 * (params::degree / 512) * twid_id +
-           (tid & (params::degree / 512 - 1));
-      i2 = i1 + params::degree / 512;
-
-      w = negtwiddles[twid_id + 256];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 1024) {
-    // level 10
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 1024);
-      i1 = 2 * (params::degree / 1024) * twid_id +
-           (tid & (params::degree / 1024 - 1));
-      i2 = i1 + params::degree / 1024;
-
-      w = negtwiddles[twid_id + 512];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 2048) {
-    // level 11
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 2048);
-      i1 = 2 * (params::degree / 2048) * twid_id +
-           (tid & (params::degree / 2048 - 1));
-      i2 = i1 + params::degree / 2048;
-
-      w = negtwiddles[twid_id + 1024];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 4096) {
-    // level 12
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 4096);
-      i1 = 2 * (params::degree / 4096) * twid_id +
-           (tid & (params::degree / 4096 - 1));
-      i2 = i1 + params::degree / 4096;
-
-      w = negtwiddles[twid_id + 2048];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 8192) {
-    // level 13
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 8192);
-      i1 = 2 * (params::degree / 8192) * twid_id +
-           (tid & (params::degree / 8192 - 1));
-      i2 = i1 + params::degree / 8192;
-
-      w = negtwiddles[twid_id + 4096];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
 }
 
 /*
  * negacyclic inverse fft
  */
-template <class params> __device__ void NSMFFT_inverse(double2 *A) {
-
-  /* We don't make bit reverse here, since twiddles are already reversed
-   *  Each thread is always in charge of "opt/2" pairs of coefficients,
-   *  which is why we always loop through N/2 by N/opt strides
-   *  The pragma unroll instruction tells the compiler to unroll the
-   *  full loop, which should increase performance
-   */
-
-  size_t tid = threadIdx.x;
-  size_t twid_id;
-  size_t i1, i2;
-  double2 u, w;
-
-  // divide input by compressed polynomial size
-  tid = threadIdx.x;
-  for (size_t i = 0; i < params::opt; ++i) {
-    A[tid] /= params::degree;
-    tid += params::degree / params::opt;
-  }
+template <class params, int radix = tfhe_fft_default_radix()>
+__device__ void NSMFFT_inverse(double2 *A) {
   __syncthreads();
-
-  // none of the twiddles have equal real and imag part, so
-  // complete complex multiplication has to be done
-  // here we have more than one twiddle
-  // mapping in backward fft is reversed
-  // butterfly operation is started from last level
-
-  if constexpr (params::degree >= 8192) {
-    // level 13
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 8192);
-      i1 = 2 * (params::degree / 8192) * twid_id +
-           (tid & (params::degree / 8192 - 1));
-      i2 = i1 + params::degree / 8192;
-
-      w = negtwiddles[twid_id + 4096];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 4096) {
-    // level 12
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 4096);
-      i1 = 2 * (params::degree / 4096) * twid_id +
-           (tid & (params::degree / 4096 - 1));
-      i2 = i1 + params::degree / 4096;
-
-      w = negtwiddles[twid_id + 2048];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 2048) {
-    // level 11
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 2048);
-      i1 = 2 * (params::degree / 2048) * twid_id +
-           (tid & (params::degree / 2048 - 1));
-      i2 = i1 + params::degree / 2048;
-
-      w = negtwiddles[twid_id + 1024];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 1024) {
-    // level 10
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 1024);
-      i1 = 2 * (params::degree / 1024) * twid_id +
-           (tid & (params::degree / 1024 - 1));
-      i2 = i1 + params::degree / 1024;
-
-      w = negtwiddles[twid_id + 512];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 512) {
-    // level 9
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 512);
-      i1 = 2 * (params::degree / 512) * twid_id +
-           (tid & (params::degree / 512 - 1));
-      i2 = i1 + params::degree / 512;
-
-      w = negtwiddles[twid_id + 256];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 256) {
-    // level 8
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 256);
-      i1 = 2 * (params::degree / 256) * twid_id +
-           (tid & (params::degree / 256 - 1));
-      i2 = i1 + params::degree / 256;
-
-      w = negtwiddles[twid_id + 128];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  // below level 8, we don't need to check size of params degree, because we
-  // support minimum actual polynomial size = 256,  when compressed size is
-  // halfed and minimum supported compressed size is 128, so we always need
-  // last 7 levels of butterfly operation, since butterfly levels are hardcoded
-  // we don't need to check if polynomial size is big enough to require
-  // specific level of butterfly.
-  // level 7
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 128);
-    i1 = 2 * (params::degree / 128) * twid_id +
-         (tid & (params::degree / 128 - 1));
-    i2 = i1 + params::degree / 128;
-
-    w = negtwiddles[twid_id + 64];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 6
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 64);
-    i1 =
-        2 * (params::degree / 64) * twid_id + (tid & (params::degree / 64 - 1));
-    i2 = i1 + params::degree / 64;
-
-    w = negtwiddles[twid_id + 32];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 5
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 32);
-    i1 =
-        2 * (params::degree / 32) * twid_id + (tid & (params::degree / 32 - 1));
-    i2 = i1 + params::degree / 32;
-
-    w = negtwiddles[twid_id + 16];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 4
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 16);
-    i1 =
-        2 * (params::degree / 16) * twid_id + (tid & (params::degree / 16 - 1));
-    i2 = i1 + params::degree / 16;
-
-    w = negtwiddles[twid_id + 8];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 3
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 8);
-    i1 = 2 * (params::degree / 8) * twid_id + (tid & (params::degree / 8 - 1));
-    i2 = i1 + params::degree / 8;
-
-    w = negtwiddles[twid_id + 4];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 2
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 4);
-    i1 = 2 * (params::degree / 4) * twid_id + (tid & (params::degree / 4 - 1));
-    i2 = i1 + params::degree / 4;
-
-    w = negtwiddles[twid_id + 2];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 1
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 2);
-    i1 = 2 * (params::degree / 2) * twid_id + (tid & (params::degree / 2 - 1));
-    i2 = i1 + params::degree / 2;
-
-    w = negtwiddles[twid_id + 1];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
+  NSMFFT_inverse_impl<radix, params::degree, params::opt, 1>(A, threadIdx.x);
 }
 
 /*

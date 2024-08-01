@@ -88,7 +88,9 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
       total_polynomials * polynomial_size / 2 * sizeof(double2);
 
   int gridSize = total_polynomials;
-  int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
+  int blockSize =
+      polynomial_size /
+      choose_opt_amortized(polynomial_size, tfhe_fft_default_radix());
 
   double2 *h_bsk;
   cudaMallocHost((void **)&h_bsk, buffer_size);
@@ -263,7 +265,9 @@ void cuda_fourier_polynomial_mul(cudaStream_t stream, uint32_t gpu_index,
   size_t shared_memory_size = sizeof(double2) * polynomial_size / 2;
 
   int gridSize = total_polynomials;
-  int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
+  int blockSize =
+      polynomial_size /
+      choose_opt_amortized(polynomial_size, tfhe_fft_default_radix());
 
   double2 *buffer;
   switch (polynomial_size) {
@@ -292,7 +296,7 @@ void cuda_fourier_polynomial_mul(cudaStream_t stream, uint32_t gpu_index,
     if (shared_memory_size <= cuda_get_max_shared_memory(0)) {
       buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
-          batch_polynomial_mul<FFTDegree<AmortizedDegree<521>, ForwardFFT>,
+          batch_polynomial_mul<FFTDegree<AmortizedDegree<512>, ForwardFFT>,
                                FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
       check_cuda_error(cudaFuncSetCacheConfig(

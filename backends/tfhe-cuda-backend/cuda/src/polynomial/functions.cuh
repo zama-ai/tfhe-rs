@@ -58,26 +58,14 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
         tid += block_size;
       }
     } else {
-      tid = threadIdx.x;
       for (int i = 0; i < elems_per_thread; i++) {
-        if (j < degree) {
-          // if (tid < degree - j)
-          //  accumulator_slice[tid] = input_slice[tid + j];
-          // else
-          //  accumulator_slice[tid] = -input_slice[tid - degree + j];
-          int x = tid + j - SEL(degree, 0, tid < degree - j);
-          accumulator_slice[tid] =
-              SEL(-1, 1, tid < degree - j) * input_slice[x];
-        } else {
-          int32_t jj = j - degree;
-          // if (tid < degree - jj)
-          //  accumulator_slice[tid] = -input_slice[tid + jj];
-          // else
-          //  accumulator_slice[tid] = input_slice[tid - degree + jj];
-          int x = tid + jj - SEL(degree, 0, tid < degree - jj);
-          accumulator_slice[tid] =
-              SEL(1, -1, tid < degree - jj) * input_slice[x];
-        }
+        unsigned x = (unsigned)(tid + j);
+        x %= 2 * (unsigned)(degree);
+        bool wrap_around = x >= degree;
+        x %= (unsigned)(degree);
+
+        accumulator_slice[tid] = wrap_around ? -input_slice[x] : input_slice[x];
+
         tid += block_size;
       }
     }
@@ -101,24 +89,14 @@ __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial(
     T *result_acc_slice = (T *)result_acc + (ptrdiff_t)(z * degree);
     int tid = threadIdx.x;
     for (int i = 0; i < elems_per_thread; i++) {
-      if (j < degree) {
-        // if (tid < j)
-        //  result_acc_slice[tid] = -acc_slice[tid - j + degree]-acc_slice[tid];
-        // else
-        //  result_acc_slice[tid] = acc_slice[tid - j] - acc_slice[tid];
-        int x = tid - j + SEL(0, degree, tid < j);
-        result_acc_slice[tid] =
-            SEL(1, -1, tid < j) * acc_slice[x] - acc_slice[tid];
-      } else {
-        int32_t jj = j - degree;
-        // if (tid < jj)
-        //  result_acc_slice[tid] = acc_slice[tid - jj + degree]-acc_slice[tid];
-        // else
-        //  result_acc_slice[tid] = -acc_slice[tid - jj] - acc_slice[tid];
-        int x = tid - jj + SEL(0, degree, tid < jj);
-        result_acc_slice[tid] =
-            SEL(-1, 1, tid < jj) * acc_slice[x] - acc_slice[tid];
-      }
+      // overflowing is fine here, since the degree is a power of two
+      unsigned x = (unsigned)(tid - j);
+      x %= 2 * (unsigned)(degree);
+      bool wrap_around = x >= degree;
+      x %= (unsigned)(degree);
+
+      result_acc_slice[tid] =
+          (wrap_around ? -acc_slice[x] : acc_slice[x]) - acc_slice[tid];
       tid += block_size;
     }
   }
@@ -155,28 +133,17 @@ __device__ void round_to_closest_multiple_inplace(T *rotated_acc, int base_log,
 template <typename Torus, class params>
 __device__ void add_to_torus(double2 *m_values, Torus *result,
                              bool init_torus = false) {
-  Torus mx = (sizeof(Torus) == 4) ? UINT32_MAX : UINT64_MAX;
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
     double v1 = m_values[tid].x;
     double v2 = m_values[tid].y;
 
-    double frac = v1 - floor(v1);
-    frac *= mx;
-    double carry = frac - floor(frac);
-    frac += (carry >= 0.5);
-
     Torus V1 = 0;
-    typecast_double_to_torus<Torus>(frac, V1);
-
-    frac = v2 - floor(v2);
-    frac *= mx;
-    carry = frac - floor(v2);
-    frac += (carry >= 0.5);
+    typecast_double_round_to_torus<Torus>(v1, V1);
 
     Torus V2 = 0;
-    typecast_double_to_torus<Torus>(frac, V2);
+    typecast_double_round_to_torus<Torus>(v2, V2);
 
     if (init_torus) {
       result[tid] = V1;

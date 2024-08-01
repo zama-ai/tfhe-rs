@@ -55,9 +55,6 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   }
 }
 
-// This method expects to work with polynomial_size / compression_params::opt
-// threads in the x-block If init_accumulator is set, assumes that result was
-// not initialized and does that with the outcome of first * second
 template <typename T>
 __device__ void polynomial_accumulate_monic_monomial_mul(
     T *result, const T *__restrict__ poly, uint64_t monomial_degree,
@@ -70,10 +67,11 @@ __device__ void polynomial_accumulate_monic_monomial_mul(
   int pos = tid;
   for (int i = 0; i < coeff_per_thread; i++) {
     T element = poly[pos];
-    int new_pos = (pos + monomial_degree) % polynomial_size;
+    int new_pos = (pos + monomial_degree) % (2 * polynomial_size);
+    bool negate = new_pos >= polynomial_size;
+    new_pos %= polynomial_size;
 
-    T x = SEL(element, -element, full_cycles_count % 2); // monomial coefficient
-    x = SEL(-x, x, new_pos >= remainder_degrees);
+    T x = negate ? -element : element; // monomial coefficient
 
     if (init_accumulator)
       result[new_pos] = x;
