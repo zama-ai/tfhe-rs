@@ -371,10 +371,11 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
   // input_lwe_ciphertext_count
   std::vector<MultiBitPBSBenchmarkParams> params = {
-      // 4_bits_multi_bit_group_2
-      (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2, 0},
-      // 4_bits_multi_bit_group_3
-      (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3, 0},
+      // // 4_bits_multi_bit_group_2
+      // (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2, 0},
+      // // 4_bits_multi_bit_group_3
+      // (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3, 0},
+      (MultiBitPBSBenchmarkParams){843, 1, 2048, 22, 1, 1, 3, 0},
   };
 
   // Add to the list of parameters to benchmark

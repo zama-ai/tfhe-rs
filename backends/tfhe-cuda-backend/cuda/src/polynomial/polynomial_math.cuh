@@ -63,16 +63,15 @@ polynomial_product_accumulate_by_monomial(T *result, const T *__restrict__ poly,
                                           uint64_t monomial_degree,
                                           bool init_accumulator = false) {
   // monomial_degree \in [0, 2 * params::degree)
-  int full_cycles_count = monomial_degree / params::degree;
-  int remainder_degrees = monomial_degree % params::degree;
-
-  int pos = threadIdx.x;
+  unsigned pos = threadIdx.x;
   for (int i = 0; i < params::opt; i++) {
     T element = poly[pos];
-    int new_pos = (pos + monomial_degree) % params::degree;
+    unsigned new_pos =
+        (pos + (unsigned)monomial_degree) % (2 * (unsigned)params::degree);
+    bool negate = new_pos >= (unsigned)params::degree;
+    new_pos %= (unsigned)params::degree;
 
-    T x = SEL(element, -element, full_cycles_count % 2); // monomial coefficient
-    x = SEL(-x, x, new_pos >= remainder_degrees);
+    T x = negate ? -element : element; // monomial coefficient
 
     if (init_accumulator)
       result[new_pos] = x;
