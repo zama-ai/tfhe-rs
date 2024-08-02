@@ -131,4 +131,4 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Benchmark 
-Please refer to the [Zero-knowledge proof benchmarks](getting_started/benchmarks/zk_proof_benchmarks.md) for detailed performance benchmark results.
+Please refer to the [Zero-knowledge proof benchmarks](../getting_started/benchmarks/zk_proof_benchmarks.md) for detailed performance benchmark results.

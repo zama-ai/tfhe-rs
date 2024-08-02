@@ -219,4 +219,4 @@ There is **nothing to change in the code to execute on multiple GPUs**, when
 they are available and have peer access to GPU 0 via NVLink. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
 
 ## Benchmark 
-Please refer to the [GPU benchmarks](getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
+Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
