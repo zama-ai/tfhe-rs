@@ -16,6 +16,7 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Display;
 use std::marker::PhantomData;
+use std::num::Wrapping;
 use std::sync::Arc;
 
 pub use derived_traits::{Version, VersionsDispatch};
@@ -243,6 +244,30 @@ impl_scalar_versionize!(f32);
 impl_scalar_versionize!(f64);
 
 impl_scalar_versionize!(char);
+
+impl<T: Versionize> Versionize for Wrapping<T> {
+    type Versioned<'vers> = Wrapping<T::Versioned<'vers>> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        Wrapping(self.0.versionize())
+    }
+}
+
+impl<T: VersionizeOwned> VersionizeOwned for Wrapping<T> {
+    type VersionedOwned = Wrapping<T::VersionedOwned>;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        Wrapping(T::versionize_owned(self.0))
+    }
+}
+
+impl<T: Unversionize> Unversionize for Wrapping<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(Wrapping(T::unversionize(versioned.0)?))
+    }
+}
+
+impl<T: NotVersioned> NotVersioned for Wrapping<T> {}
 
 impl<T: Versionize> Versionize for Box<T> {
     type Versioned<'vers> = T::Versioned<'vers> where T: 'vers;
