@@ -18,18 +18,19 @@
 #include <vector>
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_multi_bit_programmable_bootstrap_cg_accumulate(
-    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-    const Torus *__restrict__ lut_vector,
-    const Torus *__restrict__ lut_vector_indexes,
-    const Torus *__restrict__ lwe_array_in,
-    const Torus *__restrict__ lwe_input_indexes,
-    const double2 *__restrict__ keybundle_array, double2 *join_buffer,
-    Torus *global_accumulator, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t grouping_factor, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-    uint32_t keybundle_size_per_input, int8_t *device_mem,
-    uint64_t device_memory_size_per_block) {
+__global__ void __launch_bounds__(params::degree / params::opt)
+    device_multi_bit_programmable_bootstrap_cg_accumulate(
+        Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+        const Torus *__restrict__ lut_vector,
+        const Torus *__restrict__ lut_vector_indexes,
+        const Torus *__restrict__ lwe_array_in,
+        const Torus *__restrict__ lwe_input_indexes,
+        const double2 *__restrict__ keybundle_array, double2 *join_buffer,
+        Torus *global_accumulator, uint32_t lwe_dimension,
+        uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+        uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
+        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        int8_t *device_mem, uint64_t device_memory_size_per_block) {
 
   grid_group grid = this_grid();
 
