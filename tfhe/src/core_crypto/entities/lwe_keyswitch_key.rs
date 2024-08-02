@@ -6,6 +6,7 @@ use crate::core_crypto::backward_compatibility::entities::lwe_keyswitch_key::Lwe
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::prelude::ParameterSetConformant;
 
 /// An [`LWE keyswitch key`](`LweKeyswitchKey`).
 ///
@@ -423,4 +424,33 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     type SelfMutView<'this> = LweKeyswitchKeyMutView<'this, Self::Element>
     where
         Self: 'this;
+}
+
+#[cfg(feature = "shortint")]
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for LweKeyswitchKey<C>
+{
+    type ParameterSet = crate::shortint::PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let LweKeyswitchKey {
+            data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        } = self;
+
+        ciphertext_modulus == parameter_set.ciphertext_modulus()
+            && data.container_len()
+                == parameter_set
+                    .glwe_dimension()
+                    .to_equivalent_lwe_dimension(parameter_set.polynomial_size())
+                    .0
+                    * parameter_set.lwe_dimension().to_lwe_size().0
+                    * parameter_set.decomp_level_count.0
+            && decomp_base_log == parameter_set.decomp_base_log
+            && decomp_level_count == parameter_set.decomp_level_count
+            && output_lwe_size == parameter_set.lwe_dimension().to_lwe_size()
+    }
 }

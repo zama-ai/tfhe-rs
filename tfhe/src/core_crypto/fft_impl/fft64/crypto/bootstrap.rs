@@ -21,6 +21,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
 use crate::core_crypto::prelude::ContainerMut;
+use crate::prelude::ParameterSetConformant;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
@@ -523,5 +524,14 @@ where
             fft.as_view(),
             stack,
         );
+    }
+}
+
+#[cfg(feature = "shortint")]
+impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrapKey<C> {
+    type ParameterSet = crate::shortint::ClassicPBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        todo!()
     }
 }
