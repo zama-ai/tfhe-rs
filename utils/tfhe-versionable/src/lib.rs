@@ -81,6 +81,12 @@ pub enum UnversionizeError {
         from_type: String,
         source: Box<dyn Error + Send + Sync>,
     },
+
+    /// The length of a statically sized array is wrong
+    ArrayLength {
+        expected_size: usize,
+        found_size: usize,
+    },
 }
 
 impl Display for UnversionizeError {
@@ -97,6 +103,15 @@ impl Display for UnversionizeError {
             Self::Conversion { from_type, source } => {
                 write!(f, "Failed to convert from {from_type}: {source}")
             }
+            Self::ArrayLength {
+                expected_size,
+                found_size,
+            } => {
+                write!(
+                    f,
+                    "Expected array of size {expected_size}, found array of size {found_size}"
+                )
+            }
         }
     }
 }
@@ -106,6 +121,7 @@ impl Error for UnversionizeError {
         match self {
             UnversionizeError::Upgrade { source, .. } => Some(source.as_ref()),
             UnversionizeError::Conversion { source, .. } => Some(source.as_ref()),
+            UnversionizeError::ArrayLength { .. } => None,
         }
     }
 }
@@ -262,7 +278,7 @@ impl<T: VersionizeVec + Clone> VersionizeOwned for Box<[T]> {
     type VersionedOwned = T::VersionedVec;
 
     fn versionize_owned(self) -> Self::VersionedOwned {
-        T::versionize_vec(self.iter().cloned().collect())
+        T::versionize_vec(self.to_vec())
     }
 }
 
@@ -309,6 +325,37 @@ impl<T: VersionizeVec + Clone> VersionizeOwned for &[T] {
 impl<T: UnversionizeVec> Unversionize for Vec<T> {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
         T::unversionize_vec(versioned)
+    }
+}
+
+// Since serde doesn't support arbitrary length arrays with const generics, the array
+// is converted to a slice/vec.
+impl<const N: usize, T: VersionizeSlice> Versionize for [T; N] {
+    type Versioned<'vers> = T::VersionedSlice<'vers> where T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        T::versionize_slice(self)
+    }
+}
+
+impl<const N: usize, T: VersionizeVec + Clone> VersionizeOwned for [T; N] {
+    type VersionedOwned = T::VersionedVec;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        T::versionize_vec(self.to_vec())
+    }
+}
+
+impl<const N: usize, T: UnversionizeVec + Clone> Unversionize for [T; N] {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        let v = T::unversionize_vec(versioned)?;
+        let boxed_slice = v.into_boxed_slice();
+        TryInto::<Box<[T; N]>>::try_into(boxed_slice)
+            .map(|array| *array)
+            .map_err(|slice| UnversionizeError::ArrayLength {
+                expected_size: N,
+                found_size: slice.len(),
+            })
     }
 }
 
