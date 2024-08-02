@@ -350,8 +350,7 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
 }
 
 template <typename Torus>
-__host__ bool
-supports_distributed_shared_memory_on_classic_programmable_bootstrap(
+bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
     uint32_t polynomial_size) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(

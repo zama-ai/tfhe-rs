@@ -141,20 +141,18 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_cg_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_cg_multibit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t grouping_factor, uint32_t lwe_chunk_size) {
