@@ -147,21 +147,18 @@ __global__ void device_multi_bit_programmable_bootstrap_tbc_accumulate(
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // distributed shared memory
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
@@ -388,8 +385,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 }
 
 template <typename Torus>
-__host__ bool
-supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
+bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
     uint32_t polynomial_size) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
@@ -482,7 +478,7 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
   return cluster_size >= level_count * (glwe_dimension + 1);
 }
 
-template __host__ bool
+template bool
 supports_distributed_shared_memory_on_multibit_programmable_bootstrap<uint64_t>(
     uint32_t polynomial_size);
 #endif // FASTMULTIBIT_PBS_H

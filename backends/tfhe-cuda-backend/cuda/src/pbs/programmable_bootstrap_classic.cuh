@@ -228,7 +228,7 @@ __global__ void device_programmable_bootstrap_step_two(
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_programmable_bootstrap(
+uint64_t get_buffer_size_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
 

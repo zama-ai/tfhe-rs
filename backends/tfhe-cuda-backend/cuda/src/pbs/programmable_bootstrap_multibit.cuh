@@ -37,9 +37,9 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
     const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t lwe_offset,
-    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
-    int8_t *device_mem, uint64_t device_memory_size_per_block) {
+    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
+    uint32_t keybundle_size_per_input, int8_t *device_mem,
+    uint64_t device_memory_size_per_block) {
 
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory = sharedmem;
@@ -328,46 +328,24 @@ __global__ void device_multi_bit_programmable_bootstrap_accumulate_step_two(
   }
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size * 2; // accumulator
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
+uint64_t get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size; // accumulator
-}
-
-template <typename Torus>
-__host__ __device__ uint64_t get_buffer_size_multibit_programmable_bootstrap(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size) {
-
-  uint64_t buffer_size = 0;
-  buffer_size += input_lwe_ciphertext_count * lwe_chunk_size * level_count *
-                 (glwe_dimension + 1) * (glwe_dimension + 1) *
-                 (polynomial_size / 2) * sizeof(double2); // keybundle fft
-  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
-                 level_count * (polynomial_size / 2) *
-                 sizeof(double2); // global_accumulator_fft
-  buffer_size += input_lwe_ciphertext_count * (glwe_dimension + 1) *
-                 polynomial_size * sizeof(Torus); // global_accumulator
-
-  return buffer_size + buffer_size % sizeof(double2);
 }
 
 template <typename Torus, typename params>
@@ -512,15 +490,15 @@ __host__ void execute_compute_keybundle(
         <<<grid_keybundle, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            base_log, level_count, lwe_offset, chunk_size,
-            keybundle_size_per_input, d_mem, full_sm_keybundle);
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, full_sm_keybundle);
   else
     device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
         <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            base_log, level_count, lwe_offset, chunk_size,
-            keybundle_size_per_input, d_mem, 0);
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, 0);
   check_cuda_error(cudaGetLastError());
 }
 

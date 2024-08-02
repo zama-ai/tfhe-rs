@@ -431,8 +431,8 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
  */
 template <typename Torus, class params>
-__host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                                     uint32_t polynomial_size) {
+uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
+                            uint32_t polynomial_size) {
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
@@ -440,7 +440,6 @@ __host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
 
   int max_blocks_per_sm;
   int max_shared_memory = cuda_get_max_shared_memory(0);
-  cudaSetDevice(gpu_index);
   if (max_shared_memory < full_sm_keybundle)
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,

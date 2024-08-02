@@ -35,8 +35,7 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
 }
 
 template <typename Torus>
-__host__ bool
-supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
+bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 
 template <typename Torus>
@@ -61,13 +60,6 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples);
 #endif
-
-template <typename Torus>
-void scratch_cuda_cg_multi_bit_programmable_bootstrap(
-    void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t grouping_factor,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
 void scratch_cuda_cg_multi_bit_programmable_bootstrap(
@@ -101,40 +93,31 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples);
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
+uint64_t get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_full_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
+uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 
 template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
@@ -304,7 +287,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 };
 
 template <typename Torus, class params>
-__host__ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                                     uint32_t polynomial_size);
+uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
+                            uint32_t polynomial_size);
 
 #endif // CUDA_MULTI_BIT_H

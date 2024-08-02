@@ -92,28 +92,26 @@ uint64_t get_buffer_size_programmable_bootstrap_64(
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_programmable_bootstrap_step_one(
+uint64_t get_buffer_size_full_sm_programmable_bootstrap_step_one(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_full_sm_programmable_bootstrap_step_two(
+uint64_t get_buffer_size_full_sm_programmable_bootstrap_step_two(
     uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator
          sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
+uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap(uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
+uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_tbc(uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(Torus) * polynomial_size +      // accumulator
@@ -121,21 +119,19 @@ get_buffer_size_full_sm_programmable_bootstrap_tbc(uint32_t polynomial_size) {
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_partial_sm_programmable_bootstrap_tbc(
+uint64_t get_buffer_size_partial_sm_programmable_bootstrap_tbc(
     uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
-get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
+uint64_t get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
     uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // tbc
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
+uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(Torus) * polynomial_size +      // accumulator
@@ -143,14 +139,13 @@ get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
 }
 
 template <typename Torus>
-__host__ __device__ uint64_t
+uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
 }
 
 template <typename Torus>
-__host__ bool
-supports_distributed_shared_memory_on_classic_programmable_bootstrap(
+bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
     uint32_t polynomial_size);
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
@@ -306,7 +301,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 };
 
 template <typename Torus>
-__host__ uint64_t get_buffer_size_programmable_bootstrap_cg(
+uint64_t get_buffer_size_programmable_bootstrap_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
   int max_shared_memory = cuda_get_max_shared_memory(0);
