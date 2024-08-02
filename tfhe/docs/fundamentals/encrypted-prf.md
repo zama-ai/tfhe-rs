@@ -20,7 +20,7 @@ Here is an example of the usage:
 
 ```rust
 use tfhe::prelude::FheDecrypt;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, FheInt8, SignedRandomizationSpec, Seed};
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, FheInt8, Seed};
 
 pub fn main() {
     let config = ConfigBuilder::default().build();
@@ -28,24 +28,24 @@ pub fn main() {
 
     set_server_key(server_key);
 
+
+    let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
+
     let random_bits_count = 3;
 
-    // You can pass a 128 bits Seed here
-    let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0), random_bits_count);
-    // The generated values will always be the same for a given server key
-    // The server cannot know what value was generated
+    let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
 
     let dec_result: u8 = ct_res.decrypt(&client_key);
     assert!(dec_result < (1 << random_bits_count));
 
-    let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0), SignedRandomizationSpec::Unsigned { random_bits_count });
+    let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
+    
+    let dec_result: i8 = ct_res.decrypt(&client_key);
+    
+    
+    let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
 
     let dec_result: i8 = ct_res.decrypt(&client_key);
     assert!(dec_result < (1 << random_bits_count));
-
-
-    let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0), SignedRandomizationSpec::FullSigned);
-
-    let dec_result: i8 = ct_res.decrypt(&client_key);
 }
 ```
