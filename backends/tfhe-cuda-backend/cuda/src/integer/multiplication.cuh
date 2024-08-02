@@ -234,7 +234,9 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
   int32_t h_smart_copy_in[r * num_blocks];
   int32_t h_smart_copy_out[r * num_blocks];
 
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_indexes[0]);
+  auto max_shared_memory = 0;
+  cudaDeviceGetAttribute(&max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock,
+                         0);
 
   // create lut object for message and carry
   // we allocate luts_message_carry in the host function (instead of scratch)
