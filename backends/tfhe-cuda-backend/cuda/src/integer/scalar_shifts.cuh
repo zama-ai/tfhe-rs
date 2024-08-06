@@ -52,11 +52,6 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
   Torus *full_rotated_buffer = mem->tmp_rotated;
   Torus *rotated_buffer = &full_rotated_buffer[big_lwe_size];
 
-  // rotate right all the blocks in radix ciphertext
-  // copy result in new buffer
-  // 1024 threads are used in every block
-  // block_count blocks will be used in the grid
-  // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
     host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,

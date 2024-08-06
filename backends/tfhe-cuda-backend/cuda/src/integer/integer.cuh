@@ -22,18 +22,19 @@ template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
                                           uint32_t value, uint32_t blocks_count,
                                           uint32_t lwe_size) {
-  value %= blocks_count;
-
   size_t tid = threadIdx.x;
-  size_t src_block_id = blockIdx.x;
-  size_t dst_block_id = (src_block_id + value) % blocks_count;
-  size_t stride = blockDim.x;
+  if (tid < lwe_size) {
+    value %= blocks_count;
+    size_t src_block_id = blockIdx.x;
+    size_t dst_block_id = (src_block_id + value) % blocks_count;
+    size_t stride = blockDim.x;
 
-  auto cur_src_block = &src[src_block_id * lwe_size];
-  auto cur_dst_block = &dst[dst_block_id * lwe_size];
+    auto cur_src_block = &src[src_block_id * lwe_size];
+    auto cur_dst_block = &dst[dst_block_id * lwe_size];
 
-  for (size_t i = tid; i < lwe_size; i += stride) {
-    cur_dst_block[i] = cur_src_block[i];
+    for (size_t i = tid; i < lwe_size; i += stride) {
+      cur_dst_block[i] = cur_src_block[i];
+    }
   }
 }
 
@@ -44,25 +45,28 @@ template <typename Torus>
 __global__ void radix_blocks_rotate_left(Torus *dst, Torus *src, uint32_t value,
                                          uint32_t blocks_count,
                                          uint32_t lwe_size) {
-  value %= blocks_count;
-  size_t src_block_id = blockIdx.x;
-
   size_t tid = threadIdx.x;
-  size_t dst_block_id = (src_block_id >= value)
-                            ? src_block_id - value
-                            : src_block_id - value + blocks_count;
-  size_t stride = blockDim.x;
+  if (tid < lwe_size) {
+    value %= blocks_count;
+    size_t src_block_id = blockIdx.x;
 
-  auto cur_src_block = &src[src_block_id * lwe_size];
-  auto cur_dst_block = &dst[dst_block_id * lwe_size];
+    size_t dst_block_id = (src_block_id >= value)
+                              ? src_block_id - value
+                              : src_block_id - value + blocks_count;
+    size_t stride = blockDim.x;
 
-  for (size_t i = tid; i < lwe_size; i += stride) {
-    cur_dst_block[i] = cur_src_block[i];
+    auto cur_src_block = &src[src_block_id * lwe_size];
+    auto cur_dst_block = &dst[dst_block_id * lwe_size];
+
+    for (size_t i = tid; i < lwe_size; i += stride) {
+      cur_dst_block[i] = cur_src_block[i];
+    }
   }
 }
 
 // rotate radix ciphertext right with specific value
 // calculation is not inplace, so `dst` and `src` must not be the same
+// one block is responsible to process single lwe ciphertext
 template <typename Torus>
 __host__ void
 host_radix_blocks_rotate_right(cudaStream_t *streams, uint32_t *gpu_indexes,

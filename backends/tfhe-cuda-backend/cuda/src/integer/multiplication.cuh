@@ -93,14 +93,10 @@ all_shifted_lhs_rhs(Torus *radix_lwe_left, Torus *lsb_ciphertext,
   }
 }
 
-template <typename Torus, sharedMemDegree SMD>
+template <typename Torus>
 __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
                                 uint32_t chunk_size, uint32_t block_size,
                                 uint32_t num_blocks) {
-
-  extern __shared__ int8_t sharedmem[];
-
-  Torus *result = (Torus *)sharedmem;
 
   size_t stride = blockDim.x;
   size_t chunk_id = blockIdx.x;
@@ -109,10 +105,7 @@ __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
   auto src_chunk = &input_blocks[chunk_id * chunk_elem_size];
   auto dst_radix = &result_blocks[chunk_id * radix_elem_size];
   size_t block_stride = blockIdx.y * block_size;
-  auto dst_block = &dst_radix[block_stride];
-
-  if constexpr (SMD == NOSM)
-    result = dst_block;
+  auto result = &dst_radix[block_stride];
 
   // init shared mem with first radix of chunk
   size_t tid = threadIdx.x;
@@ -127,11 +120,6 @@ __global__ void tree_add_chunks(Torus *result_blocks, Torus *input_blocks,
       result[i] += cur_src_radix[block_stride + i];
     }
   }
-
-  // put result from shared mem to global mem
-  if constexpr (SMD == FULLSM)
-    for (int i = tid; i < block_size; i += stride)
-      dst_block[i] = result[i];
 }
 
 template <typename Torus, class params>
@@ -286,12 +274,8 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
     size_t sm_size = big_lwe_size * sizeof(Torus);
 
     cudaSetDevice(gpu_indexes[0]);
-    if (sm_size < max_shared_memory)
-      tree_add_chunks<Torus, FULLSM><<<add_grid, 512, sm_size, streams[0]>>>(
-          new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
-    else
-      tree_add_chunks<Torus, NOSM><<<add_grid, 512, 0, streams[0]>>>(
-          new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
+    tree_add_chunks<Torus><<<add_grid, 512, 0, streams[0]>>>(
+        new_blocks, old_blocks, min(r, chunk_size), big_lwe_size, num_blocks);
 
     check_cuda_error(cudaGetLastError());
 
@@ -304,7 +288,7 @@ __host__ void host_integer_sum_ciphertexts_vec_kb(
         terms_degree, h_lwe_idx_in, h_lwe_idx_out, h_smart_copy_in,
         h_smart_copy_out, ch_amount, r, num_blocks, chunk_size, message_max,
         total_count, message_count, carry_count, sm_copy_count);
-
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
     auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
     luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
