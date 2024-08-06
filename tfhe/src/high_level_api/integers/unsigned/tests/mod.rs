@@ -1,3 +1,4 @@
+use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
 use crate::{ClientKey, FheUint256, FheUint32, FheUint64, FheUint8};
@@ -464,6 +465,46 @@ fn test_case_ilog2(cks: &ClientKey) {
         let (_ilog2, is_ok) = a.checked_ilog2();
         let is_ok = is_ok.decrypt(cks);
         assert!(!is_ok);
+    }
+}
+
+fn test_case_bitslice(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..5 {
+        // clear is a u64 so that `clear % (1 << 32)` does not overflow
+        let clear = rng.gen::<u32>() as u64;
+
+        let range_a = rng.gen_range(0..33);
+        let range_b = rng.gen_range(0..33);
+
+        let (range_start, range_end) = if range_a < range_b {
+            (range_a, range_b)
+        } else {
+            (range_b, range_a)
+        };
+
+        let ct = FheUint32::try_encrypt(clear, cks).unwrap();
+
+        {
+            let slice = (&ct).bitslice(range_start..range_end).unwrap();
+            let slice: u64 = slice.decrypt(cks);
+
+            assert_eq!(slice, (clear % (1 << range_end)) >> range_start)
+        }
+
+        // Check with a slice that takes the last bits of the input
+        {
+            let slice = (&ct).bitslice(range_start..).unwrap();
+            let slice: u64 = slice.decrypt(cks);
+
+            assert_eq!(slice, (clear % (1 << 32)) >> range_start)
+        }
+
+        // Check with an invalid slice
+        {
+            let slice_res = ct.bitslice(range_start..33);
+            assert!(slice_res.is_err())
+        }
     }
 }
 
