@@ -4,15 +4,14 @@
 
 use super::base::FheUint;
 use super::inner::RadixCiphertext;
-#[cfg(feature = "gpu")]
-use crate::core_crypto::commons::numeric::CastFrom;
+use crate::error::InvalidRangeError;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{
-    DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
+    BitSlice, DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
 use crate::integer::bigint::{U1024, U2048, U512};
@@ -21,10 +20,11 @@ use crate::integer::ciphertext::IntegerCiphertext;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::U256;
+use crate::prelude::{CastFrom, CastInto};
 use crate::FheBool;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Mul, MulAssign, RangeBounds, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 impl<Id, Clear> FheEq<Clear> for FheUint<Id>
@@ -350,6 +350,95 @@ where
                 Self::new(inner_result)
             }),
         })
+    }
+}
+
+impl<Id, Clear> BitSlice<Clear> for &FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: CastFrom<usize> + CastInto<usize> + Copy,
+{
+    type Output = FheUint<Id>;
+
+    /// Extract a slice of bits from a [FheUint].
+    ///
+    /// This function is more efficient if the range starts on a block boundary.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let msg: u16 = 225;
+    /// let a = FheUint16::encrypt(msg, &client_key);
+    /// let start_bit = 3;
+    /// let end_bit = 6;
+    ///
+    /// let result = (&a).bitslice(start_bit..end_bit).unwrap();
+    ///
+    /// let decrypted_slice: u16 = result.decrypt(&client_key);
+    /// assert_eq!((msg % (1 << end_bit)) >> start_bit, decrypted_slice);
+    /// ```
+    fn bitslice<R>(self, range: R) -> Result<Self::Output, InvalidRangeError>
+    where
+        R: RangeBounds<Clear>,
+    {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .key
+                    .scalar_bitslice_parallelized(&self.ciphertext.on_cpu(), range)?;
+                Ok(FheUint::new(result))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support bitslice yet");
+            }
+        })
+    }
+}
+
+impl<Id, Clear> BitSlice<Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: CastFrom<usize> + CastInto<usize> + Copy,
+{
+    type Output = Self;
+
+    /// Extract a slice of bits from a [FheUint].
+    ///
+    /// This function is more efficient if the range starts on a block boundary.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let msg: u16 = 225;
+    /// let a = FheUint16::encrypt(msg, &client_key);
+    /// let start_bit = 3;
+    /// let end_bit = 6;
+    ///
+    /// let result = a.bitslice(start_bit..end_bit).unwrap();
+    ///
+    /// let decrypted_slice: u16 = result.decrypt(&client_key);
+    /// assert_eq!((msg % (1 << end_bit)) >> start_bit, decrypted_slice);
+    /// ```
+    fn bitslice<R>(self, range: R) -> Result<Self::Output, InvalidRangeError>
+    where
+        R: RangeBounds<Clear>,
+    {
+        <&Self as BitSlice<Clear>>::bitslice(&self, range)
     }
 }
 
