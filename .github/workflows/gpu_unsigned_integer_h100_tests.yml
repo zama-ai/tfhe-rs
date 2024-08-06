@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: TFHE Cuda Backend - Base tests on H100
+# Test unsigned integers on an H100 VM on hyperstack
+name: TFHE Cuda Backend - Unsigned integer tests on H100
 
 env:
   CARGO_TERM_COLOR: always
@@ -49,7 +49,7 @@ jobs:
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
               - Makefile
-              - '.github/workflows/hyperstack**'
+              - '.github/workflows/gpu_unsigned_integer_tests.yml'
               - scripts/**
               - ci/**
 
@@ -75,7 +75,7 @@ jobs:
           profile: single-h100
 
   cuda-tests-linux:
-    name: CUDA H100 tests
+    name: CUDA H100 unsigned integer tests
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -142,22 +142,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
-      - name: Run core crypto and internal CUDA backend tests
+      - name: Run unsigned integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_core_crypto_gpu
-          BIG_TESTS_INSTANCE=TRUE make test_cuda_backend
+          BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci
 
-      - name: Run user docs tests
+      - name: Run unsigned integer multi-bit tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
+          BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_multi_bit_gpu_ci
 
   slack-notify:
     name: Slack Notification
@@ -170,7 +161,7 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Base H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Unsigned integer GPU H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-h100-tests)

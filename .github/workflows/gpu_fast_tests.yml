@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend signed integer on an AWS instance
-name: TFHE Cuda Backend - Signed integer tests
+# Compile and test tfhe-cuda-backend on an AWS instance
+name: TFHE Cuda Backend - Fast tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,21 +11,12 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  FAST_TESTS: TRUE
-  NIGHTLY_TESTS: FALSE
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - labeled
-  schedule:
-    # Nightly tests @ 1AM after each work day
-    - cron: "0 1 * * MON-FRI"
 
 jobs:
   should-run:
@@ -56,14 +47,17 @@ jobs:
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
+              - '.github/workflows/gpu_fast_tests.yml'
+              - Makefile
+              - scripts/**
+              - ci/**
 
   setup-instance:
-    name: Setup instance (cuda-signed-integer-tests)
-    runs-on: ubuntu-latest
+    name: Setup instance (cuda-tests)
     needs: should-run
-    if: (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.action != 'labeled' && needs.should-run.outputs.gpu_test == 'true')
+    if: github.event_name != 'pull_request' ||
+      needs.should-run.outputs.gpu_test == 'true'
+    runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
@@ -75,11 +69,11 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
+          backend: hyperstack
           profile: gpu-test
 
-  cuda-signed-integer-tests:
-    name: CUDA signed integer tests
+  cuda-tests-linux:
+    name: CUDA tests
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -94,13 +88,27 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
-            gcc: 9
+            gcc: 11 
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-
+      CMAKE_VERSION: 3.29.6
     steps:
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev 
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
+
       - name: Checkout tfhe-rs
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: 'false'
 
       - name: Set up home
         run: |
@@ -130,30 +138,44 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
-      - name: Should run nightly tests
-        if: github.event_name == 'schedule'
-        run: |
-          {
-            echo "FAST_TESTS=FALSE";
-            echo "NIGHTLY_TESTS=TRUE";
-          } >> "${GITHUB_ENV}"
+      - name: Check device is detected
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
 
-      - name: Run signed integer multi-bit tests
+      - name: Run core crypto and internal CUDA backend tests
         run: |
-          make test_signed_integer_multi_bit_gpu_ci
+          make test_core_crypto_gpu
+          make test_cuda_backend
 
-      - name: Slack Notification
-        if: ${{ always() }}
-        continue-on-error: true
+      - name: Run user docs tests
+        run: |
+          make test_user_doc_gpu
+
+      - name: Test C API
+        run: |
+          make test_c_api_gpu
+
+      - name: Run High Level API Tests
+        run: |
+          make test_high_level_api_gpu
+
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
+    continue-on-error: true
+    steps:
+      - name: Send message
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS signed integer tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
+          SLACK_MESSAGE: "Base GPU tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, cuda-signed-integer-tests ]
+    needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -172,4 +194,4 @@ jobs:
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-signed-integer-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

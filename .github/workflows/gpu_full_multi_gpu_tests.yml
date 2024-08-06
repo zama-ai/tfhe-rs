@@ -49,7 +49,7 @@ jobs:
               - tfhe/src/c_api/**
               - 'tfhe/docs/**.md'
               - Makefile
-              - '.github/workflows/aws_tfhe_multi_gpu**'
+              - '.github/workflows/**_multi_gpu_tests.yml'
               - scripts/**
               - ci/**
 
@@ -71,7 +71,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
+          backend: hyperstack
           profile: multi-gpu-test
 
   cuda-tests-linux:
@@ -90,13 +90,27 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
-            gcc: 9
+            gcc: 11 
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
-
+      CMAKE_VERSION: 3.29.6
     steps:
+      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y checkinstall zlib1g-dev libssl-dev 
+          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
+          cd cmake-${{ env.CMAKE_VERSION }}
+          ./bootstrap
+          make -j"$(nproc)"
+          sudo make install
+
       - name: Checkout tfhe-rs
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: 'false'
 
       - name: Set up home
         run: |
@@ -126,30 +140,39 @@ jobs:
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
 
+      - name: Check device is detected
+        if: ${{ !cancelled() }}
+        run: nvidia-smi
+
       # No need to test core_crypto and classic PBS in integer since it's already tested on single GPU.
       - name: Run multi-bit CUDA integer tests
         run: |
-          make test_integer_multi_bit_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE make test_integer_multi_bit_gpu_ci
 
       - name: Run user docs tests
         run: |
-          make test_user_doc_gpu
+          BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu
 
       - name: Test C API
         run: |
-          make test_c_api_gpu
+          BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu
 
       - name: Run High Level API Tests
         run: |
-          make test_high_level_api_gpu
+          BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
 
-      - name: Slack Notification
-        if: ${{ always() }}
-        continue-on-error: true
+  slack-notify:
+    name: Slack Notification
+    needs: [ setup-instance, cuda-tests-linux ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
+    continue-on-error: true
+    steps:
+      - name: Send message
         uses: rtCamp/action-slack-notify@4e5fb42d249be6a45a298f3c9543b111b02f7907
         env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS multi-GPU tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
+          SLACK_MESSAGE: "Multi-GPU tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: Teardown instance (cuda-tests-multi-gpu)
