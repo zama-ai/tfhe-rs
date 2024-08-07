@@ -323,7 +323,7 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for &FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8>,
+    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear>,
 {
     type Output = FheUint<Id>;
 
@@ -371,7 +371,7 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8>,
+    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear>,
 {
     type Output = Self;
 

@@ -105,18 +105,11 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         };
 
-        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
-            // subtraction by zero
+        if Scalar::ZERO == scalar {
             return;
-        };
+        }
 
-        let blocks = decomposer
-            .take(ct.blocks().len())
-            .map(|v| self.key.create_trivial(u64::from(v)))
-            .collect::<Vec<_>>();
-        let rhs = T::from_blocks(blocks);
-
-        self.add_assign_with_carry_parallelized(ct, &rhs, None);
+        self.scalar_add_assign_parallelized(ct, scalar.twos_complement_negation());
     }
 
     pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(
@@ -125,7 +118,7 @@ impl ServerKey {
         scalar: T,
     ) -> BooleanBlock
     where
-        T: UnsignedNumeric + DecomposableInto<u8>,
+        T: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = T>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -158,12 +151,61 @@ impl ServerKey {
         scalar: T,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        T: UnsignedNumeric + DecomposableInto<u8>,
+        T: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = T>,
     {
         let mut result = lhs.clone();
-        let overflowed =
+        let overflow =
             self.unsigned_overflowing_scalar_sub_assign_parallelized(&mut result, scalar);
-        (result, overflowed)
+        (result, overflow)
+    }
+
+    pub fn signed_overflowing_scalar_sub_assign_parallelized<Scalar>(
+        &self,
+        lhs: &mut SignedRadixCiphertext,
+        scalar: Scalar,
+    ) -> BooleanBlock
+    where
+        Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
+    {
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
+        }
+
+        // The trivial overflow check has to be done on the scalar not its bit flipped version
+        let mut decomposer = BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())
+            .iter_as::<u8>()
+            .skip(lhs.blocks.len());
+
+        let trivially_overflowed = if scalar < Scalar::ZERO {
+            decomposer.any(|v| v != (self.message_modulus().0 - 1) as u8)
+        } else {
+            decomposer.any(|v| v != 0)
+        };
+
+        const INPUT_CARRY: bool = true;
+        let flipped_scalar = !scalar;
+        let decomposed_flipped_scalar =
+            BlockDecomposer::new(flipped_scalar, self.message_modulus().0.ilog2())
+                .iter_as::<u8>()
+                .chain(std::iter::repeat(if scalar < Scalar::ZERO {
+                    0
+                } else {
+                    (self.message_modulus().0 - 1) as u8
+                }))
+                .take(lhs.blocks.len())
+                .collect::<Vec<_>>();
+        let maybe_overflow = self.add_assign_scalar_blocks_parallelized(
+            lhs,
+            decomposed_flipped_scalar,
+            INPUT_CARRY,
+            !trivially_overflowed,
+        );
+
+        if trivially_overflowed {
+            self.create_trivial_boolean_block(true)
+        } else {
+            maybe_overflow.expect("overflow computation was requested")
+        }
     }
 
     pub fn signed_overflowing_scalar_sub_parallelized<Scalar>(
@@ -172,48 +214,10 @@ impl ServerKey {
         scalar: Scalar,
     ) -> (SignedRadixCiphertext, BooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64>,
+        Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
-        // In this implementation, we cannot simply call
-        // signed_overflowing_scalar_add_parallelized(lhs, -scalar)
-        // because in the case scalar == -modulus (i.e the minimum value of the ciphertext type)
-        // then -rhs will still be -modulus, however, the overflow detection of the add
-        // will be invalid
-
-        let mut tmp_lhs;
-        let lhs = if lhs.block_carries_are_empty() {
-            lhs
-        } else {
-            tmp_lhs = lhs.clone();
-            self.full_propagate_parallelized(&mut tmp_lhs);
-            &tmp_lhs
-        };
-
-        // To keep the code simple we transform the scalar into a trivial
-        // performances wise this won't have much impact as all the cost is
-        // in the carry propagation
-        let trivial: SignedRadixCiphertext = self.create_trivial_radix(scalar, lhs.blocks.len());
-        let (result, overflowed) = self.signed_overflowing_sub_parallelized(lhs, &trivial);
-
-        let mut extra_scalar_block_iter =
-            BlockDecomposer::new(scalar, self.key.message_modulus.0.ilog2())
-                .iter_as::<u64>()
-                .skip(lhs.blocks.len());
-
-        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus().0 as u64 - 1))
-        } else {
-            extra_scalar_block_iter.all(|block| block == 0)
-        };
-
-        if extra_blocks_have_correct_value {
-            (result, overflowed)
-        } else {
-            // Scalar has more blocks so addition counts as overflowing
-            (
-                result,
-                BooleanBlock::new_unchecked(self.key.create_trivial(1)),
-            )
-        }
+        let mut result = lhs.clone();
+        let overflow = self.signed_overflowing_scalar_sub_assign_parallelized(&mut result, scalar);
+        (result, overflow)
     }
 }
