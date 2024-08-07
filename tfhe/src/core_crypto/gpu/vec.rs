@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
-use crate::core_crypto::gpu::{synchronize_device, CudaStreams};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::Numeric;
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
@@ -447,8 +447,6 @@ impl<T: Numeric> Drop for CudaVec<T> {
     /// Free memory for pointer `ptr` synchronously
     fn drop(&mut self) {
         for &gpu_index in self.gpu_indexes.iter() {
-            // Synchronizes the device to be sure no stream is still using this pointer
-            synchronize_device(gpu_index);
             unsafe { cuda_drop(self.get_mut_c_ptr(gpu_index), gpu_index) };
         }
     }
