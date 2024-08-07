@@ -40,7 +40,7 @@ spawn_retry_duration = 60
 
 [backend.aws.multi-h100-nvlink]
 region = "us-east-1"
-image_id = "ami-08f0d5468c82263f2"
+image_id = "ami-0ee486f3e0eb34133"
 instance_type = "p5.48xlarge"
 # One spawn attempt every 30 seconds for 5 hours
 spawn_retry_attempts = 600
