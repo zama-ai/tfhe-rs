@@ -1,7 +1,8 @@
+use std::ops::*;
+
 use criterion::{black_box, Criterion};
 use rand::prelude::*;
 use std::fmt::Write;
-use std::ops::*;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{
@@ -33,11 +34,6 @@ where
     let rhs = FheType::encrypt(rng.gen(), client_key);
 
     let mut name = String::with_capacity(255);
-
-    write!(name, "add({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs + &rhs)));
-    name.clear();
-
     write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
     bench_group.bench_function(&name, |b| {
         b.iter(|| black_box((&lhs).overflowing_add(&rhs)))
