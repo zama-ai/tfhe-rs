@@ -31,6 +31,13 @@ __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
     tid = tid + block_size;
   }
 }
+template <typename T, int elems_per_thread, int block_size>
+__device__ void copy_polynomial_in_regs(const T *__restrict__ source, T *dst) {
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    dst[i] = source[threadIdx.x + i * block_size];
+  }
+}
 
 /*
  * Receives num_poly  concatenated polynomials of type T. For each:
