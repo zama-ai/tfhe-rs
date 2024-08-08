@@ -23,7 +23,7 @@ impl ServerKey {
     /// let shift = 2;
     ///
     /// // Encrypt two messages:
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// let ct_res = sks.blockshift_right(&ct, shift);
     ///

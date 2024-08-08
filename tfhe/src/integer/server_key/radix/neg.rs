@@ -235,7 +235,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation:
-    /// sks.checked_neg_assign(&mut ct);
+    /// sks.checked_neg_assign(&mut ct).unwrap();
     ///
     /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, (modulus - msg));

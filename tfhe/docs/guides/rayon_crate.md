@@ -11,7 +11,6 @@ This document describes how to use Rayon for parallel processing in **TFHE-rs**,
 The high-level API requires to call `set_server_key` on each thread where computations need to be done. So a first attempt to use Rayon with **TFHE-rs** might look like this:
 
 ```rust
-use rayon::prelude::*;
 use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, generate_keys};
 
@@ -51,7 +50,6 @@ However, due to Rayon's work-stealing mechanism and **TFHE-rs'** internals, this
 The correct way is to call `rayon::broadcast` as follows:
 
 ```rust
-use rayon::prelude::*;
 use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, generate_keys};
 
@@ -95,7 +93,6 @@ fn main() {
 For applications that need to operate concurrently on data from different clients and require each client to use multiple threads, you need to create separate Rayon thread pools:
 
 ```rust
-use rayon::prelude::*;
 use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, generate_keys};
 

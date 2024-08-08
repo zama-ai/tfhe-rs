@@ -22,7 +22,7 @@ impl CompressedPublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
     /// ```
@@ -33,7 +33,7 @@ impl CompressedPublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys();
+    /// let (cks, _sks) = gen_keys();
     ///
     /// let cpks = CompressedPublicKey::new(&cks);
     /// let pks = cpks.decompress();

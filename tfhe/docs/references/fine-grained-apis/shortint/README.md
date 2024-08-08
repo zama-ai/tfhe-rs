@@ -36,7 +36,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys
-   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+   let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 1;
     let msg2 = 0;

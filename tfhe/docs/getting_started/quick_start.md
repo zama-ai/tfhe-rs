@@ -59,5 +59,6 @@ Refer to the [installation documentation](installation.md) for configuration opt
 The `prelude` pattern provides a convenient way to globally import all important **TFHE-rs** traits at once. This approach saves time and avoids confusion.
 
 ```rust
+#[allow(unused_imports)]
 use tfhe::prelude::*;
 ```

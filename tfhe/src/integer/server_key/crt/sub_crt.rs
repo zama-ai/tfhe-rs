@@ -22,8 +22,8 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 5;
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
-    /// let mut ctxt_2 = cks.encrypt(clear_2);
+    /// let ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
     ///
@@ -61,8 +61,8 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 5;
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
-    /// let mut ctxt_2 = cks.encrypt(clear_2);
+    /// let ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
     ///

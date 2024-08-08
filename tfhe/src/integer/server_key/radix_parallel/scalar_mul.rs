@@ -159,7 +159,7 @@ impl ServerKey {
     /// let msg = 230;
     /// let scalar = 376;
     ///
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.scalar_mul_parallelized(&ct, scalar);

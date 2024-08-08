@@ -146,8 +146,8 @@ impl Ciphertext {
     /// # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{gen_keys, Ciphertext};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
@@ -186,11 +186,11 @@ impl Ciphertext {
     /// # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// use tfhe::shortint::{gen_keys, Ciphertext};
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (_cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 2u64;
     /// let clear = 3u64;

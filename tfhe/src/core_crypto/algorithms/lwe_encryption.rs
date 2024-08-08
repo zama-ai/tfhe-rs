@@ -464,7 +464,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 /// let plaintext = Plaintext(msg << 60);
 ///
 /// // Create a new LweCiphertext
-/// let mut lwe = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+/// let lwe = allocate_and_trivially_encrypt_new_lwe_ciphertext(
 ///     lwe_dimension.to_lwe_size(),
 ///     plaintext,
 ///     ciphertext_modulus,
@@ -1018,8 +1018,6 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1119,8 +1117,6 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1349,8 +1345,6 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1520,8 +1514,6 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1770,7 +1762,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
 /// let plaintext = Plaintext(msg << 60);
 ///
 /// // Create a new SeededLweCiphertext
-/// let mut lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+/// let lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_noise_distribution,

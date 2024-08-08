@@ -70,7 +70,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 2;
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_1 = cks.encrypt(clear_1);
     ///
     /// sks.is_crt_scalar_mul_possible(&ctxt_1, clear_2).unwrap();
     /// ```
@@ -107,7 +107,8 @@ impl ServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.checked_crt_scalar_mul_assign(&mut ctxt_1, clear_2);
+    /// sks.checked_crt_scalar_mul_assign(&mut ctxt_1, clear_2)
+    ///     .unwrap();
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);

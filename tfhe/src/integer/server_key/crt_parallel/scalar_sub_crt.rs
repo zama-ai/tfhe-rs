@@ -76,7 +76,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 8;
     ///
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_1 = cks.encrypt(clear_1);
     ///
     /// let ct_res = sks
     ///     .checked_crt_scalar_sub_parallelized(&ctxt_1, clear_2)

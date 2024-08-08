@@ -1076,7 +1076,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe = allocate_and_trivially_encrypt_new_glwe_ciphertext(
+/// let glwe = allocate_and_trivially_encrypt_new_glwe_ciphertext(
 ///     glwe_size,
 ///     &plaintext_list,
 ///     ciphertext_modulus,
@@ -1217,8 +1217,6 @@ pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -1406,8 +1404,6 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///

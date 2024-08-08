@@ -366,7 +366,7 @@ where
     ///     DecompositionLevelCount(3),
     ///     CiphertextModulus::try_new((1 << 48) - 1).unwrap(),
     /// );
-    /// let (closest_abs, sign) = decomposer.init_decomposer_state(249280154129830u64);
+    /// let (closest_abs, _sign) = decomposer.init_decomposer_state(249280154129830u64);
     /// assert_eq!(closest_abs, 32160715112448u64);
     ///
     /// let decomposer = SignedDecomposerNonNative::new(
@@ -374,7 +374,7 @@ where
     ///     DecompositionLevelCount(3),
     ///     CiphertextModulus::try_new((1 << 48) + 1).unwrap(),
     /// );
-    /// let (closest_abs, sign) = decomposer.init_decomposer_state(249280154129830u64);
+    /// let (closest_abs, _sign) = decomposer.init_decomposer_state(249280154129830u64);
     /// assert_eq!(closest_abs, 32160715112448u64);
     /// ```
     #[inline]
