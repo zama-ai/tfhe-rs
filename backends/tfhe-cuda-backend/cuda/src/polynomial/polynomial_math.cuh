@@ -82,4 +82,34 @@ polynomial_product_accumulate_by_monomial(T *result, const T *__restrict__ poly,
   }
 }
 
+template <typename T, class params>
+__device__ void polynomial_product_accumulate_by_monomial_nosync(
+    T *result, const T *__restrict__ poly, uint32_t monomial_degree,
+    bool init_accumulator = false) {
+  // monomial_degree \in [0, 2 * params::degree)
+  // int full_cycles_count = monomial_degree / params::degree;
+  int full_cycles_count = monomial_degree >> log2(params::degree);
+
+  int remainder_degrees = monomial_degree & (params::degree - 1);
+  // int remainder_degrees = monomial_degree % params::degree;
+
+  // Every thread has a fixed position to track instead of "chasing" the
+  // position
+  int new_pos = threadIdx.x;
+  for (int i = 0; i < params::opt; i++) {
+    // int pos = (new_pos - monomial_degree) % params::degree;
+    int pos = (new_pos - monomial_degree) & (params::degree - 1);
+
+    T element = poly[pos];
+    T x = SEL(element, -element, full_cycles_count % 2); // monomial coefficient
+    x = SEL(-x, x, new_pos >= remainder_degrees);
+
+    if (init_accumulator)
+      result[i] = x;
+    else
+      result[i] += x;
+    new_pos += params::degree / params::opt;
+  }
+}
+
 #endif // CNCRT_POLYNOMIAL_MATH_H
