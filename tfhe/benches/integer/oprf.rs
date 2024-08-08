@@ -19,11 +19,13 @@ pub fn unsigned_oprf(c: &mut Criterion) {
         let bench_id = format!("{}::{}::{}_bits", bench_name, param.name(), bit_size);
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                _ = black_box(sk.par_generate_oblivious_pseudo_random_unsigned_integer(
-                    Seed(0),
-                    bit_size as u64,
-                    num_block as u64,
-                ));
+                _ = black_box(
+                    sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                        Seed(0),
+                        bit_size as u64,
+                        num_block as u64,
+                    ),
+                );
             })
         });
 
