@@ -4,7 +4,7 @@ This document summarizes the timings of some homomorphic operations over 64-bit 
 
 ### Operation time (ms) over FheUint 64
 
-{% embed url="https://docs.google.com/spreadsheets/d/1PZlnBnqax3hfo7xPir3W-et3es_Qx3Y5_CkdoQVjtb0/edit?gid=1430012664#gid=1430012664" fullWidth="true" %}
+{% embed url="https://docs.google.com/spreadsheets/d/1PZlnBnqax3hfo7xPir3W-et3es_Qx3Y5_CkdoQVjtb0/edit?pli=1&gid=1430012664#gid=1430012664" %}
 
 | Operation over `FheUint64` \ Hardware                  | `CPU`   | `GPU`   |
 | ------------------------------------------------------ | ------- | ------- |
