@@ -48,7 +48,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     uint32_t keybundle_size_per_input, int8_t *device_mem,
     uint64_t device_memory_size_per_block) {
 
-  extern __shared__ int8_t sharedmem[];
+  /*extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory = sharedmem;
 
   if constexpr (SMD == FULLSM) {
@@ -59,6 +59,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
+  double2 *fft = (double2 *)selected_memory;*/
+  extern __shared__ double2 fft[];
   // Ids
   uint32_t level_id = blockIdx.z;
   uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
@@ -68,7 +70,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
   if (lwe_iteration < (lwe_dimension / grouping_factor)) {
     //
-    // Torus *accumulator = (Torus *)selected_memory;
+    //Torus *accumulator = (Torus *)selected_memory;
 
     const Torus *block_lwe_array_in =
         &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
@@ -81,7 +83,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Computes all keybundles
     uint32_t rev_lwe_iteration =
         ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
-
     // ////////////////////////////////
     // Keygen guarantees the first term is a constant term of the polynomial, no
     // polynomial multiplication required
@@ -89,65 +90,50 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
         bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
         grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
     const Torus *bsk_poly_ini = bsk_slice + poly_id * params::degree;
-    Torus reg_acc[params::opt];
-    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
-        bsk_poly_ini, reg_acc);
-
-    int offset = get_start_ith_ggsw_offset(1, 2 * polynomial_size,
-                                           glwe_dimension, level_count);
-
+    
+    int reg_offset = params::degree / params::opt;
+    int bsk_offset = get_start_ith_ggsw_offset(1, 2 * polynomial_size,
+                                            glwe_dimension, level_count);
     const Torus *lwe_array_group =
-        block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-    // Accumulate the other terms
-    for (int g = 1; g < (1 << grouping_factor); g++) {
+          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
 
-      // const Torus *bsk_poly = bsk_slice + poly_id * params::degree +
-      // g*offset;
-      const Torus *bsk_poly = bsk_poly_ini + g * offset;
 
-      // Calculates the monomial degree
-      uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, g, grouping_factor);
+    for (int i=0; i<params::opt;i++) {
 
-      // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial_nosync<Torus, params>(
-          reg_acc, bsk_poly, monomial_degree, false);
-    }
+      Torus single_reg = bsk_poly_ini[threadIdx.x + i*reg_offset];
+      //copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+      //    bsk_poly_ini, reg_acc);
 
-    // Move accumulator to local memory
-    /*  double2 temp[params::opt / 2];
-  #pragma unroll
-      for (int i = 0; i < params::opt / 2; i++) {
-        temp[i].x = __ll2double_rn((int64_t)reg_acc[i]);
-        temp[i].y =
-            __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]);
-        temp[i].x /= (double)std::numeric_limits<Torus>::max();
-        temp[i].y /= (double)std::numeric_limits<Torus>::max();
+      // Accumulate the other terms
+      for (int g = 1; g < (1 << grouping_factor); g++) {
+
+        // const Torus *bsk_poly = bsk_slice + poly_id * params::degree +
+        // g*offset;
+        const Torus *bsk_poly = bsk_poly_ini + g * bsk_offset;
+
+        // Calculates the monomial degree
+        //I could change this so threads within a warp perform the load in parallel
+        // and then i can crate a reduction in warp
+        uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
+            lwe_array_group, g, grouping_factor);
+
+        // Multiply by the bsk element
+        polynomial_product_accumulate_by_monomial_nosync_single_reg<Torus, params>(
+            &single_reg, bsk_poly, monomial_degree, threadIdx.x + i*reg_offset );
       }
-  */
-    // Move from local memory back to shared memory but as complex
-    int tid = threadIdx.x;
-    double2 *fft = (double2 *)selected_memory;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] =
-          make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
-                           (double)std::numeric_limits<Torus>::max(),
-                       __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
-                           (double)std::numeric_limits<Torus>::max());
-      tid += params::degree / params::opt;
+
+
+      // Move from local memory back to shared memory but as complex  
+        if( i < params::opt/2){
+          fft[threadIdx.x + i*reg_offset].x = __ll2double_rn((int64_t)single_reg) /
+                            (double)std::numeric_limits<Torus>::max();
+        } else{
+          fft[threadIdx.x + (i - params::opt/2)*reg_offset].y = __ll2double_rn((int64_t)single_reg) /
+                            (double)std::numeric_limits<Torus>::max();
+        }
     }
-    /*int tid = threadIdx.x;
-    double2 *fft = (double2 *)selected_memory;
-#pragma unroll
-    for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] = temp[i];
-      tid += params::degree / params::opt;
-    }
-    */
-    // synchronize_threads_in_block(); // seems that we can get rid of this
-    // sync, since in the first iteration of fft we access only to values that
-    // are in regs
+
+
     NSMFFT_direct<HalfDegree<params>>(fft);
 
     // lwe iteration
