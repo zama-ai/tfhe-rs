@@ -4,7 +4,14 @@ mod glwe_sample_extraction;
 mod lwe_keyswitch;
 mod lwe_linear_algebra;
 mod lwe_multi_bit_programmable_bootstrapping;
+mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
+
+pub struct CudaPackingKeySwitchKeys<Scalar: UnsignedInteger> {
+    pub lwe_sk: LweSecretKey<Vec<Scalar>>,
+    pub glwe_sk: GlweSecretKey<Vec<Scalar>>,
+    pub pksk: CudaLwePackingKeyswitchKey<Scalar>,
+}
 
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parametrized_test{
@@ -47,4 +54,5 @@ macro_rules! create_gpu_multi_bit_parametrized_test{
     };
 }
 
+use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use {create_gpu_multi_bit_parametrized_test, create_gpu_parametrized_test};

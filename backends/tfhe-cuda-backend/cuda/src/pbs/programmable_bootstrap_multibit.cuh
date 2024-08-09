@@ -102,8 +102,9 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
       synchronize_threads_in_block();
       // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial<Torus, params>(
-          accumulator, bsk_poly, monomial_degree, false);
+      polynomial_accumulate_monic_monomial_mul<Torus>(
+          accumulator, bsk_poly, monomial_degree, threadIdx.x, params::degree,
+          params::opt, false);
     }
 
     synchronize_threads_in_block();

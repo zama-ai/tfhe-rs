@@ -765,7 +765,7 @@ __global__ void device_pack_blocks(Torus *lwe_array_out, Torus *lwe_array_in,
     }
 
     if (num_radix_blocks % 2 == 1) {
-      // We couldn't pack the last block, so we just copy it
+      // We couldn't host_pack the last block, so we just copy it
       Torus *lsb_block =
           lwe_array_in + (num_radix_blocks - 1) * (lwe_dimension + 1);
       Torus *last_block =
