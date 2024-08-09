@@ -2,7 +2,6 @@
 #define CUDA_INTEGER_SCALAR_COMPARISON_OPS_CUH
 
 #include "integer/comparison.cuh"
-#include <omp.h>
 
 template <typename Torus>
 __host__ void integer_radix_unsigned_scalar_difference_check_kb(
@@ -87,52 +86,42 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
 
-#pragma omp parallel sections
-    {
-      // Both sections may be executed in parallel
-#pragma omp section
-      {
-        //////////////
-        // lsb
-        Torus *lhs = diff_buffer->tmp_packed_left;
-        Torus *rhs = diff_buffer->tmp_packed_right;
+    //////////////
+    // lsb
+    Torus *lhs = diff_buffer->tmp_packed_left;
+    Torus *rhs = diff_buffer->tmp_packed_right;
 
-        pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
-                    big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
-        pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
-                    total_num_scalar_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
+                big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
+                total_num_scalar_blocks, message_modulus);
 
-        // From this point we have half number of blocks
-        num_lsb_radix_blocks /= 2;
-        num_lsb_radix_blocks += (total_num_scalar_blocks % 2);
+    // From this point we have half number of blocks
+    num_lsb_radix_blocks /= 2;
+    num_lsb_radix_blocks += (total_num_scalar_blocks % 2);
 
-        // comparisons will be assigned
-        // - 0 if lhs < rhs
-        // - 1 if lhs == rhs
-        // - 2 if lhs > rhs
+    // comparisons will be assigned
+    // - 0 if lhs < rhs
+    // - 1 if lhs == rhs
+    // - 2 if lhs > rhs
 
-        auto comparisons = mem_ptr->tmp_block_comparisons;
-        scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
-                                       comparisons, lhs, rhs, mem_ptr, bsks,
-                                       ksks, num_lsb_radix_blocks);
+    auto comparisons = mem_ptr->tmp_block_comparisons;
+    scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
+                                   comparisons, lhs, rhs, mem_ptr, bsks, ksks,
+                                   num_lsb_radix_blocks);
 
-        // Reduces a vec containing radix blocks that encrypts a sign
-        // (inferior, equal, superior) to one single radix block containing the
-        // final sign
-        tree_sign_reduction(
-            lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, comparisons,
-            mem_ptr->diff_buffer->tree_buffer, mem_ptr->identity_lut_f, bsks,
-            ksks, num_lsb_radix_blocks);
-      }
-#pragma omp section
-      {
-        //////////////
-        // msb
-        host_compare_with_zero_equality(
-            msb_streams, gpu_indexes, gpu_count, lwe_array_msb_out, msb,
-            mem_ptr, bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
-      }
-    }
+    // Reduces a vec containing radix blocks that encrypts a sign
+    // (inferior, equal, superior) to one single radix block containing the
+    // final sign
+    tree_sign_reduction(lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out,
+                        comparisons, mem_ptr->diff_buffer->tree_buffer,
+                        mem_ptr->identity_lut_f, bsks, ksks,
+                        num_lsb_radix_blocks);
+    //////////////
+    // msb
+    host_compare_with_zero_equality(msb_streams, gpu_indexes, gpu_count,
+                                    lwe_array_msb_out, msb, mem_ptr, bsks, ksks,
+                                    num_msb_radix_blocks, mem_ptr->is_zero_lut);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -310,92 +299,82 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
 
-#pragma omp parallel sections
-    {
-      // Both sections may be executed in parallel
-#pragma omp section
-      {
-        //////////////
-        // lsb
-        Torus *lhs = diff_buffer->tmp_packed_left;
-        Torus *rhs = diff_buffer->tmp_packed_right;
+    //////////////
+    // lsb
+    Torus *lhs = diff_buffer->tmp_packed_left;
+    Torus *rhs = diff_buffer->tmp_packed_right;
 
-        pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
-                    big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
-        pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
-                    total_num_scalar_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
+                big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
+                total_num_scalar_blocks, message_modulus);
 
-        // From this point we have half number of blocks
-        num_lsb_radix_blocks /= 2;
-        num_lsb_radix_blocks += (total_num_scalar_blocks % 2);
+    // From this point we have half number of blocks
+    num_lsb_radix_blocks /= 2;
+    num_lsb_radix_blocks += (total_num_scalar_blocks % 2);
 
-        // comparisons will be assigned
-        // - 0 if lhs < rhs
-        // - 1 if lhs == rhs
-        // - 2 if lhs > rhs
+    // comparisons will be assigned
+    // - 0 if lhs < rhs
+    // - 1 if lhs == rhs
+    // - 2 if lhs > rhs
 
-        auto comparisons = mem_ptr->tmp_block_comparisons;
-        scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
-                                       comparisons, lhs, rhs, mem_ptr, bsks,
-                                       ksks, num_lsb_radix_blocks);
+    auto comparisons = mem_ptr->tmp_block_comparisons;
+    scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
+                                   comparisons, lhs, rhs, mem_ptr, bsks, ksks,
+                                   num_lsb_radix_blocks);
 
-        // Reduces a vec containing radix blocks that encrypts a sign
-        // (inferior, equal, superior) to one single radix block containing the
-        // final sign
-        tree_sign_reduction(
-            lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, comparisons,
-            mem_ptr->diff_buffer->tree_buffer, mem_ptr->identity_lut_f, bsks,
-            ksks, num_lsb_radix_blocks);
+    // Reduces a vec containing radix blocks that encrypts a sign
+    // (inferior, equal, superior) to one single radix block containing the
+    // final sign
+    tree_sign_reduction(lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out,
+                        comparisons, mem_ptr->diff_buffer->tree_buffer,
+                        mem_ptr->identity_lut_f, bsks, ksks,
+                        num_lsb_radix_blocks);
+    //////////////
+    // msb
+    // We remove the last block (which is the sign)
+    Torus *are_all_msb_zeros = lwe_array_msb_out;
+    host_compare_with_zero_equality(msb_streams, gpu_indexes, gpu_count,
+                                    are_all_msb_zeros, msb, mem_ptr, bsks, ksks,
+                                    num_msb_radix_blocks, mem_ptr->is_zero_lut);
+
+    auto sign_bit_pos = (int)log2(message_modulus) - 1;
+
+    auto lut_f = [mem_ptr, sign_bit_pos](Torus sign_block,
+                                         Torus msb_are_zeros) {
+      bool sign_bit_is_set = (sign_block >> sign_bit_pos) == 1;
+      CMP_ORDERING sign_block_ordering;
+      if (sign_bit_is_set) {
+        sign_block_ordering = CMP_ORDERING::IS_INFERIOR;
+      } else if (sign_block != 0) {
+        sign_block_ordering = CMP_ORDERING::IS_SUPERIOR;
+      } else {
+        sign_block_ordering = CMP_ORDERING::IS_EQUAL;
       }
-#pragma omp section
-      {
-        //////////////
-        // msb
-        // We remove the last block (which is the sign)
-        Torus *are_all_msb_zeros = lwe_array_msb_out;
-        host_compare_with_zero_equality(
-            msb_streams, gpu_indexes, gpu_count, are_all_msb_zeros, msb,
-            mem_ptr, bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
 
-        auto sign_bit_pos = (int)log2(message_modulus) - 1;
+      CMP_ORDERING msb_ordering;
+      if (msb_are_zeros == 1)
+        msb_ordering = CMP_ORDERING::IS_EQUAL;
+      else
+        msb_ordering = CMP_ORDERING::IS_SUPERIOR;
 
-        auto lut_f = [mem_ptr, sign_bit_pos](Torus sign_block,
-                                             Torus msb_are_zeros) {
-          bool sign_bit_is_set = (sign_block >> sign_bit_pos) == 1;
-          CMP_ORDERING sign_block_ordering;
-          if (sign_bit_is_set) {
-            sign_block_ordering = CMP_ORDERING::IS_INFERIOR;
-          } else if (sign_block != 0) {
-            sign_block_ordering = CMP_ORDERING::IS_SUPERIOR;
-          } else {
-            sign_block_ordering = CMP_ORDERING::IS_EQUAL;
-          }
+      return mem_ptr->diff_buffer->tree_buffer->block_selector_f(
+          sign_block_ordering, msb_ordering);
+    };
 
-          CMP_ORDERING msb_ordering;
-          if (msb_are_zeros == 1)
-            msb_ordering = CMP_ORDERING::IS_EQUAL;
-          else
-            msb_ordering = CMP_ORDERING::IS_SUPERIOR;
+    auto signed_msb_lut = mem_ptr->signed_msb_lut;
+    generate_device_accumulator_bivariate<Torus>(
+        msb_streams[0], gpu_indexes[0],
+        signed_msb_lut->get_lut(gpu_indexes[0], 0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        lut_f);
+    signed_msb_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-          return mem_ptr->diff_buffer->tree_buffer->block_selector_f(
-              sign_block_ordering, msb_ordering);
-        };
-
-        auto signed_msb_lut = mem_ptr->signed_msb_lut;
-        generate_device_accumulator_bivariate<Torus>(
-            msb_streams[0], gpu_indexes[0],
-            signed_msb_lut->get_lut(gpu_indexes[0], 0), params.glwe_dimension,
-            params.polynomial_size, params.message_modulus,
-            params.carry_modulus, lut_f);
-        signed_msb_lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
-
-        Torus *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
-        integer_radix_apply_bivariate_lookup_table_kb(
-            msb_streams, gpu_indexes, gpu_count, lwe_array_msb_out, sign_block,
-            are_all_msb_zeros, bsks, ksks, 1, signed_msb_lut,
-            signed_msb_lut->params.message_modulus);
-      }
-    }
+    Torus *sign_block = msb + (num_msb_radix_blocks - 1) * big_lwe_size;
+    integer_radix_apply_bivariate_lookup_table_kb(
+        msb_streams, gpu_indexes, gpu_count, lwe_array_msb_out, sign_block,
+        are_all_msb_zeros, bsks, ksks, 1, signed_msb_lut,
+        signed_msb_lut->params.message_modulus);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -421,49 +400,37 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     auto lwe_array_ct_out = mem_ptr->tmp_lwe_array_out;
     auto lwe_array_sign_out =
         lwe_array_ct_out + (num_lsb_radix_blocks / 2) * big_lwe_size;
-#pragma omp parallel sections
-    {
-      // Both sections may be executed in parallel
-#pragma omp section
-      {
-        Torus *lhs = diff_buffer->tmp_packed_left;
-        Torus *rhs = diff_buffer->tmp_packed_right;
+    Torus *lhs = diff_buffer->tmp_packed_left;
+    Torus *rhs = diff_buffer->tmp_packed_right;
 
-        pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
-                    big_lwe_dimension, num_lsb_radix_blocks - 1,
-                    message_modulus);
-        pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
-                    num_lsb_radix_blocks - 1, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], lhs, lwe_array_in,
+                big_lwe_dimension, num_lsb_radix_blocks - 1, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], rhs, scalar_blocks, 0,
+                num_lsb_radix_blocks - 1, message_modulus);
 
-        // From this point we have half number of blocks
-        num_lsb_radix_blocks /= 2;
+    // From this point we have half number of blocks
+    num_lsb_radix_blocks /= 2;
 
-        // comparisons will be assigned
-        // - 0 if lhs < rhs
-        // - 1 if lhs == rhs
-        // - 2 if lhs > rhs
-        scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
-                                       lwe_array_ct_out, lhs, rhs, mem_ptr,
-                                       bsks, ksks, num_lsb_radix_blocks);
-      }
-#pragma omp section
-      {
-        Torus *encrypted_sign_block =
-            lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
-        Torus *scalar_sign_block =
-            scalar_blocks + (total_num_scalar_blocks - 1);
+    // comparisons will be assigned
+    // - 0 if lhs < rhs
+    // - 1 if lhs == rhs
+    // - 2 if lhs > rhs
+    scalar_compare_radix_blocks_kb(lsb_streams, gpu_indexes, gpu_count,
+                                   lwe_array_ct_out, lhs, rhs, mem_ptr, bsks,
+                                   ksks, num_lsb_radix_blocks);
+    Torus *encrypted_sign_block =
+        lwe_array_in + (total_num_radix_blocks - 1) * big_lwe_size;
+    Torus *scalar_sign_block = scalar_blocks + (total_num_scalar_blocks - 1);
 
-        auto trivial_sign_block = mem_ptr->tmp_trivial_sign_block;
-        create_trivial_radix(msb_streams[0], gpu_indexes[0], trivial_sign_block,
-                             scalar_sign_block, big_lwe_dimension, 1, 1,
-                             message_modulus, carry_modulus);
+    auto trivial_sign_block = mem_ptr->tmp_trivial_sign_block;
+    create_trivial_radix(msb_streams[0], gpu_indexes[0], trivial_sign_block,
+                         scalar_sign_block, big_lwe_dimension, 1, 1,
+                         message_modulus, carry_modulus);
 
-        integer_radix_apply_bivariate_lookup_table_kb(
-            msb_streams, gpu_indexes, gpu_count, lwe_array_sign_out,
-            encrypted_sign_block, trivial_sign_block, bsks, ksks, 1,
-            mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
-      }
-    }
+    integer_radix_apply_bivariate_lookup_table_kb(
+        msb_streams, gpu_indexes, gpu_count, lwe_array_sign_out,
+        encrypted_sign_block, trivial_sign_block, bsks, ksks, 1,
+        mem_ptr->signed_lut, mem_ptr->signed_lut->params.message_modulus);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -687,55 +654,44 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
   auto lsb_streams = mem_ptr->lsb_streams;
   auto msb_streams = mem_ptr->msb_streams;
 
-#pragma omp parallel sections
-  {
-    // Both sections may be executed in parallel
-#pragma omp section
-    {
-      if (num_halved_scalar_blocks > 0) {
-        auto packed_blocks = mem_ptr->tmp_packed_input;
-        auto packed_scalar =
-            packed_blocks + big_lwe_size * num_halved_lsb_radix_blocks;
+  if (num_halved_scalar_blocks > 0) {
+    auto packed_blocks = mem_ptr->tmp_packed_input;
+    auto packed_scalar =
+        packed_blocks + big_lwe_size * num_halved_lsb_radix_blocks;
 
-        pack_blocks(lsb_streams[0], gpu_indexes[0], packed_blocks, lsb,
-                    big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
-        pack_blocks(lsb_streams[0], gpu_indexes[0], packed_scalar,
-                    scalar_blocks, 0, num_scalar_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], packed_blocks, lsb,
+                big_lwe_dimension, num_lsb_radix_blocks, message_modulus);
+    pack_blocks(lsb_streams[0], gpu_indexes[0], packed_scalar, scalar_blocks, 0,
+                num_scalar_blocks, message_modulus);
 
-        cuda_memcpy_async_gpu_to_gpu(
-            scalar_comparison_luts->get_lut_indexes(gpu_indexes[0], 0),
-            packed_scalar, num_halved_scalar_blocks * sizeof(Torus),
-            lsb_streams[0], gpu_indexes[0]);
-        scalar_comparison_luts->broadcast_lut(lsb_streams, gpu_indexes, 0);
+    cuda_memcpy_async_gpu_to_gpu(
+        scalar_comparison_luts->get_lut_indexes(gpu_indexes[0], 0),
+        packed_scalar, num_halved_scalar_blocks * sizeof(Torus), lsb_streams[0],
+        gpu_indexes[0]);
+    scalar_comparison_luts->broadcast_lut(lsb_streams, gpu_indexes, 0);
 
-        integer_radix_apply_univariate_lookup_table_kb(
-            lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out,
-            packed_blocks, bsks, ksks, num_halved_lsb_radix_blocks,
-            scalar_comparison_luts);
-      }
+    integer_radix_apply_univariate_lookup_table_kb(
+        lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, packed_blocks,
+        bsks, ksks, num_halved_lsb_radix_blocks, scalar_comparison_luts);
+  }
+  //////////////
+  // msb
+  if (num_msb_radix_blocks > 0) {
+    int_radix_lut<Torus> *msb_lut;
+    switch (mem_ptr->op) {
+    case COMPARISON_TYPE::EQ:
+      msb_lut = mem_ptr->is_zero_lut;
+      break;
+    case COMPARISON_TYPE::NE:
+      msb_lut = mem_ptr->eq_buffer->is_non_zero_lut;
+      break;
+    default:
+      PANIC("Cuda error: integer operation not supported")
     }
-#pragma omp section
-    {
-      //////////////
-      // msb
-      if (num_msb_radix_blocks > 0) {
-        int_radix_lut<Torus> *msb_lut;
-        switch (mem_ptr->op) {
-        case COMPARISON_TYPE::EQ:
-          msb_lut = mem_ptr->is_zero_lut;
-          break;
-        case COMPARISON_TYPE::NE:
-          msb_lut = mem_ptr->eq_buffer->is_non_zero_lut;
-          break;
-        default:
-          PANIC("Cuda error: integer operation not supported")
-        }
 
-        host_compare_with_zero_equality(msb_streams, gpu_indexes, gpu_count,
-                                        lwe_array_msb_out, msb, mem_ptr, bsks,
-                                        ksks, num_msb_radix_blocks, msb_lut);
-      }
-    }
+    host_compare_with_zero_equality(msb_streams, gpu_indexes, gpu_count,
+                                    lwe_array_msb_out, msb, mem_ptr, bsks, ksks,
+                                    num_msb_radix_blocks, msb_lut);
   }
 
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
