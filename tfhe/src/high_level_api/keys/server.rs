@@ -4,7 +4,7 @@ use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKey
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
-use crate::shortint::list_compression::{
+use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
 use std::sync::Arc;
