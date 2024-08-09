@@ -2,6 +2,12 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::smart_add_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::smart_neg_test;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
+    default_scalar_bitslice_assign_test, default_scalar_bitslice_test,
+    scalar_blockslice_assign_test, scalar_blockslice_test, smart_scalar_bitslice_assign_test,
+    smart_scalar_bitslice_test, unchecked_scalar_bitslice_assign_test,
+    unchecked_scalar_bitslice_test,
+};
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
     default_overflowing_sub_test, smart_sub_test,
 };
@@ -103,6 +109,14 @@ create_parametrized_test!(
 
 create_parametrized_test_classical_params!(integer_create_trivial_min_max);
 create_parametrized_test_classical_params!(integer_signed_decryption_correctly_sign_extend);
+create_parametrized_test_classical_params!(integer_scalar_blockslice);
+create_parametrized_test_classical_params!(integer_scalar_blockslice_assign);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_slice);
+create_parametrized_test_classical_params!(integer_unchecked_scalar_slice_assign);
+create_parametrized_test_classical_params!(integer_default_scalar_slice);
+create_parametrized_test_classical_params!(integer_default_scalar_slice_assign);
+create_parametrized_test_classical_params!(integer_smart_scalar_slice);
+create_parametrized_test_classical_params!(integer_smart_scalar_slice_assign);
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -1067,4 +1081,44 @@ fn integer_signed_decryption_correctly_sign_extend(param: impl Into<PBSParameter
 
     let trivial: SignedRadixCiphertext = sks.create_trivial_radix(value, num_blocks as usize);
     assert_eq!(trivial.decrypt_trivial::<i128>().unwrap(), value as i128);
+}
+
+fn integer_scalar_blockslice(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_blockslice);
+    scalar_blockslice_test(param, executor);
+}
+
+fn integer_scalar_blockslice_assign(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_blockslice_assign);
+    scalar_blockslice_assign_test(param, executor);
+}
+
+fn integer_unchecked_scalar_slice(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice);
+    unchecked_scalar_bitslice_test(param, executor);
+}
+
+fn integer_unchecked_scalar_slice_assign(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice_assign);
+    unchecked_scalar_bitslice_assign_test(param, executor);
+}
+
+fn integer_default_scalar_slice(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice);
+    default_scalar_bitslice_test(param, executor);
+}
+
+fn integer_default_scalar_slice_assign(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign);
+    default_scalar_bitslice_assign_test(param, executor);
+}
+
+fn integer_smart_scalar_slice(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice);
+    smart_scalar_bitslice_test(param, executor);
+}
+
+fn integer_smart_scalar_slice_assign(param: ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign);
+    smart_scalar_bitslice_assign_test(param, executor);
 }

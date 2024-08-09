@@ -386,6 +386,12 @@ fn test_ilog2() {
 }
 
 #[test]
+fn test_bitslice() {
+    let client_key = setup_default_cpu();
+    super::test_case_bitslice(&client_key);
+}
+
+#[test]
 fn test_leading_trailing_zeros_ones() {
     let client_key = setup_default_cpu();
     super::test_case_leading_trailing_zeros_ones(&client_key);

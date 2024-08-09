@@ -23,6 +23,7 @@ mod sum;
 
 pub(crate) mod ilog2;
 mod reverse_bits;
+mod slice;
 #[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]

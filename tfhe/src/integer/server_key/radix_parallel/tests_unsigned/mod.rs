@@ -17,6 +17,7 @@ pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;
 pub(crate) mod test_scalar_sub;
 pub(crate) mod test_shift;
+pub(crate) mod test_slice;
 pub(crate) mod test_sub;
 pub(crate) mod test_sum;
 pub(crate) mod test_vector_comparisons;

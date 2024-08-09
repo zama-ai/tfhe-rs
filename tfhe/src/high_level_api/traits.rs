@@ -1,3 +1,6 @@
+use std::ops::RangeBounds;
+
+use crate::error::InvalidRangeError;
 use crate::high_level_api::ClientKey;
 use crate::FheBool;
 
@@ -181,4 +184,12 @@ pub trait OverflowingMul<Rhs> {
     type Output;
 
     fn overflowing_mul(self, rhs: Rhs) -> (Self::Output, FheBool);
+}
+
+pub trait BitSlice<Bounds> {
+    type Output;
+
+    fn bitslice<R>(self, range: R) -> Result<Self::Output, InvalidRangeError>
+    where
+        R: RangeBounds<Bounds>;
 }
