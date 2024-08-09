@@ -14,7 +14,6 @@
 #include "utils/kernel_dimensions.cuh"
 #include <fstream>
 #include <iostream>
-#include <omp.h>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -110,26 +109,14 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
 
-#pragma omp parallel sections
-  {
-    // generate input_carries and output_carry
-#pragma omp section
-    {
-      host_propagate_single_carry(
-          mem_ptr->sub_streams_1, gpu_indexes, gpu_count, result, output_carry,
-          input_carries, mem_ptr->scp_mem, bsks, ksks, num_blocks);
-    }
-
-    // generate generate_last_block_inner_propagation
-#pragma omp section
-    {
-      host_generate_last_block_inner_propagation(
-          mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
-          last_block_inner_propagation, &lhs[(num_blocks - 1) * big_lwe_size],
-          &rhs[(num_blocks - 1) * big_lwe_size], mem_ptr->las_block_prop_mem,
-          bsks, ksks);
-    }
-  }
+  host_propagate_single_carry(mem_ptr->sub_streams_1, gpu_indexes, gpu_count,
+                              result, output_carry, input_carries,
+                              mem_ptr->scp_mem, bsks, ksks, num_blocks);
+  host_generate_last_block_inner_propagation(
+      mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
+      last_block_inner_propagation, &lhs[(num_blocks - 1) * big_lwe_size],
+      &rhs[(num_blocks - 1) * big_lwe_size], mem_ptr->las_block_prop_mem, bsks,
+      ksks);
 
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
     cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
