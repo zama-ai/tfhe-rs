@@ -2,7 +2,6 @@
 #define CUDA_INTEGER_CMUX_CUH
 
 #include "integer.cuh"
-#include <omp.h>
 
 template <typename Torus>
 __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
@@ -57,25 +56,14 @@ __host__ void host_integer_radix_cmux_kb(
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
 
-#pragma omp parallel sections
-  {
-    // Both sections may be executed in parallel
-#pragma omp section
-    {
-      auto mem_true = mem_ptr->zero_if_true_buffer;
-      zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
-                  lwe_array_true, lwe_condition, mem_true,
-                  mem_ptr->inverted_predicate_lut, bsks, ksks,
-                  num_radix_blocks);
-    }
-#pragma omp section
-    {
-      auto mem_false = mem_ptr->zero_if_false_buffer;
-      zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
-                  lwe_array_false, lwe_condition, mem_false,
-                  mem_ptr->predicate_lut, bsks, ksks, num_radix_blocks);
-    }
-  }
+  auto mem_true = mem_ptr->zero_if_true_buffer;
+  zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
+              lwe_array_true, lwe_condition, mem_true,
+              mem_ptr->inverted_predicate_lut, bsks, ksks, num_radix_blocks);
+  auto mem_false = mem_ptr->zero_if_false_buffer;
+  zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
+              lwe_array_false, lwe_condition, mem_false, mem_ptr->predicate_lut,
+              bsks, ksks, num_radix_blocks);
   for (uint j = 0; j < mem_ptr->zero_if_true_buffer->active_gpu_count; j++) {
     cuda_synchronize_stream(true_streams[j], gpu_indexes[j]);
   }
