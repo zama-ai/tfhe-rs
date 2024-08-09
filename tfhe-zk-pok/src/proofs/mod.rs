@@ -141,5 +141,6 @@ pub const HASH_METADATA_LEN_BYTES: usize = 256;
 pub mod binary;
 pub mod index;
 pub mod pke;
+pub mod pke_v2;
 pub mod range;
 pub mod rlwe;
