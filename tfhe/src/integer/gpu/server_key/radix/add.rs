@@ -370,6 +370,7 @@ impl CudaServerKey {
         let mut result = unsafe { ciphertexts[0].duplicate_async(streams) };
 
         if ciphertexts.len() == 1 {
+            streams.synchronize();
             return Some(result);
         }
 
