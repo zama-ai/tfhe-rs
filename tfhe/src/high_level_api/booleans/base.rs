@@ -81,7 +81,11 @@ impl ParameterSetConformant for FheBool {
     type ParameterSet = FheBoolConformanceParams;
 
     fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
-        self.ciphertext.on_cpu().0.is_conformant(&params.0)
+        let Self { ciphertext } = self;
+
+        let BooleanBlock(block) = &*ciphertext.on_cpu();
+
+        block.is_conformant(&params.0)
     }
 }
 

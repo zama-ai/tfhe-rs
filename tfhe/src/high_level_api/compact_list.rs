@@ -91,7 +91,9 @@ impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.0.is_conformant(parameter_set)
+        let Self(list) = self;
+
+        list.is_conformant(parameter_set)
     }
 }
 

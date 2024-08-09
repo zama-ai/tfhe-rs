@@ -307,7 +307,9 @@ impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, params: &CompactCiphertextListConformanceParams) -> bool {
-        if !params.num_elements_constraint.is_valid(self.info.len()) {
+        let Self { ct_list: _, info } = self;
+
+        if !params.num_elements_constraint.is_valid(info.len()) {
             return false;
         }
 
@@ -520,7 +522,9 @@ impl CompactCiphertextList {
         &self,
         shortint_params: CiphertextConformanceParams,
     ) -> bool {
-        let mut num_blocks: usize = self.info.iter().copied().map(DataKind::num_blocks).sum();
+        let Self { ct_list, info } = self;
+
+        let mut num_blocks: usize = info.iter().copied().map(DataKind::num_blocks).sum();
         // This expects packing, halve the number of blocks with enough capacity
         if shortint_params.degree.get()
             == (shortint_params.message_modulus.0 * shortint_params.carry_modulus.0) - 1
@@ -529,7 +533,7 @@ impl CompactCiphertextList {
         }
         let shortint_list_params = shortint_params
             .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(num_blocks));
-        self.ct_list.is_conformant(&shortint_list_params)
+        ct_list.is_conformant(&shortint_list_params)
     }
 }
 

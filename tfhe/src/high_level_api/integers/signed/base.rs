@@ -75,7 +75,9 @@ impl<Id: FheIntId> ParameterSetConformant for FheInt<Id> {
     type ParameterSet = FheIntConformanceParams<Id>;
 
     fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
-        self.ciphertext.on_cpu().is_conformant(&params.params)
+        let Self { ciphertext, id: _ } = self;
+
+        ciphertext.on_cpu().is_conformant(&params.params)
     }
 }
 
