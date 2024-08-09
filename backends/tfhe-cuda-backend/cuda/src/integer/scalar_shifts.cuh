@@ -10,7 +10,6 @@
 #include "types/complex/operations.cuh"
 #include "utils/helper.cuh"
 #include "utils/kernel_dimensions.cuh"
-#include <omp.h>
 
 template <typename Torus>
 __host__ void scratch_cuda_integer_radix_logical_scalar_shift_kb(
@@ -212,36 +211,25 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       for (uint j = 0; j < gpu_count; j++) {
         cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       }
-#pragma omp parallel sections
-      {
-        // All sections may be executed in parallel
-#pragma omp section
-        {
-          auto lut_univariate_padding_block =
-              mem->lut_buffers_univariate[num_bits_in_block - 1];
-          integer_radix_apply_univariate_lookup_table_kb(
-              mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
-              last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
-          // Replace blocks 'pulled' from the left with the correct padding
-          // block
-          for (uint i = 0; i < rotations; i++) {
-            cuda_memcpy_async_gpu_to_gpu(
-                lwe_array + (num_blocks - rotations + i) * big_lwe_size,
-                padding_block, big_lwe_size_bytes, mem->local_streams_1[0],
-                gpu_indexes[0]);
-          }
-        }
-#pragma omp section
-        {
-          if (shift_within_block != 0) {
-            auto lut_univariate_shift_last_block =
-                mem->lut_buffers_univariate[shift_within_block - 1];
-            integer_radix_apply_univariate_lookup_table_kb(
-                mem->local_streams_2, gpu_indexes, gpu_count, last_block,
-                last_block_copy, bsks, ksks, 1,
-                lut_univariate_shift_last_block);
-          }
-        }
+      auto lut_univariate_padding_block =
+          mem->lut_buffers_univariate[num_bits_in_block - 1];
+      integer_radix_apply_univariate_lookup_table_kb(
+          mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
+          last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
+      // Replace blocks 'pulled' from the left with the correct padding
+      // block
+      for (uint i = 0; i < rotations; i++) {
+        cuda_memcpy_async_gpu_to_gpu(lwe_array + (num_blocks - rotations + i) *
+                                                     big_lwe_size,
+                                     padding_block, big_lwe_size_bytes,
+                                     mem->local_streams_1[0], gpu_indexes[0]);
+      }
+      if (shift_within_block != 0) {
+        auto lut_univariate_shift_last_block =
+            mem->lut_buffers_univariate[shift_within_block - 1];
+        integer_radix_apply_univariate_lookup_table_kb(
+            mem->local_streams_2, gpu_indexes, gpu_count, last_block,
+            last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
       }
       for (uint j = 0; j < mem->active_gpu_count; j++) {
         cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);
