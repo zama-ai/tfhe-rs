@@ -80,6 +80,7 @@ pub struct FheUint<Id: FheUintId> {
     pub(in crate::high_level_api::integers) id: Id,
 }
 
+#[derive(Copy, Clone)]
 pub struct FheUintConformanceParams<Id: FheUintId> {
     pub(crate) params: RadixCiphertextConformanceParams,
     pub(crate) id: PhantomData<Id>,

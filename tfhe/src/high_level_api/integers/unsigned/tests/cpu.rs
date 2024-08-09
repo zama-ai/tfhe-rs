@@ -2,7 +2,7 @@ use crate::conformance::ListSizeConstraint;
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
-use crate::safe_deserialization::safe_deserialize_conformant;
+use crate::safe_deserialization::DeserializationConfig;
 use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -410,8 +410,9 @@ fn test_safe_deserialize_conformant_fhe_uint32() {
     assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
 
     let params = FheUint32ConformanceParams::from(&server_key);
-    let deserialized_a =
-        safe_deserialize_conformant::<FheUint32>(serialized.as_slice(), 1 << 20, &params).unwrap();
+    let deserialized_a = DeserializationConfig::new(1 << 20, &params)
+        .deserialize_from::<FheUint32>(serialized.as_slice())
+        .unwrap();
     let decrypted: u32 = deserialized_a.decrypt(&client_key);
     assert_eq!(decrypted, clear_a);
 
@@ -431,9 +432,9 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
     assert!(crate::safe_serialize(&a, &mut serialized, 1 << 20).is_ok());
 
     let params = FheUint32ConformanceParams::from(&server_key);
-    let deserialized_a =
-        safe_deserialize_conformant::<CompressedFheUint32>(serialized.as_slice(), 1 << 20, &params)
-            .unwrap();
+    let deserialized_a = DeserializationConfig::new(1 << 20, &params)
+        .deserialize_from::<CompressedFheUint32>(serialized.as_slice())
+        .unwrap();
 
     assert!(deserialized_a.is_conformant(&FheUint32ConformanceParams::from(block_params)));
 
@@ -460,12 +461,9 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
         shortint_params: block_params.to_shortint_conformance_param(),
         num_elements_constraint: ListSizeConstraint::exact_size(clears.len()),
     };
-    let deserialized_a = safe_deserialize_conformant::<CompactCiphertextList>(
-        serialized.as_slice(),
-        1 << 20,
-        &params,
-    )
-    .unwrap();
+    let deserialized_a = DeserializationConfig::new(1 << 20, &params)
+        .deserialize_from::<CompactCiphertextList>(serialized.as_slice())
+        .unwrap();
 
     let expander = deserialized_a.expand().unwrap();
     for (i, clear) in clears.into_iter().enumerate() {

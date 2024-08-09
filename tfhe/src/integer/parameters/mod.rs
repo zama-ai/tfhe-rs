@@ -176,6 +176,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS_32_BITS: WopbsParameters = WopbsParamet
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
+#[derive(Copy, Clone)]
 pub struct RadixCiphertextConformanceParams {
     pub shortint_params: CiphertextConformanceParams,
     pub num_blocks_per_integer: usize,
@@ -210,6 +211,7 @@ impl RadixCiphertextConformanceParams {
 /// Structure to store the expected properties of a ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct CompactCiphertextListConformanceParams {
     pub shortint_params: CiphertextConformanceParams,
     pub num_elements_constraint: ListSizeConstraint,
