@@ -98,7 +98,7 @@ Here is an example:
 use tfhe::conformance::ParameterSetConformant;
 use tfhe::integer::parameters::RadixCiphertextConformanceParams;
 use tfhe::prelude::*;
-use tfhe::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
+use tfhe::safe_deserialization::{SerializationConfig, DeserializationConfig};
 use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS};
 use tfhe::conformance::ListSizeConstraint;
 use tfhe::{
@@ -130,19 +130,15 @@ fn main() {
 
     let mut buffer = vec![];
 
-    safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
+    SerializationConfig::new(1<<40).serialize_into(&ct, &mut buffer).unwrap();
     
-    assert!(safe_deserialize_conformant::<FheUint8>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params_2
-    ).is_err());
+    assert!(DeserializationConfig::new(1 << 20, &conformance_params_2)
+        .deserialize_from::<FheUint8>(buffer.as_slice())
+        .is_err());
 
-    let ct2 = safe_deserialize_conformant::<FheUint8>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params_1
-    ).unwrap();
+    let ct2 = DeserializationConfig::new(1 << 20, &conformance_params_1)
+        .deserialize_from::<FheUint8>(buffer.as_slice())
+        .unwrap();
 
     let dec: u8 = ct2.decrypt(&client_key);
     assert_eq!(msg, dec);
@@ -155,18 +151,16 @@ fn main() {
     let compact_list = builder.build();
 
     let mut buffer = vec![];
-    safe_serialize(&compact_list, &mut buffer, 1 << 40).unwrap();
+    SerializationConfig::new(1<<40).serialize_into(&compact_list, &mut buffer).unwrap();
     
     let conformance_params = CompactCiphertextListConformanceParams {
         shortint_params: params_1.to_shortint_conformance_param(),
         num_elements_constraint: ListSizeConstraint::exact_size(2),
     };
-    assert!(safe_deserialize_conformant::<CompactCiphertextList>(
-        buffer.as_slice(),
-        1 << 20,
-        &conformance_params
-    ).is_ok());
+    assert!(DeserializationConfig::new(1 << 20, &conformance_params)
+        .deserialize_from::<CompactCiphertextList>(buffer.as_slice())
+        .is_ok());
 }
 ```
 
-You can combine this serialization/deserialization feature with the [data versioning](../guides/data\_versioning.md) feature by using the `safe_serialize_versioned` and `safe_deserialize_conformant_versioned` functions.
+By default, this feature uses the [data versioning](../guides/data\_versioning.md).

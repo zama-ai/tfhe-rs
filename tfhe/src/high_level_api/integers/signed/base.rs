@@ -41,6 +41,7 @@ pub struct FheInt<Id: FheIntId> {
     pub(in crate::high_level_api::integers) id: Id,
 }
 
+#[derive(Copy, Clone)]
 pub struct FheIntConformanceParams<Id: FheIntId> {
     pub(crate) params: RadixCiphertextConformanceParams,
     pub(crate) id: PhantomData<Id>,

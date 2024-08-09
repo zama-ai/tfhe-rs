@@ -130,9 +130,11 @@ pub mod safe_serialize {
         serialized_size_limit: u64,
     ) -> Result<(), String>
     where
-        T: Named + Serialize,
+        T: Named + Versionize + Serialize,
     {
-        crate::safe_deserialization::safe_serialize(a, writer, serialized_size_limit)
+        crate::safe_deserialization::SerializationConfig::new(serialized_size_limit)
+            .disable_versioning()
+            .serialize_into(a, writer)
             .map_err(|err| err.to_string())
     }
 
@@ -142,9 +144,10 @@ pub mod safe_serialize {
         serialized_size_limit: u64,
     ) -> Result<(), String>
     where
-        T: Named + Versionize,
+        T: Named + Versionize + Serialize,
     {
-        crate::safe_deserialization::safe_serialize_versioned(a, writer, serialized_size_limit)
+        crate::safe_deserialization::SerializationConfig::new(serialized_size_limit)
+            .serialize_into(a, writer)
             .map_err(|err| err.to_string())
     }
 }
