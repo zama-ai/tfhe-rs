@@ -1,4 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
@@ -226,7 +227,12 @@ impl ServerKey {
         };
 
         let neg = self.unchecked_neg(rhs);
-        self.add_assign_with_carry_parallelized(lhs, &neg, None);
+        self.advanced_add_assign_with_carry_parallelized(
+            lhs.blocks_mut(),
+            neg.blocks(),
+            None,
+            OutputFlag::None,
+        );
     }
 
     /// Computes the subtraction and returns an indicator of overflow
