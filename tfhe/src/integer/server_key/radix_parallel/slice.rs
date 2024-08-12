@@ -225,7 +225,7 @@ impl ServerKey {
             self.unchecked_scalar_bitslice_parallelized(ctxt, range)
         } else {
             let mut ctxt = ctxt.clone();
-            self.full_propagate(&mut ctxt);
+            self.full_propagate_parallelized(&mut ctxt);
             self.unchecked_scalar_bitslice_parallelized(&ctxt, range)
         }
     }
@@ -270,7 +270,7 @@ impl ServerKey {
         B: CastFrom<usize> + CastInto<usize> + Copy,
     {
         if !ctxt.block_carries_are_empty() {
-            self.full_propagate(ctxt);
+            self.full_propagate_parallelized(ctxt);
         }
 
         self.unchecked_scalar_bitslice_assign_parallelized(ctxt, range)
@@ -317,7 +317,7 @@ impl ServerKey {
         B: CastFrom<usize> + CastInto<usize> + Copy,
     {
         if !ctxt.block_carries_are_empty() {
-            self.full_propagate(ctxt);
+            self.full_propagate_parallelized(ctxt);
         }
 
         self.unchecked_scalar_bitslice_parallelized(ctxt, range)
@@ -363,7 +363,7 @@ impl ServerKey {
         B: CastFrom<usize> + CastInto<usize> + Copy,
     {
         if !ctxt.block_carries_are_empty() {
-            self.full_propagate(ctxt);
+            self.full_propagate_parallelized(ctxt);
         }
 
         self.unchecked_scalar_bitslice_assign_parallelized(ctxt, range)
