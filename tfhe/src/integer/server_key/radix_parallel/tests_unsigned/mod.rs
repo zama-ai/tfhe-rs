@@ -45,6 +45,8 @@ pub(crate) const MAX_VEC_LEN: usize = 25;
 #[cfg(tarpaulin)]
 pub(crate) const MAX_VEC_LEN: usize = 5;
 
+pub(crate) const MAX_NB_CTXT: usize = 8;
+
 pub(crate) const fn nb_unchecked_tests_for_params(params: PBSParameters) -> usize {
     nb_tests_for_params(params)
 }

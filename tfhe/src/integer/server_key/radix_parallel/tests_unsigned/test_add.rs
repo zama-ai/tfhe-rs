@@ -2,7 +2,7 @@ use super::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
     panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, NB_CTXT,
+    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -36,8 +36,6 @@ create_parametrized_test!(integer_advanced_add_assign_with_carry_at_least_4_bits
     }
 });
 create_parametrized_test!(integer_advanced_add_assign_with_carry_sequential);
-
-const MAX_NB_CTXT: usize = 8;
 
 fn integer_unchecked_add<P>(param: P)
 where
