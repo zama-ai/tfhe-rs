@@ -856,21 +856,6 @@ impl ServerKey {
         // with the parameters we provide
         let grouping_size = (num_bits_in_block as usize).min(self.key.max_noise_level.get());
 
-        let num_groupings = num_blocks.div_ceil(grouping_size);
-
-        let num_carry_to_resolve = num_groupings - 1;
-
-        let sequential_depth =
-            (num_carry_to_resolve.saturating_sub(1) as u32) / (grouping_size as u32 - 1);
-        let hillis_steel_depth = if num_carry_to_resolve == 0 {
-            0
-        } else {
-            num_carry_to_resolve.ceil_ilog2()
-        };
-
-        let use_sequential_algorithm_to_resolved_grouping_carries =
-            sequential_depth <= hillis_steel_depth;
-
         let mut output_flag = None;
 
         // First step
@@ -918,159 +903,9 @@ impl ServerKey {
         };
 
         // Second step
-        let (mut prepared_blocks, groupings_pgns) = {
-            // This stores, the LUTs that given a cum sum block in the first grouping
-            // tells if a carry is generated or not
-            let first_grouping_inner_propagation_luts = (0..grouping_size - 1)
-                .map(|index| {
-                    self.key.generate_lookup_table(|propa_cum_sum_block| {
-                        let carry = (propa_cum_sum_block >> index) & 1;
-                        if carry != 0 {
-                            2 // Generates
-                        } else {
-                            0 // Nothing
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            // This stores, the LUTs that given a cum sum in non first grouping
-            // tells if a carry is generated or propagated or neither of these
-            let other_groupings_inner_propagation_luts = (0..grouping_size)
-                .map(|index| {
-                    self.key.generate_lookup_table(|propa_cum_sum_block| {
-                        let mask = (2 << index) - 1;
-                        if propa_cum_sum_block >= (2 << index) {
-                            2 // Generates
-                        } else if (propa_cum_sum_block & mask) == mask {
-                            1 // Propagate
-                        } else {
-                            0
-                        }
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            // This stores the LUT that outputs the propagation result of the first grouping
-            let first_grouping_outer_propagation_lut = self.key.generate_lookup_table(|block| {
-                // Check if the last bit of the block is set
-                (block >> (num_bits_in_block - 1)) & 1
-            });
-
-            // This stores the LUTs that output the propagation result of the other groupings
-            let grouping_chunk_pgn_luts = if use_sequential_algorithm_to_resolved_grouping_carries {
-                // When using the sequential algorithm for the propagation of one grouping to the
-                // other we need to shift the PGN state to the correct position, so we later, when
-                // using them only lwe_add is needed and so noise management is easy
-                //
-                // Also, these LUTs are 'negacylic', they are made to exploit the padding bit
-                // resulting blocks from these LUTs must be added the constant `1 << index`.
-                (0..grouping_size - 1)
-                    .map(|i| {
-                        self.key.generate_lookup_table(|block| {
-                            // All bits set to 1 (e.g. 0b1111), means propagate
-                            if block == (block_modulus - 1) as u64 {
-                                0
-                            } else {
-                                // u64::MAX is -1 in tow's complement
-                                // We apply the modulus including the padding bit
-                                (u64::MAX << i) % (1 << (num_bits_in_block + 1))
-                            }
-                        })
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                // This LUT is for when we are using Hillis-Steele prefix-scan to propagate carries
-                // between groupings. When using this propagation, the encoding of the states
-                // are a bit different.
-                //
-                // Also, these LUTs are 'negacylic', they are made to exploit the padding bit
-                // resulting blocks from these LUTs must be added the constant `1`.
-                vec![self.key.generate_lookup_table(|block| {
-                    if block == (block_modulus - 1) as u64 {
-                        // All bits set to 1 (e.g. 0b1111), means propagate
-                        2
-                    } else {
-                        // u64::MAX is -1 in tow's complement
-                        // We apply the modulus including the padding bit
-                        u64::MAX % (1 << (block_modulus + 1))
-                    }
-                })]
-            };
-
-            let mut propagation_cum_sums = Vec::with_capacity(num_blocks);
-            block_states.chunks(grouping_size).for_each(|grouping| {
-                propagation_cum_sums.push(grouping[0].clone());
-                for other in &grouping[1..] {
-                    let mut result = other.clone();
-                    self.key
-                        .unchecked_add_assign(&mut result, propagation_cum_sums.last().unwrap());
-
-                    propagation_cum_sums.push(result);
-                }
-            });
-
-            // Compute the cum sum arrays,
-            // each grouping is independent from other groupings
-            // but we store everything flattened (Vec<_>) instead of nested (Vec<Vec<_>>)
-            propagation_cum_sums
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, cum_sum_block)| {
-                    let grouping_index = i / grouping_size;
-                    let is_in_first_grouping = grouping_index == 0;
-                    let index_in_grouping = i % grouping_size;
-
-                    let lut = if is_in_first_grouping {
-                        if index_in_grouping == grouping_size - 1 {
-                            &first_grouping_outer_propagation_lut
-                        } else {
-                            &first_grouping_inner_propagation_luts[index_in_grouping]
-                        }
-                    } else if index_in_grouping == grouping_size - 1 {
-                        if use_sequential_algorithm_to_resolved_grouping_carries {
-                            &grouping_chunk_pgn_luts[(grouping_index - 1) % (grouping_size - 1)]
-                        } else {
-                            &grouping_chunk_pgn_luts[0]
-                        }
-                    } else {
-                        &other_groupings_inner_propagation_luts[index_in_grouping]
-                    };
-
-                    self.key.apply_lookup_table_assign(cum_sum_block, lut);
-
-                    let may_have_its_padding_bit_set =
-                        !is_in_first_grouping && index_in_grouping == grouping_size - 1;
-                    if may_have_its_padding_bit_set {
-                        if use_sequential_algorithm_to_resolved_grouping_carries {
-                            self.key.unchecked_scalar_add_assign(
-                                cum_sum_block,
-                                1 << ((grouping_index - 1) % (grouping_size - 1)),
-                            );
-                        } else {
-                            self.key.unchecked_scalar_add_assign(cum_sum_block, 1);
-                        }
-                        cum_sum_block.degree = Degree::new(message_modulus as usize - 1);
-                    }
-                });
-
-            let num_groupings = num_blocks / grouping_size;
-            let mut groupings_pgns = Vec::with_capacity(num_groupings);
-            let mut propagation_simulators = Vec::with_capacity(num_blocks);
-
-            // First block does not get a carry from
-            propagation_simulators.push(self.key.create_trivial(0));
-            for block in propagation_cum_sums.drain(..) {
-                if propagation_simulators.len() % grouping_size == 0 {
-                    groupings_pgns.push(block);
-                    // The first block in each grouping has its simulator set to 0
-                    // because it always receives any input borrow that may be generated from
-                    // previous grouping
-                    propagation_simulators.push(self.key.create_trivial(1));
-                } else {
-                    propagation_simulators.push(block);
-                }
-            }
+        let (mut prepared_blocks, resolved_carries) = {
+            let (propagation_simulators, resolved_carries) = self
+                .compute_propagation_simulators_and_groups_carries(grouping_size, &block_states);
 
             let mut prepared_blocks = shifted_blocks;
             prepared_blocks
@@ -1094,16 +929,7 @@ impl ServerKey {
                 }
             }
 
-            (prepared_blocks, groupings_pgns)
-        };
-
-        // Third step: resolving carry propagation between the groups
-        let resolved_carries = if groupings_pgns.is_empty() {
-            vec![self.key.create_trivial(0)]
-        } else if use_sequential_algorithm_to_resolved_grouping_carries {
-            self.resolve_carries_of_groups_sequentially(groupings_pgns, grouping_size)
-        } else {
-            self.resolve_carries_of_groups_using_hillis_steele(groupings_pgns)
+            (prepared_blocks, resolved_carries)
         };
 
         // Final step: adding resolved carries and cleaning result
@@ -1180,6 +1006,194 @@ impl ServerKey {
         }
     }
 
+    pub(crate) fn compute_propagation_simulators_and_groups_carries(
+        &self,
+        grouping_size: usize,
+        block_states: &[Ciphertext],
+    ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
+        let message_modulus = self.key.message_modulus.0 as u64;
+        let block_modulus = message_modulus * self.carry_modulus().0 as u64;
+        let num_bits_in_block = block_modulus.ilog2();
+        let num_blocks = block_states.len();
+
+        // This stores the LUTs that given a cum sum block in the first grouping
+        // tells if a carry is generated or not
+        let first_grouping_inner_propagation_luts = (0..grouping_size - 1)
+            .map(|index| {
+                self.key.generate_lookup_table(|propa_cum_sum_block| {
+                    let carry = (propa_cum_sum_block >> index) & 1;
+                    if carry != 0 {
+                        2 // Generates
+                    } else {
+                        0 // Nothing
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // This stores the LUTs that given a cum sum in non first grouping
+        // tells if a carry is generated or propagated or neither of these
+        let other_groupings_inner_propagation_luts = (0..grouping_size)
+            .map(|index| {
+                self.key.generate_lookup_table(|propa_cum_sum_block| {
+                    let mask = (2 << index) - 1;
+                    if propa_cum_sum_block >= (2 << index) {
+                        2 // Generates
+                    } else if (propa_cum_sum_block & mask) == mask {
+                        1 // Propagate
+                    } else {
+                        0
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // This stores the LUT that outputs the propagation result of the first grouping
+        let first_grouping_outer_propagation_lut = self.key.generate_lookup_table(|block| {
+            // Check if the last bit of the block is set
+            (block >> (num_bits_in_block - 1)) & 1
+        });
+
+        let num_groupings = num_blocks.div_ceil(grouping_size);
+        let num_carry_to_resolve = num_groupings - 1;
+
+        let sequential_depth =
+            (num_carry_to_resolve.saturating_sub(1) as u32) / (grouping_size as u32 - 1);
+        let hillis_steel_depth = if num_carry_to_resolve == 0 {
+            0
+        } else {
+            num_carry_to_resolve.ceil_ilog2()
+        };
+
+        let use_sequential_algorithm_to_resolved_grouping_carries =
+            sequential_depth <= hillis_steel_depth;
+
+        // This stores the LUTs that output the propagation result of the other groupings
+        let grouping_chunk_pgn_luts = if use_sequential_algorithm_to_resolved_grouping_carries {
+            // When using the sequential algorithm for the propagation of one grouping to the
+            // other we need to shift the PGN state to the correct position, so we later, when
+            // using them only lwe_add is needed and so noise management is easy
+            //
+            // Also, these LUTs are 'negacylic', they are made to exploit the padding bit
+            // resulting blocks from these LUTs must be added the constant `1 << index`.
+            (0..grouping_size - 1)
+                .map(|i| {
+                    self.key.generate_lookup_table(|block| {
+                        // All bits set to 1 (e.g. 0b1111), means propagate
+                        if block == (block_modulus - 1) {
+                            0
+                        } else {
+                            // u64::MAX is -1 in two's complement
+                            // We apply the modulus including the padding bit
+                            (u64::MAX << i) % (1 << (num_bits_in_block + 1))
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            // This LUT is for when we are using Hillis-Steele prefix-scan to propagate carries
+            // between groupings. When using this propagation, the encoding of the states
+            // are a bit different.
+            //
+            // Also, these LUTs are 'negacylic', they are made to exploit the padding bit
+            // resulting blocks from these LUTs must be added the constant `1`.
+            vec![self.key.generate_lookup_table(|block| {
+                if block == (block_modulus - 1) {
+                    // All bits set to 1 (e.g. 0b1111), means propagate
+                    2
+                } else {
+                    // u64::MAX is -1 in two's complement
+                    // We apply the modulus including the padding bit
+                    u64::MAX % (1 << (block_modulus + 1))
+                }
+            })]
+        };
+
+        let mut propagation_cum_sums = Vec::with_capacity(num_blocks);
+        block_states.chunks(grouping_size).for_each(|grouping| {
+            propagation_cum_sums.push(grouping[0].clone());
+            for other in &grouping[1..] {
+                let mut result = other.clone();
+                self.key
+                    .unchecked_add_assign(&mut result, propagation_cum_sums.last().unwrap());
+
+                propagation_cum_sums.push(result);
+            }
+        });
+
+        // Compute the cum sum arrays,
+        // each grouping is independent from other groupings
+        // but we store everything flattened (Vec<_>) instead of nested (Vec<Vec<_>>)
+        propagation_cum_sums
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, cum_sum_block)| {
+                let grouping_index = i / grouping_size;
+                let is_in_first_grouping = grouping_index == 0;
+                let index_in_grouping = i % grouping_size;
+
+                let lut = if is_in_first_grouping {
+                    if index_in_grouping == grouping_size - 1 {
+                        &first_grouping_outer_propagation_lut
+                    } else {
+                        &first_grouping_inner_propagation_luts[index_in_grouping]
+                    }
+                } else if index_in_grouping == grouping_size - 1 {
+                    if use_sequential_algorithm_to_resolved_grouping_carries {
+                        &grouping_chunk_pgn_luts[(grouping_index - 1) % (grouping_size - 1)]
+                    } else {
+                        &grouping_chunk_pgn_luts[0]
+                    }
+                } else {
+                    &other_groupings_inner_propagation_luts[index_in_grouping]
+                };
+
+                self.key.apply_lookup_table_assign(cum_sum_block, lut);
+
+                let may_have_its_padding_bit_set =
+                    !is_in_first_grouping && index_in_grouping == grouping_size - 1;
+                if may_have_its_padding_bit_set {
+                    if use_sequential_algorithm_to_resolved_grouping_carries {
+                        self.key.unchecked_scalar_add_assign(
+                            cum_sum_block,
+                            1 << ((grouping_index - 1) % (grouping_size - 1)),
+                        );
+                    } else {
+                        self.key.unchecked_scalar_add_assign(cum_sum_block, 1);
+                    }
+                    cum_sum_block.degree = Degree::new(message_modulus as usize - 1);
+                }
+            });
+
+        let mut groupings_pgns = Vec::with_capacity(num_groupings);
+        let mut propagation_simulators = Vec::with_capacity(num_blocks);
+
+        // First block does not get a carry from
+        propagation_simulators.push(self.key.create_trivial(0));
+        for block in propagation_cum_sums.drain(..) {
+            if propagation_simulators.len() % grouping_size == 0 {
+                groupings_pgns.push(block);
+                // The first block in each grouping has its simulator set to 1
+                // because it always receives any input borrow that may be generated from
+                // previous grouping
+                propagation_simulators.push(self.key.create_trivial(1));
+            } else {
+                propagation_simulators.push(block);
+            }
+        }
+
+        // Third step: resolving carry propagation between the groups
+        let resolved_carries = if groupings_pgns.is_empty() {
+            vec![self.key.create_trivial(0)]
+        } else if use_sequential_algorithm_to_resolved_grouping_carries {
+            self.resolve_carries_of_groups_sequentially(groupings_pgns, grouping_size)
+        } else {
+            self.resolve_carries_of_groups_using_hillis_steele(groupings_pgns)
+        };
+
+        (propagation_simulators, resolved_carries)
+    }
+
     /// This resolves the carries using a Hillis-Steele algorithm
     ///
     /// Blocks must have a value in
@@ -1188,7 +1202,7 @@ impl ServerKey {
     /// - 0 for no carry
     ///
     /// The returned Vec of blocks encrypting 1 if a carry is generated, 0 if not
-    fn resolve_carries_of_groups_using_hillis_steele(
+    pub(crate) fn resolve_carries_of_groups_using_hillis_steele(
         &self,
         groupings_pgns: Vec<Ciphertext>,
     ) -> Vec<Ciphertext> {
@@ -1236,7 +1250,7 @@ impl ServerKey {
     /// - 0 for no carry
     ///
     /// The returned Vec of blocks encrypting 1 if a carry is generated, 0 if not
-    fn resolve_carries_of_groups_sequentially(
+    pub(crate) fn resolve_carries_of_groups_sequentially(
         &self,
         mut groupings_pgns: Vec<Ciphertext>,
         grouping_size: usize,

@@ -1,7 +1,7 @@
 use super::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
     overflowing_mul_under_modulus, overflowing_sub_under_modulus, random_non_zero_value,
-    rotate_left_helper, rotate_right_helper,
+    rotate_left_helper, rotate_right_helper, MAX_NB_CTXT,
 };
 use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
@@ -1861,39 +1861,46 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     let mut rng = rand::thread_rng();
 
     executor.setup(&cks, sks);
 
+    let cks: crate::integer::ClientKey = cks.into();
+
     let mut clear;
 
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
 
-        let ctxt_0 = cks.encrypt(clear_0);
-
-        let mut ct_res = executor.execute((&ctxt_0, clear_1));
-        assert!(ct_res.block_carries_are_empty());
-
-        clear = (clear_0 + clear_1) % modulus;
-
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear, dec_res);
-
-        // Add multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
-            let tmp = executor.execute((&ct_res, clear_1));
-            ct_res = executor.execute((&ct_res, clear_1));
-            assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
-            clear = clear.wrapping_add(clear_1) % modulus;
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-            let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear, dec_res);
+            let ctxt_0 = cks.encrypt_radix(clear_0, num_blocks);
+
+            let mut ct_res = executor.execute((&ctxt_0, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+
+            clear = (clear_0 + clear_1) % modulus;
+
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(
+                clear, dec_res,
+                "invalid result for ({clear_0} + {clear_1}) % {modulus} (num_blocks: {num_blocks})"
+            );
+
+            // Add multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                let tmp = executor.execute((&ct_res, clear_1));
+                ct_res = executor.execute((&ct_res, clear_1));
+                assert!(ct_res.block_carries_are_empty());
+                assert_eq!(ct_res, tmp);
+                clear = clear.wrapping_add(clear_1) % modulus;
+
+                let dec_res: u64 = cks.decrypt_radix(&ct_res);
+                assert_eq!(clear, dec_res);
+            }
         }
     }
 }
@@ -1913,133 +1920,137 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+    let cks: crate::integer::ClientKey = cks.into();
 
-        let ctxt_0 = cks.encrypt(clear_0);
-
-        let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
-        let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
-        assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
-
-        let (expected_result, expected_overflowed) =
-            overflowing_add_under_modulus(clear_0, clear_1, modulus);
-
-        let decrypted_result: u64 = cks.decrypt(&ct_res);
-        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
-             expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
-             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
-        assert_eq!(result_overflowed.0.degree.get(), 1);
-        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
 
         for _ in 0..nb_tests_smaller {
-            // Add non zero scalar to have non clean ciphertexts
-            let clear_2 = random_non_zero_value(&mut rng, modulus);
-            let clear_rhs = random_non_zero_value(&mut rng, modulus);
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
-            let (clear_lhs, _) = overflowing_add_under_modulus(clear_0, clear_2, modulus);
-            let d0: u64 = cks.decrypt(&ctxt_0);
-            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+            let ctxt_0 = cks.encrypt_radix(clear_0, num_blocks);
 
-            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
+            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
+            let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
             assert!(ct_res.block_carries_are_empty());
-            let (expected_result, expected_overflowed) =
-                overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
+            assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+            assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
 
-            let decrypted_result: u64 = cks.decrypt(&ct_res);
+            let (expected_result, expected_overflowed) =
+                overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+            let decrypted_result: u64 = cks.decrypt_radix(&ct_res);
             let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
             assert_eq!(
                 decrypted_result, expected_result,
-                "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
                 decrypted_overflowed,
                 expected_overflowed,
-                "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
             assert_eq!(result_overflowed.0.degree.get(), 1);
             assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+            for _ in 0..nb_tests_smaller {
+                // Add non zero scalar to have non clean ciphertexts
+                let clear_2 = random_non_zero_value(&mut rng, modulus);
+                let clear_rhs = random_non_zero_value(&mut rng, modulus);
+
+                let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+                let (clear_lhs, _) = overflowing_add_under_modulus(clear_0, clear_2, modulus);
+                let d0: u64 = cks.decrypt_radix(&ctxt_0);
+                assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+
+                let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
+                assert!(ct_res.block_carries_are_empty());
+                let (expected_result, expected_overflowed) =
+                    overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
+
+                let decrypted_result: u64 = cks.decrypt_radix(&ct_res);
+                let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+                assert_eq!(
+                    decrypted_result, expected_result,
+                    "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {modulus} ({num_blocks} blocks) \
+                    expected {expected_result}, got {decrypted_result}"
+                );
+                assert_eq!(
+                    decrypted_overflowed, expected_overflowed,
+                    "Invalid overflow flag result for overflowing_add, \
+                    for ({clear_lhs} + {clear_rhs}) % {modulus} ({num_blocks} blocks) \n\
+                    expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+                );
+                assert_eq!(result_overflowed.0.degree.get(), 1);
+                assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+            }
         }
-    }
 
-    // Test with trivial inputs
-    for _ in 0..4 {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        // Test with trivial inputs
+        for _ in 0..4 {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-        let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+            let a: RadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
 
-        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
 
-        let (expected_result, expected_overflowed) =
-            overflowing_add_under_modulus(clear_0, clear_1, modulus);
+            let (expected_result, expected_overflowed) =
+                overflowing_add_under_modulus(clear_0, clear_1, modulus);
 
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+            let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+            let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+            );
+            assert_eq!(
+                decrypted_overflowed, expected_overflowed,
+                "Invalid overflow flag result for overflowing_add, \
+                for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \n\
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        #[cfg(not(feature = "gpu"))]
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
-    }
+            );
+            assert_eq!(encrypted_overflow.0.degree.get(), 1);
+            #[cfg(not(feature = "gpu"))]
+            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+        }
 
-    // Test with scalar that is bigger than ciphertext modulus
-    for _ in 0..2 {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen_range(modulus..=u64::MAX);
+        // Test with scalar that is bigger than ciphertext modulus
+        for _ in 0..2 {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen_range(modulus..=u64::MAX);
 
-        let a: RadixCiphertext = cks.encrypt(clear_0);
+            let a: RadixCiphertext = cks.encrypt_radix(clear_0, num_blocks);
 
-        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
 
-        let (expected_result, expected_overflowed) =
-            overflowing_add_under_modulus(clear_0, clear_1, modulus);
+            let (expected_result, expected_overflowed) =
+                overflowing_add_under_modulus(clear_0, clear_1, modulus);
 
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+            let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+            let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \
                 expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+            );
+            assert_eq!(
+                decrypted_overflowed, expected_overflowed,
+                "Invalid overflow flag result for overflowing_add, \
+                for ({clear_0} + {clear_1}) % {modulus} ({num_blocks} blocks) \n\
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
-        assert!(decrypted_overflowed); // Actually we know its an overflow case
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+            );
+            assert!(decrypted_overflowed); // Actually we know its an overflow case
+            assert_eq!(encrypted_overflow.0.degree.get(), 1);
+            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+        }
     }
 }
 
@@ -2056,36 +2067,40 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     let mut rng = rand::thread_rng();
 
     executor.setup(&cks, sks);
 
+    let cks: crate::integer::ClientKey = cks.into();
+
     let mut clear;
 
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
 
-        let ctxt_0 = cks.encrypt(clear_0);
-
-        let mut ct_res = executor.execute((&ctxt_0, clear_1));
-        assert!(ct_res.block_carries_are_empty());
-
-        clear = (clear_0.wrapping_sub(clear_1)) % modulus;
-
-        // Sub multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
-            let tmp = executor.execute((&ct_res, clear_1));
-            ct_res = executor.execute((&ct_res, clear_1));
-            assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
-            clear = (clear.wrapping_sub(clear_1)) % modulus;
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-            let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear, dec_res);
+            let ctxt_0 = cks.encrypt_radix(clear_0, num_blocks);
+
+            let mut ct_res = executor.execute((&ctxt_0, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+
+            clear = (clear_0.wrapping_sub(clear_1)) % modulus;
+
+            // Sub multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                let tmp = executor.execute((&ct_res, clear_1));
+                ct_res = executor.execute((&ct_res, clear_1));
+                assert!(ct_res.block_carries_are_empty());
+                assert_eq!(ct_res, tmp);
+                clear = (clear.wrapping_sub(clear_1)) % modulus;
+
+                let dec_res: u64 = cks.decrypt_radix(&ct_res);
+                assert_eq!(clear, dec_res);
+            }
         }
     }
 }
@@ -2105,132 +2120,136 @@ where
 
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+    let cks: crate::integer::ClientKey = cks.into();
 
-        let ctxt_0 = cks.encrypt(clear_0);
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32) as u64;
 
-        let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
-        let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
-        assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+        for _ in 0..nb_tests_smaller {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-        let (expected_result, expected_overflowed) =
-            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+            let ctxt_0 = cks.encrypt_radix(clear_0, num_blocks);
 
-        let decrypted_result: u64 = cks.decrypt(&ct_res);
-        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
+            let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+            assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+            let (expected_result, expected_overflowed) =
+                overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+            let decrypted_result: u64 = cks.decrypt_radix(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
              expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
+            );
+            assert_eq!(
             decrypted_overflowed,
             expected_overflowed,
             "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(result_overflowed.0.degree.get(), 1);
-        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
-        for _ in 0..nb_tests_smaller {
-            // Add non zero scalar to have non clean ciphertexts
-            let clear_2 = random_non_zero_value(&mut rng, modulus);
-            let clear_rhs = random_non_zero_value(&mut rng, modulus);
+            for _ in 0..nb_tests_smaller {
+                // Add non zero scalar to have non clean ciphertexts
+                let clear_2 = random_non_zero_value(&mut rng, modulus);
+                let clear_rhs = random_non_zero_value(&mut rng, modulus);
 
-            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
-            let (clear_lhs, _) = overflowing_add_under_modulus(clear_0, clear_2, modulus);
-            let d0: u64 = cks.decrypt(&ctxt_0);
-            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+                let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+                let (clear_lhs, _) = overflowing_add_under_modulus(clear_0, clear_2, modulus);
+                let d0: u64 = cks.decrypt_radix(&ctxt_0);
+                assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
 
-            let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
-            assert!(ct_res.block_carries_are_empty());
-            let (expected_result, expected_overflowed) =
-                overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+                let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
+                assert!(ct_res.block_carries_are_empty());
+                let (expected_result, expected_overflowed) =
+                    overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
 
-            let decrypted_result: u64 = cks.decrypt(&ct_res);
-            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
-            assert_eq!(
-                decrypted_result, expected_result,
-                "Invalid result for sub, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                let decrypted_result: u64 = cks.decrypt_radix(&ct_res);
+                let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+                assert_eq!(
+                    decrypted_result, expected_result,
+                    "Invalid result for sub, for ({clear_lhs} + {clear_rhs}) % {modulus} \
                 expected {expected_result}, got {decrypted_result}"
-            );
-            assert_eq!(
+                );
+                assert_eq!(
                 decrypted_overflowed,
                 expected_overflowed,
                 "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+                assert_eq!(result_overflowed.0.degree.get(), 1);
+                assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+            }
         }
-    }
 
-    // Test with trivial inputs
-    for _ in 0..4 {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        // Test with trivial inputs
+        for _ in 0..4 {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
 
-        let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+            let a: RadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
 
-        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
 
-        let (expected_result, expected_overflowed) =
-            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+            let (expected_result, expected_overflowed) =
+                overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for add, for ({clear_0} - {clear_1}) % {modulus} \
+            let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+            let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for add, for ({clear_0} - {clear_1}) % {modulus} \
                 expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
+            );
+            assert_eq!(
             decrypted_overflowed,
             expected_overflowed,
             "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
-    }
+            assert_eq!(encrypted_overflow.0.degree.get(), 1);
+            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+        }
 
-    // Test with scalar that is bigger than ciphertext modulus
-    for _ in 0..2 {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen_range(modulus..=u64::MAX);
+        // Test with scalar that is bigger than ciphertext modulus
+        for _ in 0..2 {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen_range(modulus..=u64::MAX);
 
-        let a: RadixCiphertext = cks.encrypt(clear_0);
+            let a: RadixCiphertext = cks.encrypt_radix(clear_0, num_blocks);
 
-        let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
 
-        let (expected_result, expected_overflowed) =
-            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+            let (expected_result, expected_overflowed) =
+                overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
-        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
-        assert_eq!(
-            decrypted_result, expected_result,
-            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+            let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+            let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected {expected_result}, got {decrypted_result}"
-        );
-        assert_eq!(
+            );
+            assert_eq!(
             decrypted_overflowed,
             expected_overflowed,
             "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert!(decrypted_overflowed); // Actually we know its an overflow case
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+            assert!(decrypted_overflowed); // Actually we know its an overflow case
+            assert_eq!(encrypted_overflow.0.degree.get(), 1);
+            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+        }
     }
 }
 

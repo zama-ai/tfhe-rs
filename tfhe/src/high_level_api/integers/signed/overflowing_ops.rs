@@ -102,7 +102,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for &FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64>,
+    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
 {
     type Output = FheInt<Id>;
 
@@ -155,7 +155,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64>,
+    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
 {
     type Output = Self;
 
@@ -192,7 +192,7 @@ where
 impl<Id, Clear> OverflowingAdd<&FheInt<Id>> for Clear
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64>,
+    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
 {
     type Output = FheInt<Id>;
 
@@ -318,7 +318,10 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for &FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64>,
+    Clear: SignedNumeric
+        + DecomposableInto<u8>
+        + std::ops::Not<Output = Clear>
+        + DecomposableInto<u64>,
 {
     type Output = FheInt<Id>;
 
@@ -369,7 +372,10 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64>,
+    Clear: SignedNumeric
+        + DecomposableInto<u8>
+        + std::ops::Not<Output = Clear>
+        + DecomposableInto<u64>,
 {
     type Output = Self;
 
