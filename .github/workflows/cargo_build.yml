@@ -19,11 +19,18 @@ jobs:
 
     strategy:
       matrix:
-        os: [large_ubuntu_16, macos-latest-large, large_windows_16_latest]
+        # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
+        # even with a few PRs
+        os: [large_ubuntu_16, macos-latest, windows-latest]
       fail-fast: false
 
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
+        with:
+          toolchain: stable
 
       - name: Install and run newline linter checks
         if: ${{ contains(matrix.os, 'ubuntu') }}
@@ -36,27 +43,33 @@ jobs:
           make check_newline
 
       - name: Run pcc checks
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make pcc
 
       - name: Build concrete-csprng
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_concrete_csprng
 
       - name: Build Release core
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_core AVX512_SUPPORT=ON
           make build_core_experimental AVX512_SUPPORT=ON
 
       - name: Build Release boolean
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_boolean
 
       - name: Build Release shortint
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_shortint
 
       - name: Build Release integer
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_integer
 
@@ -65,10 +78,12 @@ jobs:
           make build_tfhe_full
 
       - name: Build Release c_api
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_c_api
 
       - name: Build coverage tests
+        if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
           make build_tfhe_coverage
 
