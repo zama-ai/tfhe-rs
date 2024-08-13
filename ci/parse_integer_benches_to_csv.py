@@ -20,7 +20,7 @@ def main(args):
             bench_function_id = bench_data["function_id"]
 
             split = bench_function_id.split("::")
-            if split.len() == 5:  # Signed integers
+            if len(split) == 5:  # Signed integers
                 (_, _, function_name, parameter_set, bits) = split
             else:  # Unsigned integers
                 (_, function_name, parameter_set, bits) = split
@@ -53,7 +53,8 @@ def main(args):
                     estimate_upper_bound_ms,
                 )
             )
-        except:
+        except Exception as e:
+            print(e)
             pass
 
     if len(data) == 0:
