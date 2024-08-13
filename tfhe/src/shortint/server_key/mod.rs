@@ -883,7 +883,14 @@ impl ServerKey {
             self.ciphertext_modulus,
         );
         let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
-            fill_many_lut_accumulator(&mut acc, self, functions);
+            fill_many_lut_accumulator(
+                &mut acc,
+                self.bootstrapping_key.polynomial_size(),
+                self.bootstrapping_key.glwe_size(),
+                self.message_modulus,
+                self.carry_modulus,
+                functions,
+            );
 
         ManyLookupTableOwned {
             acc,

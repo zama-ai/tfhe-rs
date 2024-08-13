@@ -18,8 +18,10 @@ use crate::integer::gpu::{
     CudaServerKey, PBSType,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::fill_accumulator;
-use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
+use crate::shortint::engine::{fill_accumulator, fill_many_lut_accumulator};
+use crate::shortint::server_key::{
+    BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
+};
 use crate::shortint::PBSOrder;
 
 mod add;
@@ -41,6 +43,7 @@ mod scalar_shift;
 mod scalar_sub;
 mod shift;
 mod sub;
+mod vector_find;
 
 #[cfg(test)]
 mod tests_signed;
@@ -647,6 +650,36 @@ impl CudaServerKey {
         T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
     }
 
+    /*
+        pub fn generate_lookup_table<F>(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        f: F,
+    ) -> LookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, ciphertext_modulus);
+        let max_value = fill_accumulator(
+            &mut acc,
+            polynomial_size,
+            glwe_size,
+            message_modulus,
+            carry_modulus,
+            f,
+        );
+
+        LookupTableOwned {
+            acc,
+            degree: Degree::new(max_value as usize),
+        }
+    }
+
+         */
+
     pub(crate) fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
     where
         F: Fn(u64) -> u64,
@@ -696,6 +729,38 @@ impl CudaServerKey {
         BivariateLookupTableOwned {
             acc: accumulator,
             ct_right_modulus: self.message_modulus,
+        }
+    }
+
+    pub(crate) fn generate_many_lookup_table<F>(&self, f: &[F]) -> ManyLookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        let (glwe_size, polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+        };
+        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
+
+        let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
+            fill_many_lut_accumulator(
+                &mut acc,
+                polynomial_size,
+                glwe_size,
+                self.message_modulus,
+                self.carry_modulus,
+                &f,
+            );
+
+        ManyLookupTableOwned {
+            acc,
+            input_max_degree,
+            sample_extraction_stride,
+            per_function_output_degree,
         }
     }
 

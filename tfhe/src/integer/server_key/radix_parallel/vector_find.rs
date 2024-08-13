@@ -17,7 +17,7 @@ use std::ops::Range;
 /// Input values are not required to span all possible values that
 /// ` ct` could hold.
 #[derive(Debug)]
-pub struct MatchValues<Clear>(Vec<(Clear, Clear)>);
+pub struct MatchValues<Clear>(pub Vec<(Clear, Clear)>);
 
 impl<Clear> MatchValues<Clear> {
     /// Builds a `MatchValues` from a Vec of tuple where in each tuple element,
