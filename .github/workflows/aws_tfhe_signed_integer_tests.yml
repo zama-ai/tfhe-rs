@@ -19,21 +19,48 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   push:
     branches:
       - main
-  schedule:
-    # Nightly tests @ 3AM after each work day
-    - cron: "0 3 * * MON-FRI"
 
 jobs:
+  should-run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    outputs:
+      integer_test: ${{ github.event_name == 'workflow_dispatch' ||
+        steps.changed-files.outputs.integer_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+          persist-credentials: "false"
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c
+        with:
+          since_last_remote_commit: true
+          files_yaml: |
+            integer:
+              - tfhe/Cargo.toml
+              - concrete-csprng/**
+              - tfhe-zk-pok/**
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+
   setup-instance:
-    name: Setup instance (signed-integer-tests)
-    if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
-        (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
-        (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
-        github.event_name == 'workflow_dispatch'
+    name: Setup instance (unsigned-integer-tests)
+    needs: should-run
+    if:
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs' && needs.should-run.outputs.integer_test == 'true') ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') ||
+      (github.event_name == 'pull_request' && contains(github.event.label.name, 'approved')) ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -60,7 +87,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
 
       - name: Set up home
         run: |
@@ -107,7 +134,7 @@ jobs:
   teardown-instance:
     name: Teardown instance (signed-integer-tests)
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, signed-integer-tests ]
+    needs: [setup-instance, signed-integer-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
