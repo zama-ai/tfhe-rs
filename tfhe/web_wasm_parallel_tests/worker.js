@@ -509,7 +509,7 @@ async function compactPublicKeyBench256BitSmall() {
 }
 
 async function compressedServerKeyBenchConfig(config) {
-  const bench_loops = 35;
+  const bench_loops = 5;
   let bench_results = {};
 
   console.log("Begin benchmarks"); // DEBUG
