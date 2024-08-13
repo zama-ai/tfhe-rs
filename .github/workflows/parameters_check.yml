@@ -14,7 +14,7 @@ on:
 
 jobs:
   params-curves-security-check:
-    runs-on: ubuntu-latest
+    runs-on: large_ubuntu_16
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
@@ -24,7 +24,7 @@ jobs:
         with:
           repository: malb/lattice-estimator
           path: lattice_estimator
-          ref: '53508253629d3b5d31a2ad110e85dc69391ccb95'
+          ref: 'e80ec6bbbba212428b0e92d0467c18629cf9ed67'
 
       - name: Install Sage
         run: |
