@@ -145,7 +145,11 @@ pub fn prove<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[hash, v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
+        &[
+            hash,
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+        ],
     );
     let y = OneBased(y);
     let mut c_y = g.mul_scalar(gamma_y);
@@ -154,7 +158,7 @@ pub fn prove<G: Curve>(
     }
 
     let y_bytes = &*(1..n + 1)
-        .flat_map(|i| y[i].to_bytes().as_ref().to_vec())
+        .flat_map(|i| y[i].to_le_bytes().as_ref().to_vec())
         .collect::<Box<_>>();
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -163,9 +167,9 @@ pub fn prove<G: Curve>(
         &[
             hash_t,
             y_bytes,
-            v_hat.to_bytes().as_ref(),
-            c_hat.to_bytes().as_ref(),
-            c_y.to_bytes().as_ref(),
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+            c_y.to_le_bytes().as_ref(),
         ],
     );
     let t = OneBased(t);
@@ -222,9 +226,9 @@ pub fn prove<G: Curve>(
             &[
                 hash_s,
                 &i.to_le_bytes(),
-                v_hat.to_bytes().as_ref(),
-                c_hat.to_bytes().as_ref(),
-                c_y.to_bytes().as_ref(),
+                v_hat.to_le_bytes().as_ref(),
+                c_hat.to_le_bytes().as_ref(),
+                c_y.to_le_bytes().as_ref(),
             ],
         );
     }
@@ -244,9 +248,9 @@ pub fn prove<G: Curve>(
         &mut delta,
         &[
             hash_agg,
-            v_hat.to_bytes().as_ref(),
-            c_hat.to_bytes().as_ref(),
-            c_y.to_bytes().as_ref(),
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+            c_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_x, delta_eq, delta_y, delta_v] = delta;
@@ -289,12 +293,16 @@ pub fn verify<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[hash, v_hat.to_bytes().as_ref(), c_hat.to_bytes().as_ref()],
+        &[
+            hash,
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+        ],
     );
     let y = OneBased(y);
 
     let y_bytes = &*(1..n + 1)
-        .flat_map(|i| y[i].to_bytes().as_ref().to_vec())
+        .flat_map(|i| y[i].to_le_bytes().as_ref().to_vec())
         .collect::<Box<_>>();
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -303,9 +311,9 @@ pub fn verify<G: Curve>(
         &[
             hash_t,
             y_bytes,
-            v_hat.to_bytes().as_ref(),
-            c_hat.to_bytes().as_ref(),
-            c_y.to_bytes().as_ref(),
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+            c_y.to_le_bytes().as_ref(),
         ],
     );
     let t = OneBased(t);
@@ -315,9 +323,9 @@ pub fn verify<G: Curve>(
         &mut delta,
         &[
             hash_agg,
-            v_hat.to_bytes().as_ref(),
-            c_hat.to_bytes().as_ref(),
-            c_y.to_bytes().as_ref(),
+            v_hat.to_le_bytes().as_ref(),
+            c_hat.to_le_bytes().as_ref(),
+            c_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_x, delta_eq, delta_y, delta_v] = delta;
@@ -329,9 +337,9 @@ pub fn verify<G: Curve>(
             &[
                 hash_s,
                 &i.to_le_bytes(),
-                v_hat.to_bytes().as_ref(),
-                c_hat.to_bytes().as_ref(),
-                c_y.to_bytes().as_ref(),
+                v_hat.to_le_bytes().as_ref(),
+                c_hat.to_le_bytes().as_ref(),
+                c_y.to_le_bytes().as_ref(),
             ],
         );
     }
