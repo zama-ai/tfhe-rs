@@ -62,7 +62,7 @@ pub trait FieldOps:
     fn from_u128(n: u128) -> Self;
     fn from_u64(n: u64) -> Self;
     fn from_i64(n: i64) -> Self;
-    fn to_bytes(self) -> impl AsRef<[u8]>;
+    fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn rand(rng: &mut dyn rand::RngCore) -> Self;
     fn hash(values: &mut [Self], data: &[&[u8]]);
     fn hash_128bit(values: &mut [Self], data: &[&[u8]]);
@@ -130,7 +130,7 @@ pub trait CurveGroupOps<Zp>:
 
     fn mul_scalar(self, scalar: Zp) -> Self;
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[Zp]) -> Self;
-    fn to_bytes(self) -> impl AsRef<[u8]>;
+    fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
     fn normalize(self) -> Self::Affine;
 }
@@ -171,8 +171,8 @@ impl FieldOps for bls12_381::Zp {
     fn from_i64(n: i64) -> Self {
         Self::from_i64(n)
     }
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
     fn rand(rng: &mut dyn rand::RngCore) -> Self {
         Self::rand(rng)
@@ -222,8 +222,8 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
 
     fn double(self) -> Self {
@@ -262,8 +262,8 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
 
     fn double(self) -> Self {
@@ -303,8 +303,8 @@ impl FieldOps for bls12_446::Zp {
     fn from_i64(n: i64) -> Self {
         Self::from_i64(n)
     }
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
     fn rand(rng: &mut dyn rand::RngCore) -> Self {
         Self::rand(rng)
@@ -359,8 +359,8 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
         }
     }
 
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
 
     fn double(self) -> Self {
@@ -399,8 +399,8 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
-    fn to_bytes(self) -> impl AsRef<[u8]> {
-        self.to_bytes()
+    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+        self.to_le_bytes()
     }
 
     fn double(self) -> Self {

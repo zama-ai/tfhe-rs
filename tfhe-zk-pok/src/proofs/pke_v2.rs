@@ -561,9 +561,9 @@ pub fn prove<G: Curve>(
         hash_R,
         metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -631,15 +631,15 @@ pub fn prove<G: Curve>(
             metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let m = m_bound;
@@ -670,19 +670,19 @@ pub fn prove<G: Curve>(
             hash_xi,
             metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
 
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -695,16 +695,16 @@ pub fn prove<G: Curve>(
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     assert_eq!(y.len(), w_bin.len());
@@ -727,18 +727,18 @@ pub fn prove<G: Curve>(
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -752,18 +752,18 @@ pub fn prove<G: Curve>(
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
@@ -788,18 +788,18 @@ pub fn prove<G: Curve>(
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut delta = [G::Zp::ZERO; 7];
@@ -815,19 +815,19 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut poly_0_lhs = vec![G::Zp::ZERO; 1 + n];
@@ -1170,8 +1170,8 @@ pub fn prove<G: Curve>(
         ComputeLoad::Verify => (None, None),
     };
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
+    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
+    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
     let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
     let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
 
@@ -1190,16 +1190,16 @@ pub fn prove<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
@@ -1323,22 +1323,22 @@ pub fn prove<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
 
@@ -1558,8 +1558,8 @@ pub fn verify<G: Curve>(
         return Err(());
     }
 
-    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
-    let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
+    let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_le_bytes);
+    let C_hat_w_bytes = C_hat_w.map(G::G2::to_le_bytes);
     let C_hat_h3_bytes = C_hat_h3_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
     let C_hat_w_bytes = C_hat_w_bytes.as_ref().map(|x| x.as_ref()).unwrap_or(&[]);
 
@@ -1596,9 +1596,9 @@ pub fn verify<G: Curve>(
         hash_R,
         metadata,
         x_bytes,
-        C_hat_e.to_bytes().as_ref(),
-        C_e.to_bytes().as_ref(),
-        C_r_tilde.to_bytes().as_ref(),
+        C_hat_e.to_le_bytes().as_ref(),
+        C_e.to_le_bytes().as_ref(),
+        C_r_tilde.to_le_bytes().as_ref(),
     ] {
         hasher.update(data);
     }
@@ -1634,15 +1634,15 @@ pub fn verify<G: Curve>(
             metadata,
             x_bytes,
             R_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let phi_bytes = &*phi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut xi = vec![G::Zp::ZERO; 128];
@@ -1652,18 +1652,18 @@ pub fn verify<G: Curve>(
             hash_xi,
             metadata,
             x_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
             phi_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let xi_bytes = &*xi
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut y = vec![G::Zp::ZERO; D + 128 * m];
@@ -1676,16 +1676,16 @@ pub fn verify<G: Curve>(
             R_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
         ],
     );
     let y_bytes = &*y
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut t = vec![G::Zp::ZERO; n];
@@ -1698,18 +1698,18 @@ pub fn verify<G: Curve>(
             y_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let t_bytes = &*t
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut theta = vec![G::Zp::ZERO; d + k];
@@ -1723,18 +1723,18 @@ pub fn verify<G: Curve>(
             t_bytes,
             phi_bytes,
             xi_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let theta_bytes = &*theta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut w = vec![G::Zp::ZERO; n];
@@ -1749,18 +1749,18 @@ pub fn verify<G: Curve>(
             phi_bytes,
             xi_bytes,
             theta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let w_bytes = &*w
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
@@ -1786,19 +1786,19 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             w_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
         ],
     );
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
     let delta_bytes = &*delta
         .iter()
-        .flat_map(|x| x.to_bytes().as_ref().to_vec())
+        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
         .collect::<Box<[_]>>();
 
     let g = G::G1::GENERATOR;
@@ -1880,16 +1880,16 @@ pub fn verify<G: Curve>(
             x_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
         ],
@@ -2019,22 +2019,22 @@ pub fn verify<G: Curve>(
             xi_bytes,
             theta_bytes,
             delta_bytes,
-            C_hat_e.to_bytes().as_ref(),
-            C_e.to_bytes().as_ref(),
+            C_hat_e.to_le_bytes().as_ref(),
+            C_e.to_le_bytes().as_ref(),
             R_bytes,
-            C_R.to_bytes().as_ref(),
-            C_hat_bin.to_bytes().as_ref(),
-            C_r_tilde.to_bytes().as_ref(),
-            C_y.to_bytes().as_ref(),
-            C_h1.to_bytes().as_ref(),
-            C_h2.to_bytes().as_ref(),
-            C_hat_t.to_bytes().as_ref(),
+            C_R.to_le_bytes().as_ref(),
+            C_hat_bin.to_le_bytes().as_ref(),
+            C_r_tilde.to_le_bytes().as_ref(),
+            C_y.to_le_bytes().as_ref(),
+            C_h1.to_le_bytes().as_ref(),
+            C_h2.to_le_bytes().as_ref(),
+            C_hat_t.to_le_bytes().as_ref(),
             C_hat_h3_bytes,
             C_hat_w_bytes,
-            z.to_bytes().as_ref(),
-            p_h1.to_bytes().as_ref(),
-            p_h2.to_bytes().as_ref(),
-            p_t.to_bytes().as_ref(),
+            z.to_le_bytes().as_ref(),
+            p_h1.to_le_bytes().as_ref(),
+            p_h2.to_le_bytes().as_ref(),
+            p_t.to_le_bytes().as_ref(),
         ],
     );
     let chi2 = chi * chi;

@@ -25,7 +25,7 @@ fn mul_zp<T: Copy + Zero + Add<Output = T> + Group>(x: T, scalar: Zp) -> T {
     y
 }
 
-fn bigint_to_bytes(x: [u64; 6]) -> [u8; 6 * 8] {
+fn bigint_to_le_bytes(x: [u64; 6]) -> [u8; 6 * 8] {
     let mut buf = [0u8; 6 * 8];
     for (i, &xi) in x.iter().enumerate() {
         buf[i * 8..][..8].copy_from_slice(&xi.to_le_bytes());
@@ -114,7 +114,7 @@ mod g1 {
             },
         };
 
-        // Size in number of bytes when the [to_bytes]
+        // Size in number of bytes when the [to_le_bytes]
         // function is called.
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 2 * 6 * 8 + 1;
@@ -140,10 +140,10 @@ mod g1 {
                 .sum::<Self>()
         }
 
-        pub fn to_bytes(self) -> [u8; Self::BYTE_SIZE] {
+        pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
             let g = self.inner.into_affine();
-            let x = bigint_to_bytes(g.x.0 .0);
-            let y = bigint_to_bytes(g.y.0 .0);
+            let x = bigint_to_le_bytes(g.x.0 .0);
+            let y = bigint_to_le_bytes(g.y.0 .0);
             let mut buf = [0u8; 2 * 6 * 8 + 1];
             buf[..6 * 8].copy_from_slice(&x);
             buf[6 * 8..][..6 * 8].copy_from_slice(&y);
@@ -333,7 +333,7 @@ mod g2 {
             },
         };
 
-        // Size in number of bytes when the [to_bytes]
+        // Size in number of bytes when the [to_le_bytes]
         // function is called.
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 4 * 6 * 8 + 1;
@@ -359,12 +359,12 @@ mod g2 {
                 .sum::<Self>()
         }
 
-        pub fn to_bytes(self) -> [u8; Self::BYTE_SIZE] {
+        pub fn to_le_bytes(self) -> [u8; Self::BYTE_SIZE] {
             let g = self.inner.into_affine();
-            let xc0 = bigint_to_bytes(g.x.c0.0 .0);
-            let xc1 = bigint_to_bytes(g.x.c1.0 .0);
-            let yc0 = bigint_to_bytes(g.y.c0.0 .0);
-            let yc1 = bigint_to_bytes(g.y.c1.0 .0);
+            let xc0 = bigint_to_le_bytes(g.x.c0.0 .0);
+            let xc1 = bigint_to_le_bytes(g.x.c1.0 .0);
+            let yc0 = bigint_to_le_bytes(g.y.c0.0 .0);
+            let yc1 = bigint_to_le_bytes(g.y.c1.0 .0);
             let mut buf = [0u8; 4 * 6 * 8 + 1];
             buf[..6 * 8].copy_from_slice(&xc0);
             buf[6 * 8..][..6 * 8].copy_from_slice(&xc1);
@@ -649,7 +649,7 @@ mod zp {
             }
         }
 
-        pub fn to_bytes(self) -> [u8; 4 * 8] {
+        pub fn to_le_bytes(self) -> [u8; 4 * 8] {
             let buf = [
                 self.inner.0 .0[0].to_le_bytes(),
                 self.inner.0 .0[1].to_le_bytes(),
