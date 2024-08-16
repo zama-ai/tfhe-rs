@@ -899,6 +899,33 @@ impl CompactCiphertextListBuilder {
     }
 
     #[wasm_bindgen]
+    pub fn push_u512(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = U512::try_from(value)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_u1024(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = U1024::try_from(value)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_u2048(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = U2048::try_from(value)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
     pub fn push_i128(&mut self, value: JsValue) -> Result<(), JsError> {
         catch_panic_result(|| {
             let value = i128::try_from(value).map_err(into_js_error)?;
@@ -1018,7 +1045,7 @@ macro_rules! define_expander_get_method {
     };
 }
 define_expander_get_method!(
-    unsigned: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128, 160, 256 }
+    unsigned: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128, 160, 256, 512, 1024, 2048 }
 );
 define_expander_get_method!(
     signed: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128, 160, 256 }

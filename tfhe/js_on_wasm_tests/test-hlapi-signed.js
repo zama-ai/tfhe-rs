@@ -354,7 +354,6 @@ test('hlapi_public_key_encrypt_decrypt_int256_small', (t) => {
 });
 
 
-
 //////////////////////////////////////////////////////////////////////////////
 /// 32 bits compact
 //////////////////////////////////////////////////////////////////////////////
@@ -423,12 +422,14 @@ test('hlapi_compact_ciphertext_list', (t) => {
     let clear_i32 = -3284;
     let clear_bool = true;
     let clear_u256 = generateRandomBigInt(256);
+    let clear_u2048 = generateRandomBigInt(2048);
 
     let builder = CompactCiphertextList.builder(publicKey);
     builder.push_u2(clear_u2);
     builder.push_i32(clear_i32);
     builder.push_boolean(clear_bool);
     builder.push_u256(clear_u256);
+    builder.push_u2048(clear_u2048);
     let list = builder.build();
 
     let serialized = list.safe_serialize(BigInt(10000000));
@@ -455,6 +456,12 @@ test('hlapi_compact_ciphertext_list', (t) => {
         expander.get_uint256(3).decrypt(clientKey),
         clear_u256,
     );
+
+    assert.deepStrictEqual(
+        expander.get_uint2048(4).decrypt(clientKey),
+        clear_u2048,
+    );
+
 });
 
 test('hlapi_compact_ciphertext_list_with_proof', (t) => {
