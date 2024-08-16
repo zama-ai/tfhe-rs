@@ -32,43 +32,13 @@ __device__ Torus calculates_monomial_degree(const Torus *lwe_array_group,
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_multi_bit_programmable_bootstrap_keybundle(
-    const Torus *__restrict__ lwe_array_in,
-    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+__device__ void compute_multi_bit_programmable_bootstrap_keybundle(
+        const Torus *__restrict__ lwe_in,
+        double2 *__restrict__ keybundle,
     const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
-    uint32_t keybundle_size_per_input, int8_t *device_mem,
-    uint64_t device_memory_size_per_block) {
-
-  extern __shared__ int8_t sharedmem[];
-  int8_t *selected_memory = sharedmem;
-
-  if constexpr (SMD == FULLSM) {
-    selected_memory = sharedmem;
-  } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
-    selected_memory = &device_mem[block_index * device_memory_size_per_block];
-  }
-
-  // Ids
-  uint32_t level_id = blockIdx.z;
-  uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
-  uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
-  uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
-  uint32_t input_idx = blockIdx.x / lwe_chunk_size;
-
-  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
-    //
-    Torus *accumulator = (Torus *)selected_memory;
-
-    const Torus *block_lwe_array_in =
-        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
-
-    double2 *keybundle = keybundle_array +
-                         // select the input
-                         input_idx * keybundle_size_per_input;
+    uint32_t level_count, uint32_t lwe_chunk_size,
+    uint32_t level_id, uint32_t glwe_id, uint32_t poly_id, uint32_t chunk_id, uint32_t lwe_iteration, Torus *accumulator){
 
     ////////////////////////////////////////////////////////////
     // Computes all keybundles
@@ -96,7 +66,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
       // Calculates the monomial degree
       const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+          lwe_in + rev_lwe_iteration * grouping_factor;
       uint32_t monomial_degree = calculates_monomial_degree<Torus, params>(
           lwe_array_group, g, grouping_factor);
 
@@ -124,7 +94,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     synchronize_threads_in_block();
     // Move from local memory back to shared memory but as complex
     tid = threadIdx.x;
-    double2 *fft = (double2 *)selected_memory;
+    double2 *fft = (double2 *)accumulator;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
       fft[tid] = temp[i];
@@ -135,12 +105,69 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
-        keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
+        keybundle, chunk_id, glwe_id, level_id,
         polynomial_size, glwe_dimension, level_count);
     auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
 
     copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
         fft, keybundle_poly);
+
+}
+
+template <typename Torus, class params, sharedMemDegree SMD>
+__global__ void device_multi_bit_programmable_bootstrap_keybundle(
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t level_count, uint32_t lwe_offset, uint32_t lwe_chunk_size,
+    uint32_t keybundle_size_per_input, int8_t *device_mem,
+    uint64_t device_memory_size_per_block) {
+
+  extern __shared__ int8_t sharedmem[];
+  int8_t *selected_memory = sharedmem;
+
+  if constexpr (SMD == FULLSM) {
+    selected_memory = sharedmem;
+  } else {
+    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
+                      blockIdx.z * gridDim.x * gridDim.y;
+    selected_memory = &device_mem[block_index * device_memory_size_per_block];
+  }
+
+  // Ids
+  uint32_t level_id = blockIdx.z;
+  uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
+  uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
+  uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
+  uint32_t input_idx = blockIdx.x / lwe_chunk_size;
+  uint32_t chunk_id = blockIdx.x % lwe_chunk_size;
+
+  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
+    //
+    Torus *accumulator = (Torus *)selected_memory;
+
+    const Torus *block_lwe_array_in =
+        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+    double2 *keybundle = keybundle_array +
+                         // select the input
+                         input_idx * keybundle_size_per_input;
+
+      compute_multi_bit_programmable_bootstrap_keybundle<Torus, params, SMD>(block_lwe_array_in,
+                                                                             keybundle,
+                                                                             bootstrapping_key,
+                                                                             lwe_dimension,
+                                                                             glwe_dimension,
+                                                                             polynomial_size,
+                                                                             grouping_factor,
+                                                                             level_count,
+                                                                             lwe_chunk_size,
+                                                                             level_id, glwe_id,
+                                                                             poly_id,
+                                                                             chunk_id,
+                                                                             lwe_iteration,
+                                                                             accumulator);
   }
 }
 
