@@ -34,6 +34,8 @@ fn bigint_to_le_bytes(x: [u64; 6]) -> [u8; 6 * 8] {
 }
 
 mod g1 {
+    use crate::serialization::InvalidSerializedAffineError;
+
     use super::*;
 
     #[derive(
@@ -48,10 +50,29 @@ mod g1 {
         CanonicalSerialize,
         CanonicalDeserialize,
     )]
+    #[serde(
+        try_from = "SerializableAffine<SerializableFp>",
+        into = "SerializableAffine<SerializableFp>"
+    )]
     #[repr(transparent)]
     pub struct G1Affine {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_bls12_381::g1::G1Affine,
+    }
+
+    impl From<G1Affine> for SerializableAffine<SerializableFp> {
+        fn from(value: G1Affine) -> Self {
+            SerializableAffine::compressed(value.inner)
+        }
+    }
+
+    impl TryFrom<SerializableAffine<SerializableFp>> for G1Affine {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableAffine<SerializableFp>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
     }
 
     impl G1Affine {
@@ -80,10 +101,29 @@ mod g1 {
         CanonicalSerialize,
         CanonicalDeserialize,
     )]
+    #[serde(
+        try_from = "SerializableAffine<SerializableFp>",
+        into = "SerializableAffine<SerializableFp>"
+    )]
     #[repr(transparent)]
     pub struct G1 {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_bls12_381::G1Projective,
+    }
+
+    impl From<G1> for SerializableAffine<SerializableFp> {
+        fn from(value: G1) -> Self {
+            SerializableAffine::compressed(value.inner.into_affine())
+        }
+    }
+
+    impl TryFrom<SerializableAffine<SerializableFp>> for G1 {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableAffine<SerializableFp>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: Affine::try_from(value)?.into(),
+            })
+        }
     }
 
     impl fmt::Debug for G1 {
@@ -210,6 +250,8 @@ mod g1 {
 }
 
 mod g2 {
+    use crate::serialization::InvalidSerializedAffineError;
+
     use super::*;
 
     #[derive(
@@ -224,10 +266,29 @@ mod g2 {
         CanonicalSerialize,
         CanonicalDeserialize,
     )]
+    #[serde(
+        try_from = "SerializableAffine<SerializableFp2>",
+        into = "SerializableAffine<SerializableFp2>"
+    )]
     #[repr(transparent)]
     pub struct G2Affine {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_bls12_381::g2::G2Affine,
+    }
+
+    impl From<G2Affine> for SerializableAffine<SerializableFp2> {
+        fn from(value: G2Affine) -> Self {
+            SerializableAffine::compressed(value.inner)
+        }
+    }
+
+    impl TryFrom<SerializableAffine<SerializableFp2>> for G2Affine {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableAffine<SerializableFp2>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
     }
 
     impl G2Affine {
@@ -256,10 +317,29 @@ mod g2 {
         CanonicalSerialize,
         CanonicalDeserialize,
     )]
+    #[serde(
+        try_from = "SerializableAffine<SerializableFp2>",
+        into = "SerializableAffine<SerializableFp2>"
+    )]
     #[repr(transparent)]
     pub struct G2 {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_bls12_381::G2Projective,
+    }
+
+    impl From<G2> for SerializableAffine<SerializableFp2> {
+        fn from(value: G2) -> Self {
+            SerializableAffine::compressed(value.inner.into_affine())
+        }
+    }
+
+    impl TryFrom<SerializableAffine<SerializableFp2>> for G2 {
+        type Error = InvalidSerializedAffineError;
+
+        fn try_from(value: SerializableAffine<SerializableFp2>) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: Affine::try_from(value)?.into(),
+            })
+        }
     }
 
     impl fmt::Debug for G2 {
@@ -433,14 +513,32 @@ mod g2 {
 }
 
 mod gt {
+    use crate::serialization::InvalidArraySizeError;
+
     use super::*;
     use ark_ec::pairing::Pairing;
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    #[serde(try_from = "SerializableFp12", into = "SerializableFp12")]
     #[repr(transparent)]
     pub struct Gt {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         inner: ark_ec::pairing::PairingOutput<ark_bls12_381::Bls12_381>,
+    }
+
+    impl From<Gt> for SerializableFp12 {
+        fn from(value: Gt) -> Self {
+            value.inner.0.into()
+        }
+    }
+
+    impl TryFrom<SerializableFp12> for Gt {
+        type Error = InvalidArraySizeError;
+
+        fn try_from(value: SerializableFp12) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: PairingOutput(value.try_into()?),
+            })
+        }
     }
 
     impl fmt::Debug for Gt {
@@ -566,6 +664,8 @@ mod gt {
 }
 
 mod zp {
+    use crate::serialization::InvalidArraySizeError;
+
     use super::*;
     use ark_ff::Fp;
     use zeroize::Zeroize;
@@ -605,10 +705,25 @@ mod zp {
     }
 
     #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Zeroize)]
+    #[serde(try_from = "SerializableFp", into = "SerializableFp")]
     #[repr(transparent)]
     pub struct Zp {
-        #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
         pub(crate) inner: ark_bls12_381::Fr,
+    }
+
+    impl From<Zp> for SerializableFp {
+        fn from(value: Zp) -> Self {
+            value.inner.into()
+        }
+    }
+    impl TryFrom<SerializableFp> for Zp {
+        type Error = InvalidArraySizeError;
+
+        fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
+            Ok(Self {
+                inner: value.try_into()?,
+            })
+        }
     }
 
     impl fmt::Debug for Zp {
