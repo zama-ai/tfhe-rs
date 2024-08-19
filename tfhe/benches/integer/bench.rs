@@ -1126,15 +1126,11 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use criterion::{black_box, criterion_group};
+    use criterion::criterion_group;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-    use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
-    use tfhe::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
-    use tfhe::integer::gpu::gen_keys_radix_gpu;
+    use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
-    use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F>(
         c: &mut Criterion,
@@ -1402,121 +1398,6 @@ mod cuda {
         }
 
         bench_group.finish()
-    }
-
-    fn cuda_compress(c: &mut Criterion) {
-        let bench_name = "integer::cuda::compression";
-        let mut bench_group = c.benchmark_group(bench_name);
-        bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(30));
-
-        let stream = CudaStreams::new_multi_gpu();
-
-        let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-        let log_message_modulus = param.message_modulus.0.ilog2() as usize;
-
-        for num_bits in [
-            8,
-            16,
-            32,
-            64,
-            128,
-            256,
-            comp_param.lwe_per_glwe.0 * log_message_modulus,
-        ] {
-            assert_eq!(num_bits % log_message_modulus, 0);
-            let num_blocks = num_bits / log_message_modulus;
-
-            // Generate private compression key
-            let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-            let private_compression_key = cks.new_compression_private_key(comp_param);
-
-            // Generate and convert compression keys
-            let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-            let (compressed_compression_key, _) =
-                radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
-            let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&stream);
-
-            // Encrypt
-            let ct = cks.encrypt_radix(0_u32, num_blocks);
-            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream);
-
-            // Benchmark
-            let mut builder = CudaCompressedCiphertextListBuilder::new();
-
-            builder.push(d_ct, &stream);
-
-            bench_group.bench_function(format!("compress_u{num_bits}"), |b| {
-                b.iter(|| {
-                    let compressed = builder.build(&cuda_compression_key, &stream);
-
-                    _ = black_box(compressed);
-                })
-            });
-        }
-    }
-
-    fn cuda_decompress(c: &mut Criterion) {
-        let bench_name = "integer::cuda::compression";
-        let mut bench_group = c.benchmark_group(bench_name);
-        bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(30));
-
-        let stream = CudaStreams::new_multi_gpu();
-
-        let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-
-        let log_message_modulus = param.message_modulus.0.ilog2() as usize;
-
-        for num_bits in [
-            8,
-            16,
-            32,
-            64,
-            128,
-            256,
-            comp_param.lwe_per_glwe.0 * log_message_modulus,
-        ] {
-            assert_eq!(num_bits % log_message_modulus, 0);
-            let num_blocks = num_bits / log_message_modulus;
-
-            // Generate private compression key
-            let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-            let private_compression_key = cks.new_compression_private_key(comp_param);
-
-            // Generate and convert compression keys
-            let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
-            let (compressed_compression_key, compressed_decompression_key) =
-                radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
-            let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&stream);
-            let cuda_decompression_key =
-                compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &stream);
-
-            // Encrypt
-            let ct = cks.encrypt_radix(0_u32, num_blocks);
-            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream);
-
-            // Benchmark
-            let mut builder = CudaCompressedCiphertextListBuilder::new();
-
-            builder.push(d_ct, &stream);
-
-            let compressed = builder.build(&cuda_compression_key, &stream);
-
-            bench_group.bench_function(format!("decompress_u{num_bits}"), |b| {
-                b.iter(|| {
-                    let unpacked: CudaRadixCiphertext =
-                        compressed.get(0, &cuda_decompression_key, &stream);
-
-                    _ = black_box(unpacked);
-                })
-            });
-        }
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_unary_fn (
@@ -2171,8 +2052,6 @@ mod cuda {
         cuda_unsigned_overflowing_scalar_add,
     );
 
-    criterion_group!(cuda_compress_ops, cuda_compress, cuda_decompress);
-
     fn cuda_bench_server_key_cast_function<F>(
         c: &mut Criterion,
         bench_name: &str,
@@ -2263,8 +2142,8 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::{
-    cuda_cast_ops, cuda_compress_ops, default_cuda_dedup_ops, default_cuda_ops,
-    default_scalar_cuda_ops, unchecked_cuda_ops, unchecked_scalar_cuda_ops,
+    cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
+    unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
 
 criterion_group!(
@@ -2616,13 +2495,11 @@ criterion_group!(oprf, oprf::unsigned_oprf);
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
-            cuda_compress_ops();
             default_cuda_ops();
             default_scalar_cuda_ops();
             cuda_cast_ops();
         }
         "fast_default" => {
-            cuda_compress_ops();
             default_cuda_dedup_ops();
         }
         "unchecked" => {
