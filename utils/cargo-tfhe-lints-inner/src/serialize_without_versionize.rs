@@ -101,9 +101,8 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                                 cx.span_lint(
                                     SERIALIZE_WITHOUT_VERSIONIZE,
                                     cx.tcx.def_span(type_def_id),
-                                    format!(
-                                        "Type {ty} implements `Serialize` but does not implement `Versionize`"
-                                    ),|diag| {
+                                    |diag| {
+                                        diag.primary_message("Type {ty} implements `Serialize` but does not implement `Versionize`");
                                         diag.note("Add `#[derive(Versionize)] for this type or silence this warning using \
 `#[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]``");
                                         diag.span_note(item.span, "`Serialize` derived here");
