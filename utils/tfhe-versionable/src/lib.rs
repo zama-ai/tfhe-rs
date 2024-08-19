@@ -632,6 +632,7 @@ impl Unversionize for () {
 
 impl NotVersioned for () {}
 
+// TODO: use a macro for more tuple sizes
 impl<T: Versionize, U: Versionize> Versionize for (T, U) {
     type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>) where T: 'vers, U: 'vers;
 
@@ -654,7 +655,35 @@ impl<T: Unversionize, U: Unversionize> Unversionize for (T, U) {
     }
 }
 
-impl<T: NotVersioned, U: NotVersioned> NotVersioned for (T, U) {}
+impl<T: Versionize, U: Versionize> VersionizeSlice for (T, U) {
+    type VersionedSlice<'vers> = Vec<(T::Versioned<'vers>, U::Versioned<'vers>)> where T: 'vers, U: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|(t, u)| (t.versionize(), u.versionize()))
+            .collect()
+    }
+}
+
+impl<T: VersionizeOwned, U: VersionizeOwned> VersionizeVec for (T, U) {
+    type VersionedVec = Vec<(T::VersionedOwned, U::VersionedOwned)>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|(t, u)| (t.versionize_owned(), u.versionize_owned()))
+            .collect()
+    }
+}
+
+impl<T: Unversionize, U: Unversionize> UnversionizeVec for (T, U) {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(|(t, u)| Ok((T::unversionize(t)?, U::unversionize(u)?)))
+            .collect()
+    }
+}
 
 impl<T: Versionize, U: Versionize, V: Versionize> Versionize for (T, U, V) {
     type Versioned<'vers> = (T::Versioned<'vers>, U::Versioned<'vers>, V::Versioned<'vers>) where T: 'vers, U: 'vers, V: 'vers;
@@ -690,7 +719,47 @@ impl<T: Unversionize, U: Unversionize, V: Unversionize> Unversionize for (T, U, 
     }
 }
 
-impl<T: NotVersioned, U: NotVersioned, V: NotVersioned> NotVersioned for (T, U, V) {}
+impl<T: Versionize, U: Versionize, V: Versionize> VersionizeSlice for (T, U, V) {
+    type VersionedSlice<'vers> = Vec<(T::Versioned<'vers>, U::Versioned<'vers>, V::Versioned<'vers>)> where T: 'vers, U: 'vers, V: 'vers;
+
+    fn versionize_slice(slice: &[Self]) -> Self::VersionedSlice<'_> {
+        slice
+            .iter()
+            .map(|(t, u, v)| (t.versionize(), u.versionize(), v.versionize()))
+            .collect()
+    }
+}
+
+impl<T: VersionizeOwned, U: VersionizeOwned, V: VersionizeOwned> VersionizeVec for (T, U, V) {
+    type VersionedVec = Vec<(T::VersionedOwned, U::VersionedOwned, V::VersionedOwned)>;
+
+    fn versionize_vec(vec: Vec<Self>) -> Self::VersionedVec {
+        vec.into_iter()
+            .map(|(t, u, v)| {
+                (
+                    t.versionize_owned(),
+                    u.versionize_owned(),
+                    v.versionize_owned(),
+                )
+            })
+            .collect()
+    }
+}
+
+impl<T: Unversionize, U: Unversionize, V: Unversionize> UnversionizeVec for (T, U, V) {
+    fn unversionize_vec(versioned: Self::VersionedVec) -> Result<Vec<Self>, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(|(t, u, v)| {
+                Ok((
+                    T::unversionize(t)?,
+                    U::unversionize(u)?,
+                    V::unversionize(v)?,
+                ))
+            })
+            .collect()
+    }
+}
 
 // converts to `Vec<T::Versioned>` for the versioned type, so we don't have to derive
 // Eq/Hash on it.
