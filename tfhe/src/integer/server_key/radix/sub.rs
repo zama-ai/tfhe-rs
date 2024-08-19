@@ -404,18 +404,19 @@ impl ServerKey {
             lhs.blocks.len(),
             rhs.blocks.len()
         );
-        // Here we have to use manual unchecked_sub on shortint blocks
-        // rather than calling integer's unchecked_sub as we need each subtraction
-        // to be independent from other blocks. And we don't want to do subtraction by
-        // adding negation
-        let result = lhs
-            .blocks
-            .iter()
-            .zip(rhs.blocks.iter())
-            .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
-            .collect::<Vec<_>>();
-        let mut result = RadixCiphertext::from(result);
-        let overflowed = self.unsigned_overflowing_propagate_subtraction_borrow(&mut result);
+
+        const INPUT_BORROW: Option<&BooleanBlock> = None;
+        const COMPUTE_OVERFLOW: bool = true;
+
+        let mut result = lhs.clone();
+        let overflowed = self
+            .advanced_sub_assign_with_borrow_sequential(
+                &mut result,
+                rhs,
+                INPUT_BORROW,
+                COMPUTE_OVERFLOW,
+            )
+            .expect("overflow computation was requested");
         (result, overflowed)
     }
 

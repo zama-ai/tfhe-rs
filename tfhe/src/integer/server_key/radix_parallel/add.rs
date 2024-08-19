@@ -1011,6 +1011,12 @@ impl ServerKey {
         grouping_size: usize,
         block_states: &[Ciphertext],
     ) -> (Vec<Ciphertext>, Vec<Ciphertext>) {
+        if block_states.is_empty() {
+            return (
+                vec![self.key.create_trivial(0)],
+                vec![self.key.create_trivial(0)],
+            );
+        }
         let message_modulus = self.key.message_modulus.0 as u64;
         let block_modulus = message_modulus * self.carry_modulus().0 as u64;
         let num_bits_in_block = block_modulus.ilog2();
@@ -1325,7 +1331,7 @@ impl ServerKey {
                 } else if block == message_modulus - 1 {
                     1 // Propagates a carry
                 } else {
-                    0 // Does not borrow
+                    0 // Does not generate carry
                 };
 
                 r << (i - 1)
@@ -1354,6 +1360,10 @@ impl ServerKey {
             })
             .collect::<Vec<_>>();
 
+        // For the last block we do something a bit different because the
+        // state we compute will be used (if needed) to compute the output carry
+        // of the whole addition. And this computation will be done during the 'cleaning'
+        // phase
         let last_block_luts = {
             if blocks.len() == 1 {
                 let first_block_state_fn = |block| {
