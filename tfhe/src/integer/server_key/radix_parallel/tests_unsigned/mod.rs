@@ -24,6 +24,7 @@ pub(crate) mod test_vector_comparisons;
 pub(crate) mod test_vector_find;
 
 use super::tests_cases_unsigned::*;
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::create_parametrized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -157,7 +158,11 @@ pub(crate) fn overflowing_sub_under_modulus(lhs: u64, rhs: u64, modulus: u64) ->
     (result % modulus, overflowed)
 }
 
-pub(crate) fn overflowing_add_under_modulus(lhs: u64, rhs: u64, modulus: u64) -> (u64, bool) {
+pub(crate) fn overflowing_add_under_modulus<T: UnsignedInteger>(
+    lhs: T,
+    rhs: T,
+    modulus: T,
+) -> (T, bool) {
     let (result, overflowed) = lhs.overflowing_add(rhs);
     (result % modulus, overflowed || result >= modulus)
 }
@@ -184,6 +189,18 @@ pub(crate) fn unsigned_modulus(block_modulus: MessageModulus, num_blocks: u32) -
     (block_modulus.0 as u64)
         .checked_pow(num_blocks)
         .expect("Modulus exceed u64::MAX")
+}
+
+/// This is just a copy-paste as it creates less breakage than modify the u64 one to return
+/// an u128.
+///
+/// Also, it would mean users would do `unsigned_modulus(...) as u64` which when reading
+/// could create the suspicion of whether the as cast is value and try_into should be used,
+/// but then it becomes more verbose.
+pub(crate) fn unsigned_modulus_u128(block_modulus: MessageModulus, num_blocks: u32) -> u128 {
+    (block_modulus.0 as u128)
+        .checked_pow(num_blocks)
+        .expect("Modulus exceed u128::MAX")
 }
 
 /// Given a radix ciphertext, checks that all the block's decrypted message and carry
