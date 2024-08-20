@@ -12,7 +12,7 @@ pub(crate) enum OutputFlag {
     /// Request no flag at all
     None,
     /// The overflow flag is the flag that tells whether the input carry bit onto the last bit
-    /// is different than the output bit.
+    /// is different from the output bit.
     ///
     /// This is useful to know if a signed addition overflowed (in 2's complement)
     Overflow,
@@ -666,18 +666,18 @@ impl ServerKey {
             if num_blocks == 1 && input_carry.is_some() {
                 self.key
                     .unchecked_add_assign(block, input_carry.map(|b| &b.0).unwrap());
-            } else {
+            } else if num_blocks > 1 {
                 self.key.unchecked_add_assign(block, &carry);
             }
         }
-
-        // To be able to use carry_extract_assign in it
-        carry.clone_from(&lhs[num_blocks - 1]);
 
         // Note that here when num_blocks == 1 && requested_flag != Overflow nothing
         // will actually be spawned.
         rayon::scope(|s| {
             if num_blocks >= 2 {
+                // To be able to use carry_extract_assign in it
+                carry.clone_from(&lhs[num_blocks - 1]);
+
                 // These would already have been done when the first block was processed
                 s.spawn(|_| {
                     self.key.message_extract_assign(&mut lhs[num_blocks - 1]);

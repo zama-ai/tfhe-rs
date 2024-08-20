@@ -2,7 +2,8 @@ use super::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
     panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT, NB_CTXT,
+    unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
+    NB_CTXT,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -19,8 +20,10 @@ create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_add_assign);
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_default_add);
+create_parametrized_test!(integer_extensive_trivial_default_add);
 create_parametrized_test!(integer_default_overflowing_add);
-create_parametrized_test!(integer_advanced_add_assign_with_carry_at_least_4_bits {
+create_parametrized_test!(integer_extensive_trivial_default_overflowing_add);
+create_parametrized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
@@ -36,6 +39,24 @@ create_parametrized_test!(integer_advanced_add_assign_with_carry_at_least_4_bits
     }
 });
 create_parametrized_test!(integer_advanced_add_assign_with_carry_sequential);
+create_parametrized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
+    coverage => {
+        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+    },
+    no_coverage => {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+        PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+    }
+});
+create_parametrized_test!(
+    integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential
+);
 
 fn integer_unchecked_add<P>(param: P)
 where
@@ -69,7 +90,15 @@ where
     default_add_test(param, executor);
 }
 
-fn integer_advanced_add_assign_with_carry_at_least_4_bits<P>(param: P)
+fn integer_extensive_trivial_default_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
+    extensive_trivial_default_add_test(param, executor);
+}
+
+fn integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
@@ -77,16 +106,62 @@ where
     // no matter the number of blocks / threads available
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
-        sks.advanced_add_assign_with_carry_at_least_4_bits(
-            &mut result.blocks,
-            &rhs.blocks,
-            None,
-            OutputFlag::None,
-        );
-        result
+        if !result.block_carries_are_empty() {
+            sks.full_propagate_parallelized(&mut result);
+        }
+        let mut tmp_rhs;
+        let rhs = if rhs.block_carries_are_empty() {
+            rhs
+        } else {
+            tmp_rhs = rhs.clone();
+            sks.full_propagate_parallelized(&mut tmp_rhs);
+            &tmp_rhs
+        };
+        let overflowed = sks
+            .advanced_add_assign_with_carry_at_least_4_bits(
+                &mut result.blocks,
+                &rhs.blocks,
+                None,
+                OutputFlag::Carry,
+            )
+            .unwrap();
+        (result, overflowed)
     };
     let executor = CpuFunctionExecutor::new(&func);
-    default_add_test(param, executor);
+    default_overflowing_add_test(param, executor);
+}
+
+fn integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    // We explicitly call the 4 bit function to make sure it's being tested,
+    // no matter the number of blocks / threads available
+    let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
+        let mut result = lhs.clone();
+        if !result.block_carries_are_empty() {
+            sks.full_propagate_parallelized(&mut result);
+        }
+        let mut tmp_rhs;
+        let rhs = if rhs.block_carries_are_empty() {
+            rhs
+        } else {
+            tmp_rhs = rhs.clone();
+            sks.full_propagate_parallelized(&mut tmp_rhs);
+            &tmp_rhs
+        };
+        let overflowed = sks
+            .advanced_add_assign_with_carry_at_least_4_bits(
+                &mut result.blocks,
+                &rhs.blocks,
+                None,
+                OutputFlag::Carry,
+            )
+            .unwrap();
+        (result, overflowed)
+    };
+    let executor = CpuFunctionExecutor::new(&func);
+    extensive_trivial_default_overflowing_add_test(param, executor);
 }
 
 fn integer_advanced_add_assign_with_carry_sequential<P>(param: P)
@@ -95,16 +170,60 @@ where
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
-        sks.advanced_add_assign_with_carry_sequential_parallelized(
-            &mut result.blocks,
-            &rhs.blocks,
-            None,
-            OutputFlag::None,
-        );
-        result
+        if !result.block_carries_are_empty() {
+            sks.full_propagate_parallelized(&mut result);
+        }
+        let mut tmp_rhs;
+        let rhs = if rhs.block_carries_are_empty() {
+            rhs
+        } else {
+            tmp_rhs = rhs.clone();
+            sks.full_propagate_parallelized(&mut tmp_rhs);
+            &tmp_rhs
+        };
+        let overflowed = sks
+            .advanced_add_assign_with_carry_sequential_parallelized(
+                &mut result.blocks,
+                &rhs.blocks,
+                None,
+                OutputFlag::Carry,
+            )
+            .unwrap();
+        (result, overflowed)
     };
     let executor = CpuFunctionExecutor::new(&func);
-    default_add_test(param, executor);
+    default_overflowing_add_test(param, executor);
+}
+
+fn integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
+        let mut result = lhs.clone();
+        if !result.block_carries_are_empty() {
+            sks.full_propagate_parallelized(&mut result);
+        }
+        let mut tmp_rhs;
+        let rhs = if rhs.block_carries_are_empty() {
+            rhs
+        } else {
+            tmp_rhs = rhs.clone();
+            sks.full_propagate_parallelized(&mut tmp_rhs);
+            &tmp_rhs
+        };
+        let overflowed = sks
+            .advanced_add_assign_with_carry_sequential_parallelized(
+                &mut result.blocks,
+                &rhs.blocks,
+                None,
+                OutputFlag::Carry,
+            )
+            .unwrap();
+        (result, overflowed)
+    };
+    let executor = CpuFunctionExecutor::new(&func);
+    extensive_trivial_default_overflowing_add_test(param, executor);
 }
 
 fn integer_default_overflowing_add<P>(param: P)
@@ -113,6 +232,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
     default_overflowing_add_test(param, executor);
+}
+
+fn integer_extensive_trivial_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
+    extensive_trivial_default_overflowing_add_test(param, executor);
 }
 
 impl ExpectedNoiseLevels {
@@ -374,6 +501,54 @@ where
     }
 }
 
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_default_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+    // Contrary to regular add, we do bit_size every block num_bits,
+    // otherwise the bit_size actually encrypted is not exactly the same
+    // leading to false test overflow results.
+    for bit_size in (1..=64u32).step_by(block_num_bits as usize) {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<u128>() % modulus;
+            let clear_1 = rng.gen::<u128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: u128 = cks.decrypt(&ct_res);
+
+            let expected_clear = clear_0.wrapping_add(clear_1) % modulus;
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} + {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+        }
+    }
+}
+
 pub(crate) fn default_overflowing_add_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -496,5 +671,60 @@ where
         );
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
+/// Although this uses the executor pattern and could be plugged in other backends,
+/// It is not recommended to do so unless the backend is extremely fast on trivial ciphertexts
+/// or extremely extremely fast in general, or if its plugged just as a one time thing.
+pub(crate) fn extensive_trivial_default_overflowing_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, BooleanBlock),
+    >,
+{
+    let param = param.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let message_modulus = cks.parameters().message_modulus();
+    let block_num_bits = message_modulus.0.ilog2();
+    for bit_size in 1..=64u32 {
+        let num_blocks = bit_size.div_ceil(block_num_bits);
+        let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
+
+        for _ in 0..50 {
+            let clear_0 = rng.gen::<u128>() % modulus;
+            let clear_1 = rng.gen::<u128>() % modulus;
+
+            let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
+            let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
+
+            let (ct_res, o_res) = executor.execute((&ctxt_0, &ctxt_1));
+            let dec_res: u128 = cks.decrypt(&ct_res);
+            let dec_overflow = cks.decrypt_bool(&o_res);
+
+            let (expected_clear, expected_overflow) =
+                overflowing_add_under_modulus(clear_0, clear_1, modulus);
+            assert_eq!(
+                expected_clear, dec_res,
+                "Invalid result for {clear_0} + {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+            assert_eq!(
+                expected_overflow, dec_overflow,
+                "Invalid overflow result for {clear_0} + {clear_1}, expected: {expected_overflow}, got: {dec_overflow}\n\
+                    num_blocks={num_blocks}, modulus={modulus}"
+            );
+        }
     }
 }
