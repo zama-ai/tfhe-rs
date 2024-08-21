@@ -145,6 +145,7 @@ jobs:
       - name: Run core crypto and internal CUDA backend tests
         run: |
           make test_core_crypto_gpu
+          make test_integer_compression_gpu
           make test_cuda_backend
 
       - name: Run user docs tests

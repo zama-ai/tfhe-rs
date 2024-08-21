@@ -25,24 +25,25 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t num_lwes, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t storage_log_modulus, bool allocate_gpu_memory) {
+    PBS_TYPE pbs_type, uint32_t storage_log_modulus, uint32_t body_count,
+    bool allocate_gpu_memory) {
 
+  // Decompression doesn't keyswitch, so big and small dimensions are the same
   int_radix_params encryption_params(
       pbs_type, encryption_glwe_dimension, encryption_polynomial_size,
-      (encryption_glwe_dimension + 1) * encryption_polynomial_size,
-      lwe_dimension, 0, 0, pbs_level, pbs_base_log, 0, message_modulus,
-      carry_modulus);
+      lwe_dimension, lwe_dimension, 0, 0, pbs_level, pbs_base_log, 0,
+      message_modulus, carry_modulus);
 
   int_radix_params compression_params(
       pbs_type, compression_glwe_dimension, compression_polynomial_size,
-      (compression_glwe_dimension + 1) * compression_polynomial_size,
-      lwe_dimension, 0, 0, pbs_level, pbs_base_log, 0, message_modulus,
-      carry_modulus);
+      lwe_dimension, compression_glwe_dimension * compression_polynomial_size,
+      0, 0, pbs_level, pbs_base_log, 0, message_modulus, carry_modulus);
 
   scratch_cuda_integer_decompress_radix_ciphertext_64(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      (int_decompression<uint64_t> **)mem_ptr, num_lwes, encryption_params,
-      compression_params, storage_log_modulus, allocate_gpu_memory);
+      (int_decompression<uint64_t> **)mem_ptr, num_lwes, body_count,
+      encryption_params, compression_params, storage_log_modulus,
+      allocate_gpu_memory);
 }
 void cuda_integer_compress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,

@@ -18,7 +18,8 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
     uint32_t lwe_dimension, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t num_lwes, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, uint32_t storage_log_modulus, bool allocate_gpu_memory);
+    PBS_TYPE pbs_type, uint32_t storage_log_modulus, uint32_t body_count,
+    bool allocate_gpu_memory);
 
 void cuda_integer_compress_radix_ciphertext_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
@@ -94,6 +95,7 @@ template <typename Torus> struct int_decompression {
 
   uint32_t storage_log_modulus;
 
+  uint32_t num_lwes;
   uint32_t body_count;
 
   Torus *tmp_extracted_glwe;
@@ -104,12 +106,13 @@ template <typename Torus> struct int_decompression {
   int_decompression(cudaStream_t *streams, uint32_t *gpu_indexes,
                     uint32_t gpu_count, int_radix_params encryption_params,
                     int_radix_params compression_params,
-                    uint32_t num_radix_blocks, uint32_t storage_log_modulus,
-                    bool allocate_gpu_memory) {
+                    uint32_t num_radix_blocks, uint32_t body_count,
+                    uint32_t storage_log_modulus, bool allocate_gpu_memory) {
     this->encryption_params = encryption_params;
     this->compression_params = compression_params;
     this->storage_log_modulus = storage_log_modulus;
-    this->body_count = num_radix_blocks;
+    this->num_lwes = num_radix_blocks;
+    this->body_count = body_count;
 
     if (allocate_gpu_memory) {
       Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
