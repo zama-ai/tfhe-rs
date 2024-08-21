@@ -30,6 +30,7 @@ pub struct CudaDecompressionKey {
 pub struct CudaPackedGlweCiphertext {
     pub glwe_ciphertext_list: CudaGlweCiphertextList<u64>,
     pub block_info: Vec<CudaBlockInfo>,
+    pub bodies_count: usize,
     pub storage_log_modulus: CiphertextModulusLog,
 }
 
@@ -161,6 +162,7 @@ impl CudaCompressionKey {
         CudaPackedGlweCiphertext {
             glwe_ciphertext_list: output_glwe,
             block_info: info,
+            bodies_count: num_lwes,
             storage_log_modulus: self.storage_log_modulus,
         }
     }
@@ -184,6 +186,7 @@ impl CudaDecompressionKey {
         let compression_glwe_dimension = glwe_ciphertext_list.glwe_dimension();
         let compression_polynomial_size = glwe_ciphertext_list.polynomial_size();
         let lwe_ciphertext_count = LweCiphertextCount(indexes_array.len());
+
         let message_modulus = self.parameters.message_modulus();
         let carry_modulus = self.parameters.carry_modulus();
         let ciphertext_modulus = self.parameters.ciphertext_modulus();
@@ -210,6 +213,7 @@ impl CudaDecompressionKey {
                         &mut output_lwe.0.d_vec,
                         &glwe_ciphertext_list.0.d_vec,
                         &bsk.d_vec,
+                        packed_list.bodies_count as u32,
                         message_modulus,
                         carry_modulus,
                         encryption_glwe_dimension,
@@ -244,7 +248,7 @@ impl CudaDecompressionKey {
                 }
             }
             CudaBootstrappingKey::MultiBit(_) => {
-                panic! {"Compression is currently not compatible with Multi Bit PBS"}
+                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
             }
         }
     }

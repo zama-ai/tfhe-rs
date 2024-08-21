@@ -120,6 +120,7 @@ extern "C" {
         carry_modulus: u32,
         pbs_type: u32,
         storage_log_modulus: u32,
+        bodies_count: u32,
         allocate_gpu_memory: bool,
     );
 

@@ -361,6 +361,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     lwe_array_out: &mut CudaVec<T>,
     glwe_in: &CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
+    bodies_count: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     encryption_glwe_dimension: GlweDimension,
@@ -407,6 +408,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         carry_modulus.0 as u32,
         PBSType::Classical as u32,
         storage_log_modulus,
+        bodies_count,
         true,
     );
 

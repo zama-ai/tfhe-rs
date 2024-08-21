@@ -144,6 +144,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: nvidia-smi
 
+      - name: Run multi-bit CUDA integer compression tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_integer_compression_gpu
+
       # No need to test core_crypto and classic PBS in integer since it's already tested on single GPU.
       - name: Run multi-bit CUDA integer tests
         run: |
