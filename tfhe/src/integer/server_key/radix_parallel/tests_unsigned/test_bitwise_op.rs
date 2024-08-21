@@ -90,7 +90,7 @@ fn integer_unchecked_bitor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitor_parallelized);
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitor_parallelized);
     unchecked_bitor_test(param, executor);
 }
 
@@ -98,7 +98,7 @@ fn integer_unchecked_bitxor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::bitxor_parallelized);
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitxor_parallelized);
     unchecked_bitxor_test(param, executor);
 }
 

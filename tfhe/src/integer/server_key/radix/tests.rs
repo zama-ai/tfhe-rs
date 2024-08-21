@@ -289,199 +289,52 @@ fn integer_smart_add(param: ClassicPBSParameters) {
     smart_add_test(param, executor);
 }
 
-fn integer_unchecked_bitand(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_bitand(&ctxt_0, &ctxt_1);
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!(clear_0 & clear_1, dec_res);
-    }
+fn integer_unchecked_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitand);
+    unchecked_bitand_test(param, executor);
 }
 
-fn integer_unchecked_bitor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_bitor(&ctxt_0, &ctxt_1);
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!(clear_0 | clear_1, dec_res);
-    }
+fn integer_unchecked_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitor);
+    unchecked_bitor_test(param, executor);
 }
 
-fn integer_unchecked_bitxor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_bitxor(&ctxt_0, &ctxt_1);
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!(clear_0 ^ clear_1, dec_res);
-    }
+fn integer_unchecked_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitxor);
+    unchecked_bitxor_test(param, executor);
 }
 
-fn integer_smart_bitand(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let mut clear;
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let mut ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_bitand(&mut ctxt_0, &mut ctxt_1);
-
-        clear = clear_0 & clear_1;
-
-        for _ in 0..NB_TESTS_SMALLER {
-            let clear_2 = rng.gen::<u64>() % modulus;
-
-            let mut ctxt_2 = cks.encrypt_radix(clear_2, NB_CTXT);
-
-            ct_res = sks.smart_bitand(&mut ct_res, &mut ctxt_2);
-            clear &= clear_2;
-
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-            assert_eq!(clear, dec_res);
-        }
-    }
+fn integer_smart_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitand);
+    smart_bitand_test(param, executor);
 }
 
-fn integer_smart_bitor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let mut clear;
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let mut ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_bitor(&mut ctxt_0, &mut ctxt_1);
-
-        clear = (clear_0 | clear_1) % modulus;
-
-        for _ in 0..1 {
-            let clear_2 = rng.gen::<u64>() % modulus;
-
-            let mut ctxt_2 = cks.encrypt_radix(clear_2, NB_CTXT);
-
-            ct_res = sks.smart_bitor(&mut ct_res, &mut ctxt_2);
-            clear = (clear | clear_2) % modulus;
-
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-            assert_eq!(clear, dec_res);
-        }
-    }
+fn integer_smart_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitor);
+    smart_bitor_test(param, executor);
 }
 
-fn integer_smart_bitxor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let mut clear;
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let mut ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_bitxor(&mut ctxt_0, &mut ctxt_1);
-
-        clear = (clear_0 ^ clear_1) % modulus;
-
-        for _ in 0..NB_TESTS_SMALLER {
-            let clear_2 = rng.gen::<u64>() % modulus;
-
-            let mut ctxt_2 = cks.encrypt_radix(clear_2, NB_CTXT);
-
-            ct_res = sks.smart_bitxor(&mut ct_res, &mut ctxt_2);
-            clear = (clear ^ clear_2) % modulus;
-
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-            assert_eq!(clear, dec_res);
-        }
-    }
+fn integer_smart_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitxor);
+    smart_bitxor_test(param, executor);
 }
 
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
@@ -621,72 +474,20 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-    let nb_bits = modulus.ilog2();
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let scalar = rng.gen::<u32>();
-
-        let ct = cks.encrypt_radix(clear, NB_CTXT);
-
-        // case when 0<= scalar < nb_bits
-        {
-            let scalar = scalar % nb_bits;
-            let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.wrapping_shl(scalar) % modulus, dec_res);
-        }
-
-        // case when scalar >= nb_bits
-        {
-            let scalar = scalar.saturating_add(nb_bits);
-            let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
-        }
-    }
+fn integer_unchecked_scalar_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift);
+    unchecked_scalar_left_shift_test(param, executor);
 }
 
-fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-    let nb_bits = modulus.ilog2();
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let scalar = rng.gen::<u32>();
-
-        let ct = cks.encrypt_radix(clear, NB_CTXT);
-
-        // case when 0<= scalar < nb_bits
-        {
-            let scalar = scalar % nb_bits;
-            let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
-        }
-
-        // case when scalar >= nb_bits
-        {
-            let scalar = scalar.saturating_add(nb_bits);
-            let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
-        }
-    }
+fn integer_unchecked_scalar_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift);
+    unchecked_scalar_right_shift_test(param, executor);
 }
 
 fn integer_unchecked_neg<P>(param: P)
@@ -715,32 +516,12 @@ fn integer_smart_sub(param: ClassicPBSParameters) {
     smart_sub_test(param, executor);
 }
 
-fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let block_modulus = param.message_modulus.0 as u64;
-
-    for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % block_modulus;
-
-        let ct_zero = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        let ct_one = cks.encrypt_one_block(clear_1);
-
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_block_mul(&ct_zero, &ct_one, 0);
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!((clear_0 * clear_1) % modulus, dec_res);
-    }
+fn integer_unchecked_block_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_block_mul);
+    unchecked_block_mul_test(param, executor);
 }
 
 fn integer_smart_block_mul(param: ClassicPBSParameters) {
@@ -779,68 +560,20 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..1 {
-        // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        // Encrypt the integers;;
-        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
-        let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
-
-        let res = sks.unchecked_mul(&ctxt_1, &ctxt_2);
-
-        let dec: u64 = cks.decrypt_radix(&res);
-
-        let expected = (clear1 * clear2) % modulus;
-
-        // Check the correctness
-        assert_eq!(expected, dec);
-    }
+fn integer_unchecked_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul);
+    unchecked_mul_test(param, executor);
 }
 
-fn integer_smart_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    for _ in 0..NB_TESTS_SMALLER {
-        // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        // println!("clear1 = {}, clear2 = {}", clear1, clear2);
-
-        // Encrypt the integers
-        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
-        let mut ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        res = sks.smart_mul(&mut res, &mut ctxt_2);
-        for _ in 0..5 {
-            res = sks.smart_mul(&mut res, &mut ctxt_2);
-            clear = (clear * clear2) % modulus;
-        }
-        let dec: u64 = cks.decrypt_radix(&res);
-
-        clear = (clear * clear2) % modulus;
-
-        // Check the correctness
-        assert_eq!(clear, dec);
-    }
+fn integer_smart_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_mul);
+    smart_mul_test(param, executor);
 }
 
 fn integer_unchecked_scalar_add<P>(param: P)
@@ -851,41 +584,12 @@ where
     unchecked_scalar_add_test(param, executor);
 }
 
-fn integer_smart_scalar_add(param: ClassicPBSParameters) {
-    // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let mut clear;
-
-    let mut rng = rand::thread_rng();
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_scalar_add(&mut ctxt_0, clear_1);
-
-        clear = (clear_0 + clear_1) % modulus;
-
-        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
-        //add multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
-            ct_res = sks.smart_scalar_add(&mut ct_res, clear_1);
-            clear = (clear + clear_1) % modulus;
-
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-            // println!("clear = {}, dec_res = {}", clear, dec_res);
-            assert_eq!(clear, dec_res);
-        }
-    }
+fn integer_smart_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_add);
+    smart_scalar_add_test(param, executor);
 }
 
 fn integer_unchecked_scalar_sub<P>(param: P)
@@ -896,41 +600,12 @@ where
     unchecked_scalar_sub_test(param, executor);
 }
 
-fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
-    // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    let mut clear;
-
-    let mut rng = rand::thread_rng();
-
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_scalar_sub(&mut ctxt_0, clear_1);
-
-        clear = (clear_0 - clear_1) % modulus;
-
-        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
-        //add multiple times to raise the degree
-        for _ in 0..NB_TESTS_SMALLER {
-            ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
-            clear = (clear - clear_1) % modulus;
-
-            let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-            // println!("clear = {}, dec_res = {}", clear, dec_res);
-            assert_eq!(clear, dec_res);
-        }
-    }
+fn integer_smart_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_sub);
+    smart_scalar_sub_test(param, executor);
 }
 
 fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) {
