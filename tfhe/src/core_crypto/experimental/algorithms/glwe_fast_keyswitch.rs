@@ -193,12 +193,11 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
             ggsw.decomposition_base_log(),
             ggsw.decomposition_level_count(),
         );
-        let (mut output_fft_buffer, mut substack0) =
+        let (output_fft_buffer, mut substack0) =
             stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size_out().0, align);
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
         // it has been fully initialized for the first time.
-        let output_fft_buffer = &mut *output_fft_buffer;
         let mut is_output_uninit = true;
 
         {
@@ -244,14 +243,14 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
                     glwe_decomp_term.get_mask().as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (mut fourier, substack3) = substack2
+                    let (fourier, substack3) = substack2
                         .rb_mut()
                         .make_aligned_raw::<c64>(fourier_poly_size, align);
 
                     // We perform the forward fft transform for the glwe polynomial
                     let fourier = fft
                         .forward_as_integer(
-                            FourierPolynomialMutView { data: &mut fourier },
+                            FourierPolynomialMutView { data: fourier },
                             glwe_poly,
                             substack3,
                         )

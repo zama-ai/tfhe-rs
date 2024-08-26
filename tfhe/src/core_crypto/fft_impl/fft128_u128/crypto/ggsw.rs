@@ -63,32 +63,28 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             ggsw.decomposition_level_count(),
         );
 
-        let (mut output_fft_buffer_re0, stack) =
+        let (output_fft_buffer_re0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_re1, stack) =
+        let (output_fft_buffer_re1, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_im0, stack) =
+        let (output_fft_buffer_im0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_im1, mut substack0) =
+        let (output_fft_buffer_im1, mut substack0) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
 
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
         // it has been fully initialized for the first time.
-        let output_fft_buffer_re0 = &mut *output_fft_buffer_re0;
-        let output_fft_buffer_re1 = &mut *output_fft_buffer_re1;
-        let output_fft_buffer_im0 = &mut *output_fft_buffer_im0;
-        let output_fft_buffer_im1 = &mut *output_fft_buffer_im1;
         let mut is_output_uninit = true;
 
         {
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the fourier
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (mut decomposition_states_lo, stack) = substack0
+            let (decomposition_states_lo, stack) = substack0
                 .rb_mut()
                 .make_aligned_raw::<u64>(poly_size * glwe_size, align);
-            let (mut decomposition_states_hi, mut substack1) =
+            let (decomposition_states_hi, mut substack1) =
                 stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
             let shift = 128 - decomposer.base_log * decomposer.level_count;
@@ -104,6 +100,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 *out_lo = value as u64;
                 *out_hi = (value >> 64) as u64;
             }
+            // Reborrow to avoid mut slices to be moved
             let decomposition_states_lo = &mut *decomposition_states_lo;
             let decomposition_states_hi = &mut *decomposition_states_hi;
             let mut current_level = decomposer.level_count;
@@ -118,26 +115,23 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 assert_ne!(current_level, 0);
                 let glwe_level = DecompositionLevel(current_level);
                 current_level -= 1;
-                let (mut glwe_decomp_term_lo, stack) = substack1
+                let (glwe_decomp_term_lo, stack) = substack1
                     .rb_mut()
                     .make_aligned_raw::<u64>(poly_size * glwe_size, align);
-                let (mut glwe_decomp_term_hi, mut substack2) =
+                let (glwe_decomp_term_hi, mut substack2) =
                     stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
                 let base_log = decomposer.base_log;
 
                 collect_next_term_split(
-                    &mut glwe_decomp_term_lo,
-                    &mut glwe_decomp_term_hi,
+                    glwe_decomp_term_lo,
+                    glwe_decomp_term_hi,
                     decomposition_states_lo,
                     decomposition_states_hi,
                     mod_b_mask_lo,
                     mod_b_mask_hi,
                     base_log,
                 );
-
-                let glwe_decomp_term_lo = &mut *glwe_decomp_term_lo;
-                let glwe_decomp_term_hi = &mut *glwe_decomp_term_hi;
 
                 let glwe_decomp_term_lo = GlweCiphertextView::from_container(
                     &*glwe_decomp_term_lo,
@@ -170,16 +164,16 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 ) {
                     let len = fourier_poly_size;
                     let stack = substack2.rb_mut();
-                    let (mut fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_im1, _) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_im1, _) = stack.make_aligned_raw::<f64>(len, align);
                     // We perform the forward fft transform for the glwe polynomial
                     fft.forward_as_integer_split(
-                        &mut fourier_re0,
-                        &mut fourier_re1,
-                        &mut fourier_im0,
-                        &mut fourier_im1,
+                        fourier_re0,
+                        fourier_re1,
+                        fourier_im0,
+                        fourier_im1,
                         glwe_poly_lo.as_ref(),
                         glwe_poly_hi.as_ref(),
                     );
@@ -192,10 +186,10 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                         output_fft_buffer_im0,
                         output_fft_buffer_im1,
                         ggsw_row,
-                        &fourier_re0,
-                        &fourier_re1,
-                        &fourier_im0,
-                        &fourier_im1,
+                        fourier_re0,
+                        fourier_re1,
+                        fourier_im0,
+                        fourier_im1,
                         is_output_uninit,
                         fourier_poly_size,
                     );

@@ -250,13 +250,10 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
             if *lwe_mask_element != 0u64 {
                 let stack = stack.rb_mut();
                 // We copy ct_0 to ct_1
-                let (mut ct1, stack) =
+                let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
-                let mut ct1 = GlweCiphertextMutView::from_container(
-                    &mut *ct1,
-                    lut_poly_size,
-                    ciphertext_modulus,
-                );
+                let mut ct1 =
+                    GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
@@ -503,10 +500,10 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized<
             accumulator.ciphertext_modulus()
         );
 
-        let (mut local_accumulator_data, stack) =
+        let (local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextMutView::from_container(
-            &mut *local_accumulator_data,
+            local_accumulator_data,
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
@@ -568,12 +565,11 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
         out.ciphertext_modulus(),
     );
 
-    let (mut output_fft_buffer, mut substack0) =
+    let (output_fft_buffer, mut substack0) =
         stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
     // it has been fully initialized for the first time.
-    let output_fft_buffer = &mut *output_fft_buffer;
     let mut is_output_uninit = true;
 
     {
@@ -616,17 +612,16 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                 glwe_decomp_term.as_polynomial_list().iter()
             )
             .for_each(|(ggsw_row, glwe_poly)| {
-                let (mut ntt_poly, _) =
-                    substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                let (ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
                 // We perform the forward ntt transform for the glwe polynomial
-                ntt.forward(PolynomialMutView::from_container(&mut ntt_poly), glwe_poly);
+                ntt.forward(PolynomialMutView::from_container(ntt_poly), glwe_poly);
                 // Now we loop through the polynomials of the output, and add the
                 // corresponding product of polynomials.
 
                 update_with_fmadd_ntt64(
                     output_fft_buffer,
                     ggsw_row.as_ref(),
-                    &ntt_poly,
+                    ntt_poly,
                     is_output_uninit,
                     poly_size,
                     ntt,

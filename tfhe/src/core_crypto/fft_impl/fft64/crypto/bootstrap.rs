@@ -353,7 +353,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lut.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                let (mut tmp_poly, _) = stack
+                let (tmp_poly, _) = stack
                     .rb_mut()
                     .make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
@@ -364,7 +364,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
-        let (mut ct1, mut stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
+        let (ct1, mut stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
@@ -437,7 +437,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             accumulator.ciphertext_modulus()
         );
 
-        let (mut local_accumulator_data, stack) =
+        let (local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextMutView::from_container(
             &mut *local_accumulator_data,

@@ -532,12 +532,12 @@ impl<'a> FftView<'a> {
         let standard = standard.as_mut();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
-        let (mut tmp, stack) =
+        let (tmp, stack) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, fourier.iter().copied());
-        self.plan.inv(&mut tmp, stack);
+        self.plan.inv(tmp, stack);
 
         let (standard_re, standard_im) = standard.split_at_mut(n / 2);
-        conv_fn(standard_re, standard_im, &tmp, self.twisties);
+        conv_fn(standard_re, standard_im, tmp, self.twisties);
     }
 
     fn backward_with_conv_in_place<

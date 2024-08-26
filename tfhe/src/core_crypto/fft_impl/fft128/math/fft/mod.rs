@@ -495,27 +495,19 @@ impl<'a> Fft128View<'a> {
         debug_assert_eq!(n, 2 * fourier_im0.len());
         debug_assert_eq!(n, 2 * fourier_im1.len());
 
-        let (mut tmp_re0, stack) =
+        let (tmp_re0, stack) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, fourier_re0.iter().copied());
-        let (mut tmp_re1, stack) =
+        let (tmp_re1, stack) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, fourier_re1.iter().copied());
-        let (mut tmp_im0, stack) =
+        let (tmp_im0, stack) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, fourier_im0.iter().copied());
-        let (mut tmp_im1, _) =
+        let (tmp_im1, _) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, fourier_im1.iter().copied());
 
-        self.plan
-            .inv(&mut tmp_re0, &mut tmp_re1, &mut tmp_im0, &mut tmp_im1);
+        self.plan.inv(tmp_re0, tmp_re1, tmp_im0, tmp_im1);
 
         let (standard_re, standard_im) = standard.split_at_mut(n / 2);
-        conv_fn(
-            standard_re,
-            standard_im,
-            &tmp_re0,
-            &tmp_re1,
-            &tmp_im0,
-            &tmp_im1,
-        );
+        conv_fn(standard_re, standard_im, tmp_re0, tmp_re1, tmp_im0, tmp_im1);
     }
 }
 

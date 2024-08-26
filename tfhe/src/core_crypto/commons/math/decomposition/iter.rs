@@ -4,7 +4,7 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use dyn_stack::{DynArray, PodStack, ReborrowMut};
+use dyn_stack::{PodStack, ReborrowMut};
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -288,9 +288,9 @@ pub struct TensorSignedDecompositionLendingIterNonNative<'buffers> {
     // ...0001111
     mod_b_mask: u64,
     // The internal states of each decomposition
-    states: DynArray<'buffers, u64>,
+    states: &'buffers mut [u64],
     // Corresponding input signs
-    input_signs: DynArray<'buffers, u8>,
+    input_signs: &'buffers mut [u8],
     // A flag which stores whether the iterator is a fresh one (for the recompose method).
     fresh: bool,
     ciphertext_modulus: u64,
@@ -306,9 +306,9 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
     ) -> (Self, PodStack<'buffers>) {
         let shift = modulus.ceil_ilog2() as usize - decomposer.base_log * decomposer.level_count;
         let input_size = input.len();
-        let (mut states, stack) =
+        let (states, stack) =
             stack.make_aligned_raw::<u64>(input_size, aligned_vec::CACHELINE_ALIGN);
-        let (mut input_signs, stack) =
+        let (input_signs, stack) =
             stack.make_aligned_raw::<u8>(input_size, aligned_vec::CACHELINE_ALIGN);
 
         for ((i, state), sign) in input
@@ -393,11 +393,7 @@ impl<'buffers> TensorSignedDecompositionLendingIterNonNative<'buffers> {
         &mut self,
         substack1: &'a mut PodStack,
         align: usize,
-    ) -> (
-        DecompositionLevel,
-        dyn_stack::DynArray<'a, u64>,
-        PodStack<'a>,
-    ) {
+    ) -> (DecompositionLevel, &'a mut [u64], PodStack<'a>) {
         let (glwe_level, _, glwe_decomp_term) = self.next_term().unwrap();
         let (glwe_decomp_term, substack2) =
             substack1.rb_mut().collect_aligned(align, glwe_decomp_term);

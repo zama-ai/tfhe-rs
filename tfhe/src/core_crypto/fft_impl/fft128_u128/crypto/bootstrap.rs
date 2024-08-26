@@ -105,9 +105,9 @@ where
                 if *lwe_mask_element != 0 {
                     let stack = stack.rb_mut();
                     // We copy ct_0 to ct_1
-                    let (mut ct1_lo, stack) =
+                    let (ct1_lo, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0_lo.as_ref().iter().copied());
-                    let (mut ct1_hi, stack) =
+                    let (ct1_hi, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0_hi.as_ref().iter().copied());
                     let mut ct1_lo = GlweCiphertextMutView::from_container(
                         &mut *ct1_lo,
@@ -177,9 +177,9 @@ where
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 
-            let (mut local_accumulator_lo, stack) =
+            let (local_accumulator_lo, stack) =
                 stack.collect_aligned(align, accumulator.as_ref().iter().map(|i| *i as u64));
-            let (mut local_accumulator_hi, mut stack) = stack.collect_aligned(
+            let (local_accumulator_hi, mut stack) = stack.collect_aligned(
                 align,
                 accumulator.as_ref().iter().map(|i| (*i >> 64) as u64),
             );
@@ -207,7 +207,7 @@ where
                 fft,
                 stack.rb_mut(),
             );
-            let (mut local_accumulator, _) = stack.collect_aligned(
+            let (local_accumulator, _) = stack.collect_aligned(
                 align,
                 izip!(local_accumulator_lo.as_ref(), local_accumulator_hi.as_ref())
                     .map(|(&lo, &hi)| lo as u128 | ((hi as u128) << 64)),

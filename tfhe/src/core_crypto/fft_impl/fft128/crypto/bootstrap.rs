@@ -289,10 +289,10 @@ where
                 if *lwe_mask_element != Scalar::ZERO {
                     let stack = stack.rb_mut();
                     // We copy ct_0 to ct_1
-                    let (mut ct1, stack) =
+                    let (ct1, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
                     let mut ct1 = GlweCiphertextMutView::from_container(
-                        &mut *ct1,
+                        ct1,
                         ct0.polynomial_size(),
                         ct0.ciphertext_modulus(),
                     );
@@ -361,10 +361,10 @@ where
                 return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
             }
 
-            let (mut local_accumulator_data, stack) =
+            let (local_accumulator_data, stack) =
                 stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
             let mut local_accumulator = GlweCiphertextMutView::from_container(
-                &mut *local_accumulator_data,
+                local_accumulator_data,
                 accumulator.polynomial_size(),
                 accumulator.ciphertext_modulus(),
             );

@@ -2,7 +2,7 @@ use crate::core_crypto::commons::math::decomposition::decompose_one_level;
 pub use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use dyn_stack::{DynArray, PodStack};
+use dyn_stack::PodStack;
 use std::iter::Map;
 use std::slice::IterMut;
 
@@ -18,7 +18,7 @@ pub struct TensorSignedDecompositionLendingIter<'buffers, Scalar: UnsignedIntege
     // ...0001111
     mod_b_mask: Scalar,
     // The internal states of each decomposition
-    states: DynArray<'buffers, Scalar>,
+    states: &'buffers mut [Scalar],
     // A flag which stores whether the iterator is a fresh one (for the recompose method).
     fresh: bool,
 }

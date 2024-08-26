@@ -588,7 +588,7 @@ pub fn add_external_product_assign<Scalar>(
         ggsw.decomposition_level_count(),
     );
 
-    let (mut output_fft_buffer, mut substack0) =
+    let (output_fft_buffer, mut substack0) =
         stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size().0, align);
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
@@ -638,13 +638,13 @@ pub fn add_external_product_assign<Scalar>(
                 glwe_decomp_term.as_polynomial_list().iter()
             )
             .for_each(|(ggsw_row, glwe_poly)| {
-                let (mut fourier, substack3) = substack2
+                let (fourier, substack3) = substack2
                     .rb_mut()
                     .make_aligned_raw::<c64>(fourier_poly_size, align);
                 // We perform the forward fft transform for the glwe polynomial
                 let fourier = fft
                     .forward_as_integer(
-                        FourierPolynomialMutView { data: &mut fourier },
+                        FourierPolynomialMutView { data: fourier },
                         glwe_poly,
                         substack3,
                     )
@@ -691,11 +691,7 @@ pub(crate) fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
     align: usize,
-) -> (
-    DecompositionLevel,
-    dyn_stack::DynArray<'a, Scalar>,
-    PodStack<'a>,
-) {
+) -> (DecompositionLevel, &'a mut [Scalar], PodStack<'a>) {
     let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
     let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
     (glwe_level, glwe_decomp_term, substack2)
