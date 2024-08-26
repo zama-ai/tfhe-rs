@@ -89,52 +89,10 @@ pub fn mm256_cvtpd_epi64(simd: V3, x: __m256d) -> __m256i {
 #[cfg(feature = "nightly-avx512")]
 #[inline(always)]
 pub fn mm512_cvtt_roundpd_epi64(simd: V4, x: __m512d) -> __m512i {
-    // This first one is required for the zmm_reg notation
-    #[inline]
-    #[target_feature(enable = "sse")]
-    #[target_feature(enable = "sse2")]
-    #[target_feature(enable = "fxsr")]
-    #[target_feature(enable = "sse3")]
-    #[target_feature(enable = "ssse3")]
-    #[target_feature(enable = "sse4.1")]
-    #[target_feature(enable = "sse4.2")]
-    #[target_feature(enable = "popcnt")]
-    #[target_feature(enable = "avx")]
-    #[target_feature(enable = "avx2")]
-    #[target_feature(enable = "bmi1")]
-    #[target_feature(enable = "bmi2")]
-    #[target_feature(enable = "fma")]
-    #[target_feature(enable = "lzcnt")]
-    #[target_feature(enable = "avx512f")]
-    #[target_feature(enable = "avx512dq")]
-    unsafe fn implementation(x: __m512d) -> __m512i {
-        let mut as_i64x8: __m512i;
-
-        // From Intel's documentation the syntax to use this intrinsics is
-        // Instruction: vcvttpd2qq zmm, zmm
-        // With Intel syntax, left operand is the destination, right operand is the source
-        // For the asm! macro
-        // in: indicates an input register
-        // out: indicates an output register
-        // zmm_reg: the avx512 register type
-        // options: see https://doc.rust-lang.org/nightly/reference/inline-assembly.html#options
-        // pure: no side effect
-        // nomem: does not reference RAM (only registers)
-        // nostrack: does not alter the state of the stack
-        core::arch::asm!(
-            "vcvttpd2qq {dst}, {src}",
-            src = in(zmm_reg) x,
-            dst = out(zmm_reg) as_i64x8,
-            options(pure, nomem, nostack)
-        );
-
-        as_i64x8
-    }
-    let _ = simd.avx512dq;
-
     // SAFETY: simd contains an instance of avx512dq, that matches the target feature of
     // `implementation`
-    unsafe { implementation(x) }
+    _ = simd;
+    unsafe { _mm512_cvttpd_epi64(x) }
 }
 
 /// Convert a vector of i64 values to a vector of f64 values. Not sure how it works.
@@ -174,52 +132,10 @@ pub fn mm256_cvtepi64_pd(simd: V3, x: __m256i) -> __m256d {
 #[cfg(feature = "nightly-avx512")]
 #[inline(always)]
 pub fn mm512_cvtepi64_pd(simd: V4, x: __m512i) -> __m512d {
-    // This first one is required for the zmm_reg notation
-    #[inline]
-    #[target_feature(enable = "sse")]
-    #[target_feature(enable = "sse2")]
-    #[target_feature(enable = "fxsr")]
-    #[target_feature(enable = "sse3")]
-    #[target_feature(enable = "ssse3")]
-    #[target_feature(enable = "sse4.1")]
-    #[target_feature(enable = "sse4.2")]
-    #[target_feature(enable = "popcnt")]
-    #[target_feature(enable = "avx")]
-    #[target_feature(enable = "avx2")]
-    #[target_feature(enable = "bmi1")]
-    #[target_feature(enable = "bmi2")]
-    #[target_feature(enable = "fma")]
-    #[target_feature(enable = "lzcnt")]
-    #[target_feature(enable = "avx512f")]
-    #[target_feature(enable = "avx512dq")]
-    unsafe fn implementation(x: __m512i) -> __m512d {
-        let mut as_f64x8: __m512d;
-
-        // From Intel's documentation the syntax to use this intrinsics is
-        // Instruction: vcvtqq2pd zmm, zmm
-        // With Intel syntax, left operand is the destination, right operand is the source
-        // For the asm! macro
-        // in: indicates an input register
-        // out: indicates an output register
-        // zmm_reg: the avx512 register type
-        // options: see https://doc.rust-lang.org/nightly/reference/inline-assembly.html#options
-        // pure: no side effect
-        // nomem: does not reference RAM (only registers)
-        // nostrack: does not alter the state of the stack
-        core::arch::asm!(
-            "vcvtqq2pd {dst}, {src}",
-            src = in(zmm_reg) x,
-            dst = out(zmm_reg) as_f64x8,
-            options(pure, nomem, nostack)
-        );
-
-        as_f64x8
-    }
-    let _ = simd.avx512dq;
-
     // SAFETY: simd contains an instance of avx512dq, that matches the target feature of
     // `implementation`
-    unsafe { implementation(x) }
+    _ = simd;
+    unsafe { _mm512_cvtepi64_pd(x) }
 }
 
 #[cfg(feature = "nightly-avx512")]
