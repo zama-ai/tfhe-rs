@@ -397,13 +397,13 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
             ggsw.decomposition_level_count(),
         );
 
-        let (mut output_fft_buffer_re0, stack) =
+        let (output_fft_buffer_re0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_re1, stack) =
+        let (output_fft_buffer_re1, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_im0, stack) =
+        let (output_fft_buffer_im0, stack) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
-        let (mut output_fft_buffer_im1, mut substack0) =
+        let (output_fft_buffer_im1, mut substack0) =
             stack.make_aligned_raw::<f64>(fourier_poly_size * ggsw.glwe_size().0, align);
 
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
@@ -455,30 +455,30 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 ) {
                     let len = fourier_poly_size;
                     let stack = substack2.rb_mut();
-                    let (mut fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
-                    let (mut fourier_im1, _) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_re0, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_re1, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
+                    let (fourier_im1, _) = stack.make_aligned_raw::<f64>(len, align);
                     // We perform the forward fft transform for the glwe polynomial
                     fft.forward_as_integer(
-                        &mut fourier_re0,
-                        &mut fourier_re1,
-                        &mut fourier_im0,
-                        &mut fourier_im1,
+                        fourier_re0,
+                        fourier_re1,
+                        fourier_im0,
+                        fourier_im1,
                         glwe_poly.as_ref(),
                     );
                     // Now we loop through the polynomials of the output, and add the
                     // corresponding product of polynomials.
                     update_with_fmadd(
-                        &mut output_fft_buffer_re0,
-                        &mut output_fft_buffer_re1,
-                        &mut output_fft_buffer_im0,
-                        &mut output_fft_buffer_im1,
+                        output_fft_buffer_re0,
+                        output_fft_buffer_re1,
+                        output_fft_buffer_im0,
+                        output_fft_buffer_im1,
                         ggsw_row,
-                        &fourier_re0,
-                        &fourier_re1,
-                        &fourier_im0,
-                        &fourier_im1,
+                        fourier_re0,
+                        fourier_re1,
+                        fourier_im0,
+                        fourier_im1,
                         is_output_uninit,
                         fourier_poly_size,
                     );
@@ -495,11 +495,6 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
         //
         // We iterate over the polynomials in the output.
         if !is_output_uninit {
-            let output_fft_buffer_re0 = output_fft_buffer_re0;
-            let output_fft_buffer_re1 = output_fft_buffer_re1;
-            let output_fft_buffer_im0 = output_fft_buffer_im0;
-            let output_fft_buffer_im1 = output_fft_buffer_im1;
-
             for (mut out, fourier_re0, fourier_re1, fourier_im0, fourier_im1) in izip!(
                 out.as_mut_polynomial_list().iter_mut(),
                 output_fft_buffer_re0.into_chunks(fourier_poly_size),
@@ -532,11 +527,7 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
     align: usize,
-) -> (
-    DecompositionLevel,
-    dyn_stack::DynArray<'a, Scalar>,
-    PodStack<'a>,
-) {
+) -> (DecompositionLevel, &'a mut [Scalar], PodStack<'a>) {
     let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
     let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
     (glwe_level, glwe_decomp_term, substack2)

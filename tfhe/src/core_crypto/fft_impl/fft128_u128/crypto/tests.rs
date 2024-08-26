@@ -204,7 +204,7 @@ fn test_split_pbs() {
         fft: Fft128View<'_>,
         stack: PodStack<'_>,
     ) {
-        let (mut local_accumulator_data, stack) =
+        let (local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextMutView::from_container(
             &mut *local_accumulator_data,
