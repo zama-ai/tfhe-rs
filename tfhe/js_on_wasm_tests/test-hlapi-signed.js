@@ -520,5 +520,5 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
     assert.deepStrictEqual(deserialized.get_kind_of(2), FheTypes.Bool);
     assert.deepStrictEqual(deserialized.get_kind_of(3), FheTypes.Uint256);
 
-    // We cannot verify packed ZK in wasm
+    // Verifying and expanding is too slow for single threaded node tests.
 });

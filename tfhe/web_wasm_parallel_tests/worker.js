@@ -2,10 +2,12 @@ import * as Comlink from "comlink";
 import init, {
   initThreadPool,
   init_panic_hook,
+  set_server_key,
   ShortintParametersName,
   ShortintParameters,
   TfheClientKey,
   TfhePublicKey,
+  TfheServerKey,
   TfheCompressedPublicKey,
   TfheCompressedServerKey,
   TfheCompressedCompactPublicKey,
@@ -254,7 +256,10 @@ async function compactPublicKeyWithCastingTest256Bit() {
     .build();
 
   let clientKey = TfheClientKey.generate(config);
+  let serverKey = TfheServerKey.new(clientKey);
   let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  set_server_key(serverKey);
 
   let clear_u2 = 3;
   let clear_i32 = -3284;
@@ -271,7 +276,7 @@ async function compactPublicKeyWithCastingTest256Bit() {
   console.log("Numb bits in compact list: ", num_bits_encrypted);
 
   console.time("CompactCiphertextList Encrypt");
-  let list = builder.build();
+  let list = builder.build_packed();
   console.timeEnd("CompactCiphertextList Encrypt");
 
   let serialized = list.safe_serialize(BigInt(10000000));
@@ -281,7 +286,15 @@ async function compactPublicKeyWithCastingTest256Bit() {
     BigInt(10000000),
   );
 
-  // Cannot expand
+  let expander = deserialized.expand();
+
+  assert_eq(expander.get_uint2(0).decrypt(clientKey), clear_u2);
+
+  assert_eq(expander.get_int32(1).decrypt(clientKey), clear_i32);
+
+  assert_eq(expander.get_bool(2).decrypt(clientKey), clear_bool);
+
+  assert_eq(expander.get_uint256(3).decrypt(clientKey), clear_u256);
 }
 
 async function compressedCompactPublicKeyWithCastingTest256Bit() {
@@ -298,8 +311,11 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
     .build();
 
   let clientKey = TfheClientKey.generate(config);
+  let serverKey = TfheServerKey.new(clientKey);
   let compressedPublicKey = TfheCompressedCompactPublicKey.new(clientKey);
   let publicKey = compressedPublicKey.decompress();
+
+  set_server_key(serverKey);
 
   let clear_u2 = 3;
   let clear_i32 = -3284;
@@ -316,7 +332,7 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
   console.log("Numb bits in compact list: ", num_bits_encrypted);
 
   console.time("CompactCiphertextList Encrypt");
-  let list = builder.build();
+  let list = builder.build_packed();
   console.timeEnd("CompactCiphertextList Encrypt");
 
   let serialized = list.safe_serialize(BigInt(10000000));
@@ -326,7 +342,15 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
     BigInt(10000000),
   );
 
-  // Cannot expand
+  let expander = deserialized.expand();
+
+  assert_eq(expander.get_uint2(0).decrypt(clientKey), clear_u2);
+
+  assert_eq(expander.get_int32(1).decrypt(clientKey), clear_i32);
+
+  assert_eq(expander.get_bool(2).decrypt(clientKey), clear_bool);
+
+  assert_eq(expander.get_uint256(3).decrypt(clientKey), clear_u256);
 }
 
 async function compactPublicKeyZeroKnowledge() {
@@ -343,7 +367,10 @@ async function compactPublicKeyZeroKnowledge() {
     .build();
 
   let clientKey = TfheClientKey.generate(config);
+  let serverKey = TfheServerKey.new(clientKey);
   let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  set_server_key(serverKey);
 
   console.log("Start CRS generation");
   console.time("CRS generation");
@@ -368,10 +395,13 @@ async function compactPublicKeyZeroKnowledge() {
       " ms",
     );
 
-    let bytes = list.serialize();
-    console.log("CompactCiphertextList size:", bytes.length);
+    let serialized = list.serialize();
+    console.log("CompactCiphertextList size:", serialized.length);
+    let deserialized = ProvenCompactCiphertextList.deserialize(serialized);
 
-    // We cannot expand a packed list in WASM
+    let expander = deserialized.verify_and_expand(public_params, publicKey);
+
+    assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
   }
 
   {
@@ -397,7 +427,15 @@ async function compactPublicKeyZeroKnowledge() {
       " ms",
     );
 
-    // We cannot expand a packed list in WASM
+    let expander = encrypted.verify_and_expand(public_params, publicKey);
+
+    assert_eq(expander.get_uint64(0).decrypt(clientKey), inputs[0]);
+
+    assert_eq(expander.get_uint64(1).decrypt(clientKey), inputs[1]);
+
+    assert_eq(expander.get_uint64(2).decrypt(clientKey), inputs[2]);
+
+    assert_eq(expander.get_uint64(3).decrypt(clientKey), inputs[3]);
   }
 }
 

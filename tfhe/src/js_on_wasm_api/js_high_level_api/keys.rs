@@ -73,6 +73,25 @@ impl TfheCompressedServerKey {
 }
 
 #[wasm_bindgen]
+pub struct TfheServerKey(pub(crate) hlapi::ServerKey);
+
+#[wasm_bindgen]
+impl TfheServerKey {
+    #[wasm_bindgen]
+    pub fn new(client_key: &TfheClientKey) -> Result<TfheServerKey, JsError> {
+        catch_panic_result(|| Ok(Self(hlapi::ServerKey::new(&client_key.0))))
+    }
+}
+
+#[wasm_bindgen]
+pub fn set_server_key(server_key: &TfheServerKey) -> Result<(), JsError> {
+    catch_panic_result(|| {
+        crate::set_server_key(server_key.0.clone());
+        Ok(())
+    })
+}
+
+#[wasm_bindgen]
 pub struct TfhePublicKey(pub(crate) hlapi::PublicKey);
 
 #[wasm_bindgen]
