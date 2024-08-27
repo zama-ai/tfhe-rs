@@ -353,8 +353,6 @@ impl IntegerCompressedServerKey {
                     build_helper.into()
                 });
 
-        let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(cks);
-
         let (compression_key, decompression_key) =
             client_key
                 .compression_key
