@@ -1,4 +1,3 @@
-# Publish new release of tfhe-cuda-backend on crates.io.
 name: Publish CUDA release
 
 on:
@@ -41,10 +40,12 @@ jobs:
           backend: aws
           profile: gpu-build
 
-  publish-cuda-release:
-    name: Publish CUDA Release
+  package:
+    name: Package CUDA Release for provenance
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -57,7 +58,7 @@ jobs:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           token: ${{ secrets.FHE_ACTIONS_TOKEN }}
@@ -91,7 +92,41 @@ jobs:
             echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
+      - name: Prepare package
+        run: |
+          cargo package -p tfhe-cuda-backend
+      - name: generate hash
+        id: hash
+        run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
+  provenance:
+    if: ${{ !inputs.dry_run  }}
+    needs: [package]
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    permissions:
+      # Needed to detect the GitHub Actions environment
+      actions: read
+      # Needed to create the provenance via GitHub OIDC
+      id-token: write
+      # Needed to upload assets/artifacts
+      contents: write
+    with:
+      # SHA-256 hashes of the Crate package.
+      base64-subjects: ${{ needs.package.outputs.hash }}
+
+  publish-cuda-release:
+    name: Publish CUDA Release
+    needs: [setup-instance, package] # for comparing hashes
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 9
+    steps:
       - name: Publish crate.io package
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -99,10 +134,26 @@ jobs:
         run: |
           cargo publish -p tfhe-cuda-backend --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
 
+      - name: Generate hash
+        id: published_hash
+        run: cd target/package && echo "pub_hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
+      - name: Slack notification (hashes comparison)
+        if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        env:
+          SLACK_COLOR: failure
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "SLSA tfhe-cuda-backend crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-cuda-backend release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
