@@ -1,12 +1,14 @@
 use super::*;
 
 mod lwe_encryption_noise;
+mod lwe_hpu_noise;
 mod lwe_keyswitch_noise;
 // We are having crashes on aarch64 at the moment, problem is the code paths are not the same
 // between archs, so we disable those on the Apple M1
 #[cfg(not(target_arch = "aarch64"))]
 mod lwe_multi_bit_programmable_bootstrapping_noise;
 mod lwe_programmable_bootstrapping_noise;
+mod variance_formula;
 
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestParams<u64> =
