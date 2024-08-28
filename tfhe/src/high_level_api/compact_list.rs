@@ -195,6 +195,9 @@ impl CompactCiphertextListExpander {
                     128 => crate::FheTypes::Uint128,
                     160 => crate::FheTypes::Uint160,
                     256 => crate::FheTypes::Uint256,
+                    512 => crate::FheTypes::Uint512,
+                    1024 => crate::FheTypes::Uint1024,
+                    2048 => crate::FheTypes::Uint2048,
                     _ => return None,
                 }
             }

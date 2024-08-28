@@ -13,6 +13,7 @@ const {
     CompressedFheInt8,
     FheInt8,
     FheInt32,
+    FheTypes,
     CompressedFheInt128,
     FheInt128,
     CompressedFheInt256,
@@ -436,6 +437,14 @@ test('hlapi_compact_ciphertext_list', (t) => {
     let deserialized = CompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));
 
     let expander = deserialized.expand();
+
+    assert.deepStrictEqual(expander.is_empty(), false);
+    assert.deepStrictEqual(expander.len(), 5);
+    assert.deepStrictEqual(expander.get_kind_of(0), FheTypes.Uint2);
+    assert.deepStrictEqual(expander.get_kind_of(1), FheTypes.Int32);
+    assert.deepStrictEqual(expander.get_kind_of(2), FheTypes.Bool);
+    assert.deepStrictEqual(expander.get_kind_of(3), FheTypes.Uint256);
+    assert.deepStrictEqual(expander.get_kind_of(4), FheTypes.Uint2048);
 
     assert.deepStrictEqual(
         expander.get_uint2(0).decrypt(clientKey),
