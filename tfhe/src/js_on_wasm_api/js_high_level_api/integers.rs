@@ -1050,6 +1050,7 @@ define_expander_get_method!(
 define_expander_get_method!(
     signed: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128, 160, 256 }
 );
+
 #[wasm_bindgen]
 impl CompactCiphertextListExpander {
     #[wasm_bindgen]
@@ -1063,5 +1064,91 @@ impl CompactCiphertextListExpander {
                 )
                 .map(FheBool)
         })
+    }
+
+    #[wasm_bindgen]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_kind_of(&self, index: usize) -> Option<FheTypes> {
+        self.0.get_kind_of(index).map(Into::into)
+    }
+}
+
+#[wasm_bindgen]
+pub enum FheTypes {
+    Bool,
+    Uint2,
+    Uint4,
+    Uint6,
+    Uint8,
+    Uint10,
+    Uint12,
+    Uint14,
+    Uint16,
+    Uint32,
+    Uint64,
+    Uint128,
+    Uint160,
+    Uint256,
+    Uint512,
+    Uint1024,
+    Uint2048,
+    Int2,
+    Int4,
+    Int6,
+    Int8,
+    Int10,
+    Int12,
+    Int14,
+    Int16,
+    Int32,
+    Int64,
+    Int128,
+    Int160,
+    Int256,
+}
+
+impl From<crate::FheTypes> for FheTypes {
+    fn from(value: crate::FheTypes) -> Self {
+        match value {
+            crate::FheTypes::Bool => Self::Bool,
+            crate::FheTypes::Uint2 => Self::Uint2,
+            crate::FheTypes::Uint4 => Self::Uint4,
+            crate::FheTypes::Uint6 => Self::Uint6,
+            crate::FheTypes::Uint8 => Self::Uint8,
+            crate::FheTypes::Uint10 => Self::Uint10,
+            crate::FheTypes::Uint12 => Self::Uint12,
+            crate::FheTypes::Uint14 => Self::Uint14,
+            crate::FheTypes::Uint16 => Self::Uint16,
+            crate::FheTypes::Uint32 => Self::Uint32,
+            crate::FheTypes::Uint64 => Self::Uint64,
+            crate::FheTypes::Uint128 => Self::Uint128,
+            crate::FheTypes::Uint160 => Self::Uint160,
+            crate::FheTypes::Uint256 => Self::Uint256,
+            crate::FheTypes::Uint512 => Self::Uint512,
+            crate::FheTypes::Uint1024 => Self::Uint1024,
+            crate::FheTypes::Uint2048 => Self::Uint2048,
+            crate::FheTypes::Int2 => Self::Int2,
+            crate::FheTypes::Int4 => Self::Int4,
+            crate::FheTypes::Int6 => Self::Int6,
+            crate::FheTypes::Int8 => Self::Int8,
+            crate::FheTypes::Int10 => Self::Int10,
+            crate::FheTypes::Int12 => Self::Int12,
+            crate::FheTypes::Int14 => Self::Int14,
+            crate::FheTypes::Int16 => Self::Int16,
+            crate::FheTypes::Int32 => Self::Int32,
+            crate::FheTypes::Int64 => Self::Int64,
+            crate::FheTypes::Int128 => Self::Int128,
+            crate::FheTypes::Int160 => Self::Int160,
+            crate::FheTypes::Int256 => Self::Int256,
+        }
     }
 }
