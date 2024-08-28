@@ -533,3 +533,37 @@ fn test_case_sum(client_key: &ClientKey) {
         assert_eq!(sum, expected_result);
     }
 }
+
+fn test_case_is_even_is_odd(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    // This operation is cheap
+    for _ in 0..50 {
+        let clear_a = rng.gen_range(1..=u32::MAX);
+        let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+        assert_eq!(
+            a.is_even().decrypt(cks),
+            (clear_a % 2) == 0,
+            "Invalid is_even result for {clear_a}"
+        );
+        assert_eq!(
+            a.is_odd().decrypt(cks),
+            (clear_a % 2) == 1,
+            "Invalid is_odd result for {clear_a}"
+        );
+
+        let clear_a = rng.gen_range(i32::MIN..=i32::MAX);
+        let a = crate::FheInt32::try_encrypt(clear_a, cks).unwrap();
+        assert_eq!(
+            a.is_even().decrypt(cks),
+            (clear_a % 2) == 0,
+            "Invalid is_even result for {clear_a}"
+        );
+        // Use != 0 because if clear_a < 0, the returned mod is also < 0
+        assert_eq!(
+            a.is_odd().decrypt(cks),
+            (clear_a % 2) != 0,
+            "Invalid is_odd result for {clear_a}"
+        );
+    }
+}

@@ -16,6 +16,7 @@ use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext, Radi
 use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 
+mod even_odd;
 #[cfg(test)]
 mod tests;
 

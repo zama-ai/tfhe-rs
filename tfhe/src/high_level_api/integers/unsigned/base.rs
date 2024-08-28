@@ -173,6 +173,72 @@ where
         self.ciphertext.move_to_device(device)
     }
 
+    /// Returns a FheBool that encrypts `true` if the value is even
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(32u16, &client_key);
+    ///
+    /// let result = a.is_even();
+    /// let decrypted = result.decrypt(&client_key);
+    /// assert!(decrypted);
+    /// ```
+    pub fn is_even(&self) -> FheBool {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .is_even_parallelized(&*self.ciphertext.on_cpu());
+                FheBool::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key.key.is_even(&*self.ciphertext.on_gpu(), streams);
+                FheBool::new(result)
+            }),
+        })
+    }
+
+    /// Returns a FheBool that encrypts `true` if the value is odd
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(4393u16, &client_key);
+    ///
+    /// let result = a.is_odd();
+    /// let decrypted = result.decrypt(&client_key);
+    /// assert!(decrypted);
+    /// ```
+    pub fn is_odd(&self) -> FheBool {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .is_odd_parallelized(&*self.ciphertext.on_cpu());
+                FheBool::new(result)
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
+                FheBool::new(result)
+            }),
+        })
+    }
+
     /// Tries to decrypt a trivial ciphertext
     ///
     /// Trivial ciphertexts are ciphertexts which are not encrypted

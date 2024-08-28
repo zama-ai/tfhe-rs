@@ -386,6 +386,12 @@ fn test_ilog2() {
 }
 
 #[test]
+fn test_is_even_is_odd() {
+    let client_key = setup_default_cpu();
+    super::test_case_is_even_is_odd(&client_key);
+}
+
+#[test]
 fn test_bitslice() {
     let client_key = setup_default_cpu();
     super::test_case_bitslice(&client_key);
