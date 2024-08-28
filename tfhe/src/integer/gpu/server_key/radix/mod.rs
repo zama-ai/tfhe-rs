@@ -27,6 +27,7 @@ mod bitwise_op;
 mod cmux;
 mod comparison;
 mod div_mod;
+mod even_odd;
 mod ilog2;
 mod mul;
 mod neg;
@@ -696,6 +697,108 @@ impl CudaServerKey {
         BivariateLookupTableOwned {
             acc: accumulator,
             ct_right_modulus: self.message_modulus,
+        }
+    }
+
+    /// Applies the lookup table on the range of ciphertexts
+    ///
+    /// The output must have exactly block_range.len() blocks
+    ///
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub(crate) unsafe fn apply_lookup_table_async(
+        &self,
+        output: &mut CudaRadixCiphertext,
+        input: &CudaRadixCiphertext,
+        lut: &LookupTableOwned,
+        block_range: std::ops::Range<usize>,
+        streams: &CudaStreams,
+    ) {
+        if block_range.is_empty() {
+            return;
+        }
+
+        assert_eq!(
+            input.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension()
+        );
+
+        let lwe_dimension = input.d_blocks.lwe_dimension();
+        let lwe_size = lwe_dimension.to_lwe_size().0;
+
+        let input_slice = input
+            .d_blocks
+            .0
+            .d_vec
+            .as_slice(
+                lwe_size * block_range.start..lwe_size * block_range.end,
+                streams.gpu_indexes[0],
+            )
+            .unwrap();
+        let mut output_slice = output
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(.., streams.gpu_indexes[0])
+            .unwrap();
+
+        let num_ct_blocks = block_range.len() as u32;
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                apply_univariate_lut_kb_async(
+                    streams,
+                    &mut output_slice,
+                    &input_slice,
+                    lut.acc.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    num_ct_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                apply_univariate_lut_kb_async(
+                    streams,
+                    &mut output_slice,
+                    &input_slice,
+                    lut.acc.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    num_ct_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                );
+            }
+        };
+
+        for info in output.info.blocks[block_range].iter_mut() {
+            info.degree = lut.degree;
+            info.noise_level = NoiseLevel::NOMINAL;
         }
     }
 
