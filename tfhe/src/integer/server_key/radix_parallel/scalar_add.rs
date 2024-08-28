@@ -682,8 +682,7 @@ impl ServerKey {
                         (high_block + high_scalar_block) % self.message_modulus().0 as u64;
                     high_block_result <<= 2;
 
-                    (high_block_result + (low_block_state << 1))
-                        % (self.message_modulus().0 * 4) as u64
+                    (high_block_result + (low_block_state << 1)) % packed_modulus
                 }));
             }
 

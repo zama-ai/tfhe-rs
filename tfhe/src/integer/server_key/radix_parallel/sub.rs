@@ -1,22 +1,8 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
-use std::cmp::Ordering;
-
-#[repr(u64)]
-#[derive(PartialEq, Eq)]
-enum BorrowGeneration {
-    /// The block does not generate nor propagate a borrow
-    None = 0,
-    /// The block generates a borrow (that will be taken from next block)
-    Generated = 1,
-    /// The block will propagate a borrow if ever
-    /// the preceding blocks borrows from it
-    Propagated = 2,
-}
 
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -339,78 +325,6 @@ impl ServerKey {
             .expect("overflow computation was requested");
 
         (result, overflowed)
-    }
-
-    /// This function takes a ciphertext resulting from a subtraction of 2 clean ciphertexts
-    /// **USING SHORTINT'S UNCHECKED_SUB SEPARATELY ON EACH BLOCK**, that is after subtracting
-    /// blocks, the values are in range 0..(2*msg_modulus) e.g 0..7 for 2_2 parameters
-    /// where:
-    ///   - if ct's value is in 0..msg_mod -> the block overflowed (needs to borrow from next block)
-    ///   - if ct's value is in msg_mod..2*msg_mod the block did not overflow (ne need to borrow
-    ///
-    ///
-    /// It propagates the borrows in-place, making the ciphertext clean and returns
-    /// the boolean indicating overflow
-    pub(in crate::integer) fn unsigned_overflowing_propagate_subtraction_borrow(
-        &self,
-        ct: &mut RadixCiphertext,
-    ) -> BooleanBlock {
-        if self.is_eligible_for_parallel_single_carry_propagation(ct.blocks.len()) {
-            let generates_or_propagates = self.generate_init_borrow_array(ct);
-            let (input_borrows, mut output_borrow) =
-                self.compute_borrow_propagation_parallelized_low_latency(generates_or_propagates);
-
-            ct.blocks
-                .par_iter_mut()
-                .zip(input_borrows.par_iter())
-                .for_each(|(block, input_borrow)| {
-                    // Do a true lwe subtraction, as unchecked_sub will adds a correcting term
-                    // to avoid overflow (and trashing padding bit). Here we know each
-                    // block in the ciphertext is >= 1, and that input borrow is either 0 or 1
-                    // so no overflow possible.
-                    crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
-                        &mut block.ct,
-                        &input_borrow.ct,
-                    );
-                    block.set_noise_level(block.noise_level() + input_borrow.noise_level());
-                    self.key.message_extract_assign(block);
-                });
-            assert!(ct.block_carries_are_empty());
-            // we know here that the result is a boolean value
-            // however the lut used has a degree of 2.
-            output_borrow.degree = Degree::new(1);
-            BooleanBlock::new_unchecked(output_borrow)
-        } else {
-            let modulus = self.key.message_modulus.0 as u64;
-
-            // If the block does not have a carry after the subtraction, it means it needs to
-            // borrow from the next block
-            let compute_borrow_lut =
-                self.key
-                    .generate_lookup_table(|x| if x < modulus { 1 } else { 0 });
-
-            let mut borrow = self.key.create_trivial(0);
-            for block in ct.blocks.iter_mut() {
-                // Here unchecked_sub_assign does not give correct result, we don't want
-                // the correcting term to be used
-                // -> This is ok as the value returned by unchecked_sub is in range 1..(message_mod
-                // * 2)
-                crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
-                    &mut block.ct,
-                    &borrow.ct,
-                );
-                block.set_noise_level(block.noise_level() + borrow.noise_level());
-                let (msg, new_borrow) = rayon::join(
-                    || self.key.message_extract(block),
-                    || self.key.apply_lookup_table(block, &compute_borrow_lut),
-                );
-                *block = msg;
-                borrow = new_borrow;
-            }
-
-            // borrow of last block indicates overflow
-            BooleanBlock::new_unchecked(borrow)
-        }
     }
 
     /// Does lhs -= (rhs + carry)
@@ -764,86 +678,6 @@ impl ServerKey {
         let overflowed =
             self.overflowing_add_assign_with_carry(&mut result, &flipped_rhs, Some(&input_carry));
         (result, overflowed)
-    }
-
-    pub(super) fn generate_init_borrow_array(&self, sum_ct: &RadixCiphertext) -> Vec<Ciphertext> {
-        let modulus = self.key.message_modulus.0 as u64;
-
-        // This is used for the first pair of blocks
-        // as this pair can either generate or not, but never propagate
-        let lut_does_block_generate_carry = self.key.generate_lookup_table(|x| {
-            if x < modulus {
-                BorrowGeneration::Generated as u64
-            } else {
-                BorrowGeneration::None as u64
-            }
-        });
-
-        let lut_does_block_generate_or_propagate =
-            self.key.generate_lookup_table(|x| match x.cmp(&modulus) {
-                Ordering::Less => BorrowGeneration::Generated as u64,
-                Ordering::Equal => BorrowGeneration::Propagated as u64,
-                Ordering::Greater => BorrowGeneration::None as u64,
-            });
-
-        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks.len());
-        sum_ct
-            .blocks
-            .par_iter()
-            .enumerate()
-            .map(|(i, block)| {
-                if i == 0 {
-                    // The first block can only output a borrow
-                    self.key
-                        .apply_lookup_table(block, &lut_does_block_generate_carry)
-                } else {
-                    self.key
-                        .apply_lookup_table(block, &lut_does_block_generate_or_propagate)
-                }
-            })
-            .collect_into_vec(&mut generates_or_propagates);
-
-        generates_or_propagates
-    }
-
-    pub(crate) fn compute_borrow_propagation_parallelized_low_latency(
-        &self,
-        generates_or_propagates: Vec<Ciphertext>,
-    ) -> (Vec<Ciphertext>, Ciphertext) {
-        let lut_borrow_propagation_sum = self
-            .key
-            .generate_lookup_table_bivariate(prefix_sum_borrow_propagation);
-
-        fn prefix_sum_borrow_propagation(msb: u64, lsb: u64) -> u64 {
-            if msb == BorrowGeneration::Propagated as u64 {
-                // We propagate the value of lsb
-                lsb
-            } else {
-                msb
-            }
-        }
-
-        // Type annotations are required, otherwise we get confusing errors
-        // "implementation of `FnOnce` is not general enough"
-        let sum_function = |block_carry: &mut Ciphertext, previous_block_carry: &Ciphertext| {
-            self.key.unchecked_apply_lookup_table_bivariate_assign(
-                block_carry,
-                previous_block_carry,
-                &lut_borrow_propagation_sum,
-            );
-        };
-
-        let num_blocks = generates_or_propagates.len();
-
-        let mut borrows_out =
-            self.compute_prefix_sum_hillis_steele(generates_or_propagates, sum_function);
-        let mut last_block_out_borrow = self.key.create_trivial(0);
-        std::mem::swap(&mut borrows_out[num_blocks - 1], &mut last_block_out_borrow);
-        // The output borrow of block i-1 becomes the input
-        // borrow of block i
-        borrows_out.rotate_right(1);
-        self.key.create_trivial_assign(&mut borrows_out[0], 0);
-        (borrows_out, last_block_out_borrow)
     }
 
     /// Computes the subtraction of two signed numbers and returns an indicator of overflow
