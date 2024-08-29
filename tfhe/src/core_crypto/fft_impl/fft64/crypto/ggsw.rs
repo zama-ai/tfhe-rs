@@ -733,6 +733,7 @@ pub(crate) fn update_with_fmadd(
                 fourier_poly_size: usize,
             ) {
                 let rhs = S::c64s_as_simd(fourier).0;
+                let len = rhs.len();
 
                 if is_output_uninit {
                     for (output_fourier, ggsw_poly) in izip!(
@@ -742,8 +743,17 @@ pub(crate) fn update_with_fmadd(
                         let out = S::c64s_as_mut_simd(output_fourier).0;
                         let lhs = S::c64s_as_simd(ggsw_poly).0;
 
-                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
-                            *out = simd.c64s_mul(lhs, rhs);
+                        // This split is done to make better use of memory prefetchers see
+                        // https://blog.mattstuchlik.com/2024/07/21/fastest-memory-read.html
+                        let (lhs0, lhs1) = lhs.split_at(len / 2);
+                        let (rhs0, rhs1) = rhs.split_at(len / 2);
+                        let (out0, out1) = out.split_at_mut(len / 2);
+
+                        for ((out0, out1), (lhs0, lhs1), (rhs0, rhs1)) in
+                            izip!(izip!(out0, out1), izip!(lhs0, lhs1), izip!(rhs0, rhs1),)
+                        {
+                            *out0 = simd.c64s_mul(*lhs0, *rhs0);
+                            *out1 = simd.c64s_mul(*lhs1, *rhs1);
                         }
                     }
                 } else {
@@ -754,8 +764,17 @@ pub(crate) fn update_with_fmadd(
                         let out = S::c64s_as_mut_simd(output_fourier).0;
                         let lhs = S::c64s_as_simd(ggsw_poly).0;
 
-                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
-                            *out = simd.c64s_mul_add_e(lhs, rhs, *out);
+                        // This split is done to make better use of memory prefetchers see
+                        // https://blog.mattstuchlik.com/2024/07/21/fastest-memory-read.html
+                        let (lhs0, lhs1) = lhs.split_at(len / 2);
+                        let (rhs0, rhs1) = rhs.split_at(len / 2);
+                        let (out0, out1) = out.split_at_mut(len / 2);
+
+                        for ((out0, out1), (lhs0, lhs1), (rhs0, rhs1)) in
+                            izip!(izip!(out0, out1), izip!(lhs0, lhs1), izip!(rhs0, rhs1),)
+                        {
+                            *out0 = simd.c64s_mul_add_e(*lhs0, *rhs0, *out0);
+                            *out1 = simd.c64s_mul_add_e(*lhs1, *rhs1, *out1);
                         }
                     }
                 }
