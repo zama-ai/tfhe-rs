@@ -3,7 +3,7 @@ use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
 };
-use crate::shortint::{Ciphertext, CompactPublicKey};
+use crate::shortint::{Ciphertext, CompactPublicKey, MessageModulus};
 use crate::zk::{CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -112,6 +112,10 @@ impl ProvenCompactCiphertextList {
 
     pub fn proof_size(&self) -> usize {
         self.proved_lists.len() * core::mem::size_of::<CompactPkeProof>()
+    }
+
+    pub(crate) fn message_modulus(&self) -> MessageModulus {
+        self.proved_lists[0].0.message_modulus
     }
 }
 
