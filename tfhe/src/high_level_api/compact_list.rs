@@ -18,6 +18,57 @@ use crate::shortint::MessageModulus;
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::CompactPublicKey;
 
+impl crate::FheTypes {
+    fn from_data_kind(data_kind: DataKind, message_modulus: MessageModulus) -> Option<Self> {
+        Some(match data_kind {
+            DataKind::Unsigned(n) => {
+                let num_bits_per_block = message_modulus.0.ilog2() as usize;
+                let num_bits = n * num_bits_per_block;
+                match num_bits {
+                    2 => Self::Uint2,
+                    4 => Self::Uint4,
+                    6 => Self::Uint6,
+                    8 => Self::Uint8,
+                    10 => Self::Uint10,
+                    12 => Self::Uint12,
+                    14 => Self::Uint14,
+                    16 => Self::Uint16,
+                    32 => Self::Uint32,
+                    64 => Self::Uint64,
+                    128 => Self::Uint128,
+                    160 => Self::Uint160,
+                    256 => Self::Uint256,
+                    512 => Self::Uint512,
+                    1024 => Self::Uint1024,
+                    2048 => Self::Uint2048,
+                    _ => return None,
+                }
+            }
+            DataKind::Signed(n) => {
+                let num_bits_per_block = message_modulus.0.ilog2() as usize;
+                let num_bits = n * num_bits_per_block;
+                match num_bits {
+                    2 => Self::Int2,
+                    4 => Self::Int4,
+                    6 => Self::Int6,
+                    8 => Self::Int8,
+                    10 => Self::Int10,
+                    12 => Self::Int12,
+                    14 => Self::Int14,
+                    16 => Self::Int16,
+                    32 => Self::Int32,
+                    64 => Self::Int64,
+                    128 => Self::Int128,
+                    160 => Self::Int160,
+                    256 => Self::Int256,
+                    _ => return None,
+                }
+            }
+            DataKind::Boolean => Self::Bool,
+        })
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList(pub(crate) crate::integer::ciphertext::CompactCiphertextList);
@@ -29,6 +80,20 @@ impl Named for CompactCiphertextList {
 impl CompactCiphertextList {
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
+        self.0.get_kind_of(index).and_then(|data_kind| {
+            crate::FheTypes::from_data_kind(data_kind, self.0.ct_list.message_modulus)
+        })
     }
 
     pub fn expand_with_key(
@@ -112,6 +177,20 @@ impl ProvenCompactCiphertextList {
         CompactCiphertextListBuilder::new(pk)
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
+        self.0.get_kind_of(index).and_then(|data_kind| {
+            crate::FheTypes::from_data_kind(data_kind, self.0.ct_list.message_modulus())
+        })
+    }
+
     pub fn verify_and_expand(
         &self,
         public_params: &CompactPkePublicParams,
@@ -119,7 +198,7 @@ impl ProvenCompactCiphertextList {
     ) -> crate::Result<CompactCiphertextListExpander> {
         // For WASM
         if !self.0.is_packed() && !self.0.needs_casting() {
-            // No ServerKey required, shortcircuit to avoid the global state call
+            // No ServerKey required, short-circuit to avoid the global state call
             return Ok(CompactCiphertextListExpander {
                 inner: self.0.verify_and_expand(
                     public_params,
@@ -177,51 +256,8 @@ impl CompactCiphertextListExpander {
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        Some(match self.inner.get_kind_of(index)? {
-            DataKind::Unsigned(n) => {
-                let num_bits_per_block = self.inner.message_modulus().0.ilog2() as usize;
-                let num_bits = n * num_bits_per_block;
-                match num_bits {
-                    2 => crate::FheTypes::Uint2,
-                    4 => crate::FheTypes::Uint4,
-                    6 => crate::FheTypes::Uint6,
-                    8 => crate::FheTypes::Uint8,
-                    10 => crate::FheTypes::Uint10,
-                    12 => crate::FheTypes::Uint12,
-                    14 => crate::FheTypes::Uint14,
-                    16 => crate::FheTypes::Uint16,
-                    32 => crate::FheTypes::Uint32,
-                    64 => crate::FheTypes::Uint64,
-                    128 => crate::FheTypes::Uint128,
-                    160 => crate::FheTypes::Uint160,
-                    256 => crate::FheTypes::Uint256,
-                    512 => crate::FheTypes::Uint512,
-                    1024 => crate::FheTypes::Uint1024,
-                    2048 => crate::FheTypes::Uint2048,
-                    _ => return None,
-                }
-            }
-            DataKind::Signed(n) => {
-                let num_bits_per_block = self.inner.message_modulus().0.ilog2() as usize;
-                let num_bits = n * num_bits_per_block;
-                match num_bits {
-                    2 => crate::FheTypes::Int2,
-                    4 => crate::FheTypes::Int4,
-                    6 => crate::FheTypes::Int6,
-                    8 => crate::FheTypes::Int8,
-                    10 => crate::FheTypes::Int10,
-                    12 => crate::FheTypes::Int12,
-                    14 => crate::FheTypes::Int14,
-                    16 => crate::FheTypes::Int16,
-                    32 => crate::FheTypes::Int32,
-                    64 => crate::FheTypes::Int64,
-                    128 => crate::FheTypes::Int128,
-                    160 => crate::FheTypes::Int160,
-                    256 => crate::FheTypes::Int256,
-                    _ => return None,
-                }
-            }
-            DataKind::Boolean => crate::FheTypes::Bool,
+        self.inner.get_kind_of(index).and_then(|data_kind| {
+            crate::FheTypes::from_data_kind(data_kind, self.inner.message_modulus())
         })
     }
 

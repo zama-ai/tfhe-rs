@@ -436,6 +436,14 @@ test('hlapi_compact_ciphertext_list', (t) => {
     let serialized = list.safe_serialize(BigInt(10000000));
     let deserialized = CompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));
 
+    assert.deepStrictEqual(deserialized.is_empty(), false);
+    assert.deepStrictEqual(deserialized.len(), 5);
+    assert.deepStrictEqual(deserialized.get_kind_of(0), FheTypes.Uint2);
+    assert.deepStrictEqual(deserialized.get_kind_of(1), FheTypes.Int32);
+    assert.deepStrictEqual(deserialized.get_kind_of(2), FheTypes.Bool);
+    assert.deepStrictEqual(deserialized.get_kind_of(3), FheTypes.Uint256);
+    assert.deepStrictEqual(deserialized.get_kind_of(4), FheTypes.Uint2048);
+
     let expander = deserialized.expand();
 
     assert.deepStrictEqual(expander.is_empty(), false);
@@ -504,6 +512,13 @@ test('hlapi_compact_ciphertext_list_with_proof', (t) => {
 
     let serialized = list.safe_serialize(BigInt(10000000));
     let deserialized = ProvenCompactCiphertextList.safe_deserialize(serialized, BigInt(10000000));
+
+    assert.deepStrictEqual(deserialized.is_empty(), false);
+    assert.deepStrictEqual(deserialized.len(), 4);
+    assert.deepStrictEqual(deserialized.get_kind_of(0), FheTypes.Uint2);
+    assert.deepStrictEqual(deserialized.get_kind_of(1), FheTypes.Int32);
+    assert.deepStrictEqual(deserialized.get_kind_of(2), FheTypes.Bool);
+    assert.deepStrictEqual(deserialized.get_kind_of(3), FheTypes.Uint256);
 
     // We cannot verify packed ZK in wasm
 });

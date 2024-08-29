@@ -685,6 +685,21 @@ impl CompactCiphertextList {
         })
     }
 
+    #[wasm_bindgen]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_kind_of(&self, index: usize) -> Option<FheTypes> {
+        self.0.get_kind_of(index).map(Into::into)
+    }
+
     pub fn expand(&self) -> Result<CompactCiphertextListExpander, JsError> {
         catch_panic_result(|| {
             self.0
@@ -743,6 +758,21 @@ impl ProvenCompactCiphertextList {
             let inner = crate::high_level_api::ProvenCompactCiphertextList::builder(&public_key.0);
             CompactCiphertextListBuilder(inner)
         })
+    }
+
+    #[wasm_bindgen]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_kind_of(&self, index: usize) -> Option<FheTypes> {
+        self.0.get_kind_of(index).map(Into::into)
     }
 
     pub fn verify_and_expand(

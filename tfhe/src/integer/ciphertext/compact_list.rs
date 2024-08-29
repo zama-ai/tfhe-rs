@@ -261,6 +261,10 @@ impl CompactCiphertextListExpander {
         self.len() == 0
     }
 
+    pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
+        self.info.get(index).copied()
+    }
+
     fn blocks_of(&self, index: usize) -> Option<(&[Ciphertext], DataKind)> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
@@ -275,10 +279,6 @@ impl CompactCiphertextListExpander {
         self.expanded_blocks
             .get(start_block_index..end_block_index)
             .map(|block| (block, current_info))
-    }
-
-    pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
-        self.info.get(index).copied()
     }
 
     pub fn get<T>(&self, index: usize) -> Option<crate::Result<T>>
@@ -339,6 +339,18 @@ impl CompactCiphertextList {
 
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
+    }
+
+    pub fn len(&self) -> usize {
+        self.info.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
+        self.info.get(index).copied()
     }
 
     /// Deconstruct a [`CompactCiphertextList`] into its constituents.
@@ -629,6 +641,18 @@ impl ProvenCompactCiphertextList {
 
     pub fn proof_size(&self) -> usize {
         self.ct_list.proof_size()
+    }
+
+    pub fn len(&self) -> usize {
+        self.info.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
+        self.info.get(index).copied()
     }
 }
 
