@@ -195,7 +195,7 @@ pub fn get_modulo_value<T: UnsignedInteger>(modulus: &CiphertextModulus<T>) -> u
 }
 
 //fn lwe_noise_distribution_hpu<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64>>(
-fn lwe_noise_distribution_hpu(
+fn hpu_noise_distribution(
     params: HpuTestParams
 ) {
     let lwe_dimension = params.lwe_dimension;
@@ -502,12 +502,11 @@ fn lwe_noise_distribution_hpu(
     //);
 }
 
-#[test]
-fn test_hpu_noise_distribution() {
-    lwe_noise_distribution_hpu(HPU_TEST_PARAMS_4_BITS_NATIVE_U64);
-    //lwe_noise_distribution_hpu(HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21);
-    //lwe_noise_distribution_hpu(HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21);
-}
+create_parametrized_test!(hpu_noise_distribution {
+    HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
+    HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
+    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
+});
 
 fn lwe_compact_public_key_encryption_expected_variance(
     input_noise: impl DispersionParameter,
