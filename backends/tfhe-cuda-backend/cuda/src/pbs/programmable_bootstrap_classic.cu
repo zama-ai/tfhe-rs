@@ -182,25 +182,6 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
 }
 #endif
 
-/*
- * Returns the buffer size for 64 bits executions
- */
-uint64_t get_buffer_size_programmable_bootstrap_64(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count) {
-
-  if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count))
-    return get_buffer_size_programmable_bootstrap_cg<uint64_t>(
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count);
-  else
-    return get_buffer_size_programmable_bootstrap_cg<uint64_t>(
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count);
-}
-
 template <typename Torus>
 void scratch_cuda_programmable_bootstrap_cg(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,

@@ -81,14 +81,6 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
 
 void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
                                          int8_t **pbs_buffer);
-
-uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count);
-
-uint64_t get_buffer_size_programmable_bootstrap_64(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count);
 }
 
 template <typename Torus>
