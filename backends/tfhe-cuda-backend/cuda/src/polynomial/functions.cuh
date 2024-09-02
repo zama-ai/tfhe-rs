@@ -45,7 +45,7 @@ template <typename T, int elems_per_thread, int block_size>
 __device__ void
 divide_by_monomial_negacyclic_inplace(T *accumulator,
                                       const T *__restrict__ input, uint32_t j,
-                                      bool zeroAcc, uint32_t num_poly = 1) {
+                                      bool zeroAcc, uint32_t num_poly) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
     T *accumulator_slice = (T *)accumulator + (ptrdiff_t)(z * degree);
@@ -94,7 +94,7 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
  */
 template <typename T, int elems_per_thread, int block_size>
 __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial(
-    T *acc, T *result_acc, uint32_t j, uint32_t num_poly = 1) {
+    T *acc, T *result_acc, uint32_t j, uint32_t num_poly) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
     T *acc_slice = (T *)acc + (ptrdiff_t)(z * degree);
@@ -133,7 +133,7 @@ __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial(
 template <typename T, int elems_per_thread, int block_size>
 __device__ void round_to_closest_multiple_inplace(T *rotated_acc, int base_log,
                                                   int level_count,
-                                                  uint32_t num_poly = 1) {
+                                                  uint32_t num_poly) {
   constexpr int degree = block_size * elems_per_thread;
   for (int z = 0; z < num_poly; z++) {
     T *rotated_acc_slice = (T *)rotated_acc + (ptrdiff_t)(z * degree);
@@ -192,7 +192,7 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
 // Extracts the body of the nth-LWE in a GLWE.
 template <typename Torus, class params>
 __device__ void sample_extract_body(Torus *lwe_array_out, Torus *glwe,
-                                    uint32_t glwe_dimension, uint32_t nth = 0) {
+                                    uint32_t glwe_dimension, uint32_t nth) {
   // Set first coefficient of the glwe as the body of the LWE sample
   lwe_array_out[glwe_dimension * params::degree] =
       glwe[glwe_dimension * params::degree + nth];
@@ -201,8 +201,7 @@ __device__ void sample_extract_body(Torus *lwe_array_out, Torus *glwe,
 // Extracts the mask from the nth-LWE in a GLWE.
 template <typename Torus, class params>
 __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *glwe,
-                                    uint32_t glwe_dimension = 1,
-                                    uint32_t nth = 0) {
+                                    uint32_t glwe_dimension, uint32_t nth) {
   for (int z = 0; z < glwe_dimension; z++) {
     Torus *lwe_array_out_slice =
         (Torus *)lwe_array_out + (ptrdiff_t)(z * params::degree);

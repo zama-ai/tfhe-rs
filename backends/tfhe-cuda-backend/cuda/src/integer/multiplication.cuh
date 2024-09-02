@@ -271,7 +271,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     if (!ch_amount)
       ch_amount++;
     dim3 add_grid(ch_amount, num_blocks, 1);
-    size_t sm_size = big_lwe_size * sizeof(Torus);
 
     cudaSetDevice(gpu_indexes[0]);
     tree_add_chunks<Torus><<<add_grid, 512, 0, streams[0]>>>(

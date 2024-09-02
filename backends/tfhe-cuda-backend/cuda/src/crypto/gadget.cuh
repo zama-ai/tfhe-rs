@@ -27,7 +27,7 @@ private:
 
 public:
   __device__ GadgetMatrix(uint32_t base_log, uint32_t level_count, T *state,
-                          uint32_t num_poly = 1)
+                          uint32_t num_poly)
       : base_log(base_log), level_count(level_count), num_poly(num_poly),
         state(state) {
 

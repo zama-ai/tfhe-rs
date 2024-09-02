@@ -98,8 +98,8 @@ __global__ void device_programmable_bootstrap_cg(
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
-      accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
-      false);
+      accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat, false,
+      1);
 
   for (int i = 0; i < lwe_dimension; i++) {
     synchronize_threads_in_block();
@@ -111,13 +111,13 @@ __global__ void device_programmable_bootstrap_cg(
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
         Torus, params::opt, params::degree / params::opt>(
-        accumulator, accumulator_rotated, a_hat);
+        accumulator, accumulator_rotated, a_hat, 1);
 
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
     round_to_closest_multiple_inplace<Torus, params::opt,
                                       params::degree / params::opt>(
-        accumulator_rotated, base_log, level_count);
+        accumulator_rotated, base_log, level_count, 1);
 
     synchronize_threads_in_block();
 
@@ -125,7 +125,7 @@ __global__ void device_programmable_bootstrap_cg(
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
     GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
-                                           accumulator_rotated);
+                                           accumulator_rotated, 1);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
 
     // We are using the same memory space for accumulator_fft and
@@ -150,9 +150,9 @@ __global__ void device_programmable_bootstrap_cg(
     // Perform a sample extract. At this point, all blocks have the result, but
     // we do the computation at block 0 to avoid waiting for extra blocks, in
     // case they're not synchronized
-    sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+    sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator, 1, 0);
   } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
-    sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+    sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0, 0);
   }
 }
 

@@ -94,7 +94,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                           params::degree / params::opt>(
         accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
-        false);
+        false, 1);
   } else {
     // Load the accumulator calculated in previous iterations
     copy_polynomial<Torus, params::opt, params::degree / params::opt>(
@@ -106,12 +106,13 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     // bootstrapped ciphertext
     round_to_closest_multiple_inplace<Torus, params::opt,
                                       params::degree / params::opt>(
-        accumulator, base_log, level_count);
+        accumulator, base_log, level_count, 1);
 
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
-    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
+    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator,
+                                           1);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
 
     // We are using the same memory space for accumulator_fft and
@@ -137,9 +138,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       // Perform a sample extract. At this point, all blocks have the result,
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
-      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator, 1,
+                                         0);
     } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0,
+                                         0);
     }
   } else {
     // Load the accumulator calculated in previous iterations

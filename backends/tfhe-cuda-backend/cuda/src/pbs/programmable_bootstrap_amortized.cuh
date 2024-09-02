@@ -207,9 +207,9 @@ __global__ void device_programmable_bootstrap_amortized(
   // the resulting constant coefficient of the accumulator
   // For the mask it's more complicated
   sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator,
-                                     glwe_dimension);
+                                     glwe_dimension, 0);
   sample_extract_body<Torus, params>(block_lwe_array_out, accumulator,
-                                     glwe_dimension);
+                                     glwe_dimension, 0);
 }
 
 template <typename Torus>
