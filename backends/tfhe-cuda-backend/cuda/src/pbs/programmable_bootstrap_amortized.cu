@@ -1,16 +1,6 @@
 #include "programmable_bootstrap_amortized.cuh"
 
 /*
- * Returns the buffer size for 64 bits executions
- */
-uint64_t get_buffer_size_programmable_bootstrap_amortized_64(
-    uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t input_lwe_ciphertext_count) {
-  return get_buffer_size_programmable_bootstrap_amortized<uint64_t>(
-      glwe_dimension, polynomial_size, input_lwe_ciphertext_count);
-}
-
-/*
  * This scratch function allocates the necessary amount of data on the GPU for
  * the amortized PBS on 32 bits inputs, into `buffer`. It also
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
