@@ -256,7 +256,7 @@ __host__ void execute_cg_external_product_loop(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_chunk_size, int lwe_offset) {
+    uint32_t lwe_chunk_size, uint32_t lwe_offset) {
 
   uint64_t full_dm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<Torus>(
@@ -275,6 +275,8 @@ __host__ void execute_cg_external_product_loop(
 
   uint32_t chunk_size =
       std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+  if (chunk_size == 0)
+    return;
 
   auto d_mem = buffer->d_mem_acc_cg;
   auto keybundle_fft = buffer->keybundle_fft;
