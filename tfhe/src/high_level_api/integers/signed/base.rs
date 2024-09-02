@@ -260,9 +260,17 @@ where
                 crate::FheUint32::new(result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support leading_zeros yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key
+                    .key
+                    .leading_zeros(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                crate::FheUint32::new(result)
+            }),
         })
     }
 
@@ -296,9 +304,17 @@ where
                 crate::FheUint32::new(result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support leading_ones yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key
+                    .key
+                    .leading_ones(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                crate::FheUint32::new(result)
+            }),
         })
     }
 
@@ -332,9 +348,17 @@ where
                 crate::FheUint32::new(result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support trailing_zeros yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key
+                    .key
+                    .trailing_zeros(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                crate::FheUint32::new(result)
+            }),
         })
     }
 
@@ -368,9 +392,17 @@ where
                 crate::FheUint32::new(result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support trailing_ones yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key
+                    .key
+                    .trailing_ones(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                crate::FheUint32::new(result)
+            }),
         })
     }
 
@@ -406,9 +438,15 @@ where
                 crate::FheUint32::new(result)
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support ilog2 yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key.key.ilog2(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                crate::FheUint32::new(result)
+            }),
         })
     }
 
@@ -448,9 +486,17 @@ where
                 (crate::FheUint32::new(result), FheBool::new(is_ok))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support checked_ilog2 yet");
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, is_ok) = cuda_key
+                    .key
+                    .checked_ilog2(&*self.ciphertext.on_gpu(), streams);
+                let result = cuda_key.key.cast_to_unsigned(
+                    result,
+                    crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
+                    streams,
+                );
+                (crate::FheUint32::new(result), FheBool::new(is_ok))
+            }),
         })
     }
 

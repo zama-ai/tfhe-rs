@@ -121,3 +121,27 @@ fn test_is_even_is_odd_gpu_multibit() {
     let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
     super::test_case_is_even_is_odd(&client_key);
 }
+
+#[test]
+fn test_leading_trailing_zeros_ones_gpu() {
+    let client_key = setup_default_gpu();
+    super::test_case_leading_trailing_zeros_ones(&client_key);
+}
+
+#[test]
+fn test_leading_trailing_zeros_ones_gpu_multibit() {
+    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    super::test_case_leading_trailing_zeros_ones(&client_key);
+}
+
+#[test]
+fn test_ilog2_gpu() {
+    let client_key = setup_default_gpu();
+    super::test_case_ilog2(&client_key);
+}
+
+#[test]
+fn test_ilog2_multibit() {
+    let client_key = setup_gpu(Some(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS));
+    super::test_case_ilog2(&client_key);
+}
