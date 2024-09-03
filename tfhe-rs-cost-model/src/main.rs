@@ -37,7 +37,7 @@ pub struct GlweCiphertextGgswCiphertextExternalProductParameters<Scalar: Unsigne
 }
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author,version,about,long_about = None)]
 struct Args {
     /// Total number of threads.
     #[clap(long, short)]
@@ -46,7 +46,7 @@ struct Args {
     #[clap(long, short)]
     id: usize,
     /// Number of time a test is repeated for a single set of parameter.
-    /// This indicates the number of different keys since, at each repetition, we re-sample
+    /// This indicates the number of different keys since,at each repetition,we re-sample
     /// everything
     #[clap(long, short, default_value_t = 10)]
     repetitions: usize,
@@ -54,17 +54,17 @@ struct Args {
     #[clap(long, short = 'S', default_value_t = 10)]
     sample_size: usize,
     /// Step used for testing levels beyond 20in hypercube.
-    /// Example: with a step of 3, tested levels tested would be: 1 through 20 then 21, 24, 27, etc
+    /// Example: with a step of 3,tested levels tested would be: 1 through 20 then 21,24,27,etc
     #[clap(long, short = 's', default_value_t = 1)]
     steps: usize,
     /// Which algorithm to measure fft noise for
-    #[clap(long, short = 'a', value_parser = [
+    #[clap(long,short = 'a',value_parser = [
         EXT_PROD_ALGO,
         MULTI_BIT_EXT_PROD_ALGO,
         STD_MULTI_BIT_EXT_PROD_ALGO,
         EXT_PROD_U128_SPLIT_ALGO,
         EXT_PROD_U128_ALGO
-    ], default_value = "")]
+    ],default_value = "")]
     algorithm: String,
     #[clap(long)]
     multi_bit_grouping_factor: Option<usize>,
@@ -96,8 +96,8 @@ fn get_analysis_output_file(dir: &str, id: usize) -> std::fs::File {
 fn prepare_output_file_header(dir: &str, id: usize) {
     let mut file = get_analysis_output_file(dir, id);
     let header =
-        "polynomial_size, glwe_dimension, decomposition_level_count, decomposition_base_log, \
-    ggsw_encrypted_value, input_variance, output_variance, predicted_variance, mean_runtime_ns, \
+        "polynomial_size,glwe_dimension,decomposition_level_count,decomposition_base_log,\
+    ggsw_encrypted_value,input_variance,output_variance,single_ggsw_variance,predicted_variance,mean_runtime_ns,\
     prep_time_ns\n";
     let _ = file.write(header.as_bytes()).unwrap();
 }
@@ -107,6 +107,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     params: &GlweCiphertextGgswCiphertextExternalProductParameters<Scalar>,
     input_stddev: StandardDev,
     output_stddev: StandardDev,
+    single_ggsw_stddev: StandardDev,
     pred_stddev: StandardDev,
     mean_runtime_ns: u128,
     mean_prep_time_ns: u128,
@@ -114,7 +115,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     id: usize,
 ) {
     let data_to_save = format!(
-        "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n",
+        "{},{},{},{},{},{},{},{},{},{},{}\n",
         params.polynomial_size.0,
         params.glwe_dimension.0,
         params.decomposition_level_count.0,
@@ -122,6 +123,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
         params.ggsw_encrypted_value,
         input_stddev.get_variance(),
         output_stddev.get_variance(),
+        single_ggsw_stddev.get_variance(),
         pred_stddev.get_variance(),
         mean_runtime_ns,
         mean_prep_time_ns,
@@ -281,13 +283,13 @@ fn main() {
     let modulus: u128 = match args.modulus_log2 {
         Some(modulus_log2) => {
             if modulus_log2 > 128 {
-                panic!("Got modulus_log2 > 128, this is not supported");
+                panic!("Got modulus_log2 > 128,this is not supported");
             }
 
             match algo.as_str() {
                 EXT_PROD_ALGO | MULTI_BIT_EXT_PROD_ALGO | STD_MULTI_BIT_EXT_PROD_ALGO => {
                     if modulus_log2 > 64 {
-                        panic!("Got modulus_log2 > 64, for 64 bits scalars");
+                        panic!("Got modulus_log2 > 64,for 64 bits scalars");
                     }
 
                     1u128 << modulus_log2
@@ -319,7 +321,7 @@ fn main() {
 
     assert_ne!(
         tot, 0,
-        "Got tot = 0 for noise sampling experiment, unsupported"
+        "Got tot = 0 for noise sampling experiment,unsupported"
     );
 
     // Parameter Grid
@@ -435,10 +437,10 @@ fn main() {
                     )),
                     0.0,
                 );
-                // We measure the noise added to a GLWE ciphertext, here we can choose to have no
+                // We measure the noise added to a GLWE ciphertext,here we can choose to have no
                 // input noise
                 // It also avoid potential cases where the noise is so big it gets decomposed
-                // during computations, it's an assumption we apparently already make ("small noise
+                // during computations,it's an assumption we apparently already make ("small noise
                 // regime")
                 let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
                 // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
@@ -580,6 +582,7 @@ fn main() {
                         &parameters,
                         parameters.glwe_noise.standard_dev(),
                         std_err,
+                        ggsw_noise.standard_dev(),
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
                         mean_prep_time_ns,
@@ -593,6 +596,7 @@ fn main() {
                         &parameters,
                         parameters.glwe_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
+                        ggsw_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
                         0,
@@ -643,10 +647,10 @@ fn main() {
                     )),
                     0.0,
                 );
-                // We measure the noise added to a GLWE ciphertext, here we can choose to have no
+                // We measure the noise added to a GLWE ciphertext,here we can choose to have no
                 // input noise
                 // It also avoid potential cases where the noise is so big it gets decomposed
-                // during computations, it's an assumption we apparently already make ("small noise
+                // during computations,it's an assumption we apparently already make ("small noise
                 // regime")
                 let glwe_noise = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
                 // Variance::from_variance(minimal_variance_for_security_64(glwe_dimension,
@@ -758,6 +762,7 @@ fn main() {
                         &parameters,
                         parameters.glwe_noise.standard_dev(),
                         std_err,
+                        ggsw_noise.standard_dev(),
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
                         mean_prep_time_ns,
@@ -771,6 +776,7 @@ fn main() {
                         &parameters,
                         parameters.glwe_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
+                        ggsw_noise.standard_dev(),
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
                         0,

@@ -87,6 +87,7 @@ class SamplingLine:
     def __init__(self, line: dict):
         self.input_variance = float(line["input_variance"])
         self.output_variance_exp = float(line["output_variance"])
+        self.single_ggsw_variance = float(line["single_ggsw_variance"])
         self.output_variance_th = float(line["predicted_variance"])
         self.parameters = [
             float(line["polynomial_size"]),
@@ -139,6 +140,7 @@ def extract_from_acquisitions(filename):
     parameters = []
     exp_output_variance = []
     th_output_variance = []
+    single_ggsw_variance = []
     input_variance = []
 
     with filename.open() as csvfile:
@@ -154,6 +156,7 @@ def extract_from_acquisitions(filename):
 
             exp_output_var = sampled_line.output_variance_exp
             th_output_var = sampled_line.output_variance_th
+            single_ggsw_var = sampled_line.single_ggsw_variance
             input_var = sampled_line.input_variance
             params = sampled_line.parameters
 
@@ -162,6 +165,7 @@ def extract_from_acquisitions(filename):
                 parameters.append(params)
                 exp_output_variance.append(exp_output_var)
                 th_output_variance.append(th_output_var)
+                single_ggsw_variance.append(single_ggsw_var)
                 input_variance.append(input_var)
 
     num_samples = len(parameters)
@@ -173,6 +177,7 @@ def extract_from_acquisitions(filename):
             np.array(parameters),
             np.array(exp_output_variance),
             np.array(th_output_variance),
+            np.array(single_ggsw_variance),
             np.array(input_variance),
         )
         if num_samples != 0
@@ -193,6 +198,7 @@ def get_input(filename):
         parameters,
         exp_output_variance,
         _th_output_variance,
+        _single_ggsw_variance,
         input_variance,
     ) = acquisition_samples
     y_values = np.maximum(0.0, (exp_output_variance - input_variance))
