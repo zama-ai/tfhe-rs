@@ -309,7 +309,7 @@ pub fn write_to_json<
     fs::write(params_directory, serde_json::to_string(&record).unwrap()).unwrap();
 }
 
-const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
+const FAST_BENCH_BIT_SIZES: [usize; 3] = [512, 1024, 2048];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
 const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
 

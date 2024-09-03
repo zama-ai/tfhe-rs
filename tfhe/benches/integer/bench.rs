@@ -2201,42 +2201,42 @@ criterion_group!(
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
-    add_parallelized,
-    unsigned_overflowing_add_parallelized,
-    sub_parallelized,
-    unsigned_overflowing_sub_parallelized,
-    mul_parallelized,
-    unsigned_overflowing_mul_parallelized,
-    // div_parallelized,
-    // rem_parallelized,
-    div_rem_parallelized,
+    // neg_parallelized,
+    // abs_parallelized,
+    // add_parallelized,
+    // unsigned_overflowing_add_parallelized,
+    // sub_parallelized,
+    // unsigned_overflowing_sub_parallelized,
+    // mul_parallelized,
+    // unsigned_overflowing_mul_parallelized,
+    // // div_parallelized,
+    // // rem_parallelized,
+    // div_rem_parallelized,
     bitand_parallelized,
     bitnot,
     bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
-    ciphertexts_sum_parallelized,
-    leading_zeros_parallelized,
-    leading_ones_parallelized,
-    trailing_zeros_parallelized,
-    trailing_ones_parallelized,
-    ilog2_parallelized,
-    checked_ilog2_parallelized,
+    // bitxor_parallelized,
+    // left_shift_parallelized,
+    // right_shift_parallelized,
+    // rotate_left_parallelized,
+    // rotate_right_parallelized,
+    // ciphertexts_sum_parallelized,
+    // leading_zeros_parallelized,
+    // leading_ones_parallelized,
+    // trailing_zeros_parallelized,
+    // trailing_ones_parallelized,
+    // ilog2_parallelized,
+    // checked_ilog2_parallelized,
 );
 
 criterion_group!(
     default_parallelized_ops_comp,
-    max_parallelized,
-    min_parallelized,
+    // max_parallelized,
+    // min_parallelized,
     eq_parallelized,
     ne_parallelized,
-    lt_parallelized,
-    le_parallelized,
+    // lt_parallelized,
+    // le_parallelized,
     gt_parallelized,
     ge_parallelized,
     if_then_else_parallelized,
@@ -2293,33 +2293,33 @@ criterion_group!(
 
 criterion_group!(
     default_scalar_parallelized_ops,
-    scalar_add_parallelized,
-    unsigned_overflowing_scalar_add_parallelized,
-    scalar_sub_parallelized,
-    unsigned_overflowing_scalar_sub_parallelized,
-    scalar_mul_parallelized,
-    scalar_div_parallelized,
-    scalar_rem_parallelized,
-    // scalar_div_rem_parallelized,
-    scalar_left_shift_parallelized,
-    scalar_right_shift_parallelized,
-    scalar_rotate_left_parallelized,
-    scalar_rotate_right_parallelized,
+    // scalar_add_parallelized,
+    // unsigned_overflowing_scalar_add_parallelized,
+    // scalar_sub_parallelized,
+    // unsigned_overflowing_scalar_sub_parallelized,
+    // scalar_mul_parallelized,
+    // scalar_div_parallelized,
+    // scalar_rem_parallelized,
+    // // scalar_div_rem_parallelized,
+    // scalar_left_shift_parallelized,
+    // scalar_right_shift_parallelized,
+    // scalar_rotate_left_parallelized,
+    // scalar_rotate_right_parallelized,
     scalar_bitand_parallelized,
     scalar_bitor_parallelized,
-    scalar_bitxor_parallelized,
+    // scalar_bitxor_parallelized,
 );
 
 criterion_group!(
     default_scalar_parallelized_ops_comp,
     scalar_eq_parallelized,
     scalar_ne_parallelized,
-    scalar_lt_parallelized,
-    scalar_le_parallelized,
+    // scalar_lt_parallelized,
+    // scalar_le_parallelized,
     scalar_gt_parallelized,
     scalar_ge_parallelized,
-    scalar_min_parallelized,
-    scalar_max_parallelized,
+    // scalar_min_parallelized,
+    // scalar_max_parallelized,
 );
 
 criterion_group!(
@@ -2517,8 +2517,8 @@ fn go_through_cpu_bench_groups(val: &str) {
             default_parallelized_ops_comp();
             default_scalar_parallelized_ops();
             default_scalar_parallelized_ops_comp();
-            cast_ops();
-            oprf()
+            // cast_ops();
+            // oprf()
         }
         "fast_default" => {
             default_dedup_ops();
