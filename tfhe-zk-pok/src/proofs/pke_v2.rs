@@ -300,10 +300,10 @@ pub fn prove<G: Curve>(
     let (
         &PublicParams {
             ref g_lists,
-            D,
+            D: D_max,
             n,
             d,
-            k,
+            k: k_max,
             B,
             B_r: _,
             B_bound,
@@ -328,8 +328,13 @@ pub fn prove<G: Curve>(
 
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
-    assert!(c2.len() <= k);
-    let k = k.min(c2.len());
+    let k = c2.len();
+    assert!(k <= k_max);
+
+    // Recompute the D for our case if k is smaller than the k max
+    // formula in Prove_pp: 2.
+    let D = d + k * t_input.ilog2() as usize;
+    assert!(D <= D_max);
 
     // FIXME: div_round
     let delta = {
@@ -1456,10 +1461,10 @@ pub fn verify<G: Curve>(
 
     let &PublicParams {
         ref g_lists,
-        D,
+        D: D_max,
         n,
         d,
-        k,
+        k: k_max,
         B,
         B_r: _,
         B_bound: _,
@@ -1487,10 +1492,17 @@ pub fn verify<G: Curve>(
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
-    if c2.len() > k {
+    let k = c2.len();
+    if k > k_max {
         return Err(());
     }
-    let k = k.min(c2.len());
+
+    // Recompute the D for our case if k is smaller than the k max
+    // formula in Prove_pp: 2.
+    let D = d + k * t_input.ilog2() as usize;
+    if D > D_max {
+        return Err(());
+    }
 
     let C_hat_h3_bytes = C_hat_h3.map(G::G2::to_bytes);
     let C_hat_w_bytes = C_hat_w.map(G::G2::to_bytes);
@@ -2128,7 +2140,10 @@ mod tests {
                 PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
             };
 
-        let original_public_param = crs_gen_ghl::<Curve>(d, k, B, q, t, rng);
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param = crs_gen::<Curve>(d, crs_k, B, q, t, rng);
         let public_param_that_was_compressed =
             serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
         let public_param_that_was_not_compressed =
