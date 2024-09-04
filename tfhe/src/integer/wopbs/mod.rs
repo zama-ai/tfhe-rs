@@ -6,13 +6,9 @@
 #[cfg(all(test, feature = "experimental"))]
 mod test;
 
-use super::backward_compatibility::wopbs::WopbsKeyVersions;
-
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
-#[versionize(WopbsKeyVersions)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct WopbsKey {
     wopbs_key: crate::shortint::wopbs::WopbsKey,
 }

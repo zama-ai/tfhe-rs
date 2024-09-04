@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::{UnversionizeError, VersionsDispatch};
+use tfhe_versionable::{UnversionizeError, Upgrade, Version, VersionsDispatch};
 
 use crate::core_crypto::prelude::{Container, IntoContainerOwned};
 use crate::shortint::server_key::*;
@@ -58,7 +58,23 @@ pub enum ShortintCompressedBootstrappingKeyVersions {
     V0(ShortintCompressedBootstrappingKey),
 }
 
+#[derive(Version)]
+pub struct UnsupportedCompressedServerKeyV0;
+
+impl Upgrade<CompressedServerKey> for UnsupportedCompressedServerKeyV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
+        Err(crate::Error::new(
+            "Unable to load CompressedServerKey, \
+            this format is unsupported by this TFHE-rs version."
+                .to_string(),
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
-    V0(CompressedServerKey),
+    V0(UnsupportedCompressedServerKeyV0),
+    V1(CompressedServerKey),
 }

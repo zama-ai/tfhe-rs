@@ -11,16 +11,12 @@ use crate::core_crypto::entities::*;
 
 use crate::shortint::{ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
-
-use super::backward_compatibility::wopbs::WopbsKeyVersions;
 
 #[cfg(all(test, feature = "experimental"))]
 mod test;
 
 // Struct for WoPBS based on the private functional packing keyswitch.
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
-#[versionize(WopbsKeyVersions)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,
