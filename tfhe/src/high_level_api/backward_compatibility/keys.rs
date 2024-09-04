@@ -1,12 +1,31 @@
 use crate::high_level_api::keys::*;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
+use crate::Tag;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
 pub enum ClientKeyVersions {
-    V0(ClientKey),
+    V0(ClientKeyV0),
+    V1(ClientKey),
+}
+
+#[derive(Version)]
+pub struct ClientKeyV0 {
+    pub(crate) key: IntegerClientKey,
+}
+
+impl Upgrade<ClientKey> for ClientKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ClientKey, Self::Error> {
+        let Self { key } = self;
+        Ok(ClientKey {
+            key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 // This type was previously versioned using a manual implementation with a conversion
@@ -16,12 +35,28 @@ pub struct ServerKeyV0 {
     pub(crate) integer_key: Arc<IntegerServerKey>,
 }
 
-impl Upgrade<ServerKey> for ServerKeyV0 {
+impl Upgrade<ServerKeyV1> for ServerKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ServerKeyV1, Self::Error> {
+        Ok(ServerKeyV1 {
+            key: self.integer_key,
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct ServerKeyV1 {
+    pub(crate) key: Arc<IntegerServerKey>,
+}
+
+impl Upgrade<ServerKey> for ServerKeyV1 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<ServerKey, Self::Error> {
         Ok(ServerKey {
-            key: self.integer_key,
+            key: self.key,
+            tag: Tag::default(),
         })
     }
 }
@@ -29,32 +64,118 @@ impl Upgrade<ServerKey> for ServerKeyV0 {
 #[derive(VersionsDispatch)]
 pub enum ServerKeyVersions {
     V0(ServerKeyV0),
-    V1(ServerKey),
+    V1(ServerKeyV1),
+    V2(ServerKey),
+}
+
+#[derive(Version)]
+pub struct CompressedServerKeyV0 {
+    pub(crate) integer_key: IntegerCompressedServerKey,
+}
+
+impl Upgrade<CompressedServerKey> for CompressedServerKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
+        Ok(CompressedServerKey {
+            integer_key: self.integer_key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
-    V0(CompressedServerKey),
+    V0(CompressedServerKeyV0),
+    V1(CompressedServerKey),
+}
+
+#[derive(Version)]
+pub struct PublicKeyV0 {
+    pub(in crate::high_level_api) key: crate::integer::PublicKey,
+}
+
+impl Upgrade<PublicKey> for PublicKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<PublicKey, Self::Error> {
+        Ok(PublicKey {
+            key: self.key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum PublicKeyVersions {
-    V0(PublicKey),
+    V0(PublicKeyV0),
+    V1(PublicKey),
+}
+
+#[derive(Version)]
+pub struct CompactPublicKeyV0 {
+    pub(in crate::high_level_api) key: IntegerCompactPublicKey,
+}
+
+impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactPublicKey, Self::Error> {
+        Ok(CompactPublicKey {
+            key: self.key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompactPublicKeyVersions {
-    V0(CompactPublicKey),
+    V0(CompactPublicKeyV0),
+    V1(CompactPublicKey),
+}
+
+#[derive(Version)]
+pub struct CompressedPublicKeyV0 {
+    pub(in crate::high_level_api) key: crate::integer::CompressedPublicKey,
+}
+
+impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedPublicKey, Self::Error> {
+        Ok(CompressedPublicKey {
+            key: self.key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedPublicKeyVersions {
-    V0(CompressedPublicKey),
+    V0(CompressedPublicKeyV0),
+    V1(CompressedPublicKey),
+}
+
+#[derive(Version)]
+pub struct CompressedCompactPublicKeyV0 {
+    pub(in crate::high_level_api) key: IntegerCompressedCompactPublicKey,
+}
+
+impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedCompactPublicKey, Self::Error> {
+        Ok(CompressedCompactPublicKey {
+            key: self.key,
+            tag: Tag::default(),
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedCompactPublicKeyVersions {
-    V0(CompressedCompactPublicKey),
+    V0(CompressedCompactPublicKeyV0),
+    V1(CompressedCompactPublicKey),
 }
 
 #[derive(VersionsDispatch)]

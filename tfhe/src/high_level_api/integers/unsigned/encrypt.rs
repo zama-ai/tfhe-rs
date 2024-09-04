@@ -54,7 +54,7 @@ where
             .key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext);
+        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
 
         ciphertext.move_to_device_of_server_key_if_set();
 
@@ -73,7 +73,7 @@ where
         let cpu_ciphertext = key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext);
+        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
 
         ciphertext.move_to_device_of_server_key_if_set();
 
@@ -92,7 +92,7 @@ where
         let cpu_ciphertext = key
             .key
             .encrypt_radix(value, Id::num_blocks(key.message_modulus()));
-        let mut ciphertext = Self::new(cpu_ciphertext);
+        let mut ciphertext = Self::new(cpu_ciphertext, key.tag.clone());
 
         ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
@@ -112,7 +112,7 @@ where
                 let ciphertext: crate::integer::RadixCiphertext = key
                     .pbs_key()
                     .create_trivial_radix(value, Id::num_blocks(key.message_modulus()));
-                Ok(Self::new(ciphertext))
+                Ok(Self::new(ciphertext, key.tag.clone()))
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -121,7 +121,7 @@ where
                     Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                Ok(Self::new(inner))
+                Ok(Self::new(inner, cuda_key.tag.clone()))
             }),
         })
     }

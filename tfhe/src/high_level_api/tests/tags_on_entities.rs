@@ -1,0 +1,324 @@
+use crate::prelude::*;
+use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::*;
+use crate::shortint::ClassicPBSParameters;
+use crate::{
+    set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListExpander,
+    CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder, CompressedFheBool,
+    CompressedFheInt32, CompressedFheUint32, CompressedServerKey, ConfigBuilder, Device, FheBool,
+    FheInt32, FheInt64, FheUint32, ServerKey,
+};
+use rand::random;
+
+#[test]
+fn test_tag_propagation_cpu() {
+    test_tag_propagation(
+        Device::Cpu,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        Some((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        )),
+        Some(COMP_PARAM_MESSAGE_2_CARRY_2),
+    )
+}
+
+#[test]
+#[cfg(feature = "zk-pok")]
+fn test_tag_propagation_zk_pok() {
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::ProvenCompactCiphertextList;
+
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64).build();
+    let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
+
+    let mut cks = ClientKey::generate(config);
+    let tag_value = random();
+    cks.tag_mut().set_u64(tag_value);
+    let cks = serialize_then_deserialize(cks);
+    assert_eq!(cks.tag().as_u64(), tag_value);
+
+    let sks = ServerKey::new(&cks);
+    set_server_key(sks);
+
+    let cpk = CompactPublicKey::new(&cks);
+    assert_eq!(cpk.tag(), cks.tag());
+
+    let mut builder = CompactCiphertextList::builder(&cpk);
+
+    let list_packed = builder
+        .push(32u32)
+        .push(1u32)
+        .push(-1i64)
+        .push(i64::MIN)
+        .push(false)
+        .push(true)
+        .build_with_proof_packed(crs.public_params(), crate::zk::ZkComputeLoad::Proof)
+        .unwrap();
+
+    let list_packed: ProvenCompactCiphertextList = serialize_then_deserialize(list_packed);
+    assert_eq!(list_packed.tag(), cks.tag());
+
+    let expander = list_packed
+        .verify_and_expand(crs.public_params(), &cpk)
+        .unwrap();
+
+    {
+        let au32: FheUint32 = expander.get(0).unwrap().unwrap();
+        let bu32: FheUint32 = expander.get(1).unwrap().unwrap();
+        assert_eq!(au32.tag(), cks.tag());
+        assert_eq!(bu32.tag(), cks.tag());
+
+        let cu32 = au32 + bu32;
+        assert_eq!(cu32.tag(), cks.tag());
+    }
+
+    {
+        let ai64: FheInt64 = expander.get(2).unwrap().unwrap();
+        let bi64: FheInt64 = expander.get(3).unwrap().unwrap();
+        assert_eq!(ai64.tag(), cks.tag());
+        assert_eq!(bi64.tag(), cks.tag());
+
+        let ci64 = ai64 + bi64;
+        assert_eq!(ci64.tag(), cks.tag());
+    }
+
+    {
+        let abool: FheBool = expander.get(4).unwrap().unwrap();
+        let bbool: FheBool = expander.get(5).unwrap().unwrap();
+        assert_eq!(abool.tag(), cks.tag());
+        assert_eq!(bbool.tag(), cks.tag());
+
+        let cbool = abool & bbool;
+        assert_eq!(cbool.tag(), cks.tag());
+    }
+}
+
+#[test]
+#[cfg(feature = "gpu")]
+fn test_tag_propagation_gpu() {
+    test_tag_propagation(
+        Device::CudaGpu,
+        PARAM_MESSAGE_2_CARRY_2,
+        None,
+        Some(COMP_PARAM_MESSAGE_2_CARRY_2),
+    )
+}
+
+fn serialize_then_deserialize<T>(value: T) -> T
+where
+    T: serde::Serialize + for<'a> serde::de::Deserialize<'a>,
+{
+    let serialized = bincode::serialize(&value).unwrap();
+    bincode::deserialize(&serialized).unwrap()
+}
+
+fn test_tag_propagation(
+    device: Device,
+    pbs_parameters: ClassicPBSParameters,
+    dedicated_compact_public_key_parameters: Option<(
+        CompactPublicKeyEncryptionParameters,
+        ShortintKeySwitchingParameters,
+    )>,
+    comp_parameters: Option<CompressionParameters>,
+) {
+    let mut builder = ConfigBuilder::with_custom_parameters(pbs_parameters);
+    if let Some(parameters) = dedicated_compact_public_key_parameters {
+        builder = builder.use_dedicated_compact_public_key_parameters(parameters);
+    }
+    if let Some(parameters) = comp_parameters {
+        builder = builder.enable_compression(parameters);
+    }
+    let config = builder.build();
+
+    let mut cks = ClientKey::generate(config);
+    let tag_value = random();
+    cks.tag_mut().set_u64(tag_value);
+    let cks = serialize_then_deserialize(cks);
+    assert_eq!(cks.tag().as_u64(), tag_value);
+
+    let compressed_sks = CompressedServerKey::new(&cks);
+    let compressed_sks = serialize_then_deserialize(compressed_sks);
+    assert_eq!(compressed_sks.tag(), cks.tag());
+
+    match device {
+        Device::Cpu => {
+            let sks = ServerKey::new(&cks);
+            let sks = serialize_then_deserialize(sks);
+            assert_eq!(sks.tag(), cks.tag());
+
+            // Now test when the sks comes from a compressed one
+            let sks = compressed_sks.decompress();
+            let sks = serialize_then_deserialize(sks);
+            assert_eq!(sks.tag(), cks.tag());
+
+            set_server_key(sks);
+        }
+        #[cfg(feature = "gpu")]
+        Device::CudaGpu => {
+            let sks = compressed_sks.decompress_to_gpu();
+            assert_eq!(sks.tag(), cks.tag());
+
+            set_server_key(sks);
+        }
+    }
+
+    // Check encrypting regular ct with client key
+    {
+        let mut compression_builder = CompressedCiphertextListBuilder::new();
+
+        // Check FheUint have a tag
+        {
+            let ct_a = FheUint32::encrypt(8182u32, &cks);
+            let ct_a = serialize_then_deserialize(ct_a);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_b = FheUint32::encrypt(8182u32, &cks);
+            assert_eq!(ct_b.tag(), cks.tag());
+
+            let ct_c = ct_a + ct_b;
+            assert_eq!(ct_c.tag(), cks.tag());
+
+            compression_builder.push(ct_c);
+        }
+
+        // Check FheInt have a tag
+        {
+            let ct_a = FheInt32::encrypt(-1i32, &cks);
+            let ct_a = serialize_then_deserialize(ct_a);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_b = FheInt32::encrypt(i32::MIN, &cks);
+            assert_eq!(ct_b.tag(), cks.tag());
+
+            let ct_c = ct_a + ct_b;
+            assert_eq!(ct_c.tag(), cks.tag());
+
+            compression_builder.push(ct_c);
+        }
+
+        // Check FheBool have a tag
+        {
+            let ct_a = FheBool::encrypt(false, &cks);
+            let ct_a = serialize_then_deserialize(ct_a);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_b = FheBool::encrypt(true, &cks);
+            assert_eq!(ct_b.tag(), cks.tag());
+
+            let ct_c = ct_a | ct_b;
+            assert_eq!(ct_c.tag(), cks.tag());
+
+            compression_builder.push(ct_c);
+        }
+
+        if device == Device::Cpu {
+            // Cuda do no yet support compressing
+            let compressed_list = compression_builder.build().unwrap();
+            assert_eq!(compressed_list.tag(), cks.tag());
+
+            let serialized = bincode::serialize(&compressed_list).unwrap();
+            let compressed_list: CompressedCiphertextList =
+                bincode::deserialize(&serialized).unwrap();
+            assert_eq!(compressed_list.tag(), cks.tag());
+
+            let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+            assert_eq!(a.tag(), cks.tag());
+            let b: FheInt32 = compressed_list.get(1).unwrap().unwrap();
+            assert_eq!(b.tag(), cks.tag());
+            let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+            assert_eq!(c.tag(), cks.tag());
+        }
+    }
+
+    // Check compressed encryption
+    {
+        {
+            let ct_a = CompressedFheUint32::encrypt(8182u32, &cks);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_a = ct_a.decompress();
+            assert_eq!(ct_a.tag(), cks.tag());
+        }
+
+        {
+            let ct_a = CompressedFheInt32::encrypt(-1i32, &cks);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_a = ct_a.decompress();
+            assert_eq!(ct_a.tag(), cks.tag());
+        }
+
+        {
+            let ct_a = CompressedFheBool::encrypt(false, &cks);
+            assert_eq!(ct_a.tag(), cks.tag());
+
+            let ct_a = ct_a.decompress();
+            assert_eq!(ct_a.tag(), cks.tag());
+        }
+    }
+
+    // Test compact public key stuff
+    if device == Device::Cpu {
+        let cpk = CompactPublicKey::new(&cks);
+        let cpk = serialize_then_deserialize(cpk);
+        assert_eq!(cpk.tag(), cks.tag());
+
+        let mut builder = CompactCiphertextList::builder(&cpk);
+        builder
+            .push(32u32)
+            .push(1u32)
+            .push(-1i64)
+            .push(i64::MIN)
+            .push(false)
+            .push(true);
+
+        let expand_and_check_tags = |expander: CompactCiphertextListExpander, cks: &ClientKey| {
+            {
+                let au32: FheUint32 = expander.get(0).unwrap().unwrap();
+                let bu32: FheUint32 = expander.get(1).unwrap().unwrap();
+                assert_eq!(au32.tag(), cks.tag());
+                assert_eq!(bu32.tag(), cks.tag());
+
+                let cu32 = au32 + bu32;
+                assert_eq!(cu32.tag(), cks.tag());
+            }
+
+            {
+                let ai64: FheInt64 = expander.get(2).unwrap().unwrap();
+                let bi64: FheInt64 = expander.get(3).unwrap().unwrap();
+                assert_eq!(ai64.tag(), cks.tag());
+                assert_eq!(bi64.tag(), cks.tag());
+
+                let ci64 = ai64 + bi64;
+                assert_eq!(ci64.tag(), cks.tag());
+            }
+
+            {
+                let abool: FheBool = expander.get(4).unwrap().unwrap();
+                let bbool: FheBool = expander.get(5).unwrap().unwrap();
+                assert_eq!(abool.tag(), cks.tag());
+                assert_eq!(bbool.tag(), cks.tag());
+
+                let cbool = abool & bbool;
+                assert_eq!(cbool.tag(), cks.tag());
+            }
+        };
+
+        {
+            let list = builder.build();
+            let list: CompactCiphertextList = serialize_then_deserialize(list);
+            assert_eq!(list.tag(), cks.tag());
+            expand_and_check_tags(list.expand().unwrap(), &cks);
+        }
+
+        {
+            let list_packed = builder.build_packed();
+            let list_packed: CompactCiphertextList = serialize_then_deserialize(list_packed);
+            assert_eq!(list_packed.tag(), cks.tag());
+            expand_and_check_tags(list_packed.expand().unwrap(), &cks);
+        }
+    }
+}

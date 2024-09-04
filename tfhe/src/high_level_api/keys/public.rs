@@ -21,8 +21,9 @@ use crate::backward_compatibility::keys::{
     PublicKeyVersions,
 };
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
-use crate::Error;
+use crate::{Error, Tag};
 
 /// Classical public key.
 ///
@@ -31,6 +32,7 @@ use crate::Error;
 #[versionize(PublicKeyVersions)]
 pub struct PublicKey {
     pub(in crate::high_level_api) key: crate::integer::PublicKey,
+    pub(crate) tag: Tag,
 }
 
 impl PublicKey {
@@ -39,19 +41,30 @@ impl PublicKey {
         let base_integer_key = crate::integer::PublicKey::new(&client_key.key.key);
         Self {
             key: base_integer_key,
+            tag: client_key.tag.clone(),
         }
     }
 
-    pub fn into_raw_parts(self) -> crate::integer::PublicKey {
-        self.key
+    pub fn into_raw_parts(self) -> (crate::integer::PublicKey, Tag) {
+        (self.key, self.tag)
     }
 
-    pub fn from_raw_parts(key: crate::integer::PublicKey) -> Self {
-        Self { key }
+    pub fn from_raw_parts(key: crate::integer::PublicKey, tag: Tag) -> Self {
+        Self { key, tag }
     }
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.parameters().message_modulus()
+    }
+}
+
+impl Tagged for PublicKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -60,6 +73,7 @@ impl PublicKey {
 #[versionize(CompressedPublicKeyVersions)]
 pub struct CompressedPublicKey {
     pub(in crate::high_level_api) key: crate::integer::CompressedPublicKey,
+    pub(crate) tag: Tag,
 }
 
 impl CompressedPublicKey {
@@ -67,25 +81,37 @@ impl CompressedPublicKey {
         let base_integer_key = crate::integer::CompressedPublicKey::new(&client_key.key.key);
         Self {
             key: base_integer_key,
+            tag: client_key.tag.clone(),
         }
     }
 
-    pub fn into_raw_parts(self) -> crate::integer::CompressedPublicKey {
-        self.key
+    pub fn into_raw_parts(self) -> (crate::integer::CompressedPublicKey, Tag) {
+        (self.key, self.tag)
     }
 
-    pub fn from_raw_parts(key: crate::integer::CompressedPublicKey) -> Self {
-        Self { key }
+    pub fn from_raw_parts(key: crate::integer::CompressedPublicKey, tag: Tag) -> Self {
+        Self { key, tag }
     }
 
     pub fn decompress(&self) -> PublicKey {
         PublicKey {
             key: self.key.decompress(),
+            tag: self.tag.clone(),
         }
     }
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.parameters().message_modulus()
+    }
+}
+
+impl Tagged for CompressedPublicKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -97,6 +123,7 @@ impl CompressedPublicKey {
 #[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(in crate::high_level_api) key: IntegerCompactPublicKey,
+    pub(crate) tag: Tag,
 }
 
 impl CompactPublicKey {
@@ -108,21 +135,36 @@ impl CompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         Self {
             key: IntegerCompactPublicKey::new(&client_key.key),
+            tag: client_key.tag.clone(),
         }
     }
 
     pub fn try_new(client_key: &ClientKey) -> Result<Self, Error> {
-        IntegerCompactPublicKey::try_new(&client_key.key).map(|key| Self { key })
+        IntegerCompactPublicKey::try_new(&client_key.key).map(|key| Self {
+            key,
+            tag: client_key.tag.clone(),
+        })
     }
 
-    pub fn into_raw_parts(self) -> crate::integer::public_key::CompactPublicKey {
-        self.key.into_raw_parts()
+    pub fn into_raw_parts(self) -> (crate::integer::public_key::CompactPublicKey, Tag) {
+        (self.key.into_raw_parts(), self.tag)
     }
 
-    pub fn from_raw_parts(key: crate::integer::public_key::CompactPublicKey) -> Self {
+    pub fn from_raw_parts(key: crate::integer::public_key::CompactPublicKey, tag: Tag) -> Self {
         Self {
             key: IntegerCompactPublicKey::from_raw_parts(key),
+            tag,
         }
+    }
+}
+
+impl Tagged for CompactPublicKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -134,6 +176,7 @@ impl CompactPublicKey {
 #[versionize(CompressedCompactPublicKeyVersions)]
 pub struct CompressedCompactPublicKey {
     pub(in crate::high_level_api) key: IntegerCompressedCompactPublicKey,
+    pub(crate) tag: Tag,
 }
 
 impl CompressedCompactPublicKey {
@@ -145,18 +188,20 @@ impl CompressedCompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         Self {
             key: IntegerCompressedCompactPublicKey::new(&client_key.key),
+            tag: client_key.tag.clone(),
         }
     }
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
-    pub fn into_raw_parts(self) -> crate::integer::CompressedCompactPublicKey {
-        self.key.into_raw_parts()
+    pub fn into_raw_parts(self) -> (crate::integer::CompressedCompactPublicKey, Tag) {
+        (self.key.into_raw_parts(), self.tag)
     }
 
     /// Construct a [`CompressedCompactPublicKey`] from its constituents.
-    pub fn from_raw_parts(key: crate::integer::CompressedCompactPublicKey) -> Self {
+    pub fn from_raw_parts(key: crate::integer::CompressedCompactPublicKey, tag: Tag) -> Self {
         Self {
             key: IntegerCompressedCompactPublicKey::from_raw_parts(key),
+            tag,
         }
     }
 
@@ -164,6 +209,17 @@ impl CompressedCompactPublicKey {
     pub fn decompress(&self) -> CompactPublicKey {
         CompactPublicKey {
             key: self.key.decompress(),
+            tag: self.tag.clone(),
         }
+    }
+}
+
+impl Tagged for CompressedCompactPublicKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }

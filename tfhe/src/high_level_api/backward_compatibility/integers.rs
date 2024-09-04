@@ -18,8 +18,11 @@ use crate::integer::ciphertext::{
 };
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 use crate::shortint::{Ciphertext, ServerKey};
-use crate::{CompactCiphertextList as HlCompactCiphertextList, Error};
+use crate::{CompactCiphertextList as HlCompactCiphertextList, Error, Tag};
 use serde::{Deserialize, Serialize};
+
+use self::signed::RadixCiphertext as SignedRadixCiphertext;
+use self::unsigned::RadixCiphertext as UnsignedRadixCiphertext;
 
 // Manual impl
 #[derive(Serialize, Deserialize)]
@@ -67,11 +70,11 @@ impl Upgrade<CompressedSignedRadixCiphertext> for CompressedSignedRadixCiphertex
                     let blocks = ct
                         .blocks
                         .par_iter()
-                        .map(|a| old_sk_decompress(&sk.key.key, a))
+                        .map(|a| old_sk_decompress(&sk.key.key.key, a))
                         .collect();
 
                     let radix = BaseSignedRadixCiphertext { blocks };
-                    sk.key
+                    sk.pbs_key()
                         .switch_modulus_and_compress_signed_parallelized(&radix)
                 });
                 Ok(CompressedSignedRadixCiphertext::ModulusSwitched(upgraded))
@@ -105,11 +108,12 @@ impl Upgrade<CompressedRadixCiphertext> for CompressedRadixCiphertextV0 {
                     let blocks = ct
                         .blocks
                         .par_iter()
-                        .map(|a| old_sk_decompress(&sk.key.key, a))
+                        .map(|a| old_sk_decompress(&sk.key.key.key, a))
                         .collect();
 
                     let radix = BaseRadixCiphertext { blocks };
-                    sk.key.switch_modulus_and_compress_parallelized(&radix)
+                    sk.pbs_key()
+                        .switch_modulus_and_compress_parallelized(&radix)
                 });
                 Ok(CompressedRadixCiphertext::ModulusSwitched(upgraded))
             }
@@ -123,9 +127,28 @@ pub enum CompressedRadixCiphertextVersions {
     V1(CompressedRadixCiphertext),
 }
 
+#[derive(Version)]
+pub struct FheIntV0<Id: FheIntId> {
+    pub(in crate::high_level_api) ciphertext: SignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+}
+
+impl<Id: FheIntId> Upgrade<FheInt<Id>> for FheIntV0<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheInt<Id>, Self::Error> {
+        Ok(FheInt {
+            ciphertext: self.ciphertext,
+            id: self.id,
+            tag: Tag::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheIntVersions<Id: FheIntId> {
-    V0(FheInt<Id>),
+    V0(FheIntV0<Id>),
+    V1(FheInt<Id>),
 }
 
 #[derive(VersionsDispatch)]
@@ -133,9 +156,31 @@ pub enum CompactFheIntVersions<Id: FheIntId> {
     V0(CompactFheInt<Id>),
 }
 
+#[derive(Version)]
+pub struct CompressedFheIntV0<Id>
+where
+    Id: FheIntId,
+{
+    pub(in crate::high_level_api) ciphertext: CompressedSignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+}
+
+impl<Id: FheIntId> Upgrade<CompressedFheInt<Id>> for CompressedFheIntV0<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedFheInt<Id>, Self::Error> {
+        Ok(CompressedFheInt {
+            ciphertext: self.ciphertext,
+            id: self.id,
+            tag: Tag::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedFheIntVersions<Id: FheIntId> {
-    V0(CompressedFheInt<Id>),
+    V0(CompressedFheIntV0<Id>),
+    V1(CompressedFheInt<Id>),
 }
 
 #[derive(VersionsDispatch)]
@@ -143,9 +188,28 @@ pub enum CompactFheIntListVersions<Id: FheIntId> {
     V0(CompactFheIntList<Id>),
 }
 
+#[derive(Version)]
+pub struct FheUintV0<Id: FheUintId> {
+    pub(in crate::high_level_api) ciphertext: UnsignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+}
+
+impl<Id: FheUintId> Upgrade<FheUint<Id>> for FheUintV0<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheUint<Id>, Self::Error> {
+        Ok(FheUint {
+            ciphertext: self.ciphertext,
+            id: self.id,
+            tag: Tag::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheUintVersions<Id: FheUintId> {
-    V0(FheUint<Id>),
+    V0(FheUintV0<Id>),
+    V1(FheUint<Id>),
 }
 
 #[derive(VersionsDispatch)]
@@ -153,9 +217,27 @@ pub enum CompactFheUintVersions<Id: FheUintId> {
     V0(CompactFheUint<Id>),
 }
 
+#[derive(Version)]
+pub struct CompressedFheUintV0<Id>
+where
+    Id: FheUintId,
+{
+    pub(in crate::high_level_api) ciphertext: CompressedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+}
+
+impl<Id: FheUintId> Upgrade<CompressedFheUint<Id>> for CompressedFheUintV0<Id> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedFheUint<Id>, Self::Error> {
+        Ok(CompressedFheUint::new(self.ciphertext, Tag::default()))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedFheUintVersions<Id: FheUintId> {
-    V0(CompressedFheUint<Id>),
+    V0(CompressedFheUintV0<Id>),
+    V1(CompressedFheUint<Id>),
 }
 
 #[derive(VersionsDispatch)]
@@ -186,13 +268,17 @@ where
             .info
             .iter_mut()
             .for_each(|info| *info = DataKind::Signed(info.num_blocks()));
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
 
         let ct = list
+            .inner
             .get::<crate::integer::SignedRadixCiphertext>(0)
             .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
-        Ok(FheInt::new(ct))
+        Ok(FheInt::new(ct, Tag::default()))
     }
 }
 
@@ -217,7 +303,10 @@ where
             .iter_mut()
             .for_each(|info| *info = DataKind::Signed(info.num_blocks()));
 
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
 
         let len = list.len();
@@ -225,9 +314,10 @@ where
         (0..len)
             .map(|idx| {
                 let ct = list
+                    .inner
                     .get::<crate::integer::SignedRadixCiphertext>(idx)
                     .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
-                Ok(FheInt::new(ct))
+                Ok(FheInt::new(ct, Tag::default()))
             })
             .collect::<Result<Vec<_>, _>>()
     }
@@ -254,16 +344,19 @@ where
             .iter_mut()
             .for_each(|info| *info = DataKind::Unsigned(info.num_blocks()));
 
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
 
         let ct = list
+            .inner
             .get::<crate::integer::RadixCiphertext>(0)
             .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
-        Ok(FheUint::new(ct))
+        Ok(FheUint::new(ct, Tag::default()))
     }
 }
-
 #[derive(Clone, Versionize)]
 #[versionize(CompactFheUintListVersions)]
 #[deprecated(since = "0.7.0", note = "Use CompactCiphertextList instead")]
@@ -285,7 +378,10 @@ where
             .iter_mut()
             .for_each(|info| *info = DataKind::Unsigned(info.num_blocks()));
 
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
 
         let len = list.len();
@@ -293,9 +389,10 @@ where
         (0..len)
             .map(|idx| {
                 let ct = list
+                    .inner
                     .get::<crate::integer::RadixCiphertext>(idx)
                     .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
-                Ok(FheUint::new(ct))
+                Ok(FheUint::new(ct, Tag::default()))
             })
             .collect::<Result<Vec<_>, _>>()
     }

@@ -1,5 +1,6 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::commons::numeric::CastFrom;
+use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
@@ -50,7 +51,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_max_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                Self::new(inner_result)
+                Self::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -59,7 +60,7 @@ where
                         cuda_key
                             .key
                             .scalar_max(&*self.ciphertext.on_gpu(), rhs, streams);
-                    Self::new(inner_result)
+                    Self::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -97,7 +98,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_min_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                Self::new(inner_result)
+                Self::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -106,7 +107,7 @@ where
                         cuda_key
                             .key
                             .scalar_min(&*self.ciphertext.on_gpu(), rhs, streams);
-                    Self::new(inner_result)
+                    Self::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -143,7 +144,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_eq_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -152,7 +153,7 @@ where
                         cuda_key
                             .key
                             .scalar_eq(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -183,7 +184,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_ne_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -192,7 +193,7 @@ where
                         cuda_key
                             .key
                             .scalar_ne(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -228,7 +229,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_lt_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -237,7 +238,7 @@ where
                         cuda_key
                             .key
                             .scalar_lt(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -267,7 +268,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_le_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -276,7 +277,7 @@ where
                         cuda_key
                             .key
                             .scalar_le(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -306,7 +307,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_gt_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -315,7 +316,7 @@ where
                         cuda_key
                             .key
                             .scalar_gt(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -345,7 +346,7 @@ where
                 let inner_result = cpu_key
                     .pbs_key()
                     .scalar_ge_parallelized(&*self.ciphertext.on_cpu(), rhs);
-                FheBool::new(inner_result)
+                FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -354,7 +355,7 @@ where
                         cuda_key
                             .key
                             .scalar_ge(&*self.ciphertext.on_gpu(), rhs, streams);
-                    FheBool::new(inner_result)
+                    FheBool::new(inner_result, cuda_key.tag.clone())
                 })
             }
         })
@@ -394,8 +395,8 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     .pbs_key()
                                     .$key_method(&*self.ciphertext.on_cpu(), rhs);
                                 (
-                                    <$concrete_type>::new(q),
-                                    <$concrete_type>::new(r)
+                                    <$concrete_type>::new(q, cpu_key.tag.clone()),
+                                    <$concrete_type>::new(r, cpu_key.tag.clone())
                                 )
                             }
                             #[cfg(feature = "gpu")]

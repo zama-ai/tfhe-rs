@@ -43,11 +43,14 @@ where
     fn overflowing_add(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key.key.unsigned_overflowing_add_parallelized(
+                let (result, overflow) = cpu_key.pbs_key().unsigned_overflowing_add_parallelized(
                     &self.ciphertext.on_cpu(),
                     &other.ciphertext.on_cpu(),
                 );
-                (FheUint::new(result), FheBool::new(overflow))
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -57,8 +60,8 @@ where
                     streams,
                 );
                 (
-                    FheUint::<Id>::new(inner_result.0),
-                    FheBool::new(inner_result.1),
+                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
+                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
         })
@@ -138,9 +141,12 @@ where
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
                 let (result, overflow) = cpu_key
-                    .key
+                    .pbs_key()
                     .unsigned_overflowing_scalar_add_parallelized(&self.ciphertext.on_cpu(), other);
-                (FheUint::new(result), FheBool::new(overflow))
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -150,8 +156,8 @@ where
                     streams,
                 );
                 (
-                    FheUint::<Id>::new(inner_result.0),
-                    FheBool::new(inner_result.1),
+                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
+                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
         })
@@ -269,11 +275,14 @@ where
     fn overflowing_sub(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key.key.unsigned_overflowing_sub_parallelized(
+                let (result, overflow) = cpu_key.pbs_key().unsigned_overflowing_sub_parallelized(
                     &self.ciphertext.on_cpu(),
                     &other.ciphertext.on_cpu(),
                 );
-                (FheUint::new(result), FheBool::new(overflow))
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -356,9 +365,12 @@ where
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
                 let (result, overflow) = cpu_key
-                    .key
+                    .pbs_key()
                     .unsigned_overflowing_scalar_sub_parallelized(&self.ciphertext.on_cpu(), other);
-                (FheUint::new(result), FheBool::new(overflow))
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -438,11 +450,14 @@ where
     fn overflowing_mul(self, other: Self) -> (Self::Output, FheBool) {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
-                let (result, overflow) = cpu_key.key.unsigned_overflowing_mul_parallelized(
+                let (result, overflow) = cpu_key.pbs_key().unsigned_overflowing_mul_parallelized(
                     &self.ciphertext.on_cpu(),
                     &other.ciphertext.on_cpu(),
                 );
-                (FheUint::new(result), FheBool::new(overflow))
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {

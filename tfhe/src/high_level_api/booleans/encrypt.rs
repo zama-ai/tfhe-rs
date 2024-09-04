@@ -16,7 +16,7 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
-        let mut ciphertext = Self::new(integer_client_key.encrypt_bool(value));
+        let mut ciphertext = Self::new(integer_client_key.encrypt_bool(value), key.tag.clone());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -57,8 +57,7 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for FheBool {
     type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
-        let key = &key.key;
-        let mut ciphertext = Self::new(key.encrypt_bool(value));
+        let mut ciphertext = Self::new(key.key.encrypt_bool(value), key.tag.clone());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -68,8 +67,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
     type Error = crate::Error;
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
-        let key = &key.key;
-        let mut ciphertext = Self::new(key.encrypt_bool(value));
+        let mut ciphertext = Self::new(key.key.encrypt_bool(value), key.tag.clone());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -86,9 +84,10 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
     type Error = crate::Error;
 
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                InnerBoolean::Cpu(key.pbs_key().create_trivial_boolean_block(value))
+                let ct = InnerBoolean::Cpu(key.pbs_key().create_trivial_boolean_block(value));
+                (ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -96,11 +95,12 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                     cuda_key
                         .key
                         .create_trivial_radix(u64::from(value), 1, streams);
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                let ct = InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
                     inner.into_inner(),
-                ))
+                ));
+                (ct, cuda_key.tag.clone())
             }),
         });
-        Ok(Self::new(ciphertext))
+        Ok(Self::new(ciphertext, tag))
     }
 }

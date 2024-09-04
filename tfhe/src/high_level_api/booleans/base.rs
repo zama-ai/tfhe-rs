@@ -6,7 +6,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheEq, IfThenElse};
+use crate::high_level_api::traits::{FheEq, IfThenElse, Tagged};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -17,7 +17,7 @@ use crate::named::Named;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::PBSParameters;
-use crate::{Device, ServerKey};
+use crate::{Device, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
@@ -50,6 +50,7 @@ use tfhe_versionable::Versionize;
 #[versionize(FheBoolVersions)]
 pub struct FheBool {
     pub(in crate::high_level_api) ciphertext: InnerBoolean,
+    pub(crate) tag: Tag,
 }
 
 impl Named for FheBool {
@@ -81,7 +82,7 @@ impl ParameterSetConformant for FheBool {
     type ParameterSet = FheBoolConformanceParams;
 
     fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
-        let Self { ciphertext } = self;
+        let Self { ciphertext, tag: _ } = self;
 
         let BooleanBlock(block) = &*ciphertext.on_cpu();
 
@@ -90,9 +91,10 @@ impl ParameterSetConformant for FheBool {
 }
 
 impl FheBool {
-    pub(in crate::high_level_api) fn new<T: Into<InnerBoolean>>(ciphertext: T) -> Self {
+    pub(in crate::high_level_api) fn new<T: Into<InnerBoolean>>(ciphertext: T, tag: Tag) -> Self {
         Self {
             ciphertext: ciphertext.into(),
+            tag,
         }
     }
 
@@ -196,7 +198,7 @@ where
                     &*ct_then.ciphertext.on_cpu(),
                     &*ct_else.ciphertext.on_cpu(),
                 );
-                FheUint::new(inner)
+                FheUint::new(inner, cpu_sks.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -207,9 +209,19 @@ where
                     streams,
                 );
 
-                FheUint::new(inner)
+                FheUint::new(inner, cuda_key.tag.clone())
             }),
         })
+    }
+}
+
+impl Tagged for FheBool {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -222,38 +234,40 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
     /// - if `self` is false, the output will have the value of `ct_else`
     fn if_then_else(&self, ct_then: &FheInt<Id>, ct_else: &FheInt<Id>) -> FheInt<Id> {
         let ct_condition = self;
-        let new_ct = global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(key) => key.pbs_key().if_then_else_parallelized(
-                &ct_condition.ciphertext.on_cpu(),
-                &*ct_then.ciphertext.on_cpu(),
-                &*ct_else.ciphertext.on_cpu(),
-            ),
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let new_ct = key.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*ct_then.ciphertext.on_cpu(),
+                    &*ct_else.ciphertext.on_cpu(),
+                );
+                FheInt::new(new_ct, key.tag.clone())
+            }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support signed integers")
             }
-        });
-
-        FheInt::new(new_ct)
+        })
     }
 }
 
 impl IfThenElse<Self> for FheBool {
     fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self {
         let ct_condition = self;
-        let new_ct = global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(key) => key.pbs_key().if_then_else_parallelized(
-                &ct_condition.ciphertext.on_cpu(),
-                &*ct_then.ciphertext.on_cpu(),
-                &*ct_else.ciphertext.on_cpu(),
-            ),
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let new_ct = key.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*ct_then.ciphertext.on_cpu(),
+                    &*ct_else.ciphertext.on_cpu(),
+                );
+                Self::new(new_ct, key.tag.clone())
+            }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support signed integers")
             }
-        });
-
-        Self::new(new_ct)
+        })
     }
 }
 
@@ -281,13 +295,14 @@ where
     /// assert!(!decrypted);
     /// ```
     fn eq(&self, other: B) -> Self {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner = key.pbs_key().key.equal(
                     self.ciphertext.on_cpu().as_ref(),
                     other.borrow().ciphertext.on_cpu().as_ref(),
                 );
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
+                let ciphertext = InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner));
+                Self::new(ciphertext, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -296,10 +311,10 @@ where
                     &other.borrow().ciphertext.on_gpu(),
                     streams,
                 );
-                InnerBoolean::Cuda(inner)
+                let ciphertext = InnerBoolean::Cuda(inner);
+                Self::new(ciphertext, cuda_key.tag.clone())
             }),
-        });
-        Self::new(ciphertext)
+        })
     }
 
     /// Test for difference between two [FheBool]
@@ -322,13 +337,14 @@ where
     /// assert_eq!(decrypted, true != false);
     /// ```
     fn ne(&self, other: B) -> Self {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner = key.pbs_key().key.not_equal(
                     self.ciphertext.on_cpu().as_ref(),
                     other.borrow().ciphertext.on_cpu().as_ref(),
                 );
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
+                let ciphertext = InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner));
+                Self::new(ciphertext, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -337,10 +353,10 @@ where
                     &other.borrow().ciphertext.on_gpu(),
                     streams,
                 );
-                InnerBoolean::Cuda(inner)
+                let ciphertext = InnerBoolean::Cuda(inner);
+                Self::new(ciphertext, cuda_key.tag.clone())
             }),
-        });
-        Self::new(ciphertext)
+        })
     }
 }
 
@@ -364,13 +380,16 @@ impl FheEq<bool> for FheBool {
     /// assert!(!decrypted);
     /// ```
     fn eq(&self, other: bool) -> FheBool {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner = key
                     .pbs_key()
                     .key
                     .scalar_equal(self.ciphertext.on_cpu().as_ref(), u8::from(other));
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -378,10 +397,10 @@ impl FheEq<bool> for FheBool {
                     cuda_key
                         .key
                         .scalar_eq(&*self.ciphertext.on_gpu(), u8::from(other), streams);
-                InnerBoolean::Cuda(inner)
+                (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
         });
-        Self::new(ciphertext)
+        Self::new(ciphertext, tag)
     }
 
     /// Test for equality between a [FheBool] and a [bool]
@@ -403,13 +422,16 @@ impl FheEq<bool> for FheBool {
     /// assert_eq!(decrypted, true != false);
     /// ```
     fn ne(&self, other: bool) -> FheBool {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner = key
                     .pbs_key()
                     .key
                     .scalar_not_equal(self.ciphertext.on_cpu().as_ref(), u8::from(other));
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -417,10 +439,10 @@ impl FheEq<bool> for FheBool {
                     cuda_key
                         .key
                         .scalar_ne(&*self.ciphertext.on_gpu(), u8::from(other), streams);
-                InnerBoolean::Cuda(inner)
+                (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
         });
-        Self::new(ciphertext)
+        Self::new(ciphertext, tag)
     }
 }
 
@@ -477,12 +499,12 @@ where
     /// assert!(result);
     /// ```
     fn bitand(self, rhs: B) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key
                     .pbs_key()
                     .boolean_bitand(&self.ciphertext.on_cpu(), &rhs.borrow().ciphertext.on_cpu());
-                InnerBoolean::Cpu(inner_ct)
+                (InnerBoolean::Cpu(inner_ct), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -491,12 +513,16 @@ where
                     &rhs.borrow().ciphertext.on_gpu(),
                     streams,
                 );
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -554,13 +580,16 @@ where
     /// assert_eq!(result, true | false);
     /// ```
     fn bitor(self, rhs: B) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key.pbs_key().key.bitor(
                     self.ciphertext.on_cpu().as_ref(),
                     rhs.borrow().ciphertext.on_cpu().as_ref(),
                 );
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -569,12 +598,15 @@ where
                     &rhs.borrow().ciphertext.on_gpu(),
                     streams,
                 );
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -632,13 +664,16 @@ where
     /// assert!(!result);
     /// ```
     fn bitxor(self, rhs: B) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key.pbs_key().key.bitxor(
                     self.ciphertext.on_cpu().as_ref(),
                     rhs.borrow().ciphertext.on_cpu().as_ref(),
                 );
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -647,12 +682,15 @@ where
                     &rhs.borrow().ciphertext.on_gpu(),
                     streams,
                 );
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -702,13 +740,16 @@ impl BitAnd<bool> for &FheBool {
     /// assert_eq!(decrypted, true & false);
     /// ```
     fn bitand(self, rhs: bool) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key
                     .pbs_key()
                     .key
                     .scalar_bitand(self.ciphertext.on_cpu().as_ref(), u8::from(rhs));
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -716,12 +757,15 @@ impl BitAnd<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitand(&*self.ciphertext.on_gpu(), u8::from(rhs), streams);
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -771,13 +815,16 @@ impl BitOr<bool> for &FheBool {
     /// assert_eq!(decrypted, true | false);
     /// ```
     fn bitor(self, rhs: bool) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key
                     .pbs_key()
                     .key
                     .scalar_bitor(self.ciphertext.on_cpu().as_ref(), u8::from(rhs));
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -785,12 +832,15 @@ impl BitOr<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitor(&*self.ciphertext.on_gpu(), u8::from(rhs), streams);
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -840,13 +890,16 @@ impl BitXor<bool> for &FheBool {
     /// assert_eq!(decrypted, true ^ false);
     /// ```
     fn bitxor(self, rhs: bool) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner_ct = key
                     .pbs_key()
                     .key
                     .scalar_bitxor(self.ciphertext.on_cpu().as_ref(), u8::from(rhs));
-                InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct))
+                (
+                    InnerBoolean::Cpu(BooleanBlock::new_unchecked(inner_ct)),
+                    key.tag.clone(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -854,12 +907,15 @@ impl BitXor<bool> for &FheBool {
                     cuda_key
                         .key
                         .scalar_bitxor(&*self.ciphertext.on_gpu(), u8::from(rhs), streams);
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner_ct.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner_ct.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }
 
@@ -1303,21 +1359,24 @@ impl std::ops::Not for &FheBool {
     /// assert!(!result);
     /// ```
     fn not(self) -> Self::Output {
-        let ciphertext = global_state::with_internal_keys(|key| match key {
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let inner = key.pbs_key().boolean_bitnot(&self.ciphertext.on_cpu());
-                InnerBoolean::Cpu(inner)
+                (InnerBoolean::Cpu(inner), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let inner = cuda_key
                     .key
                     .scalar_bitxor(&*self.ciphertext.on_gpu(), 1, streams);
-                InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    inner.ciphertext,
-                ))
+                (
+                    InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
+                        inner.ciphertext,
+                    )),
+                    cuda_key.tag.clone(),
+                )
             }),
         });
-        FheBool::new(ciphertext)
+        FheBool::new(ciphertext, tag)
     }
 }

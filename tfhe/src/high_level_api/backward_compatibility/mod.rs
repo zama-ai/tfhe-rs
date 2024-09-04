@@ -6,3 +6,4 @@ pub mod compressed_ciphertext_list;
 pub mod config;
 pub mod integers;
 pub mod keys;
+pub mod tag;

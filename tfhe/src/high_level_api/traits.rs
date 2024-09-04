@@ -2,7 +2,7 @@ use std::ops::RangeBounds;
 
 use crate::error::InvalidRangeError;
 use crate::high_level_api::ClientKey;
-use crate::FheBool;
+use crate::{FheBool, Tag};
 
 /// Trait used to have a generic way of creating a value of a FHE type
 /// from a native value.
@@ -192,4 +192,10 @@ pub trait BitSlice<Bounds> {
     fn bitslice<R>(self, range: R) -> Result<Self::Output, InvalidRangeError>
     where
         R: RangeBounds<Bounds>;
+}
+
+pub trait Tagged {
+    fn tag(&self) -> &Tag;
+
+    fn tag_mut(&mut self) -> &mut Tag;
 }
