@@ -65,8 +65,6 @@ pub mod public_key;
 pub mod server_key;
 #[cfg(feature = "experimental")]
 pub mod wopbs;
-#[cfg(not(feature = "experimental"))]
-pub(crate) mod wopbs;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;

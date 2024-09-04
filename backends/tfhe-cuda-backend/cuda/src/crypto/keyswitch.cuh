@@ -75,7 +75,8 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
                                             level_count);
       Torus state = a_i >> (sizeof(Torus) * 8 - base_log * level_count);
 
-      for (int j = 0; j < level_count; j++) {
+      for (int j = level_count - 1; j >= 0; j--) {
+        // Levels are stored in reverse order
         auto ksk_block =
             get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
         Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
@@ -208,7 +209,8 @@ __device__ void packing_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
 
       // block of key for current lwe coefficient (cur_input_lwe[i])
       auto ksk_block = &fp_ksk[i * ksk_block_size];
-      for (int j = 0; j < level_count; j++) {
+      for (int j = level_count - 1; j >= 0; j--) {
+        // Levels are stored in reverse order
         auto ksk_glwe = &ksk_block[j * glwe_size * polynomial_size];
         // Iterate through each level and multiply by the ksk piece
         auto ksk_glwe_chunk = &ksk_glwe[poly_id * coef_per_block];
