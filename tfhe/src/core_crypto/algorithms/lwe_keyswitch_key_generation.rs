@@ -159,7 +159,6 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
     {
         // We fill the buffer with the powers of the key elements
         for (level, message) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.iter_mut())
         {
@@ -234,7 +233,6 @@ pub fn generate_lwe_keyswitch_key_other_mod<
     {
         // We fill the buffer with the powers of the key elements
         for (level, message) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.iter_mut())
         {
@@ -416,7 +414,6 @@ pub fn generate_seeded_lwe_keyswitch_key<
     {
         // We fill the buffer with the powers of the key elmements
         for (level, message) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.iter_mut())
         {
