@@ -1,3 +1,5 @@
+mod tags_on_entities;
+
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
     generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey,

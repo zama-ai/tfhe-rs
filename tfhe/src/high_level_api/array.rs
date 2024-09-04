@@ -16,7 +16,7 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
         let result = cpu_keys
             .pbs_key()
             .all_eq_slices_parallelized(&tmp_lhs, &tmp_rhs);
-        FheBool::new(result)
+        FheBool::new(result, cpu_keys.tag.clone())
     })
 }
 
@@ -37,6 +37,6 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
         let result = cpu_keys
             .pbs_key()
             .contains_sub_slice_parallelized(&tmp_lhs, &tmp_pattern);
-        FheBool::new(result)
+        FheBool::new(result, cpu_keys.tag.clone())
     })
 }

@@ -6,8 +6,10 @@ use super::{CompressedServerKey, ServerKey};
 use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
+use crate::prelude::Tagged;
 use crate::shortint::list_compression::CompressionPrivateKeys;
 use crate::shortint::MessageModulus;
+use crate::Tag;
 use concrete_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
@@ -21,6 +23,7 @@ use tfhe_versionable::Versionize;
 #[versionize(ClientKeyVersions)]
 pub struct ClientKey {
     pub(crate) key: IntegerClientKey,
+    pub(crate) tag: Tag,
 }
 
 impl ClientKey {
@@ -29,6 +32,7 @@ impl ClientKey {
         let config: Config = config.into();
         Self {
             key: IntegerClientKey::from(config.inner),
+            tag: Tag::default(),
         }
     }
 
@@ -61,6 +65,7 @@ impl ClientKey {
         let config: Config = config.into();
         Self {
             key: IntegerClientKey::with_seed(config.inner, seed),
+            tag: Tag::default(),
         }
     }
 
@@ -70,8 +75,10 @@ impl ClientKey {
         crate::integer::ClientKey,
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
+        Tag,
     ) {
-        self.key.into_raw_parts()
+        let (cks, cpk, cppk) = self.key.into_raw_parts();
+        (cks, cpk, cppk, self.tag)
     }
 
     pub fn from_raw_parts(
@@ -81,6 +88,7 @@ impl ClientKey {
             crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
         )>,
         compression_key: Option<CompressionPrivateKeys>,
+        tag: Tag,
     ) -> Self {
         Self {
             key: IntegerClientKey::from_raw_parts(
@@ -88,6 +96,7 @@ impl ClientKey {
                 dedicated_compact_private_key,
                 compression_key,
             ),
+            tag,
         }
     }
 
@@ -106,6 +115,16 @@ impl ClientKey {
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.block_parameters().message_modulus()
+    }
+}
+
+impl Tagged for ClientKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 

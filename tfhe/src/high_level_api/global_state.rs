@@ -3,7 +3,7 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::errors::{UninitializedServerKey, UnwrapResultExt};
-use crate::high_level_api::keys::{IntegerServerKey, InternalServerKey, ServerKey};
+use crate::high_level_api::keys::{InternalServerKey, ServerKey};
 use std::cell::RefCell;
 /// We store the internal keys as thread local, meaning each thread has its own set of keys.
 ///
@@ -122,10 +122,23 @@ pub(in crate::high_level_api) fn device_of_internal_keys() -> Option<crate::Devi
     })
 }
 
+/// This returns the [tag](crate::Tag) stored in the internal server key
+#[inline]
+pub(in crate::high_level_api) fn tag_of_internal_server_key() -> crate::Result<crate::Tag> {
+    INTERNAL_KEYS.with(|keys| {
+        let cell = keys.borrow();
+        Ok(match cell.as_ref().ok_or(UninitializedServerKey)? {
+            InternalServerKey::Cpu(cpu_key) => cpu_key.tag.clone(),
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => cuda_key.tag.clone(),
+        })
+    })
+}
+
 #[inline]
 pub(crate) fn with_cpu_internal_keys<T, F>(func: F) -> T
 where
-    F: FnOnce(&IntegerServerKey) -> T,
+    F: FnOnce(&ServerKey) -> T,
 {
     // Should use `with_borrow` when its stabilized
     INTERNAL_KEYS.with(|keys| {

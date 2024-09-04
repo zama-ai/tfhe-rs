@@ -1,11 +1,16 @@
 #![allow(deprecated)]
 
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::{Versionize, VersionsDispatch};
+use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
-use crate::high_level_api::booleans::InnerBooleanVersionOwned;
+use crate::high_level_api::booleans::{
+    InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool,
+};
 use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
-use crate::{CompactCiphertextList as HlCompactCiphertextList, CompressedFheBool, Error, FheBool};
+use crate::{
+    CompactCiphertextList as HlCompactCiphertextList, CompressedFheBool, Error, FheBool, Tag,
+};
+use std::convert::Infallible;
 
 // Manual impl
 #[derive(Serialize, Deserialize)]
@@ -14,9 +19,26 @@ pub(crate) enum InnerBooleanVersionedOwned {
     V0(InnerBooleanVersionOwned),
 }
 
+#[derive(Version)]
+pub struct FheBoolV0 {
+    pub(in crate::high_level_api) ciphertext: InnerBoolean,
+}
+
+impl Upgrade<FheBool> for FheBoolV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheBool, Self::Error> {
+        Ok(FheBool {
+            ciphertext: self.ciphertext,
+            tag: Tag::default(),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheBoolVersions {
-    V0(FheBool),
+    V0(FheBoolV0),
+    V1(FheBool),
 }
 
 #[derive(VersionsDispatch)]
@@ -25,8 +47,32 @@ pub enum CompactFheBoolVersions {
 }
 
 #[derive(VersionsDispatch)]
+pub enum InnerCompressedFheBoolVersions {
+    V0(InnerCompressedFheBool),
+}
+
+// Before V1 where we added the Tag, the CompressedFheBool
+// was simply the inner enum
+type CompressedFheBoolV0 = InnerCompressedFheBool;
+
+impl Upgrade<CompressedFheBool> for CompressedFheBoolV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedFheBool, Self::Error> {
+        Ok(CompressedFheBool {
+            inner: match self {
+                Self::Seeded(s) => Self::Seeded(s),
+                Self::ModulusSwitched(m) => Self::ModulusSwitched(m),
+            },
+            tag: Tag::default(),
+        })
+    }
+}
+
+#[derive(VersionsDispatch)]
 pub enum CompressedFheBoolVersions {
-    V0(CompressedFheBool),
+    V0(CompressedFheBoolV0),
+    V1(CompressedFheBool),
 }
 
 #[derive(VersionsDispatch)]
@@ -56,14 +102,18 @@ impl CompactFheBool {
             .iter_mut()
             .for_each(|info| *info = DataKind::Boolean);
 
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
 
         let block = list
+            .inner
             .get::<crate::integer::BooleanBlock>(0)
             .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
 
-        let mut ciphertext = FheBool::new(block);
+        let mut ciphertext = FheBool::new(block, Tag::default());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -86,17 +136,21 @@ impl CompactFheBoolList {
             .iter_mut()
             .for_each(|info| *info = DataKind::Boolean);
 
-        let hl_list = HlCompactCiphertextList(self.list);
+        let hl_list = HlCompactCiphertextList {
+            inner: self.list,
+            tag: Tag::default(),
+        };
         let list = hl_list.expand()?;
         let len = list.len();
 
         (0..len)
             .map(|idx| {
                 let block = list
+                    .inner
                     .get::<crate::integer::BooleanBlock>(idx)
                     .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
 
-                let mut ciphertext = FheBool::new(block);
+                let mut ciphertext = FheBool::new(block, Tag::default());
                 ciphertext.ciphertext.move_to_device_of_server_key_if_set();
                 Ok(ciphertext)
             })

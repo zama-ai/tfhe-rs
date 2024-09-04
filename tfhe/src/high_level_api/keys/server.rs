@@ -1,15 +1,17 @@
 use tfhe_versionable::Versionize;
 
+use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::prelude::Tagged;
 use crate::shortint::list_compression::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
+use crate::shortint::MessageModulus;
+use crate::Tag;
 use std::sync::Arc;
-
-use super::ClientKey;
 
 /// Key of the server
 ///
@@ -25,12 +27,14 @@ use super::ClientKey;
 #[versionize(ServerKeyVersions)]
 pub struct ServerKey {
     pub(crate) key: Arc<IntegerServerKey>,
+    pub(crate) tag: Tag,
 }
 
 impl ServerKey {
     pub fn new(keys: &ClientKey) -> Self {
         Self {
             key: Arc::new(IntegerServerKey::new(&keys.key)),
+            tag: keys.tag.clone(),
         }
     }
 
@@ -41,6 +45,7 @@ impl ServerKey {
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
         Option<CompressionKey>,
         Option<DecompressionKey>,
+        Tag,
     ) {
         let IntegerServerKey {
             key,
@@ -54,6 +59,7 @@ impl ServerKey {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            self.tag,
         )
     }
 
@@ -64,6 +70,7 @@ impl ServerKey {
         >,
         compression_key: Option<CompressionKey>,
         decompression_key: Option<DecompressionKey>,
+        tag: Tag,
     ) -> Self {
         Self {
             key: Arc::new(IntegerServerKey {
@@ -72,7 +79,32 @@ impl ServerKey {
                 compression_key,
                 decompression_key,
             }),
+            tag,
         }
+    }
+
+    pub(in crate::high_level_api) fn pbs_key(&self) -> &crate::integer::ServerKey {
+        self.key.pbs_key()
+    }
+
+    pub(in crate::high_level_api) fn cpk_casting_key(
+        &self,
+    ) -> Option<crate::integer::key_switching_key::KeySwitchingKeyView> {
+        self.key.cpk_casting_key()
+    }
+
+    pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
+        self.key.message_modulus()
+    }
+}
+
+impl Tagged for ServerKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -100,6 +132,7 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 #[cfg_attr(tfhe_lints, allow(tfhe_lints::serialize_without_versionize))]
 struct SerializableServerKey<'a> {
     pub(crate) integer_key: &'a IntegerServerKey,
+    pub(crate) tag: &'a Tag,
 }
 
 impl serde::Serialize for ServerKey {
@@ -109,6 +142,7 @@ impl serde::Serialize for ServerKey {
     {
         SerializableServerKey {
             integer_key: &self.key,
+            tag: &self.tag,
         }
         .serialize(serializer)
     }
@@ -117,6 +151,7 @@ impl serde::Serialize for ServerKey {
 #[derive(serde::Deserialize)]
 struct DeserializableServerKey {
     pub(crate) integer_key: IntegerServerKey,
+    pub(crate) tag: Tag,
 }
 
 impl<'de> serde::Deserialize<'de> for ServerKey {
@@ -126,6 +161,7 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
     {
         DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
             key: Arc::new(deserialized.integer_key),
+            tag: deserialized.tag,
         })
     }
 }
@@ -142,12 +178,14 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
 #[versionize(CompressedServerKeyVersions)]
 pub struct CompressedServerKey {
     pub(crate) integer_key: IntegerCompressedServerKey,
+    pub(crate) tag: Tag,
 }
 
 impl CompressedServerKey {
     pub fn new(keys: &ClientKey) -> Self {
         Self {
             integer_key: IntegerCompressedServerKey::new(&keys.key),
+            tag: keys.tag.clone(),
         }
     }
 
@@ -158,8 +196,10 @@ impl CompressedServerKey {
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
         Option<CompressedCompressionKey>,
         Option<CompressedDecompressionKey>,
+        Tag,
     ) {
-        self.integer_key.into_raw_parts()
+        let (a, b, c, d) = self.integer_key.into_raw_parts();
+        (a, b, c, d, self.tag)
     }
 
     pub fn from_raw_parts(
@@ -169,6 +209,7 @@ impl CompressedServerKey {
         >,
         compression_key: Option<CompressedCompressionKey>,
         decompression_key: Option<CompressedDecompressionKey>,
+        tag: Tag,
     ) -> Self {
         Self {
             integer_key: IntegerCompressedServerKey::from_raw_parts(
@@ -177,12 +218,14 @@ impl CompressedServerKey {
                 compression_key,
                 decompression_key,
             ),
+            tag,
         }
     }
 
     pub fn decompress(&self) -> ServerKey {
         ServerKey {
             key: Arc::new(self.integer_key.decompress()),
+            tag: self.tag.clone(),
         }
     }
 
@@ -197,7 +240,18 @@ impl CompressedServerKey {
         synchronize_devices(streams.len() as u32);
         CudaServerKey {
             key: Arc::new(cuda_key),
+            tag: self.tag.clone(),
         }
+    }
+}
+
+impl Tagged for CompressedServerKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -205,6 +259,7 @@ impl CompressedServerKey {
 #[derive(Clone)]
 pub struct CudaServerKey {
     pub(crate) key: Arc<crate::integer::gpu::CudaServerKey>,
+    pub(crate) tag: Tag,
 }
 
 #[cfg(feature = "gpu")]
@@ -214,15 +269,26 @@ impl CudaServerKey {
     }
 }
 
+#[cfg(feature = "gpu")]
+impl Tagged for CudaServerKey {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
 pub enum InternalServerKey {
-    Cpu(Arc<IntegerServerKey>),
+    Cpu(ServerKey),
     #[cfg(feature = "gpu")]
     Cuda(CudaServerKey),
 }
 
 impl From<ServerKey> for InternalServerKey {
     fn from(value: ServerKey) -> Self {
-        Self::Cpu(value.key)
+        Self::Cpu(value)
     }
 }
 #[cfg(feature = "gpu")]

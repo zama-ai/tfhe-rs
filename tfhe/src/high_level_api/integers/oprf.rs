@@ -27,21 +27,23 @@ impl<Id: FheUintId> FheUint<Id> {
     /// assert!(dec_result < (1 << random_bits_count));
     /// ```
     pub fn generate_oblivious_pseudo_random(seed: Seed, random_bits_count: u64) -> Self {
-        let ct = global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(key) => key
-                .key
-                .par_generate_oblivious_pseudo_random_unsigned_integer(
-                    seed,
-                    random_bits_count,
-                    Id::num_blocks(key.message_modulus()) as u64,
-                ),
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let ct = key
+                    .pbs_key()
+                    .par_generate_oblivious_pseudo_random_unsigned_integer(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(key.message_modulus()) as u64,
+                    );
+
+                Self::new(ct, key.tag.clone())
+            }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 todo!("Cuda devices do not yet support oblivious pseudo random generation")
             }
-        });
-
-        Self::new(ct)
+        })
     }
 }
 
@@ -73,20 +75,21 @@ impl<Id: FheIntId> FheInt<Id> {
         seed: Seed,
         randomizer: SignedRandomizationSpec,
     ) -> Self {
-        let ct = global_state::with_internal_keys(|key| match key {
+        global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                key.key.par_generate_oblivious_pseudo_random_signed_integer(
-                    seed,
-                    randomizer,
-                    Id::num_blocks(key.message_modulus()) as u64,
-                )
+                let ct = key
+                    .pbs_key()
+                    .par_generate_oblivious_pseudo_random_signed_integer(
+                        seed,
+                        randomizer,
+                        Id::num_blocks(key.message_modulus()) as u64,
+                    );
+                Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 todo!("Cuda devices do not yet support oblivious pseudo random generation")
             }
-        });
-
-        Self::new(ct)
+        })
     }
 }

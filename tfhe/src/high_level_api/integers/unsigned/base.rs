@@ -9,6 +9,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::traits::Tagged;
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
@@ -17,7 +18,7 @@ use crate::named::Named;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::PBSParameters;
-use crate::{FheBool, ServerKey};
+use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -77,7 +78,8 @@ pub trait FheUintId: IntegerId {}
 #[versionize(FheUintVersions)]
 pub struct FheUint<Id: FheUintId> {
     pub(in crate::high_level_api) ciphertext: RadixCiphertext,
-    pub(in crate::high_level_api::integers) id: Id,
+    pub(in crate::high_level_api) id: Id,
+    pub(crate) tag: Tag,
 }
 
 pub struct FheUintConformanceParams<Id: FheUintId> {
@@ -114,7 +116,11 @@ impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
     type ParameterSet = FheUintConformanceParams<Id>;
 
     fn is_conformant(&self, params: &FheUintConformanceParams<Id>) -> bool {
-        let Self { ciphertext, id: _ } = self;
+        let Self {
+            ciphertext,
+            id: _,
+            tag: _,
+        } = self;
 
         ciphertext.on_cpu().is_conformant(&params.params)
     }
@@ -124,32 +130,51 @@ impl<Id: FheUintId> Named for FheUint<Id> {
     const NAME: &'static str = "high_level_api::FheUint";
 }
 
+impl<Id> Tagged for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
 impl<Id> FheUint<Id>
 where
     Id: FheUintId,
 {
-    pub(in crate::high_level_api) fn new<T>(ciphertext: T) -> Self
+    pub(in crate::high_level_api) fn new<T>(ciphertext: T, tag: Tag) -> Self
     where
         T: Into<RadixCiphertext>,
     {
         Self {
             ciphertext: ciphertext.into(),
             id: Id::default(),
+            tag,
         }
     }
 
-    pub fn into_raw_parts(self) -> (crate::integer::RadixCiphertext, Id) {
-        let Self { ciphertext, id } = self;
+    pub fn into_raw_parts(self) -> (crate::integer::RadixCiphertext, Id, Tag) {
+        let Self {
+            ciphertext,
+            id,
+            tag,
+        } = self;
 
         let ciphertext = ciphertext.into_cpu();
 
-        (ciphertext, id)
+        (ciphertext, id, tag)
     }
 
-    pub fn from_raw_parts(ciphertext: crate::integer::RadixCiphertext, id: Id) -> Self {
+    pub fn from_raw_parts(ciphertext: crate::integer::RadixCiphertext, id: Id, tag: Tag) -> Self {
         Self {
             ciphertext: RadixCiphertext::Cpu(ciphertext),
             id,
+            tag,
         }
     }
 
@@ -196,12 +221,12 @@ where
                 let result = cpu_key
                     .pbs_key()
                     .is_even_parallelized(&*self.ciphertext.on_cpu());
-                FheBool::new(result)
+                FheBool::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key.key.is_even(&*self.ciphertext.on_gpu(), streams);
-                FheBool::new(result)
+                FheBool::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -229,12 +254,12 @@ where
                 let result = cpu_key
                     .pbs_key()
                     .is_odd_parallelized(&*self.ciphertext.on_cpu());
-                FheBool::new(result)
+                FheBool::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let result = cuda_key.key.is_odd(&*self.ciphertext.on_gpu(), streams);
-                FheBool::new(result)
+                FheBool::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -359,7 +384,7 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -395,7 +420,7 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -431,7 +456,7 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -467,7 +492,7 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -505,7 +530,7 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -547,7 +572,10 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                (super::FheUint32::new(result), FheBool::new(is_ok))
+                (
+                    super::FheUint32::new(result, cpu_key.tag.clone()),
+                    FheBool::new(is_ok, cpu_key.tag.clone()),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -611,7 +639,10 @@ where
                     let result = cpu_key
                         .pbs_key()
                         .cast_to_unsigned(result, target_num_blocks);
-                    Ok((FheUint::new(result), FheBool::new(matched)))
+                    Ok((
+                        FheUint::new(result, cpu_key.tag.clone()),
+                        FheBool::new(matched, cpu_key.tag.clone()),
+                    ))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
@@ -676,7 +707,7 @@ where
                     let result = cpu_key
                         .pbs_key()
                         .cast_to_unsigned(result, target_num_blocks);
-                    Ok(FheUint::new(result))
+                    Ok(FheUint::new(result, cpu_key.tag.clone()))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
@@ -715,7 +746,7 @@ where
 
                 let ct = self.ciphertext.on_cpu();
 
-                Self::new(sk.reverse_bits_parallelized(&*ct))
+                Self::new(sk.reverse_bits_parallelized(&*ct), cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -771,7 +802,7 @@ where
             }
         }
 
-        let mut ciphertext = Self::new(other);
+        let mut ciphertext = Self::new(other, Tag::default());
         ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -818,7 +849,7 @@ where
                     input.ciphertext.into_cpu(),
                     IntoId::num_blocks(cpu_key.message_modulus()),
                 );
-                Self::new(casted)
+                Self::new(casted, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -827,7 +858,7 @@ where
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(casted)
+                Self::new(casted, cuda_key.tag.clone())
             }),
         })
     }
@@ -862,7 +893,7 @@ where
                     input.ciphertext.on_cpu().to_owned(),
                     IntoId::num_blocks(cpu_key.message_modulus()),
                 );
-                Self::new(casted)
+                Self::new(casted, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -871,7 +902,7 @@ where
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(casted)
+                Self::new(casted, cuda_key.tag.clone())
             }),
         })
     }
@@ -906,7 +937,7 @@ where
                     .on_cpu()
                     .into_owned()
                     .into_radix(Id::num_blocks(cpu_key.message_modulus()), cpu_key.pbs_key());
-                Self::new(ciphertext)
+                Self::new(ciphertext, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
@@ -915,7 +946,7 @@ where
                     Id::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(inner)
+                Self::new(inner, cuda_key.tag.clone())
             }),
         })
     }

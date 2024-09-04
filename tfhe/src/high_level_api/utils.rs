@@ -3,7 +3,7 @@ use crate::high_level_api::integers::unsigned::FheUintId;
 use crate::integer::ciphertext::{DataKind, Expandable};
 use crate::integer::BooleanBlock;
 use crate::shortint::Ciphertext;
-use crate::{FheBool, FheInt, FheUint};
+use crate::{FheBool, FheInt, FheUint, Tag};
 
 fn num_bits_of_blocks(blocks: &[Ciphertext]) -> u32 {
     blocks
@@ -18,7 +18,11 @@ impl<Id: FheUintId> Expandable for FheUint<Id> {
             DataKind::Unsigned(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
                 if stored_num_bits == Id::num_bits() {
-                    Ok(Self::new(crate::integer::RadixCiphertext::from(blocks)))
+                    // The expander will be responsible for setting the correct tag
+                    Ok(Self::new(
+                        crate::integer::RadixCiphertext::from(blocks),
+                        Tag::default(),
+                    ))
                 } else {
                     Err(crate::Error::new(format!(
                         "Tried to expand a FheUint{} while a FheUint{} is stored in this slot",
@@ -57,9 +61,11 @@ impl<Id: FheIntId> Expandable for FheInt<Id> {
             DataKind::Signed(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
                 if stored_num_bits == Id::num_bits() {
-                    Ok(Self::new(crate::integer::SignedRadixCiphertext::from(
-                        blocks,
-                    )))
+                    // The expander will be responsible for setting the correct tag
+                    Ok(Self::new(
+                        crate::integer::SignedRadixCiphertext::from(blocks),
+                        Tag::default(),
+                    ))
                 } else {
                     Err(crate::Error::new(format!(
                         "Tried to expand a FheInt{} while a FheInt{} is stored in this slot",
@@ -91,7 +97,14 @@ impl Expandable for FheBool {
                     "Tried to expand a FheBool while a FheInt{stored_num_bits} is stored in this slot",
                 )))
             }
-            DataKind::Boolean => Ok(Self::new(BooleanBlock::new_unchecked(blocks[0].clone()))),
+            DataKind::Boolean => {
+                let mut boolean_block = BooleanBlock::new_unchecked(blocks[0].clone());
+                // We know the value is a boolean one (via the data kind)
+                boolean_block.0.degree = crate::shortint::ciphertext::Degree::new(1);
+
+                // The expander will be responsible for setting the correct tag
+                Ok(Self::new(boolean_block, Tag::default()))
+            }
         }
     }
 }

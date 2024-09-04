@@ -6,6 +6,7 @@ use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::traits::Tagged;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
@@ -15,8 +16,11 @@ use crate::integer::parameters::{
 use crate::named::Named;
 use crate::shortint::MessageModulus;
 #[cfg(feature = "zk-pok")]
+pub use zk::ProvenCompactCiphertextList;
+
+#[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkePublicParams, ZkComputeLoad};
-use crate::CompactPublicKey;
+use crate::{CompactPublicKey, Tag};
 
 impl crate::FheTypes {
     fn from_data_kind(data_kind: DataKind, message_modulus: MessageModulus) -> Option<Self> {
@@ -71,7 +75,10 @@ impl crate::FheTypes {
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
-pub struct CompactCiphertextList(pub(crate) crate::integer::ciphertext::CompactCiphertextList);
+pub struct CompactCiphertextList {
+    pub(crate) inner: crate::integer::ciphertext::CompactCiphertextList,
+    pub(crate) tag: Tag,
+}
 
 impl Named for CompactCiphertextList {
     const NAME: &'static str = "high_level_api::CompactCiphertextList";
@@ -83,7 +90,7 @@ impl CompactCiphertextList {
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.inner.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -91,8 +98,8 @@ impl CompactCiphertextList {
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        self.0.get_kind_of(index).and_then(|data_kind| {
-            crate::FheTypes::from_data_kind(data_kind, self.0.ct_list.message_modulus)
+        self.inner.get_kind_of(index).and_then(|data_kind| {
+            crate::FheTypes::from_data_kind(data_kind, self.inner.ct_list.message_modulus)
         })
     }
 
@@ -100,36 +107,40 @@ impl CompactCiphertextList {
         &self,
         sks: &crate::ServerKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        self.0
+        self.inner
             .expand(
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
                 IntegerCompactCiphertextListCastingMode::NoCasting,
             )
-            .map(|inner| CompactCiphertextListExpander { inner })
+            .map(|inner| CompactCiphertextListExpander {
+                inner,
+                tag: self.tag.clone(),
+            })
     }
 
     pub fn expand(&self) -> crate::Result<CompactCiphertextListExpander> {
         // For WASM
-        if !self.0.is_packed() && !self.0.needs_casting() {
-            // No ServerKey required, shortcircuit to avoid the global state call
+        if !self.inner.is_packed() && !self.inner.needs_casting() {
+            // No ServerKey required, short-circuit to avoid the global state call
             return Ok(CompactCiphertextListExpander {
-                inner: self.0.expand(
+                inner: self.inner.expand(
                     IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
                     IntegerCompactCiphertextListCastingMode::NoCasting,
                 )?,
+                tag: self.tag.clone(),
             });
         }
 
         global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
             None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
             Some(InternalServerKey::Cpu(cpu_key)) => {
-                let unpacking_mode = if self.0.is_packed() {
+                let unpacking_mode = if self.inner.is_packed() {
                     IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
                 } else {
                     IntegerCompactCiphertextListUnpackingMode::NoUnpacking
                 };
 
-                let casting_mode = if self.0.needs_casting() {
+                let casting_mode = if self.inner.needs_casting() {
                     IntegerCompactCiphertextListCastingMode::CastIfNecessary(
                         cpu_key.cpk_casting_key().ok_or_else(|| {
                             crate::Error::new(
@@ -143,107 +154,142 @@ impl CompactCiphertextList {
                     IntegerCompactCiphertextListCastingMode::NoCasting
                 };
 
-                self.0
+                self.inner
                     .expand(unpacking_mode, casting_mode)
-                    .map(|inner| CompactCiphertextListExpander { inner })
+                    .map(|inner| CompactCiphertextListExpander {
+                        inner,
+                        tag: self.tag.clone(),
+                    })
             }
             #[cfg(feature = "gpu")]
             Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
         })
     }
 }
+
+impl Tagged for CompactCiphertextList {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
 impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let Self(list) = self;
+        let Self { inner, tag: _ } = self;
 
-        list.is_conformant(parameter_set)
+        inner.is_conformant(parameter_set)
     }
 }
 
 #[cfg(feature = "zk-pok")]
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ProvenCompactCiphertextList(crate::integer::ciphertext::ProvenCompactCiphertextList);
+mod zk {
+    use super::*;
 
-#[cfg(feature = "zk-pok")]
-impl Named for ProvenCompactCiphertextList {
-    const NAME: &'static str = "high_level_api::ProvenCompactCiphertextList";
-}
-
-#[cfg(feature = "zk-pok")]
-impl ProvenCompactCiphertextList {
-    pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
-        CompactCiphertextListBuilder::new(pk)
+    #[derive(Clone, Serialize, Deserialize)]
+    pub struct ProvenCompactCiphertextList {
+        pub(crate) inner: crate::integer::ciphertext::ProvenCompactCiphertextList,
+        pub(crate) tag: Tag,
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        self.0.get_kind_of(index).and_then(|data_kind| {
-            crate::FheTypes::from_data_kind(data_kind, self.0.ct_list.message_modulus())
-        })
-    }
-
-    pub fn verify_and_expand(
-        &self,
-        public_params: &CompactPkePublicParams,
-        pk: &CompactPublicKey,
-    ) -> crate::Result<CompactCiphertextListExpander> {
-        // For WASM
-        if !self.0.is_packed() && !self.0.needs_casting() {
-            // No ServerKey required, short-circuit to avoid the global state call
-            return Ok(CompactCiphertextListExpander {
-                inner: self.0.verify_and_expand(
-                    public_params,
-                    &pk.key.key,
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                    IntegerCompactCiphertextListCastingMode::NoCasting,
-                )?,
-            });
+    impl Tagged for ProvenCompactCiphertextList {
+        fn tag(&self) -> &Tag {
+            &self.tag
         }
 
-        global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
-            None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-            Some(InternalServerKey::Cpu(cpu_key)) => {
-                let unpacking_mode = if self.0.is_packed() {
-                    IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
-                } else {
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                };
+        fn tag_mut(&mut self) -> &mut Tag {
+            &mut self.tag
+        }
+    }
+    impl Named for ProvenCompactCiphertextList {
+        const NAME: &'static str = "high_level_api::ProvenCompactCiphertextList";
+    }
 
-                let casting_mode = if self.0.needs_casting() {
-                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                        cpu_key.cpk_casting_key().ok_or_else(|| {
-                            crate::Error::new(
-                                "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                    .to_string(),
-                            )
-                        })?,
-                    )
-                } else {
-                    IntegerCompactCiphertextListCastingMode::NoCasting
-                };
+    impl ProvenCompactCiphertextList {
+        pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
+            CompactCiphertextListBuilder::new(pk)
+        }
 
-                self.0
-                    .verify_and_expand(public_params, &pk.key.key, unpacking_mode, casting_mode)
-                    .map(|expander| CompactCiphertextListExpander { inner: expander })
+        pub fn len(&self) -> usize {
+            self.inner.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.len() == 0
+        }
+
+        pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
+            self.inner.get_kind_of(index).and_then(|data_kind| {
+                crate::FheTypes::from_data_kind(data_kind, self.inner.ct_list.message_modulus())
+            })
+        }
+
+        pub fn verify_and_expand(
+            &self,
+            public_params: &CompactPkePublicParams,
+            pk: &CompactPublicKey,
+        ) -> crate::Result<CompactCiphertextListExpander> {
+            // For WASM
+            if !self.inner.is_packed() && !self.inner.needs_casting() {
+                // No ServerKey required, short circuit to avoid the global state call
+                return Ok(CompactCiphertextListExpander {
+                    inner: self.inner.verify_and_expand(
+                        public_params,
+                        &pk.key.key,
+                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+                        IntegerCompactCiphertextListCastingMode::NoCasting,
+                    )?,
+                    tag: self.tag.clone(),
+                });
             }
-            #[cfg(feature = "gpu")]
-            Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
-        })
+
+            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+                None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+                Some(InternalServerKey::Cpu(cpu_key)) => {
+                    let unpacking_mode = if self.inner.is_packed() {
+                        IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(
+                            cpu_key.pbs_key(),
+                        )
+                    } else {
+                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                    };
+
+                    let casting_mode = if self.inner.needs_casting() {
+                        IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                            cpu_key.cpk_casting_key().ok_or_else(|| {
+                                crate::Error::new(
+                                    "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                        .to_string(),
+                                )
+                            })?,
+                        )
+                    } else {
+                        IntegerCompactCiphertextListCastingMode::NoCasting
+                    };
+
+                    self.inner
+                        .verify_and_expand(public_params, &pk.key.key, unpacking_mode, casting_mode)
+                        .map(|expander| CompactCiphertextListExpander {
+                            inner: expander,
+                            tag: self.tag.clone(),
+                        })
+                }
+                #[cfg(feature = "gpu")]
+                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+            })
+        }
     }
 }
 
 pub struct CompactCiphertextListExpander {
-    inner: crate::integer::ciphertext::CompactCiphertextListExpander,
+    pub(in crate::high_level_api) inner: crate::integer::ciphertext::CompactCiphertextListExpander,
+    tag: Tag,
 }
 
 impl CompactCiphertextListExpander {
@@ -263,9 +309,13 @@ impl CompactCiphertextListExpander {
 
     pub fn get<T>(&self, index: usize) -> Option<crate::Result<T>>
     where
-        T: Expandable,
+        T: Expandable + Tagged,
     {
-        self.inner.get(index)
+        let mut expanded = self.inner.get::<T>(index);
+        if let Some(Ok(inner)) = &mut expanded {
+            inner.tag_mut().set_data(self.tag.data());
+        }
+        expanded
     }
 }
 
@@ -283,12 +333,14 @@ fn num_bits_to_strict_num_blocks(
 
 pub struct CompactCiphertextListBuilder {
     inner: crate::integer::ciphertext::CompactCiphertextListBuilder,
+    tag: Tag,
 }
 
 impl CompactCiphertextListBuilder {
     pub fn new(pk: &CompactPublicKey) -> Self {
         Self {
             inner: crate::integer::ciphertext::CompactCiphertextListBuilder::new(&pk.key.key),
+            tag: pk.tag.clone(),
         }
     }
 
@@ -333,13 +385,19 @@ impl CompactCiphertextListBuilder {
     }
 
     pub fn build(&self) -> CompactCiphertextList {
-        CompactCiphertextList(self.inner.build())
+        CompactCiphertextList {
+            inner: self.inner.build(),
+            tag: self.tag.clone(),
+        }
     }
 
     pub fn build_packed(&self) -> CompactCiphertextList {
         self.inner
             .build_packed()
-            .map(CompactCiphertextList)
+            .map(|list| CompactCiphertextList {
+                inner: list,
+                tag: self.tag.clone(),
+            })
             .expect("Internal error, invalid parameters should not have been allowed")
     }
 
@@ -351,7 +409,10 @@ impl CompactCiphertextListBuilder {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
             .build_with_proof_packed(public_params, compute_load)
-            .map(ProvenCompactCiphertextList)
+            .map(|proved_list| ProvenCompactCiphertextList {
+                inner: proved_list,
+                tag: self.tag.clone(),
+            })
     }
 }
 

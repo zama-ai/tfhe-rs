@@ -50,7 +50,7 @@ where
             .key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext))
+        Ok(Self::new(ciphertext, key.tag.clone()))
     }
 }
 
@@ -65,7 +65,7 @@ where
         let ciphertext = key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext))
+        Ok(Self::new(ciphertext, key.tag.clone()))
     }
 }
 
@@ -80,7 +80,7 @@ where
         let ciphertext = key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(ciphertext))
+        Ok(Self::new(ciphertext, key.tag.clone()))
     }
 }
 
@@ -101,14 +101,15 @@ where
     /// Trivial encryptions become real encrypted data once used in an operation
     /// that involves a real ciphertext
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
-        let ciphertext = global_state::with_cpu_internal_keys(|sks| {
-            sks.pbs_key()
+        global_state::with_cpu_internal_keys(|sks| {
+            let ciphertext = sks
+                .pbs_key()
                 .create_trivial_radix::<T, crate::integer::SignedRadixCiphertext>(
                     value,
                     Id::num_blocks(sks.message_modulus()),
-                )
-        });
-        Ok(Self::new(ciphertext))
+                );
+            Ok(Self::new(ciphertext, sks.tag.clone()))
+        })
     }
 }
 

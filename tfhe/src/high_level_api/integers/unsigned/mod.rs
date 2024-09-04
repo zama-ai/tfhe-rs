@@ -10,7 +10,7 @@ expand_pub_use_fhe_type!(
 pub use compressed::CompressedFheUint;
 
 pub(in crate::high_level_api) use compressed::CompressedRadixCiphertext;
-pub(in crate::high_level_api) use inner::RadixCiphertextVersionOwned;
+pub(in crate::high_level_api) use inner::{RadixCiphertext, RadixCiphertextVersionOwned};
 
 mod base;
 mod compressed;

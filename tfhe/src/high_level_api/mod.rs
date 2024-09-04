@@ -60,6 +60,8 @@ pub use compact_list::{
 pub use compressed_ciphertext_list::{CompressedCiphertextList, CompressedCiphertextListBuilder};
 pub use safe_serialize::{safe_serialize, safe_serialize_versioned};
 
+pub use tag::Tag;
+
 mod booleans;
 mod compressed_ciphertext_list;
 mod config;
@@ -73,6 +75,7 @@ mod utils;
 pub mod array;
 pub mod backward_compatibility;
 mod compact_list;
+mod tag;
 
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.

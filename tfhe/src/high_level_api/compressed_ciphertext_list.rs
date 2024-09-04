@@ -6,8 +6,9 @@ use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
 use crate::named::Named;
+use crate::prelude::Tagged;
 use crate::shortint::Ciphertext;
-use crate::{FheBool, FheInt, FheUint};
+use crate::{FheBool, FheInt, FheUint, Tag};
 
 impl<Id: FheUintId> Compressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<Ciphertext>) -> DataKind {
@@ -58,12 +59,16 @@ impl CompressedCiphertextListBuilder {
     pub fn build(&self) -> crate::Result<CompressedCiphertextList> {
         crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => cpu_key
+                .key
                 .compression_key
                 .as_ref()
                 .ok_or_else(|| {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
-                .map(|compression_key| CompressedCiphertextList(self.inner.build(compression_key))),
+                .map(|compression_key| CompressedCiphertextList {
+                    inner: self.inner.build(compression_key),
+                    tag: cpu_key.tag.clone(),
+                }),
             _ => Err(crate::Error::new(
                 "A Cpu server key is needed to be set to use compression".to_owned(),
             )),
@@ -73,15 +78,28 @@ impl CompressedCiphertextListBuilder {
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedCiphertextListVersions)]
-pub struct CompressedCiphertextList(crate::integer::ciphertext::CompressedCiphertextList);
+pub struct CompressedCiphertextList {
+    pub(in crate::high_level_api) inner: crate::integer::ciphertext::CompressedCiphertextList,
+    pub(in crate::high_level_api) tag: Tag,
+}
 
 impl Named for CompressedCiphertextList {
     const NAME: &'static str = "high_level_api::CompressedCiphertextList";
 }
 
+impl Tagged for CompressedCiphertextList {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
 impl CompressedCiphertextList {
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.inner.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -89,9 +107,9 @@ impl CompressedCiphertextList {
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        Some(match self.0.get_kind_of(index)? {
+        Some(match self.inner.get_kind_of(index)? {
             DataKind::Unsigned(n) => {
-                let num_bits_per_block = self.0.packed_list.message_modulus.0.ilog2() as usize;
+                let num_bits_per_block = self.inner.packed_list.message_modulus.0.ilog2() as usize;
                 let num_bits = n * num_bits_per_block;
                 match num_bits {
                     2 => crate::FheTypes::Uint2,
@@ -111,7 +129,7 @@ impl CompressedCiphertextList {
                 }
             }
             DataKind::Signed(n) => {
-                let num_bits_per_block = self.0.packed_list.message_modulus.0.ilog2() as usize;
+                let num_bits_per_block = self.inner.packed_list.message_modulus.0.ilog2() as usize;
                 let num_bits = n * num_bits_per_block;
                 match num_bits {
                     2 => crate::FheTypes::Int2,
@@ -136,16 +154,23 @@ impl CompressedCiphertextList {
 
     pub fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
-        T: Expandable,
+        T: Expandable + Tagged,
     {
         crate::high_level_api::global_state::try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => cpu_key
+                .key
                 .decompression_key
                 .as_ref()
                 .ok_or_else(|| {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
-                .and_then(|decompression_key| self.0.get(index, decompression_key)),
+                .and_then(|decompression_key| {
+                    let mut ct = self.inner.get::<T>(index, decompression_key);
+                    if let Ok(Some(ct_ref)) = &mut ct {
+                        ct_ref.tag_mut().set_data(cpu_key.tag.data())
+                    }
+                    ct
+                }),
             _ => Err(crate::Error::new(
                 "A Cpu server key is needed to be set".to_string(),
             )),

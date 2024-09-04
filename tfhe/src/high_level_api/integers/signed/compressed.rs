@@ -8,6 +8,7 @@ use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
 use crate::high_level_api::integers::signed::base::FheIntConformanceParams;
 use crate::high_level_api::integers::{FheInt, FheIntId};
+use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{
     CompressedModulusSwitchedSignedRadixCiphertext,
@@ -16,7 +17,7 @@ use crate::integer::ciphertext::{
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
-use crate::ClientKey;
+use crate::{ClientKey, Tag};
 
 /// Compressed [FheInt]
 ///
@@ -47,28 +48,54 @@ pub struct CompressedFheInt<Id>
 where
     Id: FheIntId,
 {
-    pub(in crate::high_level_api::integers) ciphertext: CompressedSignedRadixCiphertext,
-    pub(in crate::high_level_api::integers) id: Id,
+    pub(in crate::high_level_api) ciphertext: CompressedSignedRadixCiphertext,
+    pub(in crate::high_level_api) id: Id,
+    pub(crate) tag: Tag,
+}
+
+impl<Id> Tagged for CompressedFheInt<Id>
+where
+    Id: FheIntId,
+{
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
 }
 
 impl<Id> CompressedFheInt<Id>
 where
     Id: FheIntId,
 {
-    pub(in crate::high_level_api::integers) fn new(inner: CompressedSignedRadixCiphertext) -> Self {
+    pub(in crate::high_level_api::integers) fn new(
+        inner: CompressedSignedRadixCiphertext,
+        tag: Tag,
+    ) -> Self {
         Self {
             ciphertext: inner,
             id: Id::default(),
+            tag,
         }
     }
 
-    pub fn into_raw_parts(self) -> (CompressedSignedRadixCiphertext, Id) {
-        let Self { ciphertext, id } = self;
-        (ciphertext, id)
+    pub fn into_raw_parts(self) -> (CompressedSignedRadixCiphertext, Id, Tag) {
+        let Self {
+            ciphertext,
+            id,
+            tag,
+        } = self;
+        (ciphertext, id, tag)
     }
 
-    pub fn from_raw_parts(ciphertext: CompressedSignedRadixCiphertext, id: Id) -> Self {
-        Self { ciphertext, id }
+    pub fn from_raw_parts(ciphertext: CompressedSignedRadixCiphertext, id: Id, tag: Tag) -> Self {
+        Self {
+            ciphertext,
+            id,
+            tag,
+        }
     }
 }
 
@@ -80,12 +107,13 @@ where
     ///
     /// See [CompressedFheInt] example.
     pub fn decompress(&self) -> FheInt<Id> {
-        FheInt::new(match &self.ciphertext {
+        let ciphertext = match &self.ciphertext {
             CompressedSignedRadixCiphertext::Seeded(ct) => ct.decompress(),
             CompressedSignedRadixCiphertext::ModulusSwitched(ct) => {
-                with_cpu_internal_keys(|sk| sk.key.decompress_signed_parallelized(ct))
+                with_cpu_internal_keys(|sk| sk.pbs_key().decompress_signed_parallelized(ct))
             }
-        })
+        };
+        FheInt::new(ciphertext, self.tag.clone())
     }
 }
 
@@ -100,7 +128,10 @@ where
         let integer_client_key = &key.key.key;
         let inner = integer_client_key
             .encrypt_signed_radix_compressed(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(CompressedSignedRadixCiphertext::Seeded(inner)))
+        Ok(Self::new(
+            CompressedSignedRadixCiphertext::Seeded(inner),
+            key.tag.clone(),
+        ))
     }
 }
 
@@ -108,7 +139,11 @@ impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
     type ParameterSet = FheIntConformanceParams<Id>;
 
     fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
-        let Self { ciphertext, id: _ } = self;
+        let Self {
+            ciphertext,
+            id: _,
+            tag: _,
+        } = self;
 
         ciphertext.is_conformant(&params.params)
     }
@@ -141,10 +176,13 @@ where
 {
     pub fn compress(&self) -> CompressedFheInt<Id> {
         let a = with_cpu_internal_keys(|sk| {
-            sk.key
+            sk.pbs_key()
                 .switch_modulus_and_compress_signed_parallelized(&self.ciphertext.on_cpu())
         });
 
-        CompressedFheInt::new(CompressedSignedRadixCiphertext::ModulusSwitched(a))
+        CompressedFheInt::new(
+            CompressedSignedRadixCiphertext::ModulusSwitched(a),
+            self.tag.clone(),
+        )
     }
 }
