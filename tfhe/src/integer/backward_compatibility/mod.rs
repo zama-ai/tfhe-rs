@@ -6,4 +6,3 @@ pub mod key_switching_key;
 pub mod list_compression;
 pub mod public_key;
 pub mod server_key;
-pub mod wopbs;
