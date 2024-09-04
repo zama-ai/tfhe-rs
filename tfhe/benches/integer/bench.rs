@@ -1539,6 +1539,11 @@ mod cuda {
         display_name: rotate_right
     );
 
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: unchecked_ilog2,
+        display_name: ilog2
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_bitand,
         display_name: bitand,
@@ -1800,6 +1805,11 @@ mod cuda {
         display_name: rotate_right
     );
 
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: ilog2,
+        display_name: ilog2
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_sub,
         display_name: sub,
@@ -1953,6 +1963,7 @@ mod cuda {
         cuda_unchecked_right_shift,
         cuda_unchecked_rotate_left,
         cuda_unchecked_rotate_right,
+        cuda_unchecked_ilog2,
     );
 
     criterion_group!(
@@ -2009,6 +2020,7 @@ mod cuda {
         cuda_right_shift,
         cuda_rotate_left,
         cuda_rotate_right,
+        cuda_ilog2,
     );
 
     criterion_group!(
