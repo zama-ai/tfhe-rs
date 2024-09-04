@@ -134,7 +134,6 @@ pub fn generate_lwe_packing_keyswitch_key<
     {
         // We fill the buffer with the powers of the key elements
         for (level, mut messages) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
         {
@@ -330,7 +329,6 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
     {
         // We fill the buffer with the powers of the key elements
         for (level, mut messages) in (1..=decomp_level_count.0)
-            .rev()
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.chunks_exact_mut(polynomial_size.0))
         {
