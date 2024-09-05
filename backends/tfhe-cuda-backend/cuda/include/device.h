@@ -39,10 +39,6 @@ void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
 void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
 
-bool cuda_check_support_cooperative_groups();
-
-bool cuda_check_support_thread_block_clusters();
-
 void cuda_memcpy_async_to_gpu(void *dest, void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);
 
@@ -62,9 +58,13 @@ void cuda_synchronize_device(uint32_t gpu_index);
 void cuda_drop(void *ptr, uint32_t gpu_index);
 
 void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index);
+}
 
 int cuda_get_max_shared_memory(uint32_t gpu_index);
-}
+
+bool cuda_check_support_cooperative_groups();
+
+bool cuda_check_support_thread_block_clusters();
 
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,

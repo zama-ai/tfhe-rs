@@ -6,7 +6,7 @@
 std::mutex m;
 bool p2p_enabled = false;
 
-int cuda_setup_multi_gpu() {
+int32_t cuda_setup_multi_gpu() {
   int num_gpus = cuda_get_number_of_gpus();
   if (num_gpus == 0)
     PANIC("GPU error: the number of GPUs should be > 0.")
@@ -32,7 +32,7 @@ int cuda_setup_multi_gpu() {
     }
     m.unlock();
   }
-  return num_used_gpus;
+  return (int32_t)(num_used_gpus);
 }
 
 int get_active_gpu_count(int num_inputs, int gpu_count) {
