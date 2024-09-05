@@ -310,7 +310,8 @@ pub fn write_to_json<
 }
 
 // const FAST_BENCH_BIT_SIZES: [usize; 3] = [512, 1024, 2048];
-const FAST_BENCH_BIT_SIZES: [usize; 13] = [1, 4, 8, 16, 32, 40, 64, 128, 160, 256, 512, 1024, 2048];
+const FAST_BENCH_BIT_SIZES: [usize; 5] = [1, 160, 512, 1024, 2048];
+// const FAST_BENCH_BIT_SIZES: [usize; 13] = [1, 4, 8, 16, 32, 40, 64, 128, 160, 256, 512, 1024, 2048];
 // const FAST_BENCH_BIT_SIZES: [usize; 2] = [1, 160];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
 const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];

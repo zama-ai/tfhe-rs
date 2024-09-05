@@ -2516,9 +2516,9 @@ fn go_through_cpu_bench_groups(val: &str) {
         "default" => {
             // default_parallelized_ops();
             // default_parallelized_ops_comp();
-            // default_scalar_parallelized_ops();
-            // default_scalar_parallelized_ops_comp();
-            cast_ops();
+            default_scalar_parallelized_ops();
+            default_scalar_parallelized_ops_comp();
+            //cast_ops();
             // oprf()
         }
         "fast_default" => {
