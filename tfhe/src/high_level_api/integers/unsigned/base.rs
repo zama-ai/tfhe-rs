@@ -396,7 +396,7 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -440,7 +440,7 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -484,7 +484,7 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -528,7 +528,7 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -572,7 +572,7 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result)
+                super::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -625,7 +625,10 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                (super::FheUint32::new(result), FheBool::new(is_ok))
+                (
+                    super::FheUint32::new(result, cuda_key.tag.clone()),
+                    FheBool::new(is_ok, cuda_key.tag.clone()),
+                )
             }),
         })
     }

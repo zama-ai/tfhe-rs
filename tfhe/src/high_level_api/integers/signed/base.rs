@@ -297,7 +297,7 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                crate::FheUint32::new(result)
+                crate::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -341,7 +341,7 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                crate::FheUint32::new(result)
+                crate::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -385,7 +385,7 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                crate::FheUint32::new(result)
+                crate::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -429,7 +429,7 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                crate::FheUint32::new(result)
+                crate::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -473,7 +473,7 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                crate::FheUint32::new(result)
+                crate::FheUint32::new(result, cuda_key.tag.clone())
             }),
         })
     }
@@ -526,7 +526,10 @@ where
                     crate::FheUint32Id::num_blocks(cuda_key.key.message_modulus),
                     streams,
                 );
-                (crate::FheUint32::new(result), FheBool::new(is_ok))
+                (
+                    crate::FheUint32::new(result, cuda_key.tag.clone()),
+                    FheBool::new(is_ok, cuda_key.tag.clone()),
+                )
             }),
         })
     }
