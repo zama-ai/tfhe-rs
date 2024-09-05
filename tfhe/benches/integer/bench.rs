@@ -2479,7 +2479,8 @@ macro_rules! define_server_key_bench_cast_fn (
 define_server_key_bench_cast_fn!(method_name: cast_to_unsigned, display_name: cast_to_unsigned);
 define_server_key_bench_cast_fn!(method_name: cast_to_signed, display_name: cast_to_signed);
 
-criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
+// criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
+criterion_group!(cast_ops, cast_to_unsigned);
 
 define_server_key_bench_unary_fn!(method_name: full_propagate, display_name: carry_propagation);
 define_server_key_bench_unary_fn!(
@@ -2513,11 +2514,11 @@ fn go_through_gpu_bench_groups(val: &str) {
 fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
-            default_parallelized_ops();
-            default_parallelized_ops_comp();
-            default_scalar_parallelized_ops();
-            default_scalar_parallelized_ops_comp();
-            // cast_ops();
+            // default_parallelized_ops();
+            // default_parallelized_ops_comp();
+            // default_scalar_parallelized_ops();
+            // default_scalar_parallelized_ops_comp();
+            cast_ops();
             // oprf()
         }
         "fast_default" => {
