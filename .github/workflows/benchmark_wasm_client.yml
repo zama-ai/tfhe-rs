@@ -103,6 +103,8 @@ jobs:
           toolchain: nightly
 
       - name: Run benchmarks
+        # test timeouts are at 60 but if we want a log we need to give time to the step to log stuff
+        timeout-minutes: 65
         run: |
           make install_node
           make bench_web_js_api_parallel_ci
