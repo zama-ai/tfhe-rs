@@ -129,9 +129,10 @@ pub fn derive_versions_dispatch(input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// This derives the `Versionize` and `Unversionize` trait for the target type. This macro
-/// has a mandatory attribute parameter, which is the name of the versioned enum for this type.
-/// This enum can be anywhere in the code but should be in scope.
+/// This derives the `Versionize` and `Unversionize` trait for the target type.
+///
+/// This macro has a mandatory attribute parameter, which is the name of the versioned enum for this
+/// type. This enum can be anywhere in the code but should be in scope.
 #[proc_macro_derive(Versionize, attributes(versionize))]
 pub fn derive_versionize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

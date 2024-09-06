@@ -168,7 +168,9 @@ mod test {
             destructor: Some(custom_destroy_vec_u8_buffer),
         };
 
-        let res = unsafe { destroy_dynamic_buffer(&mut dynamic_buffer as *mut DynamicBuffer) };
+        let res = unsafe {
+            destroy_dynamic_buffer(std::ptr::from_mut::<DynamicBuffer>(&mut dynamic_buffer))
+        };
 
         assert_eq!(res, 0);
         assert!(dynamic_buffer.pointer.is_null());
@@ -176,7 +178,9 @@ mod test {
         assert!(dynamic_buffer.destructor.is_none());
 
         assert!(dynamic_buffer.pointer.is_null());
-        let res = unsafe { destroy_dynamic_buffer(&mut dynamic_buffer as *mut DynamicBuffer) };
+        let res = unsafe {
+            destroy_dynamic_buffer(std::ptr::from_mut::<DynamicBuffer>(&mut dynamic_buffer))
+        };
         // Same as free in C, destroy on a NULL pointer does nothing
         assert_eq!(res, 0);
         assert!(dynamic_buffer.pointer.is_null());
@@ -185,10 +189,12 @@ mod test {
 
         let mut some_u8 = 0u8;
 
-        dynamic_buffer.pointer = &mut some_u8 as *mut u8;
+        dynamic_buffer.pointer = std::ptr::from_mut::<u8>(&mut some_u8);
 
         assert!(dynamic_buffer.destructor.is_none());
-        let res = unsafe { destroy_dynamic_buffer(&mut dynamic_buffer as *mut DynamicBuffer) };
+        let res = unsafe {
+            destroy_dynamic_buffer(std::ptr::from_mut::<DynamicBuffer>(&mut dynamic_buffer))
+        };
         assert_eq!(res, 1);
     }
 
@@ -198,7 +204,9 @@ mod test {
 
         let mut dynamic_buffer: DynamicBuffer = vec.clone().into();
 
-        let res = unsafe { destroy_dynamic_buffer(&mut dynamic_buffer as *mut DynamicBuffer) };
+        let res = unsafe {
+            destroy_dynamic_buffer(std::ptr::from_mut::<DynamicBuffer>(&mut dynamic_buffer))
+        };
 
         assert_eq!(res, 0);
         assert!(dynamic_buffer.pointer.is_null());

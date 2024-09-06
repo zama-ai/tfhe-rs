@@ -31,9 +31,8 @@
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6
 #![allow(clippy::unsafe_derive_deserialize)] // 1
-#![allow(clippy::cast_possible_wrap)]
-// 1
-
+#![allow(clippy::cast_possible_wrap)] // 1
+#![allow(clippy::too_long_first_doc_paragraph)]
 // These pedantic lints are deemed to bring too little value therefore they are allowed (which are
 // their natural state anyways, being pedantic lints)
 

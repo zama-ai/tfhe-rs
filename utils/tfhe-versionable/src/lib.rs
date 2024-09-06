@@ -49,6 +49,7 @@ pub trait VersionizeOwned {
 }
 
 /// This trait is used as a proxy to be more felxible when deriving Versionize for Vec<T>.
+///
 /// This way, we can chose to skip versioning Vec<T> if T is a native types but still versionize in
 /// a loop if T is a custom type.
 /// This is used as a workaround for feature(specialization) and to bypass the orphan rule.
@@ -154,9 +155,10 @@ impl From<Infallible> for UnversionizeError {
     }
 }
 
-/// This trait means that we can convert from a versioned enum into the target type. This trait
-/// can only be implemented on Owned/static types, whereas `Versionize` can also be implemented
-/// on reference types.
+/// This trait means that we can convert from a versioned enum into the target type.
+///
+/// This trait can only be implemented on Owned/static types, whereas `Versionize` can also be
+/// implemented on reference types.
 pub trait Unversionize: VersionizeOwned + Sized {
     /// Creates an object from a versioned enum, and eventually upgrades from previous
     /// variants.
