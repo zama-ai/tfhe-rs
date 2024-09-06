@@ -71,6 +71,7 @@ jobs:
           make test_nodejs_wasm_api_in_docker
 
       - name: Run parallel wasm tests
+        timeout-minutes: 60
         run: |
           make test_web_js_api_parallel_ci
 
