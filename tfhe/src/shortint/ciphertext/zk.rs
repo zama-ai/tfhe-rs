@@ -1,9 +1,9 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+    CompactPublicKeyEncryptionParameters, MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
-use crate::shortint::{Ciphertext, CompactPublicKey, MessageModulus};
+use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,7 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
+        metadata: &[u8],
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<Vec<Ciphertext>> {
         let not_all_valid = self.proved_lists.par_iter().any(|(ct_list, proof)| {
@@ -68,6 +69,7 @@ impl ProvenCompactCiphertextList {
                 &public_key.key,
                 proof,
                 public_params,
+                metadata,
             )
             .is_invalid()
         });
@@ -92,6 +94,7 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
+        metadata: &[u8],
     ) -> ZkVerificationOutCome {
         let all_valid = self.proved_lists.par_iter().all(|(ct_list, proof)| {
             verify_lwe_compact_ciphertext_list(
@@ -99,6 +102,7 @@ impl ProvenCompactCiphertextList {
                 &public_key.key,
                 proof,
                 public_params,
+                metadata,
             )
             .is_valid()
         });
@@ -114,7 +118,7 @@ impl ProvenCompactCiphertextList {
         self.proved_lists.len() * core::mem::size_of::<CompactPkeProof>()
     }
 
-    pub(crate) fn message_modulus(&self) -> MessageModulus {
+    pub fn message_modulus(&self) -> MessageModulus {
         self.proved_lists[0].0.message_modulus
     }
 }
@@ -136,6 +140,8 @@ mod tests {
         let cks = ClientKey::new(params);
         let pk = CompactPublicKey::new(&cks);
 
+        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+
         let msg = random::<u64>() % params.message_modulus.0 as u64;
         // No packing
         let encryption_modulus = params.message_modulus.0 as u64;
@@ -144,6 +150,7 @@ mod tests {
             .encrypt_and_prove(
                 msg,
                 crs.public_params(),
+                &metadata,
                 ZkComputeLoad::Proof,
                 encryption_modulus,
             )
@@ -151,6 +158,7 @@ mod tests {
         let proven_ct = proven_ct.verify_and_expand(
             crs.public_params(),
             &pk,
+            &metadata,
             ShortintCompactCiphertextListCastingMode::NoCasting,
         );
         assert!(proven_ct.is_ok());
@@ -168,6 +176,8 @@ mod tests {
         let cks = ClientKey::new(params);
         let pk = CompactPublicKey::new(&cks);
 
+        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+
         let msgs = (0..512)
             .map(|_| random::<u64>() % params.message_modulus.0 as u64)
             .collect::<Vec<_>>();
@@ -176,16 +186,20 @@ mod tests {
             .encrypt_and_prove_slice(
                 &msgs,
                 crs.public_params(),
+                &metadata,
                 ZkComputeLoad::Proof,
                 params.message_modulus.0 as u64,
             )
             .unwrap();
-        assert!(proven_ct.verify(crs.public_params(), &pk).is_valid());
+        assert!(proven_ct
+            .verify(crs.public_params(), &pk, &metadata)
+            .is_valid());
 
         let expanded = proven_ct
             .verify_and_expand(
                 crs.public_params(),
                 &pk,
+                &metadata,
                 ShortintCompactCiphertextListCastingMode::NoCasting,
             )
             .unwrap();

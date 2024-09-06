@@ -255,10 +255,17 @@ impl CompactPublicKey {
         &self,
         message: u64,
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        self.encrypt_and_prove_slice(&[message], public_params, load, encryption_modulus)
+        self.encrypt_and_prove_slice(
+            &[message],
+            public_params,
+            metadata,
+            load,
+            encryption_modulus,
+        )
     }
 
     /// Encrypts the messages contained in the slice into a compact ciphertext list
@@ -369,6 +376,7 @@ impl CompactPublicKey {
         &self,
         messages: &[u64],
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
@@ -413,6 +421,7 @@ impl CompactPublicKey {
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
                         public_params,
+                        metadata,
                         load,
                     )
                 })
@@ -434,6 +443,7 @@ impl CompactPublicKey {
                         &mut engine.encryption_generator,
                         &mut engine.random_generator,
                         public_params,
+                        metadata,
                         load,
                     )
                 })
