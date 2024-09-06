@@ -72,7 +72,7 @@ jobs:
 
       - name: Run parallel wasm tests
         # test timeouts are at 60 but if we want a log we need to give time to the step to log stuff
-        timeout-minutes: 65
+        timeout-minutes: 90
         run: |
           make test_web_js_api_parallel_ci
 
