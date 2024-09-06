@@ -35,6 +35,9 @@ int main(void) {
   status = compact_pke_crs_public_params(crs, &public_params);
   assert(status == 0);
 
+#define METADATA_LEN 5
+  uint8_t metadata[METADATA_LEN] = {'c', '-', 'a', 'p', 'i'};
+
   ClientKey *client_key;
   ServerKey *server_key;
   status = generate_keys(config, &client_key, &server_key);
@@ -46,8 +49,6 @@ int main(void) {
   CompactPublicKey *pk;
   status = compact_public_key_new(client_key, &pk);
   assert(status == 0);
-
-
 
   // Then, we create the compact list
   ProvenCompactCiphertextList *compact_list = NULL;
@@ -69,8 +70,8 @@ int main(void) {
     status = compact_ciphertext_list_builder_push_u2(builder, 3);
     assert(status == 0);
 
-    status = compact_ciphertext_list_builder_build_with_proof_packed(builder, public_params,
-                                                              ZkComputeLoadProof, &compact_list);
+    status = compact_ciphertext_list_builder_build_with_proof_packed(
+        builder, public_params, metadata, METADATA_LEN, ZkComputeLoadProof, &compact_list);
     assert(status == 0);
 
     // Don't forget to destroy the builder
@@ -85,7 +86,7 @@ int main(void) {
   {
     CompactCiphertextListExpander *expander = NULL;
     status = proven_compact_ciphertext_list_verify_and_expand(compact_list, public_params, pk,
-                                                              &expander);
+                                                              metadata, METADATA_LEN, &expander);
     assert(status == 0);
 
     status = compact_ciphertext_list_expander_get_fhe_uint32(expander, 0, &a);

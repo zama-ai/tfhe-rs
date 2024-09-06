@@ -233,6 +233,7 @@ mod zk {
             &self,
             public_params: &CompactPkePublicParams,
             pk: &CompactPublicKey,
+            metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
             // For WASM
             if !self.inner.is_packed() && !self.inner.needs_casting() {
@@ -241,6 +242,7 @@ mod zk {
                     inner: self.inner.verify_and_expand(
                         public_params,
                         &pk.key.key,
+                        metadata,
                         IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
                         IntegerCompactCiphertextListCastingMode::NoCasting,
                     )?,
@@ -274,7 +276,13 @@ mod zk {
                     };
 
                     self.inner
-                        .verify_and_expand(public_params, &pk.key.key, unpacking_mode, casting_mode)
+                        .verify_and_expand(
+                            public_params,
+                            &pk.key.key,
+                            metadata,
+                            unpacking_mode,
+                            casting_mode,
+                        )
                         .map(|expander| CompactCiphertextListExpander {
                             inner: expander,
                             tag: self.tag.clone(),
@@ -405,10 +413,11 @@ impl CompactCiphertextListBuilder {
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         compute_load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
-            .build_with_proof_packed(public_params, compute_load)
+            .build_with_proof_packed(public_params, metadata, compute_load)
             .map(|proved_list| ProvenCompactCiphertextList {
                 inner: proved_list,
                 tag: self.tag.clone(),
@@ -496,19 +505,21 @@ mod tests {
         // Intentionally low to that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
+        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+
         let compact_list = ProvenCompactCiphertextList::builder(&pk)
             .push(17u32)
             .push(-1i64)
             .push(false)
             .push_with_num_bits(3u32, 2)
             .unwrap()
-            .build_with_proof_packed(crs.public_params(), ZkComputeLoad::Proof)
+            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
         let expander = compact_list
-            .verify_and_expand(crs.public_params(), &pk)
+            .verify_and_expand(crs.public_params(), &pk, &metadata)
             .unwrap();
 
         {
@@ -563,19 +574,21 @@ mod tests {
         // Intentionally low to that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
+        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+
         let compact_list = ProvenCompactCiphertextList::builder(&pk)
             .push(17u32)
             .push(-1i64)
             .push(false)
             .push_with_num_bits(3u32, 2)
             .unwrap()
-            .build_with_proof_packed(crs.public_params(), ZkComputeLoad::Proof)
+            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
         let expander = compact_list
-            .verify_and_expand(crs.public_params(), &pk)
+            .verify_and_expand(crs.public_params(), &pk, &metadata)
             .unwrap();
 
         {

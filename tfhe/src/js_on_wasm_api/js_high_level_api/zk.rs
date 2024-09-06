@@ -26,7 +26,10 @@ pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs)
 #[wasm_bindgen]
 pub struct CompactPkePublicParams(pub(crate) crate::zk::CompactPkePublicParams);
 
-#[allow(clippy::use_self, reason = "wasm bindgen is fragile and prefers the actual type vs. Self")]
+#[allow(
+    clippy::use_self,
+    reason = "wasm bindgen is fragile and prefers the actual type vs. Self"
+)]
 #[wasm_bindgen]
 impl CompactPkePublicParams {
     #[wasm_bindgen]
@@ -73,7 +76,10 @@ impl CompactPkePublicParams {
     }
 }
 
-#[allow(clippy::use_self, reason = "wasm bindgen is fragile and prefers the actual type vs. Self")]
+#[allow(
+    clippy::use_self,
+    reason = "wasm bindgen is fragile and prefers the actual type vs. Self"
+)]
 #[wasm_bindgen]
 impl CompactPkeCrs {
     #[wasm_bindgen]

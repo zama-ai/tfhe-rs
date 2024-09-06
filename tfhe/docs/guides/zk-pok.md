@@ -19,8 +19,7 @@ use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = thread_rng();
 
-    let params =
-        tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     let config = tfhe::ConfigBuilder::with_custom_parameters(params);
 
     let client_key = tfhe::ClientKey::generate(config.clone());
@@ -29,21 +28,24 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let public_zk_params = crs.public_params();
     let server_key = tfhe::ServerKey::new(&client_key);
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
+    // This can be left empty, but if provided allows to tie the proof to arbitrary data
+    let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
-    
+
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof_packed(public_zk_params, ZkComputeLoad::Proof)?;
+        .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Proof)?;
 
     // Server side
     let result = {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let mut expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key)?;
+        let mut expander =
+            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
         let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
         let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
 
@@ -101,6 +103,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let public_zk_params = crs.public_params();
     let server_key = tfhe::ServerKey::new(&client_key);
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
+    // This can be left empty, but if provided allows to tie the proof to arbitrary data
+    let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
@@ -108,14 +112,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof_packed(public_zk_params, ZkComputeLoad::Verify)?;
+        .build_with_proof_packed(public_zk_params, &metadata, ZkComputeLoad::Verify)?;
 
     // Server side
     let result = {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let mut expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key)?;
+        let mut expander =
+            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
         let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
         let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
 

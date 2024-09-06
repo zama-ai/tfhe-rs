@@ -4,6 +4,7 @@
 mod utilities;
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use rand::prelude::*;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -49,6 +50,11 @@ fn pke_zk_proof(c: &mut Criterion) {
         let _casting_key =
             KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), _param_casting);
 
+        // We have a use case with 320 bits of metadata
+        let mut metadata = [0u8; (320 / u8::BITS) as usize];
+        let mut rng = rand::thread_rng();
+        metadata.fill_with(|| rng.gen());
+
         for bits in [640usize, 1280, 4096] {
             assert_eq!(bits % 64, 0);
             // Packing, so we take the message and carry modulus to compute our block count
@@ -77,7 +83,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                     b.iter(|| {
                         let _ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                             .extend(messages.iter().copied())
-                            .build_with_proof_packed(public_params, compute_load)
+                            .build_with_proof_packed(public_params, &metadata, compute_load)
                             .unwrap();
                     })
                 });
@@ -128,6 +134,11 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let pk = CompactPublicKey::new(&compact_private_key);
         let casting_key =
             KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), param_casting);
+
+        // We have a use case with 320 bits of metadata
+        let mut metadata = [0u8; (320 / u8::BITS) as usize];
+        let mut rng = rand::thread_rng();
+        metadata.fill_with(|| rng.gen());
 
         for bits in [640usize, 1280, 4096] {
             assert_eq!(bits % 64, 0);
@@ -184,7 +195,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 println!("Generating proven ciphertext ({zk_load})... ");
                 let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                     .extend(messages.iter().copied())
-                    .build_with_proof_packed(public_params, compute_load)
+                    .build_with_proof_packed(public_params, &metadata, compute_load)
                     .unwrap();
 
                 let proven_ciphertext_list_serialized = bincode::serialize(&ct1).unwrap();
@@ -231,7 +242,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
                 bench_group.bench_function(&bench_id_verify, |b| {
                     b.iter(|| {
-                        let _ret = ct1.verify(public_params, &pk);
+                        let _ret = ct1.verify(public_params, &pk, &metadata);
                     });
                 });
 
@@ -241,6 +252,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             .verify_and_expand(
                                 public_params,
                                 &pk,
+                                &metadata,
                                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks),
                                 IntegerCompactCiphertextListCastingMode::CastIfNecessary(
                                     casting_key.as_view(),

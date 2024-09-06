@@ -193,11 +193,13 @@ impl CompactCiphertextListBuilder {
     pub fn build_with_proof(
         &self,
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let ct_list = self.pk.key.encrypt_and_prove_slice(
             self.messages.as_slice(),
             public_params,
+            metadata,
             load,
             self.pk.key.parameters.message_modulus.0 as u64,
         )?;
@@ -211,6 +213,7 @@ impl CompactCiphertextListBuilder {
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         load: ZkComputeLoad,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
@@ -230,6 +233,7 @@ impl CompactCiphertextListBuilder {
         let ct_list = self.pk.key.encrypt_and_prove_slice(
             packed_messages.as_slice(),
             public_params,
+            metadata,
             load,
             msg_mod * msg_mod,
         )?;
@@ -568,14 +572,17 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
+        metadata: &[u8],
     ) -> ZkVerificationOutCome {
-        self.ct_list.verify(public_params, &public_key.key)
+        self.ct_list
+            .verify(public_params, &public_key.key, metadata)
     }
 
     pub fn verify_and_expand(
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
+        metadata: &[u8],
         unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
         casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
@@ -592,9 +599,12 @@ impl ProvenCompactCiphertextList {
             )));
         }
 
-        let expanded_blocks =
-            self.ct_list
-                .verify_and_expand(public_params, &public_key.key, casting_mode.into())?;
+        let expanded_blocks = self.ct_list.verify_and_expand(
+            public_params,
+            &public_key.key,
+            metadata,
+            casting_mode.into(),
+        )?;
 
         let expanded_blocks = if is_packed {
             match unpacking_mode {
@@ -643,6 +653,10 @@ impl ProvenCompactCiphertextList {
         self.ct_list.proof_size()
     }
 
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.ct_list.message_modulus()
+    }
+
     pub fn len(&self) -> usize {
         self.info.len()
     }
@@ -679,6 +693,8 @@ mod tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
         let num_blocks = 4usize;
         let modulus = (pke_params.message_modulus.0 as u64)
             .checked_pow(num_blocks as u32)
@@ -697,13 +713,14 @@ mod tests {
 
         let proven_ct = CompactCiphertextList::builder(&pk)
             .extend_with_num_blocks(msgs.iter().copied(), num_blocks)
-            .build_with_proof_packed(crs.public_params(), ZkComputeLoad::Proof)
+            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let expander = proven_ct
             .verify_and_expand(
                 crs.public_params(),
                 &pk,
+                &metadata,
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
                 IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
             )

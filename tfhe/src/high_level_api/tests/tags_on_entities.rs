@@ -34,6 +34,8 @@ fn test_tag_propagation_zk_pok() {
         ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64).build();
     let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
 
+    let metadata = [b'h', b'l', b'a', b'p', b'i'];
+
     let mut cks = ClientKey::generate(config);
     let tag_value = random();
     cks.tag_mut().set_u64(tag_value);
@@ -55,14 +57,18 @@ fn test_tag_propagation_zk_pok() {
         .push(i64::MIN)
         .push(false)
         .push(true)
-        .build_with_proof_packed(crs.public_params(), crate::zk::ZkComputeLoad::Proof)
+        .build_with_proof_packed(
+            crs.public_params(),
+            &metadata,
+            crate::zk::ZkComputeLoad::Proof,
+        )
         .unwrap();
 
     let list_packed: ProvenCompactCiphertextList = serialize_then_deserialize(list_packed);
     assert_eq!(list_packed.tag(), cks.tag());
 
     let expander = list_packed
-        .verify_and_expand(crs.public_params(), &cpk)
+        .verify_and_expand(crs.public_params(), &cpk, &metadata)
         .unwrap();
 
     {
