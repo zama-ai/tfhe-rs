@@ -378,6 +378,10 @@ async function compactPublicKeyZeroKnowledge() {
   console.timeEnd("CRS generation");
   let public_params = crs.public_params();
 
+  // 320 bits is a use case we have, 8 bits per byte
+  const metadata = new Uint8Array(320 / 8);
+  crypto.getRandomValues(metadata);
+
   {
     let input = generateRandomBigInt(64);
     let start = performance.now();
@@ -386,6 +390,7 @@ async function compactPublicKeyZeroKnowledge() {
     builder.push_u64(input);
     let list = builder.build_with_proof_packed(
       public_params,
+      metadata,
       ZkComputeLoad.Proof,
     );
     let end = performance.now();
@@ -399,7 +404,11 @@ async function compactPublicKeyZeroKnowledge() {
     console.log("CompactCiphertextList size:", serialized.length);
     let deserialized = ProvenCompactCiphertextList.deserialize(serialized);
 
-    let expander = deserialized.verify_and_expand(public_params, publicKey);
+    let expander = deserialized.verify_and_expand(
+      public_params,
+      publicKey,
+      metadata,
+    );
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
   }
@@ -418,6 +427,7 @@ async function compactPublicKeyZeroKnowledge() {
     }
     let encrypted = builder.build_with_proof_packed(
       public_params,
+      metadata,
       ZkComputeLoad.Proof,
     );
     let end = performance.now();
@@ -427,7 +437,11 @@ async function compactPublicKeyZeroKnowledge() {
       " ms",
     );
 
-    let expander = encrypted.verify_and_expand(public_params, publicKey);
+    let expander = encrypted.verify_and_expand(
+      public_params,
+      publicKey,
+      metadata,
+    );
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), inputs[0]);
 
@@ -651,6 +665,10 @@ async function compactPublicKeyZeroKnowledgeBench() {
       let crs = CompactPkeCrs.from_config(config, encrypt_count * 64);
       console.timeEnd("CRS generation");
 
+      // 320 bits is a use case we have, 8 bits per byte
+      const metadata = new Uint8Array(320 / 8);
+      crypto.getRandomValues(metadata);
+
       let public_params = crs.public_params();
       let inputs = Array.from(Array(encrypt_count).keys()).map((_) => U64_MAX);
       for (const loadChoice of load_choices) {
@@ -666,6 +684,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
           const start = performance.now();
           let list = compact_list_builder.build_with_proof_packed(
             public_params,
+            metadata,
             loadChoice,
           );
           const end = performance.now();

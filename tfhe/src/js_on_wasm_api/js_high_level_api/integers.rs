@@ -779,11 +779,12 @@ impl ProvenCompactCiphertextList {
         &self,
         public_params: &CompactPkePublicParams,
         public_key: &TfheCompactPublicKey,
+        metadata: &[u8],
     ) -> Result<CompactCiphertextListExpander, JsError> {
         catch_panic_result(|| {
             let inner = self
                 .0
-                .verify_and_expand(&public_params.0, &public_key.0)
+                .verify_and_expand(&public_params.0, &public_key.0, metadata)
                 .map_err(into_js_error)?;
             Ok(CompactCiphertextListExpander(inner))
         })
@@ -1009,11 +1010,12 @@ impl CompactCiphertextListBuilder {
     pub fn build_with_proof_packed(
         &self,
         public_params: &CompactPkePublicParams,
+        metadata: &[u8],
         compute_load: ZkComputeLoad,
     ) -> Result<ProvenCompactCiphertextList, JsError> {
         catch_panic_result(|| {
             self.0
-                .build_with_proof_packed(&public_params.0, compute_load.into())
+                .build_with_proof_packed(&public_params.0, metadata, compute_load.into())
                 .map_err(into_js_error)
                 .map(ProvenCompactCiphertextList)
         })

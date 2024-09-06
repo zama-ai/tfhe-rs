@@ -78,15 +78,25 @@ pub unsafe extern "C" fn compact_ciphertext_list_builder_build_packed(
 pub unsafe extern "C" fn compact_ciphertext_list_builder_build_with_proof_packed(
     builder: *const CompactCiphertextListBuilder,
     public_params: *const CompactPkePublicParams,
+    metadata: *const u8,
+    metadata_len: usize,
     compute_load: ZkComputeLoad,
     list: *mut *mut ProvenCompactCiphertextList,
 ) -> c_int {
     catch_panic(|| {
         let builder = get_ref_checked(builder).unwrap();
         let public_params = get_ref_checked(public_params).unwrap();
+
+        let metadata = if metadata.is_null() {
+            &[]
+        } else {
+            let _metadata_check_ptr = get_ref_checked(metadata).unwrap();
+            core::slice::from_raw_parts(metadata, metadata_len)
+        };
+
         let inner = builder
             .0
-            .build_with_proof_packed(&public_params.0, compute_load.into())
+            .build_with_proof_packed(&public_params.0, metadata, compute_load.into())
             .unwrap();
 
         *list = Box::into_raw(Box::new(ProvenCompactCiphertextList(inner)));
@@ -173,6 +183,8 @@ pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
     compact_list: *const ProvenCompactCiphertextList,
     public_params: *const CompactPkePublicParams,
     public_key: *const CompactPublicKey,
+    metadata: *const u8,
+    metadata_len: usize,
     expander: *mut *mut CompactCiphertextListExpander,
 ) -> c_int {
     catch_panic(|| {
@@ -180,9 +192,16 @@ pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
         let public_params = get_ref_checked(public_params).unwrap();
         let public_key = get_ref_checked(public_key).unwrap();
 
+        let metadata = if metadata.is_null() {
+            &[]
+        } else {
+            let _metadata_check_ptr = get_ref_checked(metadata).unwrap();
+            core::slice::from_raw_parts(metadata, metadata_len)
+        };
+
         let inner = list
             .0
-            .verify_and_expand(&public_params.0, &public_key.0)
+            .verify_and_expand(&public_params.0, &public_key.0, metadata)
             .unwrap();
 
         *expander = Box::into_raw(Box::new(CompactCiphertextListExpander(inner)));
