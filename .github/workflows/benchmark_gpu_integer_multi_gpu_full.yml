@@ -39,7 +39,7 @@ jobs:
           profile: multi-h100
 
   cuda-integer-full-multi-gpu-benchmarks:
-    name: Execute multi GPU integer benchmarks for all operations flavor
+    name: Execute multi GPU integer benchmarks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
@@ -48,8 +48,8 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        command: [integer, integer_multi_bit]
-        op_flavor: [default, unchecked]
+        command: [integer_multi_bit]
+        op_flavor: [default]
         # explicit include-based build matrix, of known valid options
         include:
           - os: ubuntu-22.04
