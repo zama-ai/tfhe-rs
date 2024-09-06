@@ -254,7 +254,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     fn par_chunks<'this>(
         &'this self,
         chunk_size: usize,
-    ) -> ParallelChunksWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>>
+    ) -> ParallelChunksWrappingLendingIterator<'this, Self::Element, Self::SelfView<'this>>
     where
         Self::Element: Sync,
         Self::SelfView<'this>: Send,
@@ -275,7 +275,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     fn par_chunks_exact<'this>(
         &'this self,
         chunk_size: usize,
-    ) -> ParallelChunksExactWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>>
+    ) -> ParallelChunksExactWrappingLendingIterator<'this, Self::Element, Self::SelfView<'this>>
     where
         Self::Element: Sync,
         Self::SelfView<'this>: Send,
@@ -457,7 +457,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     fn par_chunks_mut<'this>(
         &'this mut self,
         chunk_size: usize,
-    ) -> ParallelChunksWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>>
+    ) -> ParallelChunksWrappingLendingIteratorMut<'this, Self::Element, Self::SelfMutView<'this>>
     where
         Self::Element: Sync + Send,
         Self::SelfMutView<'this>: Send,
@@ -478,7 +478,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     fn par_chunks_exact_mut<'this>(
         &'this mut self,
         chunk_size: usize,
-    ) -> ParallelChunksExactWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>>
+    ) -> ParallelChunksExactWrappingLendingIteratorMut<'this, Self::Element, Self::SelfMutView<'this>>
     where
         Self::Element: Sync + Send,
         Self::SelfMutView<'this>: Send,

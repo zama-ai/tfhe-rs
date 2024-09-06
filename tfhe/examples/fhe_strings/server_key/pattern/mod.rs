@@ -61,7 +61,7 @@ impl ServerKey {
         str: &'a FheString,
         pat: &'a FheString,
         null: Option<&'a FheAsciiChar>,
-    ) -> (CharIter, CharIter, Range<usize>) {
+    ) -> (CharIter<'a>, CharIter<'a>, Range<usize>) {
         let pat_len = pat.chars().len();
         let str_len = str.chars().len();
 
@@ -138,7 +138,7 @@ impl ServerKey {
         &'a self,
         str: &'a FheString,
         pat: &str,
-    ) -> (CharIter, String, Range<usize>) {
+    ) -> (CharIter<'a>, String, Range<usize>) {
         let pat_len = pat.len();
         let str_len = str.chars().len();
 
@@ -165,7 +165,7 @@ impl ServerKey {
         str: &'a FheString,
         pat: &'a FheString,
         null: Option<&'a FheAsciiChar>,
-    ) -> (CharIter, CharIter, Range<usize>) {
+    ) -> (CharIter<'a>, CharIter<'a>, Range<usize>) {
         let pat_len = pat.chars().len();
         let str_len = str.chars().len();
 

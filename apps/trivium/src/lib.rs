@@ -1,3 +1,5 @@
+#![allow(clippy::too_long_first_doc_paragraph)]
+
 mod static_deque;
 
 mod kreyvium;

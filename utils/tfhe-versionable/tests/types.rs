@@ -59,9 +59,9 @@ fn test_types() {
         aligned_box: ABox::new(0, -98765),
         aligned_vec: AVec::from_slice(0, &[1, 2, 3, 4]),
         never: (),
-        tuple: (3.14, 2.71),
-        set: HashSet::from_iter([1, 2, 3].into_iter()),
-        map: HashMap::from_iter([('t', true), ('e', false), ('s', true)].into_iter()),
+        tuple: (std::f32::consts::PI, std::f64::consts::E),
+        set: HashSet::from_iter([1, 2, 3]),
+        map: HashMap::from_iter([('t', true), ('e', false), ('s', true)]),
     };
 
     let mut ser = Vec::new();
