@@ -2153,6 +2153,10 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 /// let delta = 1u64 << delta_log;
 /// let plaintext_modulus = 1u64 << (64 - delta_log);
 ///
+/// // We can add custom metadata that will be required for verification, allowing to tie the proof
+/// // to some arbitrary data.
+/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
@@ -2200,15 +2204,20 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     &mut encryption_generator,
 ///     &mut random_generator,
 ///     crs.public_params(),
+///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
 ///
 /// // verify the ciphertext list with the proof
-/// assert!(
-///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, crs.public_params())
-///         .is_valid()
-/// );
+/// assert!(verify_lwe_ciphertext(
+///     &lwe,
+///     &lwe_compact_public_key,
+///     &proof,
+///     crs.public_params(),
+///     &metadata
+/// )
+/// .is_valid());
 ///
 /// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
 ///
@@ -2246,6 +2255,7 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
     public_params: &CompactPkePublicParams,
+    metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
 where
@@ -2333,6 +2343,7 @@ where
     Ok(prove(
         (public_params, &public_commit),
         &private_commit,
+        metadata,
         load,
         random_generator,
     ))
@@ -2628,6 +2639,10 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let delta = 1u64 << delta_log;
 /// let plaintext_modulus = 1u64 << (64 - delta_log);
 ///
+/// // We can add custom metadata that will be required for verification, allowing to tie the proof
+/// // to some arbitrary data.
+/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
@@ -2679,6 +2694,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut encryption_generator,
 ///     &mut random_generator,
 ///     crs.public_params(),
+///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
@@ -2689,6 +2705,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &proof,
 ///     crs.public_params(),
+///     &metadata,
 /// )
 /// .is_valid());
 ///
@@ -2737,6 +2754,7 @@ pub fn encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
     public_params: &CompactPkePublicParams,
+    metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
 where
@@ -2843,6 +2861,7 @@ where
     Ok(prove(
         (public_params, &public_commit),
         &private_commit,
+        metadata,
         load,
         random_generator,
     ))
@@ -3148,6 +3167,10 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 /// let delta = 1u64 << delta_log;
 /// let plaintext_modulus = 1u64 << (64 - delta_log);
 ///
+/// // We can add custom metadata that will be required for verification, allowing to tie the proof
+/// // to some arbitrary data.
+/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
@@ -3199,6 +3222,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &mut encryption_generator,
 ///     &mut random_generator,
 ///     crs.public_params(),
+///     &metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
@@ -3209,6 +3233,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &proof,
 ///     crs.public_params(),
+///     &metadata,
 /// )
 /// .is_valid());
 ///
@@ -3257,6 +3282,7 @@ pub fn par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key
     encryption_generator: &mut EncryptionRandomGenerator<EncryptionGen>,
     random_generator: &mut RandomGenerator<G>,
     public_params: &CompactPkePublicParams,
+    metadata: &[u8],
     load: ZkComputeLoad,
 ) -> crate::Result<CompactPkeProof>
 where
@@ -3363,6 +3389,7 @@ where
     Ok(prove(
         (public_params, &public_commit),
         &private_commit,
+        metadata,
         load,
         random_generator,
     ))
