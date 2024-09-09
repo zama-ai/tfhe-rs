@@ -69,7 +69,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
     void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples);
+    uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride);
 
 void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
@@ -77,7 +77,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples);
+    uint32_t num_samples, uint32_t lut_count, uint32_t lut_stride);
 
 void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
                                          int8_t **pbs_buffer);
@@ -331,7 +331,8 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples);
+    uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
+    uint32_t lut_stride);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_lwe_ciphertext_vector(
@@ -340,7 +341,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples);
+    uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
+    uint32_t lut_stride);
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>
@@ -350,7 +352,8 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, double2 *bootstrapping_key,
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples);
+    uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
+    uint32_t lut_stride);
 
 template <typename Torus>
 void scratch_cuda_programmable_bootstrap_tbc(

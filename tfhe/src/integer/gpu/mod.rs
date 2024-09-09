@@ -2336,6 +2336,95 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_output: &mut CudaSliceMut<T>,
+    radix_lwe_input: &CudaSlice<T>,
+    input_lut: &[T],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    lut_count: u32,
+    lut_stride: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_input.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_output.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_apply_univariate_lut_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        input_lut.as_ptr().cast(),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+    );
+    cuda_apply_many_univariate_lut_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        radix_lwe_output.as_mut_c_ptr(0),
+        radix_lwe_input.as_c_ptr(0),
+        mem_ptr,
+        keyswitch_key.ptr.as_ptr(),
+        bootstrapping_key.ptr.as_ptr(),
+        num_blocks,
+        lut_count,
+        lut_stride,
+    );
+    cleanup_cuda_apply_univariate_lut_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes.as_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaSliceMut<T>,

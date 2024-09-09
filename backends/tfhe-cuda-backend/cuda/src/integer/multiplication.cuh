@@ -206,6 +206,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
   auto small_lwe_size = small_lwe_dimension + 1;
 
+  // In the case of extracting a single LWE this parameters are dummy
+  uint32_t lut_count = 1;
+  uint32_t lut_stride = 0;
+
   if (num_radix_in_vec == 0)
     return;
   if (num_radix_in_vec == 1) {
@@ -364,7 +368,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type);
+          mem_ptr->params.pbs_type, lut_count, lut_stride);
     } else {
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
@@ -412,7 +416,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           glwe_dimension, small_lwe_dimension, polynomial_size,
           mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
           mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type);
+          mem_ptr->params.pbs_type, lut_count, lut_stride);
 
       multi_gpu_gather_lwe_async<Torus>(
           streams, gpu_indexes, active_gpu_count, new_blocks, lwe_after_pbs_vec,

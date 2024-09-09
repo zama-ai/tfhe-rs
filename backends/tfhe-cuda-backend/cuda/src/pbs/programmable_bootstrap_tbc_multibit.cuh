@@ -31,7 +31,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         uint32_t level_count, uint32_t grouping_factor, uint32_t lwe_offset,
         uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
-        bool support_dsm) {
+        bool support_dsm, uint32_t lut_count, uint32_t lut_stride) {
 
   cluster_group cluster = this_cluster();
 
@@ -138,8 +138,39 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+
+      if (lut_count > 1) {
+        for (int i = 1; i < lut_count; i++) {
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  blockIdx.y * polynomial_size];
+
+          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, glwe_dimension,
+                                             i * lut_stride);
+        }
+      }
     } else if (blockIdx.x == 0 && blockIdx.y == glwe_dimension) {
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+      if (lut_count > 1) {
+        for (int i = 1; i < lut_count; i++) {
+
+          auto next_lwe_array_out =
+              lwe_array_out +
+              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+          auto next_block_lwe_array_out =
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                                      (glwe_dimension * polynomial_size + 1) +
+                                  blockIdx.y * polynomial_size];
+
+          sample_extract_body<Torus, params>(next_block_lwe_array_out,
+                                             accumulator, 0, i * lut_stride);
+        }
+      }
     }
   } else {
     // Load the accumulator calculated in previous iterations
@@ -267,7 +298,8 @@ __host__ void execute_tbc_external_product_loop(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_chunk_size, uint32_t lwe_offset) {
+    uint32_t lwe_chunk_size, uint32_t lwe_offset, uint32_t lut_count,
+    uint32_t lut_stride) {
 
   auto supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
@@ -331,7 +363,8 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, full_dm, supports_dsm));
+        keybundle_size_per_input, d_mem, full_dm, supports_dsm, lut_count,
+        lut_stride));
   } else if (max_shared_memory < full_dm + minimum_dm) {
     config.dynamicSmemBytes = partial_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
@@ -342,7 +375,8 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, partial_dm, supports_dsm));
+        keybundle_size_per_input, d_mem, partial_dm, supports_dsm, lut_count,
+        lut_stride));
   } else {
     config.dynamicSmemBytes = full_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
@@ -353,7 +387,8 @@ __host__ void execute_tbc_external_product_loop(
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
         global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
         base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-        keybundle_size_per_input, d_mem, 0, supports_dsm));
+        keybundle_size_per_input, d_mem, 0, supports_dsm, lut_count,
+        lut_stride));
   }
 }
 
@@ -364,7 +399,8 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     Torus *lwe_array_in, Torus *lwe_input_indexes, uint64_t *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t lut_count, uint32_t lut_stride) {
   cudaSetDevice(gpu_index);
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
@@ -384,7 +420,8 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_chunk_size, lwe_offset);
+        grouping_factor, base_log, level_count, lwe_chunk_size, lwe_offset,
+        lut_count, lut_stride);
   }
 }
 

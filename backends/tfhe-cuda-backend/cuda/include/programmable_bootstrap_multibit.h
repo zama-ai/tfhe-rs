@@ -27,7 +27,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *lwe_array_in, void *lwe_input_indexes, void *bootstrapping_key,
     int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples);
+    uint32_t level_count, uint32_t num_samples, uint32_t lut_count,
+    uint32_t lut_stride);
 
 void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
                                                    uint32_t gpu_index,
@@ -58,7 +59,8 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples);
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t lut_count, uint32_t lut_stride);
 #endif
 
 template <typename Torus>
@@ -74,7 +76,8 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples);
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t lut_count, uint32_t lut_stride);
 
 template <typename Torus>
 void scratch_cuda_multi_bit_programmable_bootstrap(
@@ -90,7 +93,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     Torus *lwe_array_in, Torus *lwe_input_indexes, Torus *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples);
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t lut_count, uint32_t lut_stride);
 
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(

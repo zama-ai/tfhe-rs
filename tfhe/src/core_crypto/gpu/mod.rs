@@ -109,6 +109,8 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     level: DecompositionLevelCount,
     num_samples: u32,
 ) {
+    let lut_count = 1u32;
+    let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_programmable_bootstrap_64(
         streams.ptr[0],
@@ -137,6 +139,8 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
+        lut_count,
+        lut_stride,
     );
     cleanup_cuda_programmable_bootstrap(
         streams.ptr[0],
@@ -169,6 +173,8 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     grouping_factor: LweBskGroupingFactor,
     num_samples: u32,
 ) {
+    let lut_count = 1u32;
+    let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     scratch_cuda_multi_bit_programmable_bootstrap_64(
         streams.ptr[0],
@@ -200,6 +206,8 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         base_log.0 as u32,
         level.0 as u32,
         num_samples,
+        lut_count,
+        lut_stride,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap(
         streams.ptr[0],

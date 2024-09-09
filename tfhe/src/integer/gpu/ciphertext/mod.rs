@@ -424,7 +424,7 @@ impl CudaRadixCiphertext {
     ///
     /// assert_eq!(msg, msg_copied);
     /// ```
-    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         let ct = unsafe { self.duplicate_async(streams) };
         streams.synchronize();
         ct
@@ -433,7 +433,7 @@ impl CudaRadixCiphertext {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronised
-    pub(crate) unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
+    pub unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
         let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
 
