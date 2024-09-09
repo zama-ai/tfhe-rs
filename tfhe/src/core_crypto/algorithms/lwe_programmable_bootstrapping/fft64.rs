@@ -260,7 +260,7 @@ pub fn blind_rotate_assign_mem_optimized<
     // modulus is not the native one
     fourier_bsk
         .as_view()
-        .blind_rotate_assign(lut.as_mut_view(), input.as_ref(), fft, stack);
+        .blind_rotate_assign(lut.as_mut_view(), input.as_view(), fft, stack);
 }
 
 /// Return the required memory for [`blind_rotate_assign_mem_optimized`].
