@@ -15,6 +15,7 @@ use crate::c_api::high_level_api::utils::{
 #[cfg(feature = "zk-pok")]
 use crate::c_api::high_level_api::zk::{CompactPkePublicParams, ZkComputeLoad};
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
+use crate::prelude::CiphertextList;
 use std::ffi::c_int;
 
 pub struct CompactCiphertextListBuilder(crate::high_level_api::CompactCiphertextListBuilder);

@@ -1051,12 +1051,13 @@ macro_rules! define_expander_get_method {
                     #[wasm_bindgen]
                     pub fn [<get_uint $num_bits>] (&mut self, index: usize) -> Result<[<FheUint $num_bits>], JsError> {
                         catch_panic_result(|| {
-                           self.0.get::<crate::[<FheUint $num_bits>]>(index)
-                                .map_or_else(
-                                    || Err(JsError::new(&format!("Index {index} is out of bounds"))),
-                                    |a| a.map_err(into_js_error),
-                                )
-                                .map([<FheUint $num_bits>])
+                            self.0.get::<crate::[<FheUint $num_bits>]>(index)
+                                .map_err(into_js_error)
+                                .map(|val|
+                                      val.map_or_else(
+                                          || Err(JsError::new(&format!("Index {index} is out of bounds"))),
+                                          |val| Ok([<FheUint $num_bits>](val))
+                                    ))?
                         })
                     }
                 )*
@@ -1077,11 +1078,12 @@ macro_rules! define_expander_get_method {
                     pub fn [<get_int $num_bits>] (&mut self, index: usize) -> Result<[<FheInt $num_bits>], JsError> {
                         catch_panic_result(|| {
                            self.0.get::<crate::[<FheInt $num_bits>]>(index)
-                                .map_or_else(
-                                    || Err(JsError::new(&format!("Index {index} is out of bounds"))),
-                                    |a| a.map_err(into_js_error),
-                                )
-                                .map([<FheInt $num_bits>])
+                                .map_err(into_js_error)
+                                .map(|val|
+                                      val.map_or_else(
+                                          || Err(JsError::new(&format!("Index {index} is out of bounds"))),
+                                          |val| Ok([<FheInt $num_bits>](val))
+                                    ))?
                         })
                     }
                 )*
@@ -1103,11 +1105,13 @@ impl CompactCiphertextListExpander {
         catch_panic_result(|| {
             self.0
                 .get::<crate::FheBool>(index)
-                .map_or_else(
-                    || Err(JsError::new(&format!("Index {index} is out of bounds"))),
-                    |a| a.map_err(into_js_error),
-                )
-                .map(FheBool)
+                .map_err(into_js_error)
+                .map(|val| {
+                    val.map_or_else(
+                        || Err(JsError::new(&format!("Index {index} is out of bounds"))),
+                        |val| Ok(FheBool(val)),
+                    )
+                })?
         })
     }
 

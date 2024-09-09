@@ -7,6 +7,7 @@ use crate::high_level_api::booleans::{
     InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool,
 };
 use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
+use crate::prelude::CiphertextList;
 use crate::{
     CompactCiphertextList as HlCompactCiphertextList, CompressedFheBool, Error, FheBool, Tag,
 };
@@ -111,7 +112,7 @@ impl CompactFheBool {
         let block = list
             .inner
             .get::<crate::integer::BooleanBlock>(0)
-            .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+            .map(|b| b.ok_or_else(|| Error::new("Failed to expand compact list".to_string())))??;
 
         let mut ciphertext = FheBool::new(block, Tag::default());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
@@ -148,7 +149,9 @@ impl CompactFheBoolList {
                 let block = list
                     .inner
                     .get::<crate::integer::BooleanBlock>(idx)
-                    .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+                    .map(|list| {
+                        list.ok_or_else(|| Error::new("Failed to expand compact list".to_string()))
+                    })??;
 
                 let mut ciphertext = FheBool::new(block, Tag::default());
                 ciphertext.ciphertext.move_to_device_of_server_key_if_set();

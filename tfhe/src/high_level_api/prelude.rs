@@ -7,10 +7,10 @@
 //! use tfhe::prelude::*;
 //! ```
 pub use crate::high_level_api::traits::{
-    BitSlice, DivRem, FheBootstrap, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
-    FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse,
-    OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight,
-    RotateRightAssign, Tagged,
+    BitSlice, CiphertextList, DivRem, FheBootstrap, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch,
+    FheMax, FheMin, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
+    FheTryTrivialEncrypt, IfThenElse, OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft,
+    RotateLeftAssign, RotateRight, RotateRightAssign, Tagged,
 };
 
 pub use crate::conformance::ParameterSetConformant;

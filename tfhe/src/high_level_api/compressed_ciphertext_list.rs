@@ -12,7 +12,7 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
     CudaCompressible, CudaExpandable,
 };
 use crate::named::Named;
-use crate::prelude::Tagged;
+use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 use crate::{FheBool, FheInt, FheUint, Tag};
 
@@ -233,8 +233,8 @@ impl Tagged for CompressedCiphertextList {
     }
 }
 
-impl CompressedCiphertextList {
-    pub fn len(&self) -> usize {
+impl CiphertextList for CompressedCiphertextList {
+    fn len(&self) -> usize {
         match &self.inner {
             InnerCompressedCiphertextList::Cpu(inner) => inner.len(),
             #[cfg(feature = "gpu")]
@@ -242,7 +242,7 @@ impl CompressedCiphertextList {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         match &self.inner {
             InnerCompressedCiphertextList::Cpu(inner) => inner.len() == 0,
             #[cfg(feature = "gpu")]
@@ -250,7 +250,7 @@ impl CompressedCiphertextList {
         }
     }
 
-    pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
+    fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
         match &self.inner {
             InnerCompressedCiphertextList::Cpu(inner) => Some(match inner.get_kind_of(index)? {
                 DataKind::Unsigned(n) => {
@@ -342,7 +342,7 @@ impl CompressedCiphertextList {
         }
     }
 
-    pub fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
+    fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
         T: HlExpandable + Tagged,
     {
@@ -394,7 +394,9 @@ impl CompressedCiphertextList {
             }
         }
     }
+}
 
+impl CompressedCiphertextList {
     pub fn into_raw_parts(self) -> (crate::integer::ciphertext::CompressedCiphertextList, Tag) {
         let Self { inner, tag } = self;
         match inner {

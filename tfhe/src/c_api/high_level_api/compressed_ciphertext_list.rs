@@ -8,6 +8,7 @@ use crate::c_api::high_level_api::utils::{
     impl_destroy_on_type, impl_serialize_deserialize_on_type,
 };
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
+use crate::prelude::CiphertextList;
 use std::ffi::c_int;
 
 pub struct CompressedCiphertextListBuilder(crate::high_level_api::CompressedCiphertextListBuilder);
