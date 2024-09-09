@@ -16,6 +16,7 @@ use crate::integer::ciphertext::{
     CompressedRadixCiphertext as IntegerCompressedRadixCiphertext,
     CompressedSignedRadixCiphertext as IntegerCompressedSignedRadixCiphertext, DataKind,
 };
+use crate::prelude::CiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::{CompactCiphertextList as HlCompactCiphertextList, Error, Tag};
@@ -277,7 +278,9 @@ where
         let ct = list
             .inner
             .get::<crate::integer::SignedRadixCiphertext>(0)
-            .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+            .map(|list| {
+                list.ok_or_else(|| Error::new("Failed to expand compact list".to_string()))
+            })??;
         Ok(FheInt::new(ct, Tag::default()))
     }
 }
@@ -316,7 +319,9 @@ where
                 let ct = list
                     .inner
                     .get::<crate::integer::SignedRadixCiphertext>(idx)
-                    .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+                    .map(|list| {
+                        list.ok_or_else(|| Error::new("Failed to expand compact list".to_string()))
+                    })??;
                 Ok(FheInt::new(ct, Tag::default()))
             })
             .collect::<Result<Vec<_>, _>>()
@@ -353,7 +358,9 @@ where
         let ct = list
             .inner
             .get::<crate::integer::RadixCiphertext>(0)
-            .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+            .map(|ct| {
+                ct.ok_or_else(|| Error::new("Failed to expand compact list".to_string()))
+            })??;
         Ok(FheUint::new(ct, Tag::default()))
     }
 }
@@ -391,7 +398,9 @@ where
                 let ct = list
                     .inner
                     .get::<crate::integer::RadixCiphertext>(idx)
-                    .ok_or_else(|| Error::new("Failed to expand compact list".to_string()))??;
+                    .map(|ct| {
+                        ct.ok_or_else(|| Error::new("Failed to expand compact list".to_string()))
+                    })??;
                 Ok(FheUint::new(ct, Tag::default()))
             })
             .collect::<Result<Vec<_>, _>>()

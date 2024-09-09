@@ -6,7 +6,7 @@ use tfhe::backward_compatibility::integers::{
     CompactFheInt8, CompactFheInt8List, CompactFheUint8, CompactFheUint8List,
 };
 
-use tfhe::prelude::{FheDecrypt, FheEncrypt};
+use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
@@ -261,6 +261,7 @@ pub fn test_hl_bool_ciphertext_list(
 
 /// Test HL ciphertext list: loads the ciphertext list and compare the decrypted values to the ones
 ///  in the metadata.
+
 pub fn test_hl_heterogeneous_ciphertext_list(
     dir: &Path,
     test: &HlHeterogeneousCiphertextListTest,
@@ -276,33 +277,25 @@ pub fn test_hl_heterogeneous_ciphertext_list(
     set_server_key(server_key);
 
     if test.compressed {
-        test_hl_heterogeneous_ciphertext_list_compressed(
-            load_and_unversionize(dir, test, format)?,
-            &key,
-            test,
-        )
+        let list: CompressedCiphertextList = load_and_unversionize(dir, test, format)?;
+        test_hl_heterogeneous_ciphertext_list_elements(list, &key, test)
     } else {
-        test_hl_heterogeneous_ciphertext_list_compact(
-            load_and_unversionize(dir, test, format)?,
-            &key,
-            test,
-        )
+        let list: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
+        test_hl_heterogeneous_ciphertext_list_elements(list.expand().unwrap(), &key, test)
     }
     .map(|_| test.success(format))
     .map_err(|msg| test.failure(msg, format))
 }
 
-pub fn test_hl_heterogeneous_ciphertext_list_compact(
-    list: CompactCiphertextList,
+pub fn test_hl_heterogeneous_ciphertext_list_elements<CtList: CiphertextList>(
+    list: CtList,
     key: &ClientKey,
     test: &HlHeterogeneousCiphertextListTest,
 ) -> Result<(), String> {
-    let ct_list = list.expand().unwrap();
-
-    for idx in 0..(ct_list.len()) {
+    for idx in 0..(list.len()) {
         match test.data_kinds[idx] {
             DataKind::Bool => {
-                let ct: FheBool = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheBool = list.get(idx).unwrap().unwrap();
                 let clear = ct.decrypt(key);
                 if clear != (test.clear_values[idx] != 0) {
                     return Err(format!(
@@ -312,7 +305,7 @@ pub fn test_hl_heterogeneous_ciphertext_list_compact(
                 }
             }
             DataKind::Signed => {
-                let ct: FheInt8 = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheInt8 = list.get(idx).unwrap().unwrap();
                 let clear: i8 = ct.decrypt(key);
                 if clear != test.clear_values[idx] as i8 {
                     return Err(format!(
@@ -323,52 +316,7 @@ pub fn test_hl_heterogeneous_ciphertext_list_compact(
                 }
             }
             DataKind::Unsigned => {
-                let ct: FheUint8 = ct_list.get(idx).unwrap().unwrap();
-                let clear: u8 = ct.decrypt(key);
-                if clear != test.clear_values[idx] as u8 {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear, test.clear_values[idx]
-                    ));
-                }
-            }
-        };
-    }
-    Ok(())
-}
-
-pub fn test_hl_heterogeneous_ciphertext_list_compressed(
-    list: CompressedCiphertextList,
-    key: &ClientKey,
-    test: &HlHeterogeneousCiphertextListTest,
-) -> Result<(), String> {
-    let ct_list = list;
-
-    for idx in 0..(ct_list.len()) {
-        match test.data_kinds[idx] {
-            DataKind::Bool => {
-                let ct: FheBool = ct_list.get(idx).unwrap().unwrap();
-                let clear = ct.decrypt(key);
-                if clear != (test.clear_values[idx] != 0) {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear, test.clear_values[idx]
-                    ));
-                }
-            }
-            DataKind::Signed => {
-                let ct: FheInt8 = ct_list.get(idx).unwrap().unwrap();
-                let clear: i8 = ct.decrypt(key);
-                if clear != test.clear_values[idx] as i8 {
-                    return Err(format!(
-                        "Invalid decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
-                        clear,
-                        (test.clear_values[idx] as i8)
-                    ));
-                }
-            }
-            DataKind::Unsigned => {
-                let ct: FheUint8 = ct_list.get(idx).unwrap().unwrap();
+                let ct: FheUint8 = list.get(idx).unwrap().unwrap();
                 let clear: u8 = ct.decrypt(key);
                 if clear != test.clear_values[idx] as u8 {
                     return Err(format!(

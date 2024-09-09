@@ -287,12 +287,13 @@ impl CompactCiphertextListExpander {
             .map(|block| (block, current_info))
     }
 
-    pub fn get<T>(&self, index: usize) -> Option<crate::Result<T>>
+    pub fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
         T: Expandable,
     {
         self.blocks_of(index)
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks.to_owned(), kind))
+            .transpose()
     }
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {

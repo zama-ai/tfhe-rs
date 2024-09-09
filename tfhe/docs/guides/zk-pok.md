@@ -12,7 +12,7 @@ Using this feature is straightforward: during encryption, the client generates t
 
 ```rust
 use rand::prelude::*;
-use tfhe::prelude::FheDecrypt;
+use tfhe::prelude::*;
 use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
@@ -45,9 +45,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Verify the ciphertexts
         let expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
-
-        let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
-        let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
+        let a: tfhe::FheUint64 = expander.get(0)?.unwrap();
+        let b: tfhe::FheUint64 = expander.get(1)?.unwrap();
 
         a + b
     };
@@ -80,7 +79,7 @@ This works essentially in the same way as before. Additionally, you need to indi
 
 ```rust
 use rand::prelude::*;
-use tfhe::prelude::FheDecrypt;
+use tfhe::prelude::*;
 use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
@@ -119,9 +118,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
-        let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
-        let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
+        let expander =
+            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+        let a: tfhe::FheUint64 = expander.get(0)?.unwrap();
+        let b: tfhe::FheUint64 = expander.get(1)?.unwrap();
 
         a + b
     };
