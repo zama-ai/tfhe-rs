@@ -131,6 +131,19 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void **streams,
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
 
+void cuda_apply_many_univariate_lut_kb_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
+    void **bsks, uint32_t num_blocks, uint32_t lut_count, uint32_t lut_stride) {
+
+  host_apply_many_univariate_lut_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
+      static_cast<uint64_t *>(output_radix_lwe),
+      static_cast<uint64_t *>(input_radix_lwe),
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks, num_blocks,
+      lut_count, lut_stride);
+}
+
 void scratch_cuda_apply_bivariate_lut_kb_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, int8_t **mem_ptr,
     void *input_lut, uint32_t lwe_dimension, uint32_t glwe_dimension,

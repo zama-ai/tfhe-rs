@@ -196,6 +196,20 @@ extern "C" {
         num_blocks: u32,
     );
 
+    pub fn cuda_apply_many_univariate_lut_kb_64(
+        streams: *const *mut c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_radix_lwe: *mut c_void,
+        input_radix_lwe: *const c_void,
+        mem_ptr: *mut i8,
+        ksks: *const *mut c_void,
+        bsks: *const *mut c_void,
+        num_blocks: u32,
+        num_luts: u32,
+        lut_stride: u32,
+    );
+
     pub fn cleanup_cuda_apply_univariate_lut_kb_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
@@ -1152,6 +1166,8 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        lut_count: u32,
+        lut_stride: u32,
     );
 
     pub fn cleanup_cuda_programmable_bootstrap(
@@ -1203,6 +1219,8 @@ extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
+        lut_count: u32,
+        lut_stride: u32,
     );
 
     pub fn cleanup_cuda_multi_bit_programmable_bootstrap(

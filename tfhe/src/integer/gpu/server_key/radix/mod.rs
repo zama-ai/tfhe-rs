@@ -13,13 +13,15 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    apply_univariate_lut_kb_async, full_propagate_assign_async,
+    apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async, full_propagate_assign_async,
     propagate_single_carry_assign_async, propagate_single_carry_get_input_carries_assign_async,
     CudaServerKey, PBSType,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::fill_accumulator;
-use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
+use crate::shortint::engine::{fill_accumulator, fill_many_lut_accumulator};
+use crate::shortint::server_key::{
+    BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
+};
 use crate::shortint::PBSOrder;
 
 mod add;
@@ -676,6 +678,38 @@ impl CudaServerKey {
         }
     }
 
+    pub fn generate_many_lookup_table(
+        &self,
+        functions: &[&dyn Fn(u64) -> u64],
+    ) -> ManyLookupTableOwned {
+        let (glwe_size, polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
+            }
+        };
+        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
+
+        let (input_max_degree, sample_extraction_stride, per_function_output_degree) =
+            fill_many_lut_accumulator(
+                &mut acc,
+                polynomial_size,
+                glwe_size,
+                self.message_modulus,
+                self.carry_modulus,
+                functions,
+            );
+
+        ManyLookupTableOwned {
+            acc,
+            input_max_degree,
+            sample_extraction_stride,
+            per_function_output_degree,
+        }
+    }
+
     /// Generates a bivariate accumulator
     pub(crate) fn generate_lookup_table_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
     where
@@ -800,6 +834,162 @@ impl CudaServerKey {
             info.degree = lut.degree;
             info.noise_level = NoiseLevel::NOMINAL;
         }
+    }
+    /// Applies many lookup tables on the range of ciphertexts
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+    /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let gpu_index = 0;
+    /// let mut stream = CudaStreams::new_single_gpu(gpu_index);
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS, &mut stream);
+    /// let num_blocks = 2;
+    /// let msg = 3;
+    /// let ct = cks.encrypt_radix(msg, num_blocks);
+    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &mut stream);
+    /// // Generate the lookup table for the functions
+    /// // f1: x -> x*x mod 4
+    /// // f2: x -> count_ones(x as binary) mod 4
+    /// let f1 = |x: u64| x.pow(2) % 4;
+    /// let f2 = |x: u64| x.count_ones() as u64 % 4;
+    /// // Easy to use for generation
+    /// let luts = sks.generate_many_lookup_table(&[&f1, &f2]);
+    /// let vec_res = unsafe { sks.apply_many_lookup_table_async(&d_ct.as_ref(), &luts, &stream) };
+    /// stream.synchronize();
+    /// // Need to manually help Rust to iterate over them easily
+    /// let functions: &[&dyn Fn(u64) -> u64] = &[&f1, &f2];
+    /// for (d_res, function) in vec_res.iter().zip(functions) {
+    ///     let d_res_unsigned = CudaUnsignedRadixCiphertext {
+    ///         ciphertext: d_res.duplicate(&stream),
+    ///     };
+    ///     let res = d_res_unsigned.to_radix_ciphertext(&mut stream);
+    ///     let dec: u64 = cks.decrypt_radix(&res);
+    ///     println!(" compare {} vs {}", dec, function(msg));
+    ///     assert_eq!(dec, function(msg));
+    /// }
+    /// ```
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn apply_many_lookup_table_async(
+        &self,
+        input: &CudaRadixCiphertext,
+        lut: &ManyLookupTableOwned,
+        streams: &CudaStreams,
+    ) -> Vec<CudaRadixCiphertext> {
+        let lwe_dimension = input.d_blocks.lwe_dimension();
+        let lwe_size = lwe_dimension.to_lwe_size().0;
+
+        let input_slice = input
+            .d_blocks
+            .0
+            .d_vec
+            .as_slice(.., streams.gpu_indexes[0])
+            .unwrap();
+
+        // The accumulator has been rotated, we can now proceed with the various sample extractions
+        let function_count = lut.function_count();
+        let num_ct_blocks = input.d_blocks.lwe_ciphertext_count().0;
+        let total_radixes_size = num_ct_blocks * lwe_size * function_count;
+        let mut output_radixes = CudaVec::new(total_radixes_size, streams, streams.gpu_indexes[0]);
+
+        let mut output_slice = output_radixes
+            .as_mut_slice(0..total_radixes_size, streams.gpu_indexes[0])
+            .unwrap();
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                apply_many_univariate_lut_kb_async(
+                    streams,
+                    &mut output_slice,
+                    &input_slice,
+                    lut.acc.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    num_ct_blocks as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    function_count as u32,
+                    lut.sample_extraction_stride as u32,
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                apply_many_univariate_lut_kb_async(
+                    streams,
+                    &mut output_slice,
+                    &input_slice,
+                    lut.acc.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    num_ct_blocks as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    function_count as u32,
+                    lut.sample_extraction_stride as u32,
+                );
+            }
+        };
+
+        let mut ciphertexts = Vec::<CudaRadixCiphertext>::with_capacity(function_count);
+
+        for i in 0..function_count {
+            let slice_size = num_ct_blocks * lwe_size;
+            let mut ct = input.duplicate(streams);
+            let mut ct_slice = ct
+                .d_blocks
+                .0
+                .d_vec
+                .as_mut_slice(0..slice_size, streams.gpu_indexes[0])
+                .unwrap();
+
+            let slice_size = num_ct_blocks * lwe_size;
+            let output_slice = output_radixes
+                .as_mut_slice(slice_size * i..slice_size * (i + 1), streams.gpu_indexes[0])
+                .unwrap();
+
+            ct_slice.copy_from_gpu_async(&output_slice, streams, 0);
+
+            for info in ct.info.blocks.iter_mut() {
+                info.degree = lut.per_function_output_degree[i];
+                info.noise_level = NoiseLevel::NOMINAL;
+            }
+
+            ciphertexts.push(ct);
+        }
+
+        ciphertexts
     }
 
     /// # Safety

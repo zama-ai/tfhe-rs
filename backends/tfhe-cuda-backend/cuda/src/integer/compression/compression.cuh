@@ -194,12 +194,16 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
                               compression_params.glwe_dimension,
                               compression_params.polynomial_size);
 
+  // In the case of extracting a single LWE this parameters are dummy
+  uint32_t lut_count = 1;
+  uint32_t lut_stride = 0;
   /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
   /// dimension to a big LWE dimension
   auto encryption_params = mem_ptr->encryption_params;
   auto lut = mem_ptr->carry_extract_lut;
   auto active_gpu_count = get_active_gpu_count(num_lwes, gpu_count);
   if (active_gpu_count == 1) {
+
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_out,
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
@@ -208,7 +212,7 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_lwes, encryption_params.pbs_type);
+        num_lwes, encryption_params.pbs_type, lut_count, lut_stride);
   } else {
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
@@ -235,7 +239,7 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
         encryption_params.pbs_level, encryption_params.grouping_factor,
-        num_lwes, encryption_params.pbs_type);
+        num_lwes, encryption_params.pbs_type, lut_count, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
     multi_gpu_gather_lwe_async<Torus>(streams, gpu_indexes, active_gpu_count,
