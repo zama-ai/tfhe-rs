@@ -391,7 +391,7 @@ clippy_cuda_backend: install_rs_check_toolchain
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_tfhe_lints
 	cd tfhe && RUSTFLAGS="$(RUSTFLAGS)" cargo tfhe-lints \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -- -D warnings
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,zk-pok -- -D warnings
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
