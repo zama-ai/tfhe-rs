@@ -551,19 +551,21 @@ pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
-pub unsafe fn negate_integer_radix_assign_async<T: UnsignedInteger>(
+pub unsafe fn negate_integer_radix_async<T: UnsignedInteger>(
     streams: &CudaStreams,
-    lwe_array: &mut CudaVec<T>,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
     lwe_dimension: LweDimension,
     num_samples: u32,
     message_modulus: u32,
     carry_modulus: u32,
 ) {
-    cuda_negate_integer_radix_ciphertext_64_inplace(
+    cuda_negate_integer_radix_ciphertext_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(0),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
         lwe_dimension.0 as u32,
         num_samples,
         message_modulus,

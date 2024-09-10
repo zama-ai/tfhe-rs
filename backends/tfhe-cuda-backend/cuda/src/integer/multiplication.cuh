@@ -271,7 +271,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     if (!ch_amount)
       ch_amount++;
     dim3 add_grid(ch_amount, num_blocks, 1);
-    size_t sm_size = big_lwe_size * sizeof(Torus);
 
     cudaSetDevice(gpu_indexes[0]);
     tree_add_chunks<Torus><<<add_grid, 512, 0, streams[0]>>>(
@@ -303,7 +302,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     // inside d_smart_copy_in there are only -1 values
     // it's fine to call smart_copy with same pointer
     // as source and destination
-    smart_copy<<<sm_copy_count, 1024, 0, streams[0]>>>(
+    smart_copy<Torus><<<sm_copy_count, 1024, 0, streams[0]>>>(
         new_blocks, new_blocks, d_smart_copy_out, d_smart_copy_in,
         big_lwe_size);
     check_cuda_error(cudaGetLastError());
@@ -422,9 +421,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   luts_message_carry->release(streams, gpu_indexes, gpu_count);
   delete (luts_message_carry);
 
-  host_addition(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
-                &old_blocks[num_blocks * big_lwe_size], big_lwe_dimension,
-                num_blocks);
+  host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
+                       &old_blocks[num_blocks * big_lwe_size],
+                       big_lwe_dimension, num_blocks);
 }
 
 template <typename Torus, class params>

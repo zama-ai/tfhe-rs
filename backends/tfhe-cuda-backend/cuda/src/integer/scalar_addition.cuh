@@ -45,9 +45,10 @@ __host__ void host_integer_radix_scalar_addition_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_scalar_addition_inplace<<<grid, thds, 0, streams[0]>>>(
-      lwe_array, scalar_input, input_lwe_ciphertext_count, lwe_dimension,
-      delta);
+  device_integer_radix_scalar_addition_inplace<Torus>
+      <<<grid, thds, 0, streams[0]>>>(lwe_array, scalar_input,
+                                      input_lwe_ciphertext_count, lwe_dimension,
+                                      delta);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -83,8 +84,9 @@ __host__ void host_integer_radix_add_scalar_one_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_add_scalar_one_inplace<<<grid, thds, 0, streams[0]>>>(
-      lwe_array, input_lwe_ciphertext_count, lwe_dimension, delta);
+  device_integer_radix_add_scalar_one_inplace<Torus>
+      <<<grid, thds, 0, streams[0]>>>(lwe_array, input_lwe_ciphertext_count,
+                                      lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -122,10 +124,10 @@ __host__ void host_integer_radix_scalar_subtraction_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_scalar_subtraction_inplace<<<grid, thds, 0,
-                                                    streams[0]>>>(
-      lwe_array, scalar_input, input_lwe_ciphertext_count, lwe_dimension,
-      delta);
+  device_integer_radix_scalar_subtraction_inplace<Torus>
+      <<<grid, thds, 0, streams[0]>>>(lwe_array, scalar_input,
+                                      input_lwe_ciphertext_count, lwe_dimension,
+                                      delta);
   check_cuda_error(cudaGetLastError());
 }
 #endif

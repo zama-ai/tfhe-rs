@@ -1,14 +1,16 @@
 #include "integer/negation.cuh"
 
-void cuda_negate_integer_radix_ciphertext_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t lwe_dimension, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus) {
+void cuda_negate_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array_out, void *lwe_array_in, uint32_t lwe_dimension,
+    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus) {
 
-  host_integer_radix_negation(
+  host_integer_radix_negation<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(lwe_array), static_cast<uint64_t *>(lwe_array),
-      lwe_dimension, lwe_ciphertext_count, message_modulus, carry_modulus);
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint64_t *>(lwe_array_in), lwe_dimension,
+      lwe_ciphertext_count, message_modulus, carry_modulus);
 }
 
 void scratch_cuda_integer_radix_overflowing_sub_kb_64(

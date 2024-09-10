@@ -10,7 +10,7 @@ void cuda_keyswitch_lwe_ciphertext_vector_32(
     void *lwe_output_indexes, void *lwe_array_in, void *lwe_input_indexes,
     void *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
-  host_keyswitch_lwe_ciphertext_vector(
+  host_keyswitch_lwe_ciphertext_vector<uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint32_t *>(lwe_array_out),
       static_cast<uint32_t *>(lwe_output_indexes),
@@ -40,7 +40,7 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
     void *lwe_output_indexes, void *lwe_array_in, void *lwe_input_indexes,
     void *ksk, uint32_t lwe_dimension_in, uint32_t lwe_dimension_out,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
-  host_keyswitch_lwe_ciphertext_vector(
+  host_keyswitch_lwe_ciphertext_vector<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<uint64_t *>(lwe_output_indexes),
@@ -66,7 +66,7 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_glwe_dimension, uint32_t output_polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_lwes) {
 
-  host_packing_keyswitch_lwe_list_to_glwe(
+  host_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(glwe_array_out),
       static_cast<uint64_t *>(lwe_array_in),

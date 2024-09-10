@@ -46,7 +46,7 @@ host_cleartext_vec_multiplication(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cleartext_vec_multiplication<<<grid, thds, 0, stream>>>(
+  cleartext_vec_multiplication<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, cleartext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -82,7 +82,7 @@ host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cleartext_multiplication<<<grid, thds, 0, stream>>>(
+  cleartext_multiplication<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, cleartext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }

@@ -25,14 +25,13 @@ template <typename Torus>
 __global__ void
 device_integer_radix_negation(Torus *output, Torus *input, int32_t num_blocks,
                               uint64_t lwe_dimension, uint64_t message_modulus,
-                              uint64_t carry_modulus, uint64_t delta) {
+                              uint64_t delta) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < lwe_dimension + 1) {
     bool is_body = (tid == lwe_dimension);
 
     // z = ceil( degree / 2^p ) * 2^p
     uint64_t z = (2 * message_modulus - 1) / message_modulus;
-    __syncthreads();
     z *= message_modulus;
 
     // (0,Delta*z) - ct
@@ -47,12 +46,9 @@ device_integer_radix_negation(Torus *output, Torus *input, int32_t num_blocks,
 
       uint64_t encoded_zb = zb * delta;
 
-      __syncthreads();
-
       // (0,Delta*z) - ct
       output[tid] =
           (is_body ? z * delta - (input[tid] + encoded_zb) : -input[tid]);
-      __syncthreads();
     }
   }
 }
@@ -75,16 +71,15 @@ host_integer_radix_negation(cudaStream_t *streams, uint32_t *gpu_indexes,
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
-  uint64_t shared_mem = input_lwe_ciphertext_count * sizeof(uint32_t);
 
   // Value of the shift we multiply our messages by
   // If message_modulus and carry_modulus are always powers of 2 we can simplify
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_integer_radix_negation<<<grid, thds, shared_mem, streams[0]>>>(
+  device_integer_radix_negation<<<grid, thds, 0, streams[0]>>>(
       output, input, input_lwe_ciphertext_count, lwe_dimension, message_modulus,
-      carry_modulus, delta);
+      delta);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -107,7 +102,7 @@ __host__ void host_integer_overflowing_sub_kb(
 
   auto radix_params = mem_ptr->params;
 
-  host_unchecked_sub_with_correcting_term(
+  host_unchecked_sub_with_correcting_term<Torus>(
       streams[0], gpu_indexes[0], radix_lwe_out, radix_lwe_left,
       radix_lwe_right, radix_params.big_lwe_dimension, num_blocks,
       radix_params.message_modulus, radix_params.carry_modulus,

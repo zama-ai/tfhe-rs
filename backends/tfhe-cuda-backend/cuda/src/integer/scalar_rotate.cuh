@@ -56,9 +56,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
   // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                   rotated_buffer, lwe_array, rotations,
-                                   num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                          rotated_buffer, lwe_array, rotations,
+                                          num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
@@ -70,9 +70,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                   giver_blocks, lwe_array, 1, num_blocks,
-                                   big_lwe_size);
+    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                          giver_blocks, lwe_array, 1,
+                                          num_blocks, big_lwe_size);
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
@@ -83,9 +83,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
   } else {
     // rotate left as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                  rotated_buffer, lwe_array, rotations,
-                                  num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
+                                         rotated_buffer, lwe_array, rotations,
+                                         num_blocks, big_lwe_size);
 
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
@@ -97,8 +97,9 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count, giver_blocks,
-                                  lwe_array, 1, num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
+                                         giver_blocks, lwe_array, 1, num_blocks,
+                                         big_lwe_size);
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 

@@ -323,11 +323,12 @@ extern "C" {
         mem_ptr: *mut *mut i8,
     );
 
-    pub fn cuda_negate_integer_radix_ciphertext_64_inplace(
+    pub fn cuda_negate_integer_radix_ciphertext_64(
         streams: *const *mut c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array: *mut c_void,
+        lwe_array_out: *mut c_void,
+        lwe_array_in: *const c_void,
         lwe_dimension: u32,
         lwe_ciphertext_count: u32,
         message_modulus: u32,

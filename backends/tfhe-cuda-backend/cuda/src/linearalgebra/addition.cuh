@@ -43,7 +43,7 @@ host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index, T *output,
   cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
                                (lwe_dimension + 1) * lwe_ciphertext_count,
                                stream, gpu_index);
-  plaintext_addition<<<grid, thds, 0, stream>>>(
+  plaintext_addition<T><<<grid, thds, 0, stream>>>(
       output, lwe_input, plaintext_input, lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -78,7 +78,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index, T *output,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  addition<<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
+  addition<T><<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -112,7 +112,8 @@ __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  subtraction<<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
+  subtraction<T>
+      <<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -150,7 +151,7 @@ __host__ void host_subtraction_plaintext(cudaStream_t stream,
                                    (input_lwe_dimension + 1) * sizeof(T),
                                stream, gpu_index);
 
-  radix_body_subtraction_inplace<<<grid, thds, 0, stream>>>(
+  radix_body_subtraction_inplace<T><<<grid, thds, 0, stream>>>(
       output, plaintext_input, input_lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
@@ -176,7 +177,6 @@ __global__ void unchecked_sub_with_correcting_term(
   }
 }
 template <typename T>
-
 __host__ void host_unchecked_sub_with_correcting_term(
     cudaStream_t stream, uint32_t gpu_index, T *output, T *input_1, T *input_2,
     uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count,
@@ -193,7 +193,7 @@ __host__ void host_unchecked_sub_with_correcting_term(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  unchecked_sub_with_correcting_term<<<grid, thds, 0, stream>>>(
+  unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
       output, input_1, input_2, num_entries, lwe_size, message_modulus,
       carry_modulus, degree);
   check_cuda_error(cudaGetLastError());

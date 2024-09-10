@@ -177,8 +177,8 @@ void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
     int num_blocks = (n + block_size - 1) / block_size;
 
     // Launch the kernel
-    cuda_set_value_kernel<<<num_blocks, block_size, 0, stream>>>(d_array, value,
-                                                                 n);
+    cuda_set_value_kernel<Torus>
+        <<<num_blocks, block_size, 0, stream>>>(d_array, value, n);
     check_cuda_error(cudaGetLastError());
   }
 }

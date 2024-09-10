@@ -37,12 +37,12 @@ void host_resolve_signed_overflow(
       streams[0], gpu_indexes[0], x, last_block_output_carry, d_clears,
       mem->params.big_lwe_dimension, 1);
 
-  host_addition(streams[0], gpu_indexes[0], last_block_inner_propagation,
-                last_block_inner_propagation, x, mem->params.big_lwe_dimension,
-                1);
-  host_addition(streams[0], gpu_indexes[0], last_block_inner_propagation,
-                last_block_inner_propagation, last_block_input_carry,
-                mem->params.big_lwe_dimension, 1);
+  host_addition<Torus>(streams[0], gpu_indexes[0], last_block_inner_propagation,
+                       last_block_inner_propagation, x,
+                       mem->params.big_lwe_dimension, 1);
+  host_addition<Torus>(streams[0], gpu_indexes[0], last_block_inner_propagation,
+                       last_block_inner_propagation, last_block_input_carry,
+                       mem->params.big_lwe_dimension, 1);
 
   host_apply_univariate_lut_kb<Torus>(streams, gpu_indexes, gpu_count, result,
                                       last_block_inner_propagation,
@@ -94,14 +94,14 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
 
   // phase 1
   if (op == SIGNED_OPERATION::ADDITION) {
-    host_addition(streams[0], gpu_indexes[0], result, lhs, rhs,
-                  big_lwe_dimension, num_blocks);
+    host_addition<Torus>(streams[0], gpu_indexes[0], result, lhs, rhs,
+                         big_lwe_dimension, num_blocks);
   } else {
-    host_integer_radix_negation(
+    host_integer_radix_negation<Torus>(
         streams, gpu_indexes, gpu_count, neg_rhs, rhs, big_lwe_dimension,
         num_blocks, radix_params.message_modulus, radix_params.carry_modulus);
-    host_addition(streams[0], gpu_indexes[0], result, lhs, neg_rhs,
-                  big_lwe_dimension, num_blocks);
+    host_addition<Torus>(streams[0], gpu_indexes[0], result, lhs, neg_rhs,
+                         big_lwe_dimension, num_blocks);
   }
 
   // phase 2
@@ -109,10 +109,10 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
 
-  host_propagate_single_carry(mem_ptr->sub_streams_1, gpu_indexes, gpu_count,
-                              result, output_carry, input_carries,
-                              mem_ptr->scp_mem, bsks, ksks, num_blocks);
-  host_generate_last_block_inner_propagation(
+  host_propagate_single_carry<Torus>(
+      mem_ptr->sub_streams_1, gpu_indexes, gpu_count, result, output_carry,
+      input_carries, mem_ptr->scp_mem, bsks, ksks, num_blocks);
+  host_generate_last_block_inner_propagation<Torus>(
       mem_ptr->sub_streams_2, gpu_indexes, gpu_count,
       last_block_inner_propagation, &lhs[(num_blocks - 1) * big_lwe_size],
       &rhs[(num_blocks - 1) * big_lwe_size], mem_ptr->las_block_prop_mem, bsks,
@@ -126,7 +126,7 @@ __host__ void host_integer_signed_overflowing_add_or_sub_kb(
   // phase 3
   auto input_carry = &input_carries[(num_blocks - 1) * big_lwe_size];
 
-  host_resolve_signed_overflow(
+  host_resolve_signed_overflow<Torus>(
       streams, gpu_indexes, gpu_count, overflowed, last_block_inner_propagation,
       input_carry, output_carry, mem_ptr->resolve_overflow_mem, bsks, ksks);
 

@@ -88,9 +88,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     switch (mem->shift_type) {
     case LEFT_SHIFT:
       // rotate right as the blocks are from LSB to MSB
-      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                     rotated_input, input_bits_b, rotations,
-                                     total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_right<Torus>(
+          streams, gpu_indexes, gpu_count, rotated_input, input_bits_b,
+          rotations, total_nb_bits, big_lwe_size);
 
       if (mem->is_signed && mem->shift_type == RIGHT_SHIFT)
         for (int i = 0; i < rotations; i++)
@@ -103,9 +103,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
       break;
     case RIGHT_SHIFT:
       // rotate left as the blocks are from LSB to MSB
-      host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                    rotated_input, input_bits_b, rotations,
-                                    total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_left<Torus>(
+          streams, gpu_indexes, gpu_count, rotated_input, input_bits_b,
+          rotations, total_nb_bits, big_lwe_size);
 
       if (mem->is_signed)
         for (int i = 0; i < rotations; i++)
@@ -119,15 +119,15 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
       break;
     case LEFT_ROTATE:
       // rotate right as the blocks are from LSB to MSB
-      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                     rotated_input, input_bits_b, rotations,
-                                     total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_right<Torus>(
+          streams, gpu_indexes, gpu_count, rotated_input, input_bits_b,
+          rotations, total_nb_bits, big_lwe_size);
       break;
     case RIGHT_ROTATE:
       // rotate left as the blocks are from LSB to MSB
-      host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                    rotated_input, input_bits_b, rotations,
-                                    total_nb_bits, big_lwe_size);
+      host_radix_blocks_rotate_left<Torus>(
+          streams, gpu_indexes, gpu_count, rotated_input, input_bits_b,
+          rotations, total_nb_bits, big_lwe_size);
       break;
     default:
       PANIC("Unknown operation")
@@ -137,20 +137,21 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // control_bit|b|a
     cuda_memset_async(mux_inputs, 0, total_nb_bits * big_lwe_size_bytes,
                       streams[0], gpu_indexes[0]); // Do we need this?
-    pack_bivariate_blocks(streams, gpu_indexes, gpu_count, mux_inputs,
-                          mux_lut->lwe_indexes_out, rotated_input, input_bits_a,
-                          mux_lut->lwe_indexes_in, big_lwe_dimension, 2,
-                          total_nb_bits);
+    pack_bivariate_blocks<Torus>(streams, gpu_indexes, gpu_count, mux_inputs,
+                                 mux_lut->lwe_indexes_out, rotated_input,
+                                 input_bits_a, mux_lut->lwe_indexes_in,
+                                 big_lwe_dimension, 2, total_nb_bits);
 
     // The shift bit is already properly aligned/positioned
     for (int i = 0; i < total_nb_bits; i++)
-      host_addition(streams[0], gpu_indexes[0], mux_inputs + i * big_lwe_size,
-                    mux_inputs + i * big_lwe_size, shift_bit,
-                    mem->params.big_lwe_dimension, 1);
+      host_addition<Torus>(streams[0], gpu_indexes[0],
+                           mux_inputs + i * big_lwe_size,
+                           mux_inputs + i * big_lwe_size, shift_bit,
+                           mem->params.big_lwe_dimension, 1);
 
     // we have
     // control_bit|b|a
-    integer_radix_apply_univariate_lookup_table_kb(
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsks, ksks,
         total_nb_bits, mux_lut);
   }
@@ -179,8 +180,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     auto bit_to_add = input_bits_a + i * big_lwe_size;
 
     for (int j = 0; j < num_radix_blocks; j++) {
-      host_addition(streams[0], gpu_indexes[0], block, block, bit_to_add,
-                    big_lwe_dimension, 1);
+      host_addition<Torus>(streams[0], gpu_indexes[0], block, block, bit_to_add,
+                           big_lwe_dimension, 1);
 
       block += big_lwe_size;
       bit_to_add += bits_per_block * big_lwe_size;
@@ -188,7 +189,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
     // To give back a clean ciphertext
     auto cleaning_lut = mem->cleaning_lut;
-    integer_radix_apply_univariate_lookup_table_kb(
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_last_out, lwe_last_out, bsks, ksks,
         num_radix_blocks, cleaning_lut);
   }
