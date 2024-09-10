@@ -282,7 +282,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           // Shift the mask so that we will only keep bits we should
           uint32_t shifted_mask = full_message_mask >> shift_amount;
 
-          integer_radix_apply_univariate_lookup_table_kb(
+          integer_radix_apply_univariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, interesting_divisor.last_block(),
               interesting_divisor.last_block(), bsks, ksks, 1,
               mem_ptr->masking_luts_1[shifted_mask]);
@@ -310,7 +310,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           // the estimated degree of the output is < msg_modulus
           shifted_mask = shifted_mask & full_message_mask;
 
-          integer_radix_apply_univariate_lookup_table_kb(
+          integer_radix_apply_univariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count, divisor_ms_blocks.first_block(),
               divisor_ms_blocks.first_block(), bsks, ksks, 1,
               mem_ptr->masking_luts_2[shifted_mask]);
@@ -334,7 +334,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           interesting_remainder1.insert(0, numerator_block_1.first_block(),
                                         streams[0], gpu_indexes[0]);
 
-          host_integer_radix_logical_scalar_shift_kb_inplace(
+          host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
               streams, gpu_indexes, gpu_count, interesting_remainder1.data, 1,
               mem_ptr->shift_mem_1, bsks, ksks, interesting_remainder1.len);
 
@@ -342,7 +342,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
                                interesting_remainder1.len - 1, streams[0],
                                gpu_indexes[0]);
 
-          host_radix_blocks_rotate_left(
+          host_radix_blocks_rotate_left<Torus>(
               streams, gpu_indexes, gpu_count, interesting_remainder1.data,
               tmp_radix.data, 1, interesting_remainder1.len, big_lwe_size);
 
@@ -363,7 +363,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     auto left_shift_interesting_remainder2 =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          host_integer_radix_logical_scalar_shift_kb_inplace(
+          host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
               streams, gpu_indexes, gpu_count, interesting_remainder2.data, 1,
               mem_ptr->shift_mem_2, bsks, ksks, interesting_remainder2.len);
         }; // left_shift_interesting_remainder2
@@ -396,10 +396,10 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     // but in that position, interesting_remainder2 always has a 0
     auto &merged_interesting_remainder = interesting_remainder1;
 
-    host_addition(streams[0], gpu_indexes[0], merged_interesting_remainder.data,
-                  merged_interesting_remainder.data,
-                  interesting_remainder2.data, radix_params.big_lwe_dimension,
-                  merged_interesting_remainder.len);
+    host_addition<Torus>(
+        streams[0], gpu_indexes[0], merged_interesting_remainder.data,
+        merged_interesting_remainder.data, interesting_remainder2.data,
+        radix_params.big_lwe_dimension, merged_interesting_remainder.len);
 
     // after create_clean_version_of_merged_remainder
     // `merged_interesting_remainder` will be reused as
@@ -439,7 +439,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         // We could call unchecked_scalar_ne
         // But we are in the special case where scalar == 0
         // So we can skip some stuff
-        host_compare_with_zero_equality(
+        host_compare_with_zero_equality<Torus>(
             streams, gpu_indexes, gpu_count, tmp_1.data, trivial_blocks.data,
             mem_ptr->comparison_buffer, bsks, ksks, trivial_blocks.len,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
@@ -447,7 +447,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
         tmp_1.len =
             ceil_div(trivial_blocks.len, message_modulus * carry_modulus - 1);
 
-        is_at_least_one_comparisons_block_true(
+        is_at_least_one_comparisons_block_true<Torus>(
             streams, gpu_indexes, gpu_count,
             at_least_one_upper_block_is_non_zero.data, tmp_1.data,
             mem_ptr->comparison_buffer, bsks, ksks, tmp_1.len);
@@ -460,7 +460,7 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
     //  `cleaned_merged_interesting_remainder` - radix ciphertext
     auto create_clean_version_of_merged_remainder =
         [&](cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count) {
-          integer_radix_apply_univariate_lookup_table_kb(
+          integer_radix_apply_univariate_lookup_table_kb<Torus>(
               streams, gpu_indexes, gpu_count,
               cleaned_merged_interesting_remainder.data,
               cleaned_merged_interesting_remainder.data, bsks, ksks,
@@ -486,10 +486,10 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
-    host_addition(streams[0], gpu_indexes[0], overflow_sum.data,
-                  subtraction_overflowed.data,
-                  at_least_one_upper_block_is_non_zero.data,
-                  radix_params.big_lwe_dimension, 1);
+    host_addition<Torus>(streams[0], gpu_indexes[0], overflow_sum.data,
+                         subtraction_overflowed.data,
+                         at_least_one_upper_block_is_non_zero.data,
+                         radix_params.big_lwe_dimension, 1);
 
     int factor = (i) ? 3 : 2;
     int factor_lut_id = factor - 2;
@@ -528,10 +528,10 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
           mem_ptr->merge_overflow_flags_luts[pos_in_block]
               ->params.message_modulus);
 
-      host_addition(streams[0], gpu_indexes[0],
-                    &quotient[block_of_bit * big_lwe_size],
-                    &quotient[block_of_bit * big_lwe_size],
-                    did_not_overflow.data, radix_params.big_lwe_dimension, 1);
+      host_addition<Torus>(
+          streams[0], gpu_indexes[0], &quotient[block_of_bit * big_lwe_size],
+          &quotient[block_of_bit * big_lwe_size], did_not_overflow.data,
+          radix_params.big_lwe_dimension, 1);
     };
 
     for (uint j = 0; j < gpu_count; j++) {
@@ -564,17 +564,17 @@ host_integer_div_rem_kb(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   // Clean the quotient and remainder
   // as even though they have no carries, they are not at nominal noise level
-  host_addition(streams[0], gpu_indexes[0], remainder, remainder1.data,
-                remainder2.data, radix_params.big_lwe_dimension,
-                remainder1.len);
+  host_addition<Torus>(streams[0], gpu_indexes[0], remainder, remainder1.data,
+                       remainder2.data, radix_params.big_lwe_dimension,
+                       remainder1.len);
 
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
-  integer_radix_apply_univariate_lookup_table_kb(
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_1, gpu_indexes, gpu_count, remainder, remainder,
       bsks, ksks, num_blocks, mem_ptr->message_extract_lut_1);
-  integer_radix_apply_univariate_lookup_table_kb(
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_2, gpu_indexes, gpu_count, quotient, quotient, bsks,
       ksks, num_blocks, mem_ptr->message_extract_lut_2);
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {

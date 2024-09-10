@@ -53,9 +53,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                   rotated_buffer, lwe_array, rotations,
-                                   num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                          rotated_buffer, lwe_array, rotations,
+                                          num_blocks, big_lwe_size);
 
     // create trivial assign for value = 0
     cuda_memset_async(rotated_buffer, 0, rotations * big_lwe_size_bytes,
@@ -83,9 +83,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
   } else {
     // right shift
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                  rotated_buffer, lwe_array, rotations,
-                                  num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
+                                         rotated_buffer, lwe_array, rotations,
+                                         num_blocks, big_lwe_size);
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
@@ -156,9 +156,9 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
   Torus *last_block_copy = &padding_block[big_lwe_size];
 
   if (mem->shift_type == RIGHT_SHIFT) {
-    host_radix_blocks_rotate_left(streams, gpu_indexes, gpu_count,
-                                  rotated_buffer, lwe_array, rotations,
-                                  num_blocks, big_lwe_size);
+    host_radix_blocks_rotate_left<Torus>(streams, gpu_indexes, gpu_count,
+                                         rotated_buffer, lwe_array, rotations,
+                                         num_blocks, big_lwe_size);
     cuda_memcpy_async_gpu_to_gpu(lwe_array, rotated_buffer,
                                  num_blocks * big_lwe_size_bytes, streams[0],
                                  gpu_indexes[0]);
@@ -213,7 +213,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       }
       auto lut_univariate_padding_block =
           mem->lut_buffers_univariate[num_bits_in_block - 1];
-      integer_radix_apply_univariate_lookup_table_kb(
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
           mem->local_streams_1, gpu_indexes, gpu_count, padding_block,
           last_block_copy, bsks, ksks, 1, lut_univariate_padding_block);
       // Replace blocks 'pulled' from the left with the correct padding
@@ -227,7 +227,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
       if (shift_within_block != 0) {
         auto lut_univariate_shift_last_block =
             mem->lut_buffers_univariate[shift_within_block - 1];
-        integer_radix_apply_univariate_lookup_table_kb(
+        integer_radix_apply_univariate_lookup_table_kb<Torus>(
             mem->local_streams_2, gpu_indexes, gpu_count, last_block,
             last_block_copy, bsks, ksks, 1, lut_univariate_shift_last_block);
       }

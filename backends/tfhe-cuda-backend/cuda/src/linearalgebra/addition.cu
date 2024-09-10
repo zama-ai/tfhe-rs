@@ -11,11 +11,11 @@ void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
                                        uint32_t input_lwe_dimension,
                                        uint32_t input_lwe_ciphertext_count) {
 
-  host_addition(static_cast<cudaStream_t>(stream), gpu_index,
-                static_cast<uint32_t *>(lwe_array_out),
-                static_cast<uint32_t *>(lwe_array_in_1),
-                static_cast<uint32_t *>(lwe_array_in_2), input_lwe_dimension,
-                input_lwe_ciphertext_count);
+  host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          static_cast<uint32_t *>(lwe_array_out),
+                          static_cast<uint32_t *>(lwe_array_in_1),
+                          static_cast<uint32_t *>(lwe_array_in_2),
+                          input_lwe_dimension, input_lwe_ciphertext_count);
 }
 
 /*
@@ -51,11 +51,11 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
                                        uint32_t input_lwe_dimension,
                                        uint32_t input_lwe_ciphertext_count) {
 
-  host_addition(static_cast<cudaStream_t>(stream), gpu_index,
-                static_cast<uint64_t *>(lwe_array_out),
-                static_cast<uint64_t *>(lwe_array_in_1),
-                static_cast<uint64_t *>(lwe_array_in_2), input_lwe_dimension,
-                input_lwe_ciphertext_count);
+  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          static_cast<uint64_t *>(lwe_array_out),
+                          static_cast<uint64_t *>(lwe_array_in_1),
+                          static_cast<uint64_t *>(lwe_array_in_2),
+                          input_lwe_dimension, input_lwe_ciphertext_count);
 }
 /*
  * Perform the addition of a u32 input LWE ciphertext vector with a u32
@@ -66,11 +66,12 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
     void *plaintext_array_in, uint32_t input_lwe_dimension,
     uint32_t input_lwe_ciphertext_count) {
 
-  host_addition_plaintext(static_cast<cudaStream_t>(stream), gpu_index,
-                          static_cast<uint32_t *>(lwe_array_out),
-                          static_cast<uint32_t *>(lwe_array_in),
-                          static_cast<uint32_t *>(plaintext_array_in),
-                          input_lwe_dimension, input_lwe_ciphertext_count);
+  host_addition_plaintext<uint32_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint32_t *>(lwe_array_out),
+      static_cast<uint32_t *>(lwe_array_in),
+      static_cast<uint32_t *>(plaintext_array_in), input_lwe_dimension,
+      input_lwe_ciphertext_count);
 }
 /*
  * Perform the addition of a u64 input LWE ciphertext vector with a u64 input
@@ -105,9 +106,10 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
     void *plaintext_array_in, uint32_t input_lwe_dimension,
     uint32_t input_lwe_ciphertext_count) {
 
-  host_addition_plaintext(static_cast<cudaStream_t>(stream), gpu_index,
-                          static_cast<uint64_t *>(lwe_array_out),
-                          static_cast<uint64_t *>(lwe_array_in),
-                          static_cast<uint64_t *>(plaintext_array_in),
-                          input_lwe_dimension, input_lwe_ciphertext_count);
+  host_addition_plaintext<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint64_t *>(lwe_array_in),
+      static_cast<uint64_t *>(plaintext_array_in), input_lwe_dimension,
+      input_lwe_ciphertext_count);
 }

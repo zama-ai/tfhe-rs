@@ -14,7 +14,7 @@ void scratch_cuda_integer_compress_radix_ciphertext_64(
       lwe_dimension, ks_level, ks_base_log, 0, 0, 0, message_modulus,
       carry_modulus);
 
-  scratch_cuda_compress_integer_radix_ciphertext_64(
+  scratch_cuda_compress_integer_radix_ciphertext<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_compression<uint64_t> **)mem_ptr, num_lwes, compression_params,
       lwe_per_glwe, storage_log_modulus, allocate_gpu_memory);
@@ -39,7 +39,7 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
       lwe_dimension, compression_glwe_dimension * compression_polynomial_size,
       0, 0, pbs_level, pbs_base_log, 0, message_modulus, carry_modulus);
 
-  scratch_cuda_integer_decompress_radix_ciphertext_64(
+  scratch_cuda_integer_decompress_radix_ciphertext<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_decompression<uint64_t> **)mem_ptr, num_lwes, body_count,
       encryption_params, compression_params, storage_log_modulus,

@@ -53,7 +53,7 @@ void scratch_cuda_propagate_single_carry_kb_64_inplace(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus);
 
-  scratch_cuda_propagate_single_carry_kb_inplace(
+  scratch_cuda_propagate_single_carry_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sc_prop_memory<uint64_t> **)mem_ptr, num_blocks, params,
       allocate_gpu_memory);

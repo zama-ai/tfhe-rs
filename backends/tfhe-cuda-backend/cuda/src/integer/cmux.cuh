@@ -27,10 +27,11 @@ __host__ void zero_out_if(cudaStream_t *streams, uint32_t *gpu_indexes,
     auto lwe_array_out_block = tmp_lwe_array_input + i * big_lwe_size;
     auto lwe_array_input_block = lwe_array_input + i * big_lwe_size;
 
-    device_pack_bivariate_blocks<<<num_blocks, num_threads, 0, streams[0]>>>(
-        lwe_array_out_block, predicate->lwe_indexes_in, lwe_array_input_block,
-        lwe_condition, predicate->lwe_indexes_in, params.big_lwe_dimension,
-        params.message_modulus, 1);
+    device_pack_bivariate_blocks<Torus>
+        <<<num_blocks, num_threads, 0, streams[0]>>>(
+            lwe_array_out_block, predicate->lwe_indexes_in,
+            lwe_array_input_block, lwe_condition, predicate->lwe_indexes_in,
+            params.big_lwe_dimension, params.message_modulus, 1);
     check_cuda_error(cudaGetLastError());
   }
 
@@ -57,13 +58,15 @@ __host__ void host_integer_radix_cmux_kb(
   }
 
   auto mem_true = mem_ptr->zero_if_true_buffer;
-  zero_out_if(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
-              lwe_array_true, lwe_condition, mem_true,
-              mem_ptr->inverted_predicate_lut, bsks, ksks, num_radix_blocks);
+  zero_out_if<Torus>(true_streams, gpu_indexes, gpu_count, mem_ptr->tmp_true_ct,
+                     lwe_array_true, lwe_condition, mem_true,
+                     mem_ptr->inverted_predicate_lut, bsks, ksks,
+                     num_radix_blocks);
   auto mem_false = mem_ptr->zero_if_false_buffer;
-  zero_out_if(false_streams, gpu_indexes, gpu_count, mem_ptr->tmp_false_ct,
-              lwe_array_false, lwe_condition, mem_false, mem_ptr->predicate_lut,
-              bsks, ksks, num_radix_blocks);
+  zero_out_if<Torus>(false_streams, gpu_indexes, gpu_count,
+                     mem_ptr->tmp_false_ct, lwe_array_false, lwe_condition,
+                     mem_false, mem_ptr->predicate_lut, bsks, ksks,
+                     num_radix_blocks);
   for (uint j = 0; j < mem_ptr->zero_if_true_buffer->active_gpu_count; j++) {
     cuda_synchronize_stream(true_streams[j], gpu_indexes[j]);
   }
@@ -75,9 +78,9 @@ __host__ void host_integer_radix_cmux_kb(
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will
   // have kept its value
   auto added_cts = mem_ptr->tmp_true_ct;
-  host_addition(streams[0], gpu_indexes[0], added_cts, mem_ptr->tmp_true_ct,
-                mem_ptr->tmp_false_ct, params.big_lwe_dimension,
-                num_radix_blocks);
+  host_addition<Torus>(streams[0], gpu_indexes[0], added_cts,
+                       mem_ptr->tmp_true_ct, mem_ptr->tmp_false_ct,
+                       params.big_lwe_dimension, num_radix_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,

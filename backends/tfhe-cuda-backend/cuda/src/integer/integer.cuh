@@ -78,7 +78,7 @@ host_radix_blocks_rotate_right(cudaStream_t *streams, uint32_t *gpu_indexes,
           "pointers should be different");
   }
   cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_right<<<blocks_count, 1024, 0, streams[0]>>>(
+  radix_blocks_rotate_right<Torus><<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
 }
 
@@ -95,7 +95,7 @@ host_radix_blocks_rotate_left(cudaStream_t *streams, uint32_t *gpu_indexes,
           "pointers should be different");
   }
   cudaSetDevice(gpu_indexes[0]);
-  radix_blocks_rotate_left<<<blocks_count, 1024, 0, streams[0]>>>(
+  radix_blocks_rotate_left<Torus><<<blocks_count, 1024, 0, streams[0]>>>(
       dst, src, value, blocks_count, lwe_size);
 }
 
@@ -124,8 +124,8 @@ host_radix_blocks_reverse_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
                                   uint32_t lwe_size) {
   cudaSetDevice(gpu_indexes[0]);
   int num_blocks = blocks_count / 2, num_threads = 1024;
-  radix_blocks_reverse_lwe_inplace<<<num_blocks, num_threads, 0, streams[0]>>>(
-      src, blocks_count, lwe_size);
+  radix_blocks_reverse_lwe_inplace<Torus>
+      <<<num_blocks, num_threads, 0, streams[0]>>>(src, blocks_count, lwe_size);
 }
 
 // polynomial_size threads
@@ -164,9 +164,10 @@ __host__ void pack_bivariate_blocks(cudaStream_t *streams,
   int num_blocks = 0, num_threads = 0;
   int num_entries = num_radix_blocks * (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  device_pack_bivariate_blocks<<<num_blocks, num_threads, 0, streams[0]>>>(
-      lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_array_2, lwe_indexes_in,
-      lwe_dimension, shift, num_radix_blocks);
+  device_pack_bivariate_blocks<Torus>
+      <<<num_blocks, num_threads, 0, streams[0]>>>(
+          lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_array_2,
+          lwe_indexes_in, lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -273,10 +274,10 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
 
   // Left message is shifted
   auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
-  pack_bivariate_blocks(streams, gpu_indexes, gpu_count, lwe_array_pbs_in,
-                        lut->lwe_trivial_indexes, lwe_array_1, lwe_array_2,
-                        lut->lwe_indexes_in, big_lwe_dimension, shift,
-                        num_radix_blocks);
+  pack_bivariate_blocks<Torus>(streams, gpu_indexes, gpu_count,
+                               lwe_array_pbs_in, lut->lwe_trivial_indexes,
+                               lwe_array_1, lwe_array_2, lut->lwe_indexes_in,
+                               big_lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 
   /// For multi GPU execution we create vectors of pointers for inputs and
@@ -380,7 +381,7 @@ void generate_lookup_table(Torus *acc, uint32_t glwe_dimension,
     body[i] = -body[i];
   }
 
-  rotate_left(body, half_box_size, polynomial_size);
+  rotate_left<Torus>(body, half_box_size, polynomial_size);
 }
 
 template <typename Torus>
@@ -590,13 +591,13 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
       ksks, num_blocks, luts_array);
 
   // compute prefix sum with hillis&steele
-  host_compute_prefix_sum_hillis_steele(
+  host_compute_prefix_sum_hillis_steele<Torus>(
       streams, gpu_indexes, gpu_count, step_output, generates_or_propagates,
       params, luts_carry_propagation_sum, bsks, ksks, num_blocks);
 
-  host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
-                                 generates_or_propagates, 1, num_blocks,
-                                 big_lwe_size);
+  host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                        step_output, generates_or_propagates, 1,
+                                        num_blocks, big_lwe_size);
   if (carry_out != nullptr) {
     cuda_memcpy_async_gpu_to_gpu(carry_out, step_output, big_lwe_size_bytes,
                                  streams[0], gpu_indexes[0]);
@@ -610,8 +611,9 @@ void host_propagate_single_carry(cudaStream_t *streams, uint32_t *gpu_indexes,
                                  gpu_indexes[0]);
   }
 
-  host_addition(streams[0], gpu_indexes[0], lwe_array, lwe_array, step_output,
-                glwe_dimension * polynomial_size, num_blocks);
+  host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
+                       step_output, glwe_dimension * polynomial_size,
+                       num_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
@@ -664,14 +666,15 @@ void host_propagate_single_sub_borrow(cudaStream_t *streams,
       overflowed, &generates_or_propagates[big_lwe_size * (num_blocks - 1)],
       big_lwe_size_bytes, streams[0], gpu_indexes[0]);
 
-  host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count, step_output,
-                                 generates_or_propagates, 1, num_blocks,
-                                 big_lwe_size);
+  host_radix_blocks_rotate_right<Torus>(streams, gpu_indexes, gpu_count,
+                                        step_output, generates_or_propagates, 1,
+                                        num_blocks, big_lwe_size);
   cuda_memset_async(step_output, 0, big_lwe_size_bytes, streams[0],
                     gpu_indexes[0]);
 
-  host_subtraction(streams[0], gpu_indexes[0], lwe_array, lwe_array,
-                   step_output, glwe_dimension * polynomial_size, num_blocks);
+  host_subtraction<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
+                          step_output, glwe_dimension * polynomial_size,
+                          num_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
@@ -727,10 +730,10 @@ void host_full_propagate_inplace(cudaStream_t *streams, uint32_t *gpu_indexes,
 
     if (i < num_blocks - 1) {
       auto next_input_block = &input_blocks[(i + 1) * big_lwe_size];
-      host_addition(streams[0], gpu_indexes[0], next_input_block,
-                    next_input_block,
-                    &mem_ptr->tmp_big_lwe_vector[big_lwe_size],
-                    params.big_lwe_dimension, 1);
+      host_addition<Torus>(streams[0], gpu_indexes[0], next_input_block,
+                           next_input_block,
+                           &mem_ptr->tmp_big_lwe_vector[big_lwe_size],
+                           params.big_lwe_dimension, 1);
     }
   }
 }
@@ -794,7 +797,7 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 1024, num_blocks, num_threads);
-  device_pack_blocks<<<num_blocks, num_threads, 0, stream>>>(
+  device_pack_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
       lwe_array_out, lwe_array_in, lwe_dimension, num_radix_blocks, factor);
 }
 
@@ -840,7 +843,7 @@ create_trivial_radix(cudaStream_t stream, uint32_t gpu_index,
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_create_trivial_radix<<<grid, thds, 0, stream>>>(
+  device_create_trivial_radix<Torus><<<grid, thds, 0, stream>>>(
       lwe_array_out, scalar_array, num_scalar_blocks, lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
 }
@@ -857,7 +860,7 @@ __host__ void extract_n_bits(cudaStream_t *streams, uint32_t *gpu_indexes,
                              uint32_t num_radix_blocks, uint32_t bits_per_block,
                              int_bit_extract_luts_buffer<Torus> *bit_extract) {
 
-  integer_radix_apply_univariate_lookup_table_kb(
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks, ksks,
       num_radix_blocks * bits_per_block, bit_extract->lut);
 }
@@ -870,7 +873,6 @@ reduce_signs(cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
              std::function<Torus(Torus)> sign_handler_f, void **bsks,
              Torus **ksks, uint32_t num_sign_blocks) {
 
-  cudaSetDevice(gpu_indexes[0]);
   auto diff_buffer = mem_ptr->diff_buffer;
 
   auto params = mem_ptr->params;
@@ -904,9 +906,9 @@ reduce_signs(cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
     while (num_sign_blocks > 2) {
-      pack_blocks(streams[0], gpu_indexes[0], signs_b, signs_a,
-                  big_lwe_dimension, num_sign_blocks, 4);
-      integer_radix_apply_univariate_lookup_table_kb(
+      pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
+                         big_lwe_dimension, num_sign_blocks, 4);
+      integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, signs_a, signs_b, bsks, ksks,
           num_sign_blocks / 2, lut);
 
@@ -937,11 +939,11 @@ reduce_signs(cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
         final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-    pack_blocks(streams[0], gpu_indexes[0], signs_b, signs_a, big_lwe_dimension,
-                2, 4);
-    integer_radix_apply_univariate_lookup_table_kb(streams, gpu_indexes,
-                                                   gpu_count, signs_array_out,
-                                                   signs_b, bsks, ksks, 1, lut);
+    pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
+                       big_lwe_dimension, 2, 4);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, signs_array_out, signs_b, bsks, ksks,
+        1, lut);
 
   } else {
 
@@ -957,9 +959,9 @@ reduce_signs(cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
         final_lut_f);
     lut->broadcast_lut(streams, gpu_indexes, gpu_indexes[0]);
 
-    integer_radix_apply_univariate_lookup_table_kb(streams, gpu_indexes,
-                                                   gpu_count, signs_array_out,
-                                                   signs_a, bsks, ksks, 1, lut);
+    integer_radix_apply_univariate_lookup_table_kb<Torus>(
+        streams, gpu_indexes, gpu_count, signs_array_out, signs_a, bsks, ksks,
+        1, lut);
   }
 }
 

@@ -112,10 +112,11 @@ void cuda_integer_mult_radix_ciphertext_kb_64(
 void cleanup_cuda_integer_mult(void **streams, uint32_t *gpu_indexes,
                                uint32_t gpu_count, int8_t **mem_ptr_void);
 
-void cuda_negate_integer_radix_ciphertext_64_inplace(
-    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,
-    uint32_t lwe_dimension, uint32_t lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus);
+void cuda_negate_integer_radix_ciphertext_64(
+    void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
+    void *lwe_array_out, void *lwe_array_in, uint32_t lwe_dimension,
+    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus);
 
 void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count, void *lwe_array,

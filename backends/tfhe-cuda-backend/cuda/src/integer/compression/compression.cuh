@@ -54,8 +54,8 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
-  pack<<<grid, threads, 0, stream>>>(array_out, array_in, log_modulus, in_len,
-                                     len);
+  pack<Torus><<<grid, threads, 0, stream>>>(array_out, array_in, log_modulus,
+                                            in_len, len);
 }
 
 template <typename Torus>
@@ -70,10 +70,10 @@ __host__ void host_integer_compress(cudaStream_t *streams,
 
   // Shift
   auto lwe_shifted = mem_ptr->tmp_lwe;
-  host_cleartext_multiplication(streams[0], gpu_indexes[0], lwe_shifted,
-                                lwe_array_in,
-                                (uint64_t)compression_params.message_modulus,
-                                input_lwe_dimension, num_lwes);
+  host_cleartext_multiplication<Torus>(
+      streams[0], gpu_indexes[0], lwe_shifted, lwe_array_in,
+      (uint64_t)compression_params.message_modulus, input_lwe_dimension,
+      num_lwes);
 
   uint32_t lwe_in_size = input_lwe_dimension + 1;
   uint32_t glwe_out_size = (compression_params.glwe_dimension + 1) *
@@ -88,7 +88,7 @@ __host__ void host_integer_compress(cudaStream_t *streams,
     auto lwe_subset = lwe_shifted + i * lwe_in_size;
     auto glwe_out = tmp_glwe_array_out + i * glwe_out_size;
 
-    host_packing_keyswitch_lwe_list_to_glwe(
+    host_packing_keyswitch_lwe_list_to_glwe<Torus>(
         streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
         fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
         compression_params.polynomial_size, compression_params.ks_base_log,
@@ -96,16 +96,16 @@ __host__ void host_integer_compress(cudaStream_t *streams,
   }
 
   // Modulus switch
-  host_modulus_switch_inplace(streams[0], gpu_indexes[0], tmp_glwe_array_out,
-                              num_glwes *
-                                  (compression_params.glwe_dimension *
-                                       compression_params.polynomial_size +
-                                   body_count),
-                              mem_ptr->storage_log_modulus);
+  host_modulus_switch_inplace<Torus>(
+      streams[0], gpu_indexes[0], tmp_glwe_array_out,
+      num_glwes * (compression_params.glwe_dimension *
+                       compression_params.polynomial_size +
+                   body_count),
+      mem_ptr->storage_log_modulus);
   check_cuda_error(cudaGetLastError());
 
-  host_pack(streams[0], gpu_indexes[0], glwe_array_out, tmp_glwe_array_out,
-            num_glwes, body_count, mem_ptr);
+  host_pack<Torus>(streams[0], gpu_indexes[0], glwe_array_out,
+                   tmp_glwe_array_out, num_glwes, body_count, mem_ptr);
 }
 
 template <typename Torus>
@@ -167,8 +167,8 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   getNumBlocksAndThreads(initial_out_len, 128, num_blocks, num_threads);
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
-  extract<<<grid, threads, 0, stream>>>(glwe_array_out, array_in, glwe_index,
-                                        log_modulus, initial_out_len);
+  extract<Torus><<<grid, threads, 0, stream>>>(
+      glwe_array_out, array_in, glwe_index, log_modulus, initial_out_len);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -182,8 +182,8 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
 
   auto extracted_glwe = mem_ptr->tmp_extracted_glwe;
   auto compression_params = mem_ptr->compression_params;
-  host_extract(streams[0], gpu_indexes[0], extracted_glwe, packed_glwe_in, 0,
-               mem_ptr);
+  host_extract<Torus>(streams[0], gpu_indexes[0], extracted_glwe,
+                      packed_glwe_in, 0, mem_ptr);
 
   auto num_lwes = mem_ptr->num_lwes;
 
@@ -252,7 +252,7 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_compress_integer_radix_ciphertext_64(
+__host__ void scratch_cuda_compress_integer_radix_ciphertext(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_compression<Torus> **mem_ptr, uint32_t num_lwes,
     int_radix_params compression_params, uint32_t lwe_per_glwe,
@@ -264,7 +264,7 @@ __host__ void scratch_cuda_compress_integer_radix_ciphertext_64(
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_decompress_radix_ciphertext_64(
+__host__ void scratch_cuda_integer_decompress_radix_ciphertext(
     cudaStream_t *streams, uint32_t *gpu_indexes, uint32_t gpu_count,
     int_decompression<Torus> **mem_ptr, uint32_t num_lwes, uint32_t body_count,
     int_radix_params encryption_params, int_radix_params compression_params,

@@ -65,7 +65,7 @@ __host__ void host_integer_scalar_mul_radix(
       cuda_memcpy_async_gpu_to_gpu(ptr, lwe_array,
                                    lwe_size_bytes * num_radix_blocks,
                                    streams[0], gpu_indexes[0]);
-      host_integer_radix_logical_scalar_shift_kb_inplace(
+      host_integer_radix_logical_scalar_shift_kb_inplace<T>(
           streams, gpu_indexes, gpu_count, ptr, shift_amount,
           mem->logical_scalar_shift_buffer, bsks, ksks, num_radix_blocks);
     } else {
@@ -82,15 +82,16 @@ __host__ void host_integer_scalar_mul_radix(
           preshifted_buffer + (i % msg_bits) * num_radix_blocks * lwe_size;
       T *block_shift_buffer =
           all_shifted_buffer + j * num_radix_blocks * lwe_size;
-      host_radix_blocks_rotate_right(streams, gpu_indexes, gpu_count,
-                                     block_shift_buffer, preshifted_radix_ct,
-                                     i / msg_bits, num_radix_blocks, lwe_size);
+      host_radix_blocks_rotate_right<T>(
+          streams, gpu_indexes, gpu_count, block_shift_buffer,
+          preshifted_radix_ct, i / msg_bits, num_radix_blocks, lwe_size);
       // create trivial assign for value = 0
       cuda_memset_async(block_shift_buffer, 0, (i / msg_bits) * lwe_size_bytes,
                         streams[0], gpu_indexes[0]);
       j++;
     }
   }
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
   mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
