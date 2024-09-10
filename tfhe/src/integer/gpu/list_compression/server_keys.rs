@@ -32,6 +32,8 @@ pub struct CudaPackedGlweCiphertext {
     pub block_info: Vec<CudaBlockInfo>,
     pub bodies_count: usize,
     pub storage_log_modulus: CiphertextModulusLog,
+    pub lwe_per_glwe: LweCiphertextCount,
+    pub initial_len: usize,
 }
 
 impl CudaCompressionKey {
@@ -126,10 +128,12 @@ impl CudaCompressionKey {
             .map(|x| x.d_blocks.lwe_ciphertext_count().0)
             .sum();
 
+        let num_glwes = num_lwes.div_ceil(self.lwe_per_glwe.0);
+
         let mut output_glwe = CudaGlweCiphertextList::new(
             compress_glwe_size.to_glwe_dimension(),
             compress_polynomial_size,
-            GlweCiphertextCount(ciphertexts.len()),
+            GlweCiphertextCount(num_glwes),
             ciphertext_modulus,
             streams,
         );
@@ -159,11 +163,16 @@ impl CudaCompressionKey {
             info
         };
 
+        let initial_len =
+            compress_glwe_size.to_glwe_dimension().0 * compress_polynomial_size.0 + num_lwes;
+
         CudaPackedGlweCiphertext {
             glwe_ciphertext_list: output_glwe,
             block_info: info,
             bodies_count: num_lwes,
             storage_log_modulus: self.storage_log_modulus,
+            lwe_per_glwe: LweCiphertextCount(compress_polynomial_size.0),
+            initial_len,
         }
     }
 }
