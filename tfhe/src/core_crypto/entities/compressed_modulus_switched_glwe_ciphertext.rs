@@ -80,11 +80,11 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedGlweCiphertextVersions)]
 pub struct CompressedModulusSwitchedGlweCiphertext<Scalar: UnsignedInteger> {
-    packed_integers: PackedIntegers<Scalar>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    bodies_count: LweCiphertextCount,
-    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    pub(crate) packed_integers: PackedIntegers<Scalar>,
+    pub(crate) glwe_dimension: GlweDimension,
+    pub(crate) polynomial_size: PolynomialSize,
+    pub(crate) bodies_count: LweCiphertextCount,
+    pub(crate) uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
 impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {

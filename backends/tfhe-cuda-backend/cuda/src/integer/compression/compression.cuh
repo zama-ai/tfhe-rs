@@ -37,8 +37,8 @@ __global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
 
 template <typename Torus>
 __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
-                        Torus *array_out, Torus *array_in, uint32_t num_inputs,
-                        uint32_t body_count, int_compression<Torus> *mem_ptr) {
+                        Torus *array_out, Torus *array_in, uint32_t body_count,
+                        int_compression<Torus> *mem_ptr) {
   cudaSetDevice(gpu_index);
   auto params = mem_ptr->compression_params;
 
@@ -105,7 +105,7 @@ __host__ void host_integer_compress(cudaStream_t *streams,
   check_cuda_error(cudaGetLastError());
 
   host_pack<Torus>(streams[0], gpu_indexes[0], glwe_array_out,
-                   tmp_glwe_array_out, num_glwes, body_count, mem_ptr);
+                   tmp_glwe_array_out, body_count, mem_ptr);
 }
 
 template <typename Torus>
