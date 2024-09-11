@@ -1,4 +1,5 @@
 use crate::core_crypto::entities::packed_integers::PackedIntegers;
+use crate::core_crypto::entities::GlweCiphertextList;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
@@ -7,17 +8,14 @@ use crate::core_crypto::prelude::{
 };
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::{
     CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertext,
 };
-use crate::shortint::ciphertext::{
-    CompressedCiphertextList as ShortintCompressedCiphertextList, NoiseLevel,
-};
-use crate::shortint::server_key::generate_lookup_table;
+use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
+use crate::shortint::PBSOrder;
 use itertools::Itertools;
 
 pub struct CudaCompressedCiphertextList {
@@ -59,6 +57,91 @@ impl CudaCompressedCiphertextList {
         )
     }
 
+    /// ```rust
+    ///  use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::{BooleanBlock, ClientKey, RadixCiphertext, SignedRadixCiphertext};
+    /// use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+    /// use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
+    /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///
+    ///     let private_compression_key =
+    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///
+    ///     let streams = CudaStreams::new_multi_gpu();
+    ///
+    ///     let num_blocks = 32;
+    ///     let (radix_cks, _) = gen_keys_radix_gpu(
+    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///         num_blocks,
+    ///         &streams,
+    ///     );
+    ///     let (compressed_compression_key, compressed_decompression_key) =
+    ///         radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
+    ///
+    ///     let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
+    ///
+    ///     let compression_key = compressed_compression_key.decompress();
+    ///     let decompression_key = compressed_decompression_key.decompress();
+    ///
+    ///         let ct1 = radix_cks.encrypt(3_u32);
+    ///         let ct2 = radix_cks.encrypt_signed(-2);
+    ///         let ct3 = radix_cks.encrypt_bool(true);
+    ///
+    ///         /// Copy to GPU
+    ///         let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+    ///         let d_ct2 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct2, &streams);
+    ///         let d_ct3 = CudaBooleanBlock::from_boolean_block(&ct3, &streams);
+    ///
+    ///         let cuda_compressed = CudaCompressedCiphertextListBuilder::new()
+    ///             .push(d_ct1, &streams)
+    ///             .push(d_ct2, &streams)
+    ///             .push(d_ct3, &streams)
+    ///             .build(&cuda_compression_key, &streams);
+    ///
+    ///         let reference_compressed = CompressedCiphertextListBuilder::new()
+    ///             .push(ct1)
+    ///             .push(ct2)
+    ///             .push(ct3)
+    ///             .build(&compression_key);
+    ///
+    ///         let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
+    ///
+    ///         let decompressed1: RadixCiphertext = converted_compressed
+    ///             .get(0, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         let reference_decompressed1 = reference_compressed
+    ///             .get(0, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         assert_eq!(decompressed1, reference_decompressed1);
+    ///
+    ///         let decompressed2: SignedRadixCiphertext = converted_compressed
+    ///             .get(1, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         let reference_decompressed2 = reference_compressed
+    ///             .get(1, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         assert_eq!(decompressed2, reference_decompressed2);
+    ///
+    ///         let decompressed3: BooleanBlock = converted_compressed
+    ///             .get(2, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         let reference_decompressed3 = reference_compressed
+    ///             .get(2, &decompression_key)
+    ///             .unwrap()
+    ///             .unwrap();
+    ///         assert_eq!(decompressed3, reference_decompressed3);
+    /// ```
     pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
         let glwe_list = self
             .packed_list
@@ -66,10 +149,8 @@ impl CudaCompressedCiphertextList {
             .to_glwe_ciphertext_list(streams);
         let ciphertext_modulus = self.packed_list.glwe_ciphertext_list.ciphertext_modulus();
 
-        let first_element = self.packed_list.block_info.first().unwrap();
-        let message_modulus = first_element.message_modulus;
-        let carry_modulus = first_element.carry_modulus;
-        let pbs_order = first_element.pbs_order;
+        let message_modulus = self.packed_list.message_modulus;
+        let carry_modulus = self.packed_list.carry_modulus;
         let lwe_per_glwe = self.packed_list.lwe_per_glwe;
         let storage_log_modulus = self.packed_list.storage_log_modulus;
 
@@ -97,6 +178,7 @@ impl CudaCompressedCiphertextList {
             .collect_vec();
 
         let count = CiphertextCount(self.packed_list.bodies_count);
+        let pbs_order = PBSOrder::KeyswitchBootstrap;
         let packed_list = ShortintCompressedCiphertextList {
             modulus_switched_glwe_ciphertext_list,
             ciphertext_modulus,
@@ -115,6 +197,70 @@ impl CudaCompressedCiphertextList {
 }
 
 impl CompressedCiphertextList {
+    /// ```rust
+    ///    use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+    /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
+    /// use tfhe::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///
+    ///     let private_compression_key =
+    ///         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///
+    ///     let streams = CudaStreams::new_multi_gpu();
+    ///
+    ///     let num_blocks = 32;
+    ///     let (radix_cks, _) = gen_keys_radix_gpu(
+    ///         PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///         num_blocks,
+    ///         &streams,
+    ///     );
+    ///     let (compressed_compression_key, compressed_decompression_key) =
+    ///         radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
+    ///
+    ///     let cuda_decompression_key =
+    ///         compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &streams);
+    ///
+    ///     let compression_key = compressed_compression_key.decompress();
+    ///
+    ///         let ct1 = radix_cks.encrypt(3_u32);
+    ///         let ct2 = radix_cks.encrypt_signed(-2);
+    ///         let ct3 = radix_cks.encrypt_bool(true);
+    ///
+    ///         let compressed = CompressedCiphertextListBuilder::new()
+    ///             .push(ct1)
+    ///             .push(ct2)
+    ///             .push(ct3)
+    ///             .build(&compression_key);
+    ///
+    ///         let cuda_compressed = compressed.to_cuda_compressed_ciphertext_list(&streams);
+    ///
+    ///         let d_decompressed1 = CudaUnsignedRadixCiphertext {
+    ///             ciphertext: cuda_compressed.get(0, &cuda_decompression_key, &streams),
+    ///         };
+    ///         let decompressed1 = d_decompressed1.to_radix_ciphertext(&streams);
+    ///         let decrypted: u32 = radix_cks.decrypt(&decompressed1);
+    ///         assert_eq!(decrypted, 3_u32);
+    ///
+    ///         let d_decompressed2 = CudaSignedRadixCiphertext {
+    ///             ciphertext: cuda_compressed.get(1, &cuda_decompression_key, &streams),
+    ///         };
+    ///         let decompressed2 = d_decompressed2.to_signed_radix_ciphertext(&streams);
+    ///         let decrypted: i32 = radix_cks.decrypt_signed(&decompressed2);
+    ///         assert_eq!(decrypted, -2);
+    ///
+    ///         let d_decompressed3 = CudaBooleanBlock::from_cuda_radix_ciphertext(
+    ///             cuda_compressed.get(2, &cuda_decompression_key, &streams),
+    ///         );
+    ///         let decompressed3 = d_decompressed3.to_boolean_block(&streams);
+    ///         let decrypted = radix_cks.decrypt_bool(&decompressed3);
+    ///         assert!(decrypted);
+    /// ```
     pub fn to_cuda_compressed_ciphertext_list(
         &self,
         streams: &CudaStreams,
@@ -129,25 +275,8 @@ impl CompressedCiphertextList {
         let initial_len = first_ct.packed_integers.initial_len;
         let bodies_count = first_ct.bodies_count.0;
 
-        // To-do: is there a better way to calculate degree?
-        let carry_extract = generate_lookup_table(
-            first_ct.glwe_dimension.to_glwe_size(),
-            first_ct.polynomial_size,
-            self.packed_list.ciphertext_modulus,
-            self.packed_list.message_modulus,
-            self.packed_list.carry_modulus,
-            |x| x / self.packed_list.message_modulus.0 as u64,
-        );
-
-        let first_block_info = CudaBlockInfo {
-            degree: carry_extract.degree,
-            message_modulus: self.packed_list.message_modulus,
-            carry_modulus: self.packed_list.carry_modulus,
-            pbs_order: self.packed_list.pbs_order,
-            noise_level: NoiseLevel::NOMINAL,
-        };
-
-        let block_info = vec![first_block_info; bodies_count];
+        let message_modulus = self.packed_list.message_modulus;
+        let carry_modulus = self.packed_list.carry_modulus;
 
         let mut data = modulus_switched_glwe_ciphertext_list
             .iter()
@@ -161,16 +290,20 @@ impl CompressedCiphertextList {
             self.packed_list.modulus_switched_glwe_ciphertext_list.len() * glwe_ciphertext_size,
             0,
         );
+        let glwe_ciphertext_list = GlweCiphertextList::from_container(
+            data.as_slice(),
+            first_ct.glwe_dimension.to_glwe_size(),
+            first_ct.polynomial_size,
+            self.packed_list.ciphertext_modulus,
+        );
         CudaCompressedCiphertextList {
             packed_list: CudaPackedGlweCiphertext {
-                glwe_ciphertext_list: CudaGlweCiphertextList::from_container(
-                    &data,
-                    first_ct.glwe_dimension.to_glwe_size(),
-                    first_ct.polynomial_size,
-                    self.packed_list.ciphertext_modulus,
+                glwe_ciphertext_list: CudaGlweCiphertextList::from_glwe_ciphertext_list(
+                    &glwe_ciphertext_list,
                     streams,
                 ),
-                block_info,
+                message_modulus,
+                carry_modulus,
                 bodies_count,
                 storage_log_modulus,
                 lwe_per_glwe,
@@ -270,9 +403,8 @@ impl CudaCompressedCiphertextListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::ciphertext::CompressedCiphertextListBuilder;
     use crate::integer::gpu::gen_keys_radix_gpu;
-    use crate::integer::{BooleanBlock, ClientKey, RadixCiphertext, SignedRadixCiphertext};
+    use crate::integer::ClientKey;
     use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
@@ -310,143 +442,6 @@ mod tests {
                 .push(d_ct2, &streams)
                 .push(d_ct3, &streams)
                 .build(&cuda_compression_key, &streams);
-
-            let d_decompressed1 = CudaUnsignedRadixCiphertext {
-                ciphertext: cuda_compressed.get(0, &cuda_decompression_key, &streams),
-            };
-            let decompressed1 = d_decompressed1.to_radix_ciphertext(&streams);
-            let decrypted: u32 = radix_cks.decrypt(&decompressed1);
-            assert_eq!(decrypted, 3_u32);
-
-            let d_decompressed2 = CudaSignedRadixCiphertext {
-                ciphertext: cuda_compressed.get(1, &cuda_decompression_key, &streams),
-            };
-            let decompressed2 = d_decompressed2.to_signed_radix_ciphertext(&streams);
-            let decrypted: i32 = radix_cks.decrypt_signed(&decompressed2);
-            assert_eq!(decrypted, -2);
-
-            let d_decompressed3 = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                cuda_compressed.get(2, &cuda_decompression_key, &streams),
-            );
-            let decompressed3 = d_decompressed3.to_boolean_block(&streams);
-            let decrypted = radix_cks.decrypt_bool(&decompressed3);
-            assert!(decrypted);
-        }
-    }
-    #[test]
-    fn test_gpu_compressed_ciphertext_conversion_to_cpu() {
-        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
-
-        let private_compression_key =
-            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
-
-        let streams = CudaStreams::new_multi_gpu();
-
-        let num_blocks = 32;
-        let (radix_cks, _) = gen_keys_radix_gpu(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            num_blocks,
-            &streams,
-        );
-        let (compressed_compression_key, compressed_decompression_key) =
-            radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
-
-        let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&streams);
-
-        let compression_key = compressed_compression_key.decompress();
-        let decompression_key = compressed_decompression_key.decompress();
-
-        for _ in 0..NB_TESTS {
-            let ct1 = radix_cks.encrypt(3_u32);
-            let ct2 = radix_cks.encrypt_signed(-2);
-            let ct3 = radix_cks.encrypt_bool(true);
-
-            // Copy to GPU
-            let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-            let d_ct2 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct2, &streams);
-            let d_ct3 = CudaBooleanBlock::from_boolean_block(&ct3, &streams);
-
-            let cuda_compressed = CudaCompressedCiphertextListBuilder::new()
-                .push(d_ct1, &streams)
-                .push(d_ct2, &streams)
-                .push(d_ct3, &streams)
-                .build(&cuda_compression_key, &streams);
-
-            let reference_compressed = CompressedCiphertextListBuilder::new()
-                .push(ct1)
-                .push(ct2)
-                .push(ct3)
-                .build(&compression_key);
-
-            let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
-
-            let decompressed1: RadixCiphertext = converted_compressed
-                .get(0, &decompression_key)
-                .unwrap()
-                .unwrap();
-            let reference_decompressed1 = reference_compressed
-                .get(0, &decompression_key)
-                .unwrap()
-                .unwrap();
-            assert_eq!(decompressed1, reference_decompressed1);
-
-            let decompressed2: SignedRadixCiphertext = converted_compressed
-                .get(1, &decompression_key)
-                .unwrap()
-                .unwrap();
-            let reference_decompressed2 = reference_compressed
-                .get(1, &decompression_key)
-                .unwrap()
-                .unwrap();
-            assert_eq!(decompressed2, reference_decompressed2);
-
-            let decompressed3: BooleanBlock = converted_compressed
-                .get(2, &decompression_key)
-                .unwrap()
-                .unwrap();
-            let reference_decompressed3 = reference_compressed
-                .get(2, &decompression_key)
-                .unwrap()
-                .unwrap();
-            assert_eq!(decompressed3, reference_decompressed3);
-        }
-    }
-
-    #[test]
-    fn test_gpu_compressed_ciphertext_conversion_to_gpu() {
-        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
-
-        let private_compression_key =
-            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
-
-        let streams = CudaStreams::new_multi_gpu();
-
-        let num_blocks = 32;
-        let (radix_cks, _) = gen_keys_radix_gpu(
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            num_blocks,
-            &streams,
-        );
-        let (compressed_compression_key, compressed_decompression_key) =
-            radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
-
-        let cuda_decompression_key =
-            compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &streams);
-
-        let compression_key = compressed_compression_key.decompress();
-
-        for _ in 0..NB_TESTS {
-            let ct1 = radix_cks.encrypt(3_u32);
-            let ct2 = radix_cks.encrypt_signed(-2);
-            let ct3 = radix_cks.encrypt_bool(true);
-
-            let compressed = CompressedCiphertextListBuilder::new()
-                .push(ct1)
-                .push(ct2)
-                .push(ct3)
-                .build(&compression_key);
-
-            let cuda_compressed = compressed.to_cuda_compressed_ciphertext_list(&streams);
 
             let d_decompressed1 = CudaUnsignedRadixCiphertext {
                 ciphertext: cuda_compressed.get(0, &cuda_decompression_key, &streams),

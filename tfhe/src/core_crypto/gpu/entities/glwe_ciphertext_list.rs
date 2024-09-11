@@ -2,7 +2,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaGlweList, CudaStreams};
 use crate::core_crypto::prelude::{
     glwe_ciphertext_size, CiphertextModulus, Container, GlweCiphertext, GlweCiphertextCount,
-    GlweCiphertextList, GlweDimension, GlweSize, PolynomialSize, UnsignedInteger,
+    GlweCiphertextList, GlweDimension, PolynomialSize, UnsignedInteger,
 };
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
@@ -54,49 +54,6 @@ impl<T: UnsignedInteger> CudaGlweCiphertextList<T> {
         // Copy to the GPU
         unsafe {
             d_vec.copy_from_cpu_async(h_ct.as_ref(), streams, 0);
-        }
-        streams.synchronize();
-
-        let cuda_glwe_list = CudaGlweList {
-            d_vec,
-            glwe_ciphertext_count,
-            glwe_dimension,
-            polynomial_size,
-            ciphertext_modulus,
-        };
-
-        Self(cuda_glwe_list)
-    }
-
-    pub fn from_container<C: Container<Element = T>>(
-        container: &C,
-        glwe_size: GlweSize,
-        polynomial_size: PolynomialSize,
-        ciphertext_modulus: CiphertextModulus<T>,
-        streams: &CudaStreams,
-    ) -> Self {
-        assert!(
-            container.container_len() % glwe_ciphertext_size(glwe_size, polynomial_size) == 0,
-            "The provided container length is not valid. \
-        It needs to be dividable by glwe_size * polynomial_size. \
-        Got container length: {}, glwe_size: {glwe_size:?}, polynomial_size: {polynomial_size:?}.",
-            container.container_len()
-        );
-
-        let glwe_dimension = glwe_size.to_glwe_dimension();
-        let glwe_ciphertext_count = GlweCiphertextCount(
-            container.container_len() / glwe_ciphertext_size(glwe_size, polynomial_size),
-        );
-
-        let mut d_vec = CudaVec::new(
-            glwe_ciphertext_size(glwe_dimension.to_glwe_size(), polynomial_size)
-                * glwe_ciphertext_count.0,
-            streams,
-            0,
-        );
-        // Copy to the GPU
-        unsafe {
-            d_vec.copy_from_cpu_async(container.as_ref(), streams, 0);
         }
         streams.synchronize();
 
