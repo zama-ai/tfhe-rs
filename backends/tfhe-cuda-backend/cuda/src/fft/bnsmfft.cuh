@@ -6,6 +6,7 @@
 #include "twiddles.cuh"
 #include "types/complex/operations.cuh"
 
+using Index = unsigned;
 /*
  * Direct negacyclic FFT:
  *   - before the FFT the N real coefficients are stored into a
@@ -31,290 +32,81 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
    *  full loop, which should increase performance
    */
 
-  size_t tid = threadIdx.x;
-  size_t twid_id;
-  size_t i1, i2;
-  double2 u, v, w;
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  Index tid = threadIdx.x;
+  double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // load into registers
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    u[i] = A[tid];
+    v[i] = A[tid + HALF_DEGREE];
+
+    tid += STRIDE;
+  }
+
   // level 1
   // we don't make actual complex multiplication on level1 since we have only
   // one twiddle, it's real and image parts are equal, so we can multiply
   // it with simpler operations
 #pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    i1 = tid;
-    i2 = tid + params::degree / 2;
-
-    u = A[i1];
-    v = A[i2] * (double2){0.707106781186547461715008466854,
-                          0.707106781186547461715008466854};
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = v[i] * (double2){0.707106781186547461715008466854,
+                         0.707106781186547461715008466854};
+    v[i] = u[i] - w;
+    u[i] = u[i] + w;
   }
-  __syncthreads();
 
-  // level 2
-  // from this level there are more than one twiddles and none of them has equal
-  // real and imag parts, so complete complex multiplication is needed
-  // for each level params::degree / 2^level represents number of coefficients
-  // inside divided chunk of specific level
-  //
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 4);
-    i1 = 2 * (params::degree / 4) * twid_id + (tid & (params::degree / 4 - 1));
-    i2 = i1 + params::degree / 4;
+  Index twiddle_shift = 1;
+  for (Index l = LOG2_DEGREE - 1; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
 
-    w = negtwiddles[twid_id + 2];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 3
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 8);
-    i1 = 2 * (params::degree / 8) * twid_id + (tid & (params::degree / 8 - 1));
-    i2 = i1 + params::degree / 8;
-
-    w = negtwiddles[twid_id + 4];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 4
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 16);
-    i1 =
-        2 * (params::degree / 16) * twid_id + (tid & (params::degree / 16 - 1));
-    i2 = i1 + params::degree / 16;
-
-    w = negtwiddles[twid_id + 8];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 5
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 32);
-    i1 =
-        2 * (params::degree / 32) * twid_id + (tid & (params::degree / 32 - 1));
-    i2 = i1 + params::degree / 32;
-
-    w = negtwiddles[twid_id + 16];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 6
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 64);
-    i1 =
-        2 * (params::degree / 64) * twid_id + (tid & (params::degree / 64 - 1));
-    i2 = i1 + params::degree / 64;
-
-    w = negtwiddles[twid_id + 32];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 7
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 128);
-    i1 = 2 * (params::degree / 128) * twid_id +
-         (tid & (params::degree / 128 - 1));
-    i2 = i1 + params::degree / 128;
-
-    w = negtwiddles[twid_id + 64];
-    u = A[i1];
-    v = A[i2] * w;
-
-    A[i1] += v;
-    A[i2] = u - v;
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // from level 8, we need to check size of params degree, because we support
-  // minimum actual polynomial size = 256,  when compressed size is halfed and
-  // minimum supported compressed size is 128, so we always need first 7
-  // levels of butterfly operation, since butterfly levels are hardcoded
-  // we need to check if polynomial size is big enough to require specific level
-  // of butterfly.
-  if constexpr (params::degree >= 256) {
-    // level 8
     tid = threadIdx.x;
+    __syncthreads();
 #pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 256);
-      i1 = 2 * (params::degree / 256) * twid_id +
-           (tid & (params::degree / 256 - 1));
-      i2 = i1 + params::degree / 256;
-
-      w = negtwiddles[twid_id + 128];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+      tid = tid + STRIDE;
     }
     __syncthreads();
-  }
 
-  if constexpr (params::degree >= 512) {
-    // level 9
     tid = threadIdx.x;
 #pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 512);
-      i1 = 2 * (params::degree / 512) * twid_id +
-           (tid & (params::degree / 512 - 1));
-      i2 = i1 + params::degree / 512;
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = A[tid ^ lane_mask];
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      w = negtwiddles[tid / lane_mask + twiddle_shift];
 
-      w = negtwiddles[twid_id + 256];
-      u = A[i1];
-      v = A[i2] * w;
+      w *= v[i];
 
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+      tid = tid + STRIDE;
     }
-    __syncthreads();
   }
+  __syncthreads();
 
-  if constexpr (params::degree >= 1024) {
-    // level 10
-    tid = threadIdx.x;
+  // store registers in SM
+  tid = threadIdx.x;
 #pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 1024);
-      i1 = 2 * (params::degree / 1024) * twid_id +
-           (tid & (params::degree / 1024 - 1));
-      i2 = i1 + params::degree / 1024;
-
-      w = negtwiddles[twid_id + 512];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    A[tid * 2] = u[i];
+    A[tid * 2 + 1] = v[i];
+    tid = tid + STRIDE;
   }
-
-  if constexpr (params::degree >= 2048) {
-    // level 11
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 2048);
-      i1 = 2 * (params::degree / 2048) * twid_id +
-           (tid & (params::degree / 2048 - 1));
-      i2 = i1 + params::degree / 2048;
-
-      w = negtwiddles[twid_id + 1024];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 4096) {
-    // level 12
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 4096);
-      i1 = 2 * (params::degree / 4096) * twid_id +
-           (tid & (params::degree / 4096 - 1));
-      i2 = i1 + params::degree / 4096;
-
-      w = negtwiddles[twid_id + 2048];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 8192) {
-    // level 13
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 8192);
-      i1 = 2 * (params::degree / 8192) * twid_id +
-           (tid & (params::degree / 8192 - 1));
-      i2 = i1 + params::degree / 8192;
-
-      w = negtwiddles[twid_id + 4096];
-      u = A[i1];
-      v = A[i2] * w;
-
-      A[i1] += v;
-      A[i2] = u - v;
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
+  __syncthreads();
 }
 
 /*
@@ -329,284 +121,82 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
    *  full loop, which should increase performance
    */
 
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index DEGREE = params::degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
   size_t tid = threadIdx.x;
-  size_t twid_id;
-  size_t i1, i2;
-  double2 u, w;
+  double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
 
-  // divide input by compressed polynomial size
-  tid = threadIdx.x;
-  for (size_t i = 0; i < params::opt; ++i) {
-    A[tid] /= params::degree;
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // none of the twiddles have equal real and imag part, so
-  // complete complex multiplication has to be done
-  // here we have more than one twiddle
-  // mapping in backward fft is reversed
-  // butterfly operation is started from last level
-
-  if constexpr (params::degree >= 8192) {
-    // level 13
-    tid = threadIdx.x;
+  // load into registers and divide by compressed polynomial size
 #pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 8192);
-      i1 = 2 * (params::degree / 8192) * twid_id +
-           (tid & (params::degree / 8192 - 1));
-      i2 = i1 + params::degree / 8192;
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    u[i] = A[2 * tid];
+    v[i] = A[2 * tid + 1];
 
-      w = negtwiddles[twid_id + 4096];
-      u = A[i1] - A[i2];
+    u[i] /= DEGREE;
+    v[i] /= DEGREE;
 
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
+    tid += STRIDE;
+  }
 
-      tid += params::degree / params::opt;
+  Index twiddle_shift = DEGREE;
+  for (Index l = 1; l <= LOG2_DEGREE - 1; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * conjugate(negtwiddles[tid / lane_mask + twiddle_shift]);
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+
+      tid = tid + STRIDE;
     }
     __syncthreads();
-  }
 
-  if constexpr (params::degree >= 4096) {
-    // level 12
+    // prepare registers for next butterfly iteration
     tid = threadIdx.x;
 #pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 4096);
-      i1 = 2 * (params::degree / 4096) * twid_id +
-           (tid & (params::degree / 4096 - 1));
-      i2 = i1 + params::degree / 4096;
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = A[tid ^ lane_mask];
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
 
-      w = negtwiddles[twid_id + 2048];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
+      tid = tid + STRIDE;
     }
-    __syncthreads();
   }
 
-  if constexpr (params::degree >= 2048) {
-    // level 11
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 2048);
-      i1 = 2 * (params::degree / 2048) * twid_id +
-           (tid & (params::degree / 2048 - 1));
-      i2 = i1 + params::degree / 2048;
-
-      w = negtwiddles[twid_id + 1024];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 1024) {
-    // level 10
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 1024);
-      i1 = 2 * (params::degree / 1024) * twid_id +
-           (tid & (params::degree / 1024 - 1));
-      i2 = i1 + params::degree / 1024;
-
-      w = negtwiddles[twid_id + 512];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 512) {
-    // level 9
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 512);
-      i1 = 2 * (params::degree / 512) * twid_id +
-           (tid & (params::degree / 512 - 1));
-      i2 = i1 + params::degree / 512;
-
-      w = negtwiddles[twid_id + 256];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  if constexpr (params::degree >= 256) {
-    // level 8
-    tid = threadIdx.x;
-#pragma unroll
-    for (size_t i = 0; i < params::opt / 2; ++i) {
-      twid_id = tid / (params::degree / 256);
-      i1 = 2 * (params::degree / 256) * twid_id +
-           (tid & (params::degree / 256 - 1));
-      i2 = i1 + params::degree / 256;
-
-      w = negtwiddles[twid_id + 128];
-      u = A[i1] - A[i2];
-
-      A[i1] += A[i2];
-      A[i2] = u * conjugate(w);
-
-      tid += params::degree / params::opt;
-    }
-    __syncthreads();
-  }
-
-  // below level 8, we don't need to check size of params degree, because we
-  // support minimum actual polynomial size = 256,  when compressed size is
-  // halfed and minimum supported compressed size is 128, so we always need
-  // last 7 levels of butterfly operation, since butterfly levels are hardcoded
-  // we don't need to check if polynomial size is big enough to require
-  // specific level of butterfly.
-  // level 7
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 128);
-    i1 = 2 * (params::degree / 128) * twid_id +
-         (tid & (params::degree / 128 - 1));
-    i2 = i1 + params::degree / 128;
-
-    w = negtwiddles[twid_id + 64];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
+  // last iteration
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = (u[i] - v[i]);
+    u[i] = u[i] + v[i];
+    v[i] = w * (double2){0.707106781186547461715008466854,
+                         -0.707106781186547461715008466854};
   }
   __syncthreads();
-
-  // level 6
+  // store registers in SM
   tid = threadIdx.x;
 #pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 64);
-    i1 =
-        2 * (params::degree / 64) * twid_id + (tid & (params::degree / 64 - 1));
-    i2 = i1 + params::degree / 64;
-
-    w = negtwiddles[twid_id + 32];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 5
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 32);
-    i1 =
-        2 * (params::degree / 32) * twid_id + (tid & (params::degree / 32 - 1));
-    i2 = i1 + params::degree / 32;
-
-    w = negtwiddles[twid_id + 16];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 4
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 16);
-    i1 =
-        2 * (params::degree / 16) * twid_id + (tid & (params::degree / 16 - 1));
-    i2 = i1 + params::degree / 16;
-
-    w = negtwiddles[twid_id + 8];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 3
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 8);
-    i1 = 2 * (params::degree / 8) * twid_id + (tid & (params::degree / 8 - 1));
-    i2 = i1 + params::degree / 8;
-
-    w = negtwiddles[twid_id + 4];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 2
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 4);
-    i1 = 2 * (params::degree / 4) * twid_id + (tid & (params::degree / 4 - 1));
-    i2 = i1 + params::degree / 4;
-
-    w = negtwiddles[twid_id + 2];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
-
-  // level 1
-  tid = threadIdx.x;
-#pragma unroll
-  for (size_t i = 0; i < params::opt / 2; ++i) {
-    twid_id = tid / (params::degree / 2);
-    i1 = 2 * (params::degree / 2) * twid_id + (tid & (params::degree / 2 - 1));
-    i2 = i1 + params::degree / 2;
-
-    w = negtwiddles[twid_id + 1];
-    u = A[i1] - A[i2];
-
-    A[i1] += A[i2];
-    A[i2] = u * conjugate(w);
-
-    tid += params::degree / params::opt;
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    A[tid] = u[i];
+    A[tid + HALF_DEGREE] = v[i];
+    tid = tid + STRIDE;
   }
   __syncthreads();
 }
