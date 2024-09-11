@@ -985,31 +985,6 @@ impl<'a> Comparator<'a> {
         self.unchecked_compare(lhs, rhs, sign_result_handler_fn)
     }
 
-    fn smart_compare_parallelized<T, F>(
-        &self,
-        lhs: &mut T,
-        rhs: &mut T,
-        sign_result_handler_fn: F,
-    ) -> crate::shortint::Ciphertext
-    where
-        T: IntegerRadixCiphertext,
-        F: Fn(u64) -> u64,
-    {
-        rayon::join(
-            || {
-                if !lhs.block_carries_are_empty() {
-                    self.server_key.full_propagate_parallelized(lhs);
-                }
-            },
-            || {
-                if !rhs.block_carries_are_empty() {
-                    self.server_key.full_propagate_parallelized(rhs);
-                }
-            },
-        );
-        self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn)
-    }
-
     /// Expects the carry buffers to be empty
     fn unchecked_min_or_max<T>(&self, lhs: &T, rhs: &T, selector: MinMaxSelector) -> T
     where
@@ -1039,35 +1014,6 @@ impl<'a> Comparator<'a> {
         }
 
         T::from_blocks(result)
-    }
-
-    /// Expects the carry buffers to be empty
-    fn unchecked_min_or_max_parallelized<T>(&self, lhs: &T, rhs: &T, selector: MinMaxSelector) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let sign = self.unchecked_compare_parallelized(lhs, rhs, |x| x);
-        let do_clean_message = true;
-        match selector {
-            MinMaxSelector::Max => self
-                .server_key
-                .unchecked_programmable_if_then_else_parallelized(
-                    &sign,
-                    lhs,
-                    rhs,
-                    |sign| sign == Self::IS_SUPERIOR,
-                    do_clean_message,
-                ),
-            MinMaxSelector::Min => self
-                .server_key
-                .unchecked_programmable_if_then_else_parallelized(
-                    &sign,
-                    lhs,
-                    rhs,
-                    |sign| sign == Self::IS_INFERIOR,
-                    do_clean_message,
-                ),
-        }
     }
 
     fn unchecked_scalar_min_or_max_parallelized<T, Scalar>(
@@ -1118,30 +1064,6 @@ impl<'a> Comparator<'a> {
             self.server_key.full_propagate_parallelized(rhs);
         }
         self.unchecked_min_or_max(lhs, rhs, selector)
-    }
-
-    fn smart_min_or_max_parallelized<T>(
-        &self,
-        lhs: &mut T,
-        rhs: &mut T,
-        selector: MinMaxSelector,
-    ) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !lhs.block_carries_are_empty() {
-                    self.server_key.full_propagate_parallelized(lhs);
-                }
-            },
-            || {
-                if !rhs.block_carries_are_empty() {
-                    self.server_key.full_propagate_parallelized(rhs);
-                }
-            },
-        );
-        self.unchecked_min_or_max_parallelized(lhs, rhs, selector)
     }
 
     //======================================
@@ -1206,50 +1128,42 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
-        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.unchecked_gt_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
-        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.unchecked_ge_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
-        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.unchecked_lt_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
-        let comparison = self.unchecked_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.unchecked_le_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
+        self.server_key.unchecked_max_parallelized(lhs, rhs)
     }
 
     pub fn unchecked_min_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        self.unchecked_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
+        self.server_key.unchecked_min_parallelized(lhs, rhs)
     }
 
     //======================================
@@ -1314,50 +1228,42 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
-        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.smart_gt_parallelized(lhs, rhs)
     }
 
     pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR);
-        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.smart_ge_parallelized(lhs, rhs)
     }
 
     pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_INFERIOR);
-        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.smart_lt_parallelized(lhs, rhs)
     }
 
     pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
-        let comparison = self.smart_compare_parallelized(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
+        self.server_key.smart_le_parallelized(lhs, rhs)
     }
 
     pub fn smart_max_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
+        self.server_key.smart_max_parallelized(lhs, rhs)
     }
 
     pub fn smart_min_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        self.smart_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
+        self.server_key.smart_min_parallelized(lhs, rhs)
     }
 
     //======================================
@@ -1368,194 +1274,42 @@ impl<'a> Comparator<'a> {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_gt_parallelized(lhs, rhs)
+        self.server_key.gt_parallelized(lhs, rhs)
     }
 
     pub fn ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_ge_parallelized(lhs, rhs)
+        self.server_key.ge_parallelized(lhs, rhs)
     }
 
     pub fn lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_lt_parallelized(lhs, rhs)
+        self.server_key.lt_parallelized(lhs, rhs)
     }
 
     pub fn le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_le_parallelized(lhs, rhs)
+        self.server_key.le_parallelized(lhs, rhs)
     }
 
     pub fn max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_max_parallelized(lhs, rhs)
+        self.server_key.max_parallelized(lhs, rhs)
     }
 
     pub fn min_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_min_parallelized(lhs, rhs)
+        self.server_key.min_parallelized(lhs, rhs)
     }
 
     //===========================================

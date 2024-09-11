@@ -1128,7 +1128,7 @@ impl ServerKey {
         });
 
         // Compute the cum sum arrays,
-        // each grouping is independent from other groupings
+        // each grouping is independent of other groupings,
         // but we store everything flattened (Vec<_>) instead of nested (Vec<Vec<_>>)
         propagation_cum_sums
             .par_iter_mut()
