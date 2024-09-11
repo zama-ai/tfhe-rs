@@ -4,6 +4,7 @@ use crate::shortint::parameters::classic::compact_pk::*;
 use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
+use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use crate::shortint::parameters::key_switching::*;
 use crate::shortint::parameters::multi_bit::*;
 use crate::shortint::parameters::parameters_wopbs::*;

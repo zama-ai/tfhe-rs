@@ -1,3 +1,5 @@
+pub mod p_fail_2_minus_64;
+
 use super::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::commons::parameters::{DynamicDistribution, LweDimension};
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
@@ -149,14 +151,3 @@ impl TryFrom<PBSParameters> for CompactPublicKeyEncryptionParameters {
         params.try_into()
     }
 }
-
-pub const PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: CompactPublicKeyEncryptionParameters =
-    CompactPublicKeyEncryptionParameters {
-        encryption_lwe_dimension: LweDimension(1024),
-        encryption_noise_distribution: DynamicDistribution::new_t_uniform(42),
-        message_modulus: MessageModulus(4),
-        carry_modulus: CarryModulus(4),
-        ciphertext_modulus: CiphertextModulus::new_native(),
-        expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
-    }
-    .validate();
