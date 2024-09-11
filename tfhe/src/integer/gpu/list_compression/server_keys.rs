@@ -4,6 +4,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount};
+use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
@@ -11,6 +12,7 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::PBSParameters;
 use itertools::Itertools;
 
@@ -181,6 +183,7 @@ impl CudaDecompressionKey {
     pub fn unpack(
         &self,
         packed_list: &CudaPackedGlweCiphertext,
+        kind: DataKind,
         start_block_index: usize,
         end_block_index: usize,
         streams: &CudaStreams,
@@ -240,7 +243,18 @@ impl CudaDecompressionKey {
 
                 streams.synchronize();
 
-                let blocks = packed_list.block_info[start_block_index..=end_block_index].to_vec();
+                let blocks = packed_list.block_info[start_block_index..=end_block_index]
+                    .iter()
+                    .map(|info| {
+                        let degree = match kind {
+                            DataKind::Unsigned(_) | DataKind::Signed(_) => info.degree,
+                            DataKind::Boolean => Degree::new(1),
+                        };
+                        let mut cloned_info = *info;
+                        cloned_info.degree = degree;
+                        cloned_info
+                    })
+                    .collect_vec();
 
                 assert_eq!(
                     blocks.len(),

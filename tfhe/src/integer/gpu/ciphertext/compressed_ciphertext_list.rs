@@ -1,16 +1,23 @@
 use crate::core_crypto::entities::packed_integers::PackedIntegers;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{CiphertextCount, ContiguousEntityContainer, LweCiphertextCount};
+use crate::core_crypto::prelude::{
+    glwe_ciphertext_size, CiphertextCount, ContiguousEntityContainer, LweCiphertextCount,
+};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::{
     CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertext,
 };
-use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
+use crate::shortint::ciphertext::{
+    CompressedCiphertextList as ShortintCompressedCiphertextList, NoiseLevel,
+};
+use crate::shortint::server_key::generate_lookup_table;
 use itertools::Itertools;
 
 pub struct CudaCompressedCiphertextList {
@@ -45,6 +52,7 @@ impl CudaCompressedCiphertextList {
 
         decomp_key.unpack(
             &self.packed_list,
+            current_info,
             start_block_index,
             end_block_index,
             streams,
@@ -63,10 +71,10 @@ impl CudaCompressedCiphertextList {
         let carry_modulus = first_element.carry_modulus;
         let pbs_order = first_element.pbs_order;
         let lwe_per_glwe = self.packed_list.lwe_per_glwe;
-        let log_modulus = self.packed_list.storage_log_modulus;
+        let storage_log_modulus = self.packed_list.storage_log_modulus;
 
         let initial_len = self.packed_list.initial_len;
-        let number_bits_to_pack = initial_len * log_modulus.0;
+        let number_bits_to_pack = initial_len * storage_log_modulus.0;
         let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
 
         let modulus_switched_glwe_ciphertext_list = glwe_list
@@ -77,7 +85,7 @@ impl CudaCompressedCiphertextList {
                 CompressedModulusSwitchedGlweCiphertext {
                     packed_integers: PackedIntegers {
                         packed_coeffs: x.into_container()[0..len].to_vec(),
-                        log_modulus: self.packed_list.storage_log_modulus,
+                        log_modulus: storage_log_modulus,
                         initial_len,
                     },
                     glwe_dimension,
@@ -100,7 +108,74 @@ impl CudaCompressedCiphertextList {
         };
 
         CompressedCiphertextList {
-            packed_list: packed_list,
+            packed_list,
+            info: self.info.clone(),
+        }
+    }
+}
+
+impl CompressedCiphertextList {
+    pub fn to_cuda_compressed_ciphertext_list(
+        &self,
+        streams: &CudaStreams,
+    ) -> CudaCompressedCiphertextList {
+        let lwe_per_glwe = self.packed_list.lwe_per_glwe;
+
+        let modulus_switched_glwe_ciphertext_list =
+            &self.packed_list.modulus_switched_glwe_ciphertext_list;
+
+        let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
+        let storage_log_modulus = first_ct.packed_integers.log_modulus;
+        let initial_len = first_ct.packed_integers.initial_len;
+        let bodies_count = first_ct.bodies_count.0;
+
+        // To-do: is there a better way to calculate degree?
+        let carry_extract = generate_lookup_table(
+            first_ct.glwe_dimension.to_glwe_size(),
+            first_ct.polynomial_size,
+            self.packed_list.ciphertext_modulus,
+            self.packed_list.message_modulus,
+            self.packed_list.carry_modulus,
+            |x| x / self.packed_list.message_modulus.0 as u64,
+        );
+
+        let first_block_info = CudaBlockInfo {
+            degree: carry_extract.degree,
+            message_modulus: self.packed_list.message_modulus,
+            carry_modulus: self.packed_list.carry_modulus,
+            pbs_order: self.packed_list.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
+        };
+
+        let block_info = vec![first_block_info; bodies_count];
+
+        let mut data = modulus_switched_glwe_ciphertext_list
+            .iter()
+            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
+            .collect_vec();
+        let glwe_ciphertext_size = glwe_ciphertext_size(
+            first_ct.glwe_dimension.to_glwe_size(),
+            first_ct.polynomial_size,
+        );
+        data.resize(
+            self.packed_list.modulus_switched_glwe_ciphertext_list.len() * glwe_ciphertext_size,
+            0,
+        );
+        CudaCompressedCiphertextList {
+            packed_list: CudaPackedGlweCiphertext {
+                glwe_ciphertext_list: CudaGlweCiphertextList::from_container(
+                    &data,
+                    first_ct.glwe_dimension.to_glwe_size(),
+                    first_ct.polynomial_size,
+                    self.packed_list.ciphertext_modulus,
+                    streams,
+                ),
+                block_info,
+                bodies_count,
+                storage_log_modulus,
+                lwe_per_glwe,
+                initial_len,
+            },
             info: self.info.clone(),
         }
     }
@@ -334,6 +409,65 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!(decompressed3, reference_decompressed3);
+        }
+    }
+
+    #[test]
+    fn test_gpu_compressed_ciphertext_conversion_to_gpu() {
+        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+
+        let private_compression_key =
+            cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+
+        let streams = CudaStreams::new_multi_gpu();
+
+        let num_blocks = 32;
+        let (radix_cks, _) = gen_keys_radix_gpu(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            num_blocks,
+            &streams,
+        );
+        let (compressed_compression_key, compressed_decompression_key) =
+            radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
+
+        let cuda_decompression_key =
+            compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &streams);
+
+        let compression_key = compressed_compression_key.decompress();
+
+        for _ in 0..NB_TESTS {
+            let ct1 = radix_cks.encrypt(3_u32);
+            let ct2 = radix_cks.encrypt_signed(-2);
+            let ct3 = radix_cks.encrypt_bool(true);
+
+            let compressed = CompressedCiphertextListBuilder::new()
+                .push(ct1)
+                .push(ct2)
+                .push(ct3)
+                .build(&compression_key);
+
+            let cuda_compressed = compressed.to_cuda_compressed_ciphertext_list(&streams);
+
+            let d_decompressed1 = CudaUnsignedRadixCiphertext {
+                ciphertext: cuda_compressed.get(0, &cuda_decompression_key, &streams),
+            };
+            let decompressed1 = d_decompressed1.to_radix_ciphertext(&streams);
+            let decrypted: u32 = radix_cks.decrypt(&decompressed1);
+            assert_eq!(decrypted, 3_u32);
+
+            let d_decompressed2 = CudaSignedRadixCiphertext {
+                ciphertext: cuda_compressed.get(1, &cuda_decompression_key, &streams),
+            };
+            let decompressed2 = d_decompressed2.to_signed_radix_ciphertext(&streams);
+            let decrypted: i32 = radix_cks.decrypt_signed(&decompressed2);
+            assert_eq!(decrypted, -2);
+
+            let d_decompressed3 = CudaBooleanBlock::from_cuda_radix_ciphertext(
+                cuda_compressed.get(2, &cuda_decompression_key, &streams),
+            );
+            let decompressed3 = d_decompressed3.to_boolean_block(&streams);
+            let decrypted = radix_cks.decrypt_bool(&decompressed3);
+            assert!(decrypted);
         }
     }
 }
