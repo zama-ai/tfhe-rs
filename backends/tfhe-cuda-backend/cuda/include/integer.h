@@ -386,8 +386,8 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
-    void **bsks, uint32_t num_blocks, uint32_t shift);
+    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
+    void **ksks, void **bsks, uint32_t num_blocks, uint32_t shift);
 
 void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,

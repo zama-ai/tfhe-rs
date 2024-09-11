@@ -186,7 +186,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     Torus *radix_lwe_out, Torus *terms, int *terms_degree, void **bsks,
     uint64_t **ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_blocks_in_radix, uint32_t num_radix_in_vec,
-    int_radix_lut<Torus> *reused_lut = nullptr) {
+    int_radix_lut<Torus> *reused_lut) {
 
   auto new_blocks = mem_ptr->new_blocks;
   auto old_blocks = mem_ptr->old_blocks;
@@ -205,6 +205,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
   auto small_lwe_size = small_lwe_dimension + 1;
 
+  if (num_radix_in_vec == 0)
+    return;
+  if (num_radix_in_vec == 1) {
+    cuda_memcpy_async_gpu_to_gpu(radix_lwe_out, terms,
+                                 num_blocks_in_radix * big_lwe_size *
+                                     sizeof(Torus),
+                                 streams[0], gpu_indexes[0]);
+    return;
+  }
   if (old_blocks != terms) {
     cuda_memcpy_async_gpu_to_gpu(old_blocks, terms,
                                  num_blocks_in_radix * num_radix_in_vec *
@@ -287,7 +296,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         terms_degree, h_lwe_idx_in, h_lwe_idx_out, h_smart_copy_in,
         h_smart_copy_out, ch_amount, r, num_blocks, chunk_size, message_max,
         total_count, message_count, carry_count, sm_copy_count);
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     auto lwe_indexes_in = luts_message_carry->lwe_indexes_in;
     auto lwe_indexes_out = luts_message_carry->lwe_indexes_out;
     luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
