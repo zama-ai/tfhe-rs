@@ -411,6 +411,10 @@ async function compactPublicKeyZeroKnowledge() {
     );
 
     assert_eq(expander.get_uint64(0).decrypt(clientKey), input);
+
+    let unverified_expander = deserialized.expand_without_verification();
+
+    assert_eq(unverified_expander.get_uint64(0).decrypt(clientKey), input);
   }
 
   {
@@ -450,6 +454,16 @@ async function compactPublicKeyZeroKnowledge() {
     assert_eq(expander.get_uint64(2).decrypt(clientKey), inputs[2]);
 
     assert_eq(expander.get_uint64(3).decrypt(clientKey), inputs[3]);
+
+    let unverified_expander = encrypted.expand_without_verification();
+
+    assert_eq(unverified_expander.get_uint64(0).decrypt(clientKey), inputs[0]);
+
+    assert_eq(unverified_expander.get_uint64(1).decrypt(clientKey), inputs[1]);
+
+    assert_eq(unverified_expander.get_uint64(2).decrypt(clientKey), inputs[2]);
+
+    assert_eq(unverified_expander.get_uint64(3).decrypt(clientKey), inputs[3]);
   }
 }
 

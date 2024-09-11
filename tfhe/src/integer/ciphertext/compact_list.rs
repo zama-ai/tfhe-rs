@@ -636,6 +636,62 @@ impl ProvenCompactCiphertextList {
         ))
     }
 
+    #[doc(hidden)]
+    /// This function allows to expand a ciphertext without verifying the associated proof.
+    ///
+    /// If you are here you were probably looking for it: use at your own risks.
+    pub fn expand_without_verification(
+        &self,
+        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
+        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        let is_packed = self.is_packed();
+
+        if is_packed
+            && matches!(
+                unpacking_mode,
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+            )
+        {
+            return Err(crate::Error::new(String::from(
+                WRONG_UNPACKING_MODE_ERR_MSG,
+            )));
+        }
+
+        let expanded_blocks = self
+            .ct_list
+            .expand_without_verification(casting_mode.into())?;
+
+        let expanded_blocks = if is_packed {
+            match unpacking_mode {
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                    let degree = self.ct_list.proved_lists[0].0.degree;
+                    let mut conformance_params = sks.key.conformance_params();
+                    conformance_params.degree = degree;
+
+                    for ct in expanded_blocks.iter() {
+                        if !ct.is_conformant(&conformance_params) {
+                            return Err(crate::Error::new(
+                                "This compact list is not conformant with the given server key"
+                                    .to_string(),
+                            ));
+                        }
+                    }
+
+                    extract_message_and_carries(expanded_blocks, sks)
+                }
+                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
+            }
+        } else {
+            expanded_blocks
+        };
+
+        Ok(CompactCiphertextListExpander::new(
+            expanded_blocks,
+            self.info.clone(),
+        ))
+    }
+
     pub fn is_packed(&self) -> bool {
         self.ct_list.proved_lists[0].0.degree.get()
             > self.ct_list.proved_lists[0]
@@ -728,6 +784,22 @@ mod tests {
 
         for (idx, msg) in msgs.iter().copied().enumerate() {
             let expanded = expander.get::<RadixCiphertext>(idx).unwrap().unwrap();
+            let decrypted = cks.decrypt_radix::<u64>(&expanded);
+            assert_eq!(msg, decrypted);
+        }
+
+        let unverified_expander = proven_ct
+            .expand_without_verification(
+                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
+                IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = unverified_expander
+                .get::<RadixCiphertext>(idx)
+                .unwrap()
+                .unwrap();
             let decrypted = cks.decrypt_radix::<u64>(&expanded);
             assert_eq!(msg, decrypted);
         }
