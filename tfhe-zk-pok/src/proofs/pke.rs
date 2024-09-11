@@ -124,6 +124,8 @@ pub fn compute_crs_params(
 ) -> (usize, usize, u64) {
     let b_r = d as u64 / 2 + 1;
 
+    // This formulation is equivalent to the formula of the paper as 1 + b_r.ilog2() == d.ilog2()
+    // for any d power of 2 > 2
     let big_d =
         d + k * t.ilog2() as usize + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
     let n = big_d + 1;
@@ -200,14 +202,14 @@ pub fn prove<G: Curve>(
 ) -> Proof<G> {
     let &PublicParams {
         ref g_lists,
-        big_d,
+        big_d: big_d_max,
         n,
         d,
         b,
         b_r,
         q,
         t,
-        k,
+        k: k_max,
         ref hash,
         ref hash_t,
         ref hash_agg,
@@ -223,8 +225,12 @@ pub fn prove<G: Curve>(
     let PublicCommit { a, b, c1, c2, .. } = public.1;
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
-    assert!(c2.len() <= k);
-    let k = k.min(c2.len());
+    let k = c2.len();
+    assert!(k <= k_max);
+
+    let big_d =
+        d + k * t.ilog2() as usize + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
+    assert!(big_d <= big_d_max);
 
     // FIXME: div_round
     let delta = {
@@ -721,14 +727,14 @@ pub fn verify<G: Curve>(
 
     let &PublicParams {
         ref g_lists,
-        big_d,
+        big_d: big_d_max,
         n,
         d,
         b,
         b_r,
         q,
         t,
-        k,
+        k: k_max,
         ref hash,
         ref hash_t,
         ref hash_agg,
@@ -748,10 +754,16 @@ pub fn verify<G: Curve>(
     };
 
     let PublicCommit { a, b, c1, c2, .. } = public.1;
-    if c2.len() > k {
+    let k = c2.len();
+    if k > k_max {
         return Err(());
     }
-    let k = k.min(c2.len());
+
+    let big_d =
+        d + k * t.ilog2() as usize + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
+    if big_d > big_d_max {
+        return Err(());
+    }
 
     let x_bytes = &*[
         q.to_le_bytes().as_slice(),
@@ -1114,7 +1126,10 @@ mod tests {
                 PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
             };
 
-        let original_public_param = crs_gen::<Curve>(d, k, b_i, q, t, rng);
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param = crs_gen::<Curve>(d, crs_k, b_i, q, t, rng);
         let public_param_that_was_compressed =
             serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
         let public_param_that_was_not_compressed =
