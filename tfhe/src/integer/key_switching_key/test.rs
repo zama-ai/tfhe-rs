@@ -7,8 +7,8 @@ use crate::integer::{
     ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
-use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::key_switching::{
+use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
     PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };

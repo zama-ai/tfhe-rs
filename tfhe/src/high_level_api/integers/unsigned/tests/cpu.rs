@@ -4,8 +4,8 @@ use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUin
 use crate::integer::U256;
 use crate::safe_deserialization::safe_deserialize_conformant;
 use crate::shortint::parameters::classic::compact_pk::*;
-use crate::shortint::parameters::compact_public_key_only::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,

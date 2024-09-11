@@ -10,9 +10,9 @@ use tfhe::shortint::parameters::coverage_parameters::{
     COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
     COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 };
-use tfhe::shortint::parameters::key_switching::{
-    ShortintKeySwitchingParameters, PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
-};
+use tfhe::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
+
 use tfhe::shortint::parameters::{
     ClassicPBSParameters, WopbsParameters, ALL_MULTI_BIT_PARAMETER_VEC,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_1_CARRY_2_KS_PBS, PARAM_MESSAGE_1_CARRY_3_KS_PBS,
