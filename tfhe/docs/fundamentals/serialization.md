@@ -29,7 +29,7 @@ use tfhe::prelude::*;
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     let config = ConfigBuilder::default().build();
 
-    let ( client_key, server_key) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
 
     let msg1 = 1;
     let msg2 = 0;
@@ -96,7 +96,6 @@ Here is an example:
 // main.rs
 
 use tfhe::conformance::ParameterSetConformant;
-use tfhe::integer::parameters::RadixCiphertextConformanceParams;
 use tfhe::prelude::*;
 use tfhe::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
 use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS};
@@ -107,14 +106,12 @@ use tfhe::{
 };
 
 fn main() {
-    let config = ConfigBuilder::default().build();
-
     let params_1 = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let params_2 = PARAM_MESSAGE_2_CARRY_2_PBS_KS;
     
-    let (client_key, server_key) = generate_keys(
-        ConfigBuilder::with_custom_parameters(params_1).build()
-    );
+    let config = ConfigBuilder::with_custom_parameters(params_1).build();
+    
+    let (client_key, server_key) = generate_keys(config);
     
     let conformance_params_1 = FheUint8ConformanceParams::from(params_1);
     let conformance_params_2 = FheUint8ConformanceParams::from(params_2);

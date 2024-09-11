@@ -65,7 +65,7 @@ impl ServerKey {
     /// let msg = 1u64;
     ///
     /// // Encrypt two messages:
-    /// let mut ctxt = cks.encrypt(msg);
+    /// let ctxt = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
     /// let ct_res = sks.neg_parallelized(&ctxt);

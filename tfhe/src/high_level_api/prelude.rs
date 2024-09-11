@@ -3,6 +3,7 @@
 //!
 //! It is meant to be glob imported:
 //! ```
+//! # #[allow(unused_imports)]
 //! use tfhe::prelude::*;
 //! ```
 pub use crate::high_level_api::traits::{

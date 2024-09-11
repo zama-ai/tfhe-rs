@@ -16,7 +16,7 @@ This example shows how to compress a ciphertext encrypting messages over 16 bits
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, CompressedFheUint16};
+use tfhe::{ConfigBuilder, generate_keys, CompressedFheUint16};
 
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -131,7 +131,7 @@ This example shows how to compress the server keys:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint8,
+    set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint8,
 };
 
 fn main() {
@@ -176,7 +176,7 @@ This issue has been identified and will be addressed in future releases.
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompressedPublicKey};
+use tfhe::{ConfigBuilder, generate_keys, FheUint8, CompressedPublicKey};
 
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -204,7 +204,7 @@ This example shows how to use compressed compact public keys:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, CompactCiphertextList, CompressedCompactPublicKey,
+    generate_keys, CompactCiphertextList, CompressedCompactPublicKey,
     ConfigBuilder, FheUint8,
 };
 

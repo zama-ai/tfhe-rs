@@ -451,7 +451,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let clear = 42 % msg_space; // Encrypt the integers
-    /// let mut ct = cks.encrypt_native_crt(clear);
+    /// let ct = cks.encrypt_native_crt(clear);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
     /// let ct_res = wopbs_key.wopbs_native_crt(&ct, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
@@ -653,7 +653,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let clear = 42 % msg_space; // Encrypt the integers
-    /// let mut ct = cks.encrypt_native_crt(clear);
+    /// let ct = cks.encrypt_native_crt(clear);
     /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
     /// let ct_res = wopbs_key.wopbs_native_crt(&ct, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
@@ -706,7 +706,6 @@ impl WopbsKey {
     ///
     /// let basis: Vec<u64> = vec![5, 7];
     /// let msg_space: u64 = basis.iter().copied().product();
-    /// let nb_block = basis.len();
     ///
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
@@ -964,8 +963,8 @@ impl WopbsKey {
     ///
     /// let clear1 = 42 % msg_space;
     /// let clear2 = 24 % msg_space;
-    /// let mut ct1 = cks.encrypt_native_crt(clear1);
-    /// let mut ct2 = cks.encrypt_native_crt(clear2);
+    /// let ct1 = cks.encrypt_native_crt(clear1);
+    /// let ct2 = cks.encrypt_native_crt(clear2);
     /// let lut = wopbs_key.generate_lut_bivariate_native_crt(&ct1, |x, y| x * y * 2);
     /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&ct1, &ct2, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);
@@ -1034,8 +1033,8 @@ impl WopbsKey {
     ///
     /// let clear1 = 42 % msg_space;
     /// let clear2 = 24 % msg_space;
-    /// let mut ct1 = cks.encrypt_native_crt(clear1);
-    /// let mut ct2 = cks.encrypt_native_crt(clear2);
+    /// let ct1 = cks.encrypt_native_crt(clear1);
+    /// let ct2 = cks.encrypt_native_crt(clear2);
     /// let lut = wopbs_key.generate_lut_bivariate_native_crt(&ct1, |x, y| x * y * 2);
     /// let ct_res = wopbs_key.bivariate_wopbs_native_crt(&ct1, &ct2, &lut);
     /// let res = cks.decrypt_native_crt(&ct_res);

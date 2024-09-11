@@ -206,7 +206,7 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// // Create the plaintext
 /// let msg = 3u64;
 /// let encoded_msg = msg << 60;
-/// let mut plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
+/// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
 /// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
@@ -313,7 +313,7 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont
 /// // Create the plaintext
 /// let msg = 3u64;
 /// let encoded_msg = msg << 60;
-/// let mut plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
+/// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
 /// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);

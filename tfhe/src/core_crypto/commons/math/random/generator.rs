@@ -120,7 +120,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
     pub fn new(seed: Seed) -> Self {
         Self(G::new(seed))
@@ -136,7 +136,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// assert_eq!(generator.remaining_bytes(), None);
-    /// let mut generator = generator.try_fork(1, 50).unwrap().next().unwrap();
+    /// let generator = generator.try_fork(1, 50).unwrap().next().unwrap();
     /// assert_eq!(generator.remaining_bytes(), Some(50));
     /// ```
     pub fn remaining_bytes(&self) -> Option<usize> {

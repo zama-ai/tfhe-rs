@@ -204,7 +204,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -237,7 +237,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -332,7 +332,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -363,7 +363,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -407,7 +407,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -451,7 +451,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -495,7 +495,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -541,7 +541,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -585,7 +585,7 @@ where
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -646,7 +646,7 @@ where
     /// ```rust
     /// use tfhe::prelude::*;
     /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    ///     generate_keys, set_server_key, ConfigBuilder, FheUint16, FheUint8, MatchValues,
     /// };
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
@@ -715,7 +715,7 @@ where
     /// ```rust
     /// use tfhe::prelude::*;
     /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16, FheUint8, MatchValues,
+    ///     generate_keys, set_server_key, ConfigBuilder, FheUint16, FheUint8, MatchValues,
     /// };
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());

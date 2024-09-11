@@ -67,7 +67,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededLweCiphertextList
-    /// let mut seeded_lwe_list = SeededLweCiphertextList::new(
+    /// let seeded_lwe_list = SeededLweCiphertextList::new(
     ///     0u64,
     ///     lwe_dimension.to_lwe_size(),
     ///     lwe_ciphertext_count,

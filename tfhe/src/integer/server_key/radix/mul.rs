@@ -198,7 +198,7 @@ impl ServerKey {
     /// let clear_2 = 143;
     ///
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_1 = cks.encrypt(clear_1);
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication

@@ -31,7 +31,7 @@ impl ServerKey {
     /// let scalar = 3_u8;
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.scalar_mul(&ct, scalar);
@@ -44,7 +44,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.scalar_mul(&ct, scalar);

@@ -138,8 +138,6 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
     ///
-    /// let size = 4;
-    ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
@@ -170,8 +168,6 @@ impl ServerKey {
     /// use tfhe::integer::{ClientKey, ServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::ServerKey as ShortintServerKey;
-    ///
-    /// let size = 4;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
