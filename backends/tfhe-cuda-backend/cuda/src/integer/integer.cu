@@ -195,15 +195,15 @@ void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void **streams, uint32_t *gpu_indexes, uint32_t gpu_count,
-    void *output_radix_lwe, void *input_radix_lwe, int8_t *mem_ptr, void **ksks,
-    void **bsks, uint32_t num_blocks, uint32_t shift) {
+    void *output_radix_lwe, void *generates_or_propagates, int8_t *mem_ptr,
+    void **ksks, void **bsks, uint32_t num_blocks, uint32_t shift) {
 
   int_radix_params params = ((int_radix_lut<uint64_t> *)mem_ptr)->params;
 
   host_compute_prefix_sum_hillis_steele<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<uint64_t *>(output_radix_lwe),
-      static_cast<uint64_t *>(input_radix_lwe), params,
+      static_cast<uint64_t *>(generates_or_propagates), params,
       (int_radix_lut<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       num_blocks);
 }

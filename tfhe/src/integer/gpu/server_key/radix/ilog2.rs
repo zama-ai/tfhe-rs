@@ -40,8 +40,7 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
 
         // Allocate the necessary amount of memory
-        let mut output_radix =
-            CudaVec::new(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0]);
+        let mut tmp_radix = CudaVec::new(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0]);
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
@@ -70,12 +69,12 @@ impl CudaServerKey {
             }),
         };
 
-        output_radix.copy_from_gpu_async(
+        tmp_radix.copy_from_gpu_async(
             &ct.as_ref().d_blocks.0.d_vec,
             streams,
             streams.gpu_indexes[0],
         );
-        let mut output_slice = output_radix
+        let mut output_slice = tmp_radix
             .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
             .unwrap();
 
@@ -167,27 +166,27 @@ impl CudaServerKey {
             },
         );
 
-        let mut cts = CudaLweCiphertextList::new(
+        let mut output_cts = CudaLweCiphertextList::new(
             ct.as_ref().d_blocks.lwe_dimension(),
             LweCiphertextCount(num_ct_blocks * ct.as_ref().d_blocks.lwe_ciphertext_count().0),
             ct.as_ref().d_blocks.ciphertext_modulus(),
             streams,
         );
 
-        let input_radix_slice = output_radix
-            .as_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
+        let mut generates_or_propagates = tmp_radix
+            .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
             .unwrap();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 compute_prefix_sum_hillis_steele_async(
                     streams,
-                    &mut cts
+                    &mut output_cts
                         .0
                         .d_vec
                         .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
                         .unwrap(),
-                    &input_radix_slice,
+                    &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -211,12 +210,12 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 compute_prefix_sum_hillis_steele_async(
                     streams,
-                    &mut cts
+                    &mut output_cts
                         .0
                         .d_vec
                         .as_mut_slice(0..lwe_size * num_ct_blocks, streams.gpu_indexes[0])
                         .unwrap(),
-                    &input_radix_slice,
+                    &mut generates_or_propagates,
                     sum_lut.acc.acc.as_ref(),
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -238,7 +237,7 @@ impl CudaServerKey {
                 );
             }
         }
-        cts
+        output_cts
     }
 
     /// Counts how many consecutive bits there are

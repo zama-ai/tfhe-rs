@@ -2578,7 +2578,7 @@ pub unsafe fn unchecked_signed_overflowing_add_or_sub_radix_kb_assign_async<
 pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaSliceMut<T>,
-    radix_lwe_input: &CudaSlice<T>,
+    generates_or_propagates: &mut CudaSliceMut<T>,
     input_lut: &[T],
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -2598,7 +2598,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        generates_or_propagates.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -2643,7 +2643,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         streams.gpu_indexes.as_ptr(),
         streams.len() as u32,
         radix_lwe_output.as_mut_c_ptr(0),
-        radix_lwe_input.as_c_ptr(0),
+        generates_or_propagates.as_mut_c_ptr(0),
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
