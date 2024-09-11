@@ -8,11 +8,15 @@ use tfhe::backward_compatibility::integers::{
 
 use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
 use tfhe::shortint::PBSParameters;
+#[cfg(feature = "zk-pok")]
+use tfhe::zk::CompactPkePublicParams;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedPublicKey, CompressedServerKey, FheBool, FheInt8, FheUint8,
 };
+#[cfg(feature = "zk-pok")]
+use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
@@ -20,7 +24,7 @@ use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextListTest, HlBoolCiphertextTest, HlCiphertextListTest,
     HlCiphertextTest, HlClientKeyTest, HlHeterogeneousCiphertextListTest, HlPublicKeyTest,
     HlServerKeyTest, HlSignedCiphertextListTest, HlSignedCiphertextTest, TestMetadata,
-    TestParameterSet, TestType, Testcase,
+    TestParameterSet, TestType, Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
 
@@ -259,9 +263,23 @@ pub fn test_hl_bool_ciphertext_list(
     }
 }
 
+/// Test Zk Public params
+pub fn test_zk_params(
+    dir: &Path,
+    test: &ZkPkePublicParamsTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    #[cfg(feature = "zk-pok")]
+    let _loaded_params: CompactPkePublicParams = load_and_unversionize(dir, test, format)?;
+
+    #[cfg(not(feature = "zk-pok"))]
+    let _ = dir;
+
+    Ok(test.success(format))
+}
+
 /// Test HL ciphertext list: loads the ciphertext list and compare the decrypted values to the ones
 ///  in the metadata.
-
 pub fn test_hl_heterogeneous_ciphertext_list(
     dir: &Path,
     test: &HlHeterogeneousCiphertextListTest,
@@ -279,9 +297,41 @@ pub fn test_hl_heterogeneous_ciphertext_list(
     if test.compressed {
         let list: CompressedCiphertextList = load_and_unversionize(dir, test, format)?;
         test_hl_heterogeneous_ciphertext_list_elements(list, &key, test)
+    } else if let Some(zk_info) = &test.proof_info {
+        #[cfg(feature = "zk-pok")]
+        {
+            let crs_file = dir.join(&*zk_info.params_filename);
+            let crs = CompactPkePublicParams::unversionize(
+                load_versioned_auxiliary(crs_file).map_err(|e| test.failure(e, format))?,
+            )
+            .map_err(|e| test.failure(e, format))?;
+
+            let pubkey_file = dir.join(&*zk_info.public_key_filename);
+            let pubkey = CompactPublicKey::unversionize(
+                load_versioned_auxiliary(pubkey_file).map_err(|e| test.failure(e, format))?,
+            )
+            .map_err(|e| test.failure(e, format))?;
+
+            let list: ProvenCompactCiphertextList = load_and_unversionize(dir, test, format)?;
+            test_hl_heterogeneous_ciphertext_list_elements(
+                list.verify_and_expand(&crs, &pubkey, zk_info.metadata.as_bytes())
+                    .map_err(|msg| test.failure(msg, format))?,
+                &key,
+                test,
+            )
+        }
+        #[cfg(not(feature = "zk-pok"))]
+        {
+            let _ = zk_info;
+            Ok(())
+        }
     } else {
         let list: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
-        test_hl_heterogeneous_ciphertext_list_elements(list.expand().unwrap(), &key, test)
+        test_hl_heterogeneous_ciphertext_list_elements(
+            list.expand().map_err(|msg| test.failure(msg, format))?,
+            &key,
+            test,
+        )
     }
     .map(|_| test.success(format))
     .map_err(|msg| test.failure(msg, format))
@@ -490,6 +540,9 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlServerKey(test) => {
                 test_hl_serverkey(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::ZkPkePublicParams(test) => {
+                test_zk_params(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
