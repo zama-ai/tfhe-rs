@@ -414,7 +414,7 @@ impl CompactCiphertextList {
     ///     CompactCiphertextList, DataKind, IntegerCompactCiphertextListCastingMode,
     ///     IntegerCompactCiphertextListUnpackingMode, RadixCiphertext, SignedRadixCiphertext,
     /// };
-    /// use tfhe::integer::{ClientKey, CompactPublicKey, ServerKey};
+    /// use tfhe::integer::{ClientKey, CompactPublicKey};
     /// use tfhe::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
     ///
     /// let fhe_params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;

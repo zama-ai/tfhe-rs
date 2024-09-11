@@ -30,8 +30,8 @@ The function initializes the parity bit to `false`, then applies the `XOR` opera
 The validation function also adds the number of the bits set in the input to the computed parity bit and checks whether the sum is even or odd, depending on the mode.
 
 ```rust
+#![allow(dead_code)]
 use tfhe::FheBool;
-use tfhe::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
 enum ParityMode {
@@ -253,6 +253,7 @@ where
 The final code is as follows:
 
 ```rust
+#![allow(dead_code)]
 use std::ops::{Not, BitXor};
 
 #[derive(Copy, Clone, Debug)]
@@ -334,7 +335,7 @@ fn check_parity_bit_validity(bits: &[bool], mode: ParityMode, parity_bit: bool) 
 fn main() {
     let config = ConfigBuilder::default().build();
 
-    let ( client_key, server_key) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
 
     set_server_key(server_key);
 

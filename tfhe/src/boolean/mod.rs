@@ -19,7 +19,7 @@
 //! use tfhe::boolean::prelude::*;
 //!
 //! // We generate a set of client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) = gen_keys();
+//! let (client_key, server_key) = gen_keys();
 //!
 //! // We use the client secret key to encrypt two messages:
 //! let ct_1 = client_key.encrypt(true);
@@ -109,7 +109,6 @@ pub(crate) fn random_integer() -> u32 {
 ///
 /// ```rust
 /// use tfhe::boolean::gen_keys;
-/// use tfhe::boolean::prelude::*;
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys();
 /// ```

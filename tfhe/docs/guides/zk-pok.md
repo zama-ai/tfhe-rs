@@ -44,8 +44,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let mut expander =
-            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+        let expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+
         let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
         let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
 
@@ -119,8 +119,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         set_server_key(server_key);
 
         // Verify the ciphertexts
-        let mut expander =
-            proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
+        let expander = proven_compact_list.verify_and_expand(public_zk_params, &public_key, &metadata)?;
         let a: tfhe::FheUint64 = expander.get(0).unwrap()?;
         let b: tfhe::FheUint64 = expander.get(1).unwrap()?;
 

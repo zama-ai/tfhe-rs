@@ -169,7 +169,7 @@ impl SignedRadixCiphertext {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::integer::{gen_keys_radix, RadixCiphertext, SignedRadixCiphertext};
+    /// use tfhe::integer::{gen_keys_radix, SignedRadixCiphertext};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // 8 bits

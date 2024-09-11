@@ -55,28 +55,28 @@ use tfhe::shortint::prelude::*;
 use tfhe::shortint::parameters::DynamicDistribution;
 
 fn main() {
-    let param = unsafe {
-        ClassicPBSParameters::new(
-            LweDimension(656),
-            GlweDimension(2),
-            PolynomialSize(512),
-            DynamicDistribution::new_gaussian_from_std_dev(
-                StandardDev(0.000034119201269311964),
-            ),
-            DynamicDistribution::new_gaussian_from_std_dev(
-                StandardDev(0.00000004053919869756513),
-            ),
-            DecompositionBaseLog(8),
-            DecompositionLevelCount(2),
-            DecompositionBaseLog(3),
-            DecompositionLevelCount(4),
-            MessageModulus(4),
-            CarryModulus(1),
-            MaxNoiseLevel::new(2),
-            2.0f64.powi(-40),
-            CiphertextModulus::new_native(),
-            EncryptionKeyChoice::Big,
-        )
-    };
+    // WARNING: might be insecure and/or incorrect
+    // You can create your own set of parameters
+    let param = ClassicPBSParameters::new(
+        LweDimension(656),
+        GlweDimension(2),
+        PolynomialSize(512),
+        DynamicDistribution::new_gaussian_from_std_dev(
+            StandardDev(0.000034119201269311964),
+        ),
+        DynamicDistribution::new_gaussian_from_std_dev(
+            StandardDev(0.00000004053919869756513),
+        ),
+        DecompositionBaseLog(8),
+        DecompositionLevelCount(2),
+        DecompositionBaseLog(3),
+        DecompositionLevelCount(4),
+        MessageModulus(4),
+        CarryModulus(1),
+        MaxNoiseLevel::new(2),
+        2.0f64.powi(-40),
+        CiphertextModulus::new_native(),
+        EncryptionKeyChoice::Big,
+    );
 }
 ```

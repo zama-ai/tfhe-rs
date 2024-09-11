@@ -84,7 +84,8 @@ impl ServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.checked_crt_scalar_add_assign_parallelized(&mut ctxt_1, clear_2);
+    /// sks.checked_crt_scalar_add_assign_parallelized(&mut ctxt_1, clear_2)
+    ///     .unwrap();
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);

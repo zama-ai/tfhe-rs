@@ -25,25 +25,23 @@ You can also create your own set of parameters. This is an `unsafe` operation as
 use tfhe::boolean::prelude::*;
 
 fn main() {
-// WARNING: might be insecure and/or incorrect
-// You can create your own set of parameters
-    let parameters = unsafe {
-        BooleanParameters::new(
-            LweDimension(586),
-            GlweDimension(2),
-            PolynomialSize(512),
-            DynamicDistribution::new_gaussian_from_std_dev(
-                StandardDev(0.00008976167396834998),
-            ),
-            DynamicDistribution::new_gaussian_from_std_dev(
-                StandardDev(0.00000002989040792967434),
-            ),
-            DecompositionBaseLog(8),
-            DecompositionLevelCount(2),
-            DecompositionBaseLog(2),
-            DecompositionLevelCount(5),
-            EncryptionKeyChoice::Small,
-        )
-    };
+    // WARNING: might be insecure and/or incorrect
+    // You can create your own set of parameters
+    let parameters = BooleanParameters::new(
+        LweDimension(586),
+        GlweDimension(2),
+        PolynomialSize(512),
+        DynamicDistribution::new_gaussian_from_std_dev(
+            StandardDev(0.00008976167396834998),
+        ),
+        DynamicDistribution::new_gaussian_from_std_dev(
+            StandardDev(0.00000002989040792967434),
+        ),
+        DecompositionBaseLog(8),
+        DecompositionLevelCount(2),
+        DecompositionBaseLog(2),
+        DecompositionLevelCount(5),
+        EncryptionKeyChoice::Small,
+    );
 }
 ```

@@ -33,7 +33,7 @@ impl ServerKey {
     /// let msg = 3;
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
     /// let ct_res = sks.neg(&ct);
@@ -46,7 +46,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
+    /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
     /// let ct_res = sks.neg(&ct);
@@ -144,7 +144,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
-    /// let mut ct_res = sks.unchecked_neg(&ct);
+    /// let ct_res = sks.unchecked_neg(&ct);
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
@@ -157,7 +157,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a negation
-    /// let mut ct_res = sks.unchecked_neg(&ct);
+    /// let ct_res = sks.unchecked_neg(&ct);
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);

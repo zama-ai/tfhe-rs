@@ -716,7 +716,7 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let num_blocks = 4;
@@ -726,8 +726,8 @@ impl ServerKey {
     ///
     /// let msg = 10;
     ///
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
     /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);
