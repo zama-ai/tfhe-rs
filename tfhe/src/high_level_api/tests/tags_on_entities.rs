@@ -100,6 +100,38 @@ fn test_tag_propagation_zk_pok() {
         let cbool = abool & bbool;
         assert_eq!(cbool.tag(), cks.tag());
     }
+
+    let unverified_expander = list_packed.expand_without_verification().unwrap();
+
+    {
+        let au32: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+        let bu32: FheUint32 = unverified_expander.get(1).unwrap().unwrap();
+        assert_eq!(au32.tag(), cks.tag());
+        assert_eq!(bu32.tag(), cks.tag());
+
+        let cu32 = au32 + bu32;
+        assert_eq!(cu32.tag(), cks.tag());
+    }
+
+    {
+        let ai64: FheInt64 = unverified_expander.get(2).unwrap().unwrap();
+        let bi64: FheInt64 = unverified_expander.get(3).unwrap().unwrap();
+        assert_eq!(ai64.tag(), cks.tag());
+        assert_eq!(bi64.tag(), cks.tag());
+
+        let ci64 = ai64 + bi64;
+        assert_eq!(ci64.tag(), cks.tag());
+    }
+
+    {
+        let abool: FheBool = unverified_expander.get(4).unwrap().unwrap();
+        let bbool: FheBool = unverified_expander.get(5).unwrap().unwrap();
+        assert_eq!(abool.tag(), cks.tag());
+        assert_eq!(bbool.tag(), cks.tag());
+
+        let cbool = abool & bbool;
+        assert_eq!(cbool.tag(), cks.tag());
+    }
 }
 
 #[test]

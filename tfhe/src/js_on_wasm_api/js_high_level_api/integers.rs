@@ -793,6 +793,17 @@ impl ProvenCompactCiphertextList {
     }
 
     #[wasm_bindgen]
+    pub fn expand_without_verification(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        catch_panic_result(|| {
+            let inner = self
+                .0
+                .expand_without_verification()
+                .map_err(into_js_error)?;
+            Ok(CompactCiphertextListExpander(inner))
+        })
+    }
+
+    #[wasm_bindgen]
     pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
         catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
     }

@@ -292,6 +292,60 @@ mod zk {
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
         }
+
+        #[doc(hidden)]
+        /// This function allows to expand a ciphertext without verifying the associated proof.
+        ///
+        /// If you are here you were probably looking for it: use at your own risks.
+        pub fn expand_without_verification(&self) -> crate::Result<CompactCiphertextListExpander> {
+            // For WASM
+            if !self.inner.is_packed() && !self.inner.needs_casting() {
+                // No ServerKey required, short circuit to avoid the global state call
+                return Ok(CompactCiphertextListExpander {
+                    inner: self.inner.expand_without_verification(
+                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
+                        IntegerCompactCiphertextListCastingMode::NoCasting,
+                    )?,
+                    tag: self.tag.clone(),
+                });
+            }
+
+            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+                None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+                Some(InternalServerKey::Cpu(cpu_key)) => {
+                    let unpacking_mode = if self.inner.is_packed() {
+                        IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(
+                            cpu_key.pbs_key(),
+                        )
+                    } else {
+                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                    };
+
+                    let casting_mode = if self.inner.needs_casting() {
+                        IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                            cpu_key.cpk_casting_key().ok_or_else(|| {
+                                crate::Error::new(
+                                    "No casting key found in ServerKey, \
+                                required to expand this CompactCiphertextList"
+                                        .to_string(),
+                                )
+                            })?,
+                        )
+                    } else {
+                        IntegerCompactCiphertextListCastingMode::NoCasting
+                    };
+
+                    self.inner
+                        .expand_without_verification(unpacking_mode, casting_mode)
+                        .map(|expander| CompactCiphertextListExpander {
+                            inner: expander,
+                            tag: self.tag.clone(),
+                        })
+                }
+                #[cfg(feature = "gpu")]
+                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+            })
+        }
     }
 }
 
@@ -547,6 +601,26 @@ mod tests {
             // Correct type but wrong number of bits
             assert!(expander.get::<FheUint16>(0).unwrap().is_err());
         }
+
+        let unverified_expander = compact_list.expand_without_verification().unwrap();
+
+        {
+            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
+            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
+            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d: u8 = d.decrypt(&ck);
+            assert_eq!(d, 3);
+
+            assert!(unverified_expander.get::<FheBool>(4).is_none());
+        }
     }
 
     #[cfg(feature = "zk-pok")]
@@ -615,6 +689,26 @@ mod tests {
 
             // Correct type but wrong number of bits
             assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+        }
+
+        let unverified_expander = compact_list.expand_without_verification().unwrap();
+
+        {
+            let a: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = unverified_expander.get(1).unwrap().unwrap();
+            let c: FheBool = unverified_expander.get(2).unwrap().unwrap();
+            let d: FheUint2 = unverified_expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d: u8 = d.decrypt(&ck);
+            assert_eq!(d, 3);
+
+            assert!(unverified_expander.get::<FheBool>(4).is_none());
         }
     }
 }

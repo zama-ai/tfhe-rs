@@ -78,6 +78,18 @@ impl ProvenCompactCiphertextList {
             return Err(crate::ErrorKind::InvalidZkProof.into());
         }
 
+        // We can call the function as we have verified the proofs
+        self.expand_without_verification(casting_mode)
+    }
+
+    #[doc(hidden)]
+    /// This function allows to expand a ciphertext without verifying the associated proof.
+    ///
+    /// If you are here you were probably looking for it: use at your own risks.
+    pub fn expand_without_verification(
+        &self,
+        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
+    ) -> crate::Result<Vec<Ciphertext>> {
         let expanded = self
             .proved_lists
             .iter()
@@ -155,6 +167,17 @@ mod tests {
                 encryption_modulus,
             )
             .unwrap();
+
+        {
+            let unproven_ct = proven_ct
+                .expand_without_verification(ShortintCompactCiphertextListCastingMode::NoCasting);
+            assert!(unproven_ct.is_ok());
+            let unproven_ct = unproven_ct.unwrap();
+
+            let decrypted = cks.decrypt(&unproven_ct[0]);
+            assert_eq!(msg, decrypted);
+        }
+
         let proven_ct = proven_ct.verify_and_expand(
             crs.public_params(),
             &pk,

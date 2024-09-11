@@ -208,6 +208,21 @@ pub unsafe extern "C" fn proven_compact_ciphertext_list_verify_and_expand(
     })
 }
 
+#[cfg(feature = "zk-pok")]
+#[no_mangle]
+pub unsafe extern "C" fn proven_compact_ciphertext_list_expand_without_verification(
+    compact_list: *const ProvenCompactCiphertextList,
+    expander: *mut *mut CompactCiphertextListExpander,
+) -> c_int {
+    catch_panic(|| {
+        let list = get_ref_checked(compact_list).unwrap();
+
+        let inner = list.0.expand_without_verification().unwrap();
+
+        *expander = Box::into_raw(Box::new(CompactCiphertextListExpander(inner)));
+    })
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn compact_ciphertext_list_expander_len(
     expander: *mut CompactCiphertextListExpander,
