@@ -18,10 +18,8 @@ __global__ void device_integer_radix_scalar_addition_inplace(
 
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
-    Torus scalar = scalar_input[tid];
-    Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
-
-    *body += scalar * delta;
+    lwe_array[tid * (lwe_dimension + 1) + lwe_dimension] +=
+        scalar_input[tid] * delta;
   }
 }
 
