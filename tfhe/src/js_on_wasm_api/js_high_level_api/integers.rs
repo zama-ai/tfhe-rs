@@ -700,6 +700,7 @@ impl CompactCiphertextList {
         self.0.get_kind_of(index).map(Into::into)
     }
 
+    #[wasm_bindgen]
     pub fn expand(&self) -> Result<CompactCiphertextListExpander, JsError> {
         catch_panic_result(|| {
             self.0
@@ -775,6 +776,7 @@ impl ProvenCompactCiphertextList {
         self.0.get_kind_of(index).map(Into::into)
     }
 
+    #[wasm_bindgen]
     pub fn verify_and_expand(
         &self,
         public_params: &CompactPkePublicParams,
