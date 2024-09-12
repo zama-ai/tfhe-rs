@@ -74,7 +74,7 @@ __host__ void are_all_comparisons_block_true(
   auto tmp_out = are_all_block_true_buffer->tmp_out;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(tmp_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *
@@ -173,7 +173,7 @@ __host__ void is_at_least_one_comparisons_block_true(
   auto buffer = mem_ptr->eq_buffer->are_all_block_true_buffer;
 
   uint32_t total_modulus = message_modulus * carry_modulus;
-  uint32_t max_value = total_modulus - 1;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
 
   cuda_memcpy_async_gpu_to_gpu(mem_ptr->tmp_lwe_array_out, lwe_array_in,
                                num_radix_blocks * (big_lwe_dimension + 1) *
