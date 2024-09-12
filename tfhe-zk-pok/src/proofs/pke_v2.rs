@@ -10,6 +10,7 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
+/// The CRS of the zk scheme
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct PublicParams<G: Curve> {
     g_lists: GroupElements<G>,
@@ -88,6 +89,8 @@ impl<G: Curve> PublicParams<G> {
     }
 }
 
+/// This represents a proof that the given ciphertext is a valid encryptions of the input messages
+/// with the provided public key.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
@@ -110,6 +113,8 @@ pub struct Proof<G: Curve> {
     C_hat_w: Option<G::G2>,
 }
 
+/// This is the public part of the commitment. `a` and `b` are the mask and body of the public key,
+/// `c1` and `c2` are the mask and body of the ciphertext.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PublicCommit<G: Curve> {
     a: Vec<i64>,
@@ -167,6 +172,7 @@ pub fn compute_crs_params(
     }
     .ceil() as u64;
 
+    // Formula is round_up(1 + B_bound.ilog2()) so we convert it to +2
     let m_bound = 2 + B_bound.ilog2() as usize;
 
     let D = d + k * t.ilog2() as usize;
@@ -175,6 +181,7 @@ pub fn compute_crs_params(
     (n, D, B_r, B_bound, m_bound)
 }
 
+/// Generates a CRS based on the bound the heuristic provided by the lemma 2 of the paper.
 pub fn crs_gen_ghl<G: Curve>(
     d: usize,
     k: usize,
@@ -211,6 +218,8 @@ pub fn crs_gen_ghl<G: Curve>(
     }
 }
 
+/// Generates a CRS based on the Cauchy-Schwartz inequality. This removes the need of a heuristic
+/// used by GHL (see section 3.5 of the reference paper), but the bound is less strict.
 pub fn crs_gen_cs<G: Curve>(
     d: usize,
     k: usize,
@@ -247,6 +256,12 @@ pub fn crs_gen_cs<G: Curve>(
     }
 }
 
+/// Generates a new CRS. When applied to TFHE, the parameters are mapped like this:
+/// - d: lwe_dimension
+/// - k: max_num_cleartext
+/// - B: noise_bound
+/// - q: ciphertext_modulus
+/// - t: plaintext_modulus
 pub fn crs_gen<G: Curve>(
     d: usize,
     k: usize,
@@ -351,7 +366,8 @@ pub fn prove<G: Curve>(
     let gamma_bin = G::Zp::rand(rng);
     let gamma_y = G::Zp::rand(rng);
 
-    // eq (10)
+    // eq (11)
+    // (phi is simply the function that maps a polynomial to its coeffs vector)
     // rot(a) * phi(bar(r)) - q phi(r1) + phi(e1) = phi(c1)
     // phi_[d - i](b).T * phi(bar(r)) + delta * m_i - q r2_i + e2_i = c2_i
 
