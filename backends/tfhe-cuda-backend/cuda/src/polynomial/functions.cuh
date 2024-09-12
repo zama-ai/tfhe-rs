@@ -222,6 +222,8 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus *glwe,
     Torus result[params::opt];
 #pragma unroll
     for (int i = 0; i < params::opt; i++) {
+      // params::degree - tid - 1 can't be negative, tid goes from 0 to
+      // params::degree - 1
       auto x = glwe_slice[params::degree - tid - 1];
       result[i] = SEL(-x, x, tid >= params::degree - nth);
       tid = tid + params::degree / params::opt;

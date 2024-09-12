@@ -91,7 +91,6 @@ __host__ void host_integer_scalar_mul_radix(
       j++;
     }
   }
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   cuda_drop_async(preshifted_buffer, streams[0], gpu_indexes[0]);
   mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
