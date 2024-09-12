@@ -9,7 +9,7 @@ pub(crate) mod radix;
 pub(crate) mod radix_parallel;
 
 use crate::integer::client_key::ClientKey;
-use crate::shortint::ciphertext::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -226,6 +226,22 @@ impl ServerKey {
         };
 
         num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
+    }
+
+    /// Returns how many ciphertext can be summed at once
+    ///
+    /// The number of ciphertext that can be added together depends on the degree
+    /// (in order not to go beyond the carry space and keep results correct) but also
+    /// on the noise level (in order to have the correct error probability and so correctness and
+    /// security)
+    ///
+    /// - `degree` is expected degree of all elements to be summed
+    pub(crate) fn max_sum_size(&self, degree: Degree) -> usize {
+        let max_degree =
+            MaxDegree::from_msg_carry_modulus(self.message_modulus(), self.carry_modulus());
+        let max_sum_to_full_carry = max_degree.get() / degree.get();
+
+        max_sum_to_full_carry.min(self.key.max_noise_level.get())
     }
 }
 

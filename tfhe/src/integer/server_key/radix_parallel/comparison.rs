@@ -51,7 +51,7 @@ impl ServerKey {
     {
         // Even though the corresponding function
         // may already exist in self.key
-        // we generate our own lut to do less allocations
+        // we generate our own lut to do fewer allocations
         // one for all the threads as opposed to one per thread
         let lut = self
             .key
@@ -76,7 +76,7 @@ impl ServerKey {
     {
         // Even though the corresponding function
         // may already exist in self.key
-        // we generate our own lut to do less allocations
+        // we generate our own lut to do fewer allocations
         // one for all the threads as opposed to one per thread
         let lut = self
             .key
@@ -90,34 +90,8 @@ impl ServerKey {
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
             });
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
-
-        let mut block_comparisons_2 = Vec::with_capacity(block_comparisons.len() / 2);
-        let is_non_zero = self.key.generate_lookup_table(|x| u64::from(x != 0));
-
-        while block_comparisons.len() > 1 {
-            block_comparisons
-                .par_chunks(max_value)
-                .map(|blocks| {
-                    let mut sum = blocks[0].clone();
-                    for other_block in &blocks[1..] {
-                        self.key.unchecked_add_assign(&mut sum, other_block);
-                    }
-                    self.key.apply_lookup_table(&sum, &is_non_zero)
-                })
-                .collect_into_vec(&mut block_comparisons_2);
-            std::mem::swap(&mut block_comparisons_2, &mut block_comparisons);
-        }
-
-        BooleanBlock::new_unchecked(
-            block_comparisons
-                .into_iter()
-                .next()
-                .unwrap_or_else(|| self.key.create_trivial(0)),
-        )
+        let result = self.is_at_least_one_comparisons_block_true(block_comparisons);
+        BooleanBlock::new_unchecked(result)
     }
 
     /// This implements all comparisons (<, <=, >, >=) for both signed and unsigned

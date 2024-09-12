@@ -3,6 +3,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::{Comparator, ZeroComparisonType};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -160,27 +161,23 @@ impl ServerKey {
             return self.key.create_trivial(1);
         }
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
-
+        let max_sum_size = self.max_sum_size(Degree::new(1));
         let is_max_value = self
             .key
-            .generate_lookup_table(|x| u64::from(x == max_value as u64));
+            .generate_lookup_table(|x| u64::from(x == max_sum_size as u64));
 
         while block_comparisons.len() > 1 {
             // Since all blocks encrypt either 0 or 1, we can sum max_value of them
             // as in the worst case we will be adding `max_value` ones
             block_comparisons = block_comparisons
-                .par_chunks(max_value)
+                .par_chunks(max_sum_size)
                 .map(|blocks| {
                     let mut sum = blocks[0].clone();
                     for other_block in &blocks[1..] {
                         self.key.unchecked_add_assign(&mut sum, other_block);
                     }
 
-                    if blocks.len() == max_value {
+                    if blocks.len() == max_sum_size {
                         self.key.apply_lookup_table(&sum, &is_max_value)
                     } else {
                         let is_equal_to_num_blocks = self
@@ -213,25 +210,22 @@ impl ServerKey {
             return self.key.create_trivial(1);
         }
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
-
         let is_not_zero = self.key.generate_lookup_table(|x| u64::from(x != 0));
+        let mut block_comparisons_2 = Vec::with_capacity(block_comparisons.len() / 2);
+        let max_sum_size = self.max_sum_size(Degree::new(1));
 
         while block_comparisons.len() > 1 {
-            block_comparisons = block_comparisons
-                .par_chunks(max_value)
+            block_comparisons
+                .par_chunks(max_sum_size)
                 .map(|blocks| {
                     let mut sum = blocks[0].clone();
                     for other_block in &blocks[1..] {
                         self.key.unchecked_add_assign(&mut sum, other_block);
                     }
-
                     self.key.apply_lookup_table(&sum, &is_not_zero)
                 })
-                .collect::<Vec<_>>();
+                .collect_into_vec(&mut block_comparisons_2);
+            std::mem::swap(&mut block_comparisons_2, &mut block_comparisons);
         }
 
         block_comparisons
@@ -423,10 +417,10 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0;
         let carry_modulus = self.key.carry_modulus.0;
         let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
+        let max_sum_size = self.max_sum_size(Degree::new(1));
 
         assert!(carry_modulus >= message_modulus);
-        u8::try_from(max_value).unwrap();
+        u8::try_from(max_sum_size).unwrap();
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);
@@ -516,10 +510,10 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0;
         let carry_modulus = self.key.carry_modulus.0;
         let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
+        let max_sum_size = self.max_sum_size(Degree::new(1));
 
         assert!(carry_modulus >= message_modulus);
-        u8::try_from(max_value).unwrap();
+        u8::try_from(max_sum_size).unwrap();
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);

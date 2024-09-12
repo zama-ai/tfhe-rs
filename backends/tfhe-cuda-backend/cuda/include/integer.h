@@ -2095,7 +2095,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
     if (allocate_gpu_memory) {
       Torus total_modulus = params.message_modulus * params.carry_modulus;
-      uint32_t max_value = total_modulus - 1;
+      uint32_t max_value = (total_modulus - 1) / (params.message_modulus - 1);
 
       int max_chunks = (num_radix_blocks + max_value - 1) / max_value;
       tmp_block_accumulated = (Torus *)cuda_malloc_async(
