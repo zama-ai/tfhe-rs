@@ -129,6 +129,12 @@ jobs:
         run: |
           make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}_gpu
 
+      # Run these benchmarks only once
+      - name: Run compression benchmarks with AVX512
+        if: matrix.op_flavor == 'default' && matrix.command == 'integer'
+        run: |
+          make bench_integer_compression_gpu
+
       - name: Parse results
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \

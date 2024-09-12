@@ -893,6 +893,12 @@ bench_integer_gpu: install_rs_check_toolchain
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
 
+.PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
+bench_integer_compression: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench	glwe_packing_compression-integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+
 .PHONY: bench_integer_compression_gpu
 bench_integer_compression_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \

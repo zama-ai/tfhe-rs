@@ -6,6 +6,7 @@ use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::P
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
 use crate::shortint::parameters::key_switching::*;
+use crate::shortint::parameters::list_compression::*;
 use crate::shortint::parameters::multi_bit::*;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
@@ -282,6 +283,33 @@ impl NamedParam for ShortintKeySwitchingParameters {
         format!(
             "PARAM_KEYSWITCH_CUSTOM_KS_LEVEL_{}_KS_BASE_LOG_{}",
             self.ks_level.0, self.ks_base_log.0
+        )
+    }
+}
+
+impl NamedParam for CompressionParameters {
+    fn name(&self) -> String {
+        named_params_impl!(expose
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+        );
+        named_params_impl!(
+            {
+                *self;
+                Self
+            } == (COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        );
+
+        named_params_impl!(
+            {
+                *self;
+                Self
+            } == (COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+        );
+
+        format!(
+            "COMP_PARAM_CUSTOM_BR_LEVEL_{}_NOISE_DISTRIB_{}",
+            self.br_level.0, self.packing_ks_key_noise_distribution
         )
     }
 }
