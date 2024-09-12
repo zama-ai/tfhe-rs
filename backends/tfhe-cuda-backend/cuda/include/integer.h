@@ -1357,6 +1357,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
 template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   Torus *new_blocks;
+  Torus *new_blocks_copy;
   Torus *old_blocks;
   Torus *small_lwe_vector;
   int_radix_params params;
@@ -1382,6 +1383,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
     // allocate gpu memory for intermediate buffers
     new_blocks = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
+        streams[0], gpu_indexes[0]);
+    new_blocks_copy = (Torus *)cuda_malloc_async(
         max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
         streams[0], gpu_indexes[0]);
     old_blocks = (Torus *)cuda_malloc_async(
@@ -1415,6 +1419,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->new_blocks = new_blocks;
     this->old_blocks = old_blocks;
     this->small_lwe_vector = small_lwe_vector;
+    new_blocks_copy = (Torus *)cuda_malloc_async(
+        max_pbs_count * (params.big_lwe_dimension + 1) * sizeof(Torus),
+        streams[0], gpu_indexes[0]);
 
     d_smart_copy_in = (int32_t *)cuda_malloc_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0]);
@@ -1433,8 +1440,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       cuda_drop_async(small_lwe_vector, streams[0], gpu_indexes[0]);
     }
 
+    cuda_drop_async(new_blocks_copy, streams[0], gpu_indexes[0]);
     scp_mem->release(streams, gpu_indexes, gpu_count);
-
     delete scp_mem;
   }
 };
