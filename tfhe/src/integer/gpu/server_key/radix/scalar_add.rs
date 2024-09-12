@@ -266,6 +266,7 @@ impl CudaServerKey {
         unsafe {
             carry_out = self.propagate_single_carry_assign_async(ct_left, stream);
         }
+        stream.synchronize();
 
         let num_scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
