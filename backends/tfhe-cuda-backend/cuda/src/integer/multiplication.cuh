@@ -189,6 +189,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     int_radix_lut<Torus> *reused_lut) {
 
   auto new_blocks = mem_ptr->new_blocks;
+  auto new_blocks_copy = mem_ptr->new_blocks_copy;
   auto old_blocks = mem_ptr->old_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
 
@@ -219,6 +220,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                                  num_blocks_in_radix * num_radix_in_vec *
                                      big_lwe_size * sizeof(Torus),
                                  streams[0], gpu_indexes[0]);
+  }
+  if (num_radix_in_vec == 2) {
+    host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, old_blocks,
+                         &old_blocks[num_blocks * big_lwe_size],
+                         big_lwe_dimension, num_blocks);
+    return;
   }
 
   size_t r = num_radix_in_vec;
@@ -310,8 +317,11 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     // inside d_smart_copy_in there are only -1 values
     // it's fine to call smart_copy with same pointer
     // as source and destination
+    cuda_memcpy_async_gpu_to_gpu(new_blocks_copy, new_blocks,
+                                 r * num_blocks * big_lwe_size * sizeof(Torus),
+                                 streams[0], gpu_indexes[0]);
     smart_copy<Torus><<<sm_copy_count, 1024, 0, streams[0]>>>(
-        new_blocks, new_blocks, d_smart_copy_out, d_smart_copy_in,
+        new_blocks, new_blocks_copy, d_smart_copy_out, d_smart_copy_in,
         big_lwe_size);
     check_cuda_error(cudaGetLastError());
 
