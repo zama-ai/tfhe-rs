@@ -148,6 +148,7 @@ fn to_plaintext_iterator(
 
     message_iter.map(move |message| {
         //The delta is the one defined by the parameters
+        // TODO fixme -> Must properly support ct_w != 64b
         let delta = (1_u64 << 63) / (full_modulus);
 
         let m = message % encryption_modulus;

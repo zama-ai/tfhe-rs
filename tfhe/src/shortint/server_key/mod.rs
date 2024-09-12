@@ -561,6 +561,28 @@ impl ServerKey {
     }
 }
 
+impl ServerKey {
+    /// Compute associated encoding delta.
+    /// Used for scalar encoding
+    pub(crate) fn delta(&self) -> u64 {
+        if self
+            .ciphertext_modulus
+            .is_native_modulus()
+        {
+            (1_u64 << 63)
+                / (self.message_modulus.0
+                    * self.carry_modulus.0) as u64
+        } else {
+            (self
+                .ciphertext_modulus
+                .get_custom_modulus()
+                / 2) as u64
+                / (self.message_modulus.0
+                    * self.carry_modulus.0) as u64
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
@@ -1261,9 +1283,8 @@ impl ServerKey {
         value: u64,
         lwe_size: LweSize,
     ) -> Ciphertext {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
 
-        let shifted_value = value * delta;
+        let shifted_value = value * self.delta();
 
         let encoded = Plaintext(shifted_value);
 
@@ -1301,9 +1322,8 @@ impl ServerKey {
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         let modular_value = value as usize % self.message_modulus.0;
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
 
-        let shifted_value = (modular_value as u64) * delta;
+        let shifted_value = (modular_value as u64) * self.delta();
 
         let encoded = Plaintext(shifted_value);
 
@@ -1346,6 +1366,8 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
+        // NB: Following path will not go `power_of_two_scaling_to_native_torus`
+        // Thus keep value MSB aligned without considering real delta
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
         let ct_value = *ct.ct.get_body().data / delta;
 
@@ -1369,6 +1391,8 @@ impl ServerKey {
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
         let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
+        // NB: Following path will not go `power_of_two_scaling_to_native_torus`
+        // Thus keep value MSB aligned without considering real delta
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
         let ct_value = *ct.ct.get_body().data / delta;
 

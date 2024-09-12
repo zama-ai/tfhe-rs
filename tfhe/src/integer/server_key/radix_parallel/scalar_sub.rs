@@ -159,7 +159,7 @@ impl ServerKey {
         });
 
         let mut borrow = self.key.create_trivial(0);
-        let delta = (1_u64 << 63) / (self.message_modulus().0 * self.carry_modulus().0) as u64;
+        let delta = self.key.delta();
         for (lhs_b, scalar_b) in lhs.blocks.iter_mut().zip(scalar_blocks.iter().copied()) {
             // Here we use core_crypto instead of shortint scalar_sub_assign
             // because we need a true subtraction, not an addition of the inverse

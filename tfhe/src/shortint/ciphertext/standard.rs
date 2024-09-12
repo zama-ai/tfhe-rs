@@ -142,6 +142,26 @@ impl Ciphertext {
         self.noise_level = noise_level;
     }
 
+    fn delta(&self) -> u64 {
+        if self
+            .ct
+            .ciphertext_modulus()
+            .is_native_modulus()
+        {
+            (1_u64 << 63)
+                / (self.message_modulus.0
+                    * self.carry_modulus.0) as u64
+        } else {
+            (self
+                .ct
+                .ciphertext_modulus()
+                .get_custom_modulus()
+                / 2) as u64
+                / (self.message_modulus.0
+                    * self.carry_modulus.0) as u64
+        }
+    }
+
     /// Decrypts a trivial ciphertext
     ///
     /// Trivial ciphertexts are ciphertexts which are not encrypted
@@ -217,8 +237,7 @@ impl Ciphertext {
     /// ```
     pub fn decrypt_trivial_message_and_carry(&self) -> Result<u64, NotTrivialCiphertextError> {
         if self.is_trivial() {
-            let delta = (1u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-            Ok(self.ct.get_body().data / delta)
+            Ok(self.ct.get_body().data / self.delta())
         } else {
             Err(NotTrivialCiphertextError)
         }

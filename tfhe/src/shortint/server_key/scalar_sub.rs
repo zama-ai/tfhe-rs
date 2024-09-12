@@ -207,8 +207,7 @@ impl ServerKey {
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         let neg_scalar = neg_scalar(scalar, ct.message_modulus);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-        let shift_plaintext = neg_scalar as u64 * delta;
+        let shift_plaintext = neg_scalar as u64 * self.delta();
         let encoded_scalar = Plaintext(shift_plaintext);
 
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
@@ -224,7 +223,7 @@ impl ServerKey {
         let msg_mod = self.message_modulus.0;
         assert!((scalar as usize) < msg_mod);
 
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let delta = self.delta();
 
         let encoded_scalar = Plaintext(scalar as u64 * delta);
         lwe_ciphertext_plaintext_sub_assign(&mut ct.ct, encoded_scalar);

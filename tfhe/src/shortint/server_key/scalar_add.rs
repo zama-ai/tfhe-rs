@@ -209,8 +209,7 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-        let shift_plaintext = u64::from(scalar) * delta;
+        let shift_plaintext = u64::from(scalar) * self.delta();
         let encoded_scalar = Plaintext(shift_plaintext);
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
 

@@ -139,9 +139,7 @@ impl ShortintEngine {
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = public_key.parameters.delta();
 
         //The input is reduced modulus the message_modulus
         let m = message % message_modulus.0 as u64;
@@ -203,9 +201,7 @@ impl ShortintEngine {
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = public_key.parameters.delta();
 
         let encoded: Vec<_> = messages
             .into_iter()
@@ -258,9 +254,7 @@ impl ShortintEngine {
         message_moduli: impl Iterator<Item = MessageModulus>,
     ) -> Vec<Ciphertext> {
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = public_key.parameters.delta();
 
         let (encoded, moduli): (Vec<_>, Vec<_>) = message_moduli
             .map(|message_modulus| {
@@ -320,10 +314,7 @@ impl ShortintEngine {
         message: u64,
     ) -> Ciphertext {
         //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64)
-            * 2;
+        let delta = public_key.parameters.delta() << 1;
 
         let shifted_message = message * delta;
         // encode the message
@@ -373,10 +364,7 @@ impl ShortintEngine {
         messages: impl Iterator<Item = u64>,
     ) -> Vec<Ciphertext> {
         //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64)
-            * 2;
+        let delta = public_key.parameters.delta() << 1;
 
         let encoded: Vec<_> = messages
             .map(|message| {
@@ -549,9 +537,7 @@ impl ShortintEngine {
         public_key: &PublicKey,
         message: u64,
     ) -> Ciphertext {
-        let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = public_key.parameters.delta();
         let shifted_message = message * delta;
         // encode the message
         let plain = Plaintext(shifted_message);
@@ -588,9 +574,7 @@ impl ShortintEngine {
         public_key: &CompressedPublicKey,
         message: u64,
     ) -> Ciphertext {
-        let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = public_key.parameters.delta();
         let shifted_message = message * delta;
         // encode the message
         let plain = Plaintext(shifted_message);

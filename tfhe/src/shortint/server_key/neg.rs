@@ -227,11 +227,8 @@ impl ServerKey {
         let mut z = ct.degree.get().div_ceil(msg_mod).max(1) as u64;
         z *= msg_mod as u64;
 
-        // Value of the shift we multiply our messages by
-        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-
         //Scaling + 1 on the padding bit
-        let w = Plaintext(z * delta);
+        let w = Plaintext(z * self.delta());
 
         // (0,Delta*z) - ct
         lwe_ciphertext_opposite_assign(&mut ct.ct);
