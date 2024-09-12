@@ -58,7 +58,7 @@ flavor_name = "n3-A100x8-NVLink"
 [backend.hyperstack.multi-gpu-test]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
-flavor_name = "n3-A100x4"
+flavor_name = "n3-RTX-A6000x4"
 
 [command.signed_integer_full_bench]
 workflow = "signed_integer_full_benchmark.yml"
