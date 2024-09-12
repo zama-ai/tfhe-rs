@@ -407,8 +407,7 @@ impl ClientKey {
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64: u64 = self.decrypt_no_decode(ct);
 
-        let delta = (1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+        let delta = self.parameters.delta();
 
         //The bit before the message
         let rounding_bit = delta >> 1;
@@ -416,7 +415,9 @@ impl ClientKey {
         //compute the rounding bit
         let rounding = (decrypted_u64 & rounding_bit) << 1;
 
-        (decrypted_u64.wrapping_add(rounding)) / delta
+        ((decrypted_u64.wrapping_add(rounding)) / delta)
+            % (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64
+
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -550,9 +551,8 @@ impl ClientKey {
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        let delta = ((1_u64 << 63)
-            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64)
-            * 2;
+        //Multiply by 2 to reshift and exclude the padding bit
+        let delta = self.parameters.delta() << 1;
 
         //The bit before the message
         let rounding_bit = delta >> 1;

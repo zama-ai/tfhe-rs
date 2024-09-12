@@ -570,6 +570,25 @@ impl ShortintParameterSet {
         }
     }
 
+    pub const fn delta(&self) -> u64 {
+
+        if self
+            .ciphertext_modulus()
+            .is_native_modulus()
+        {
+            (1_u64 << 63)
+                / (self.message_modulus().0
+                    * self.carry_modulus().0) as u64
+        } else {
+            (self
+                .ciphertext_modulus()
+                .get_custom_modulus()
+                / 2) as u64
+                / (self.message_modulus().0
+                    * self.carry_modulus().0) as u64
+        }
+    }
+
     pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.encryption_key_choice(),

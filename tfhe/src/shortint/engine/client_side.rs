@@ -66,9 +66,7 @@ impl ShortintEngine {
         KeyCont: crate::core_crypto::commons::traits::Container<Element = u64>,
     {
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0)
-                as u64;
+        let delta = client_key_parameters.delta();
 
         //The input is reduced modulus the message_modulus
         let m = message % message_modulus.0 as u64;
@@ -172,9 +170,7 @@ impl ShortintEngine {
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
-        let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = client_key.parameters.delta();
 
         //The input is reduced modulus the message_modulus
         let m = message % message_modulus.0 as u64;
@@ -212,9 +208,8 @@ impl ShortintEngine {
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
 
-        let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64;
+        let delta = client_key.parameters.delta();
+
         let shifted_message = message * delta;
 
         let encoded = Plaintext(shifted_message);
@@ -246,10 +241,7 @@ impl ShortintEngine {
         message: u64,
     ) -> Ciphertext {
         //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64)
-            * 2;
+        let delta = client_key.parameters.delta() << 1;
 
         let shifted_message = message * delta;
 
@@ -284,10 +276,7 @@ impl ShortintEngine {
         message: u64,
     ) -> CompressedCiphertext {
         //Multiply by 2 to reshift and exclude the padding bit
-        let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64)
-            * 2;
+        let delta = client_key.parameters.delta() << 1;
 
         let shifted_message = message * delta;
 
