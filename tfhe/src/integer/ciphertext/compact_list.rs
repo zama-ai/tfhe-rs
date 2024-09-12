@@ -323,8 +323,8 @@ impl ParameterSetConformant for CompactCiphertextList {
 
 pub const WRONG_UNPACKING_MODE_ERR_MSG: &str =
     "Cannot expand a CompactCiphertextList that requires unpacking without \
-    a server key, please provide a shortint::ServerKey passing it with the \
-    enum variant CompactCiphertextListUnpackingMode::UnpackIfNecessary \
+    a server key, please provide a integer::ServerKey passing it with the \
+    enum variant IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary \
     as unpacking_mode.";
 
 impl CompactCiphertextList {
