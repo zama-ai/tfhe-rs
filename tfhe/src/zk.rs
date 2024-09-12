@@ -133,6 +133,7 @@ impl CompactPkeCrs {
         ))
     }
 
+    /// Generates a new zk CRS from the tfhe parameters.
     pub fn new<Scalar, NoiseDistribution>(
         lwe_dim: LweDimension,
         max_num_cleartext: usize,
