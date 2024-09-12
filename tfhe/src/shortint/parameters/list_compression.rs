@@ -8,7 +8,7 @@ use crate::shortint::parameters::{
 };
 use std::fmt::Debug;
 
-#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressionParametersVersions)]
 pub struct CompressionParameters {
     pub br_level: DecompositionLevelCount,
