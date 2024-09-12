@@ -180,6 +180,12 @@ host_integer_decompress(cudaStream_t *streams, uint32_t *gpu_indexes,
                         uint32_t indexes_array_size, void **bsks,
                         int_decompression<Torus> *mem_ptr) {
 
+  auto polynomial_size = mem_ptr->encryption_params.polynomial_size;
+  if (indexes_array_size > polynomial_size)
+    PANIC("Cuda error: too many LWEs to decompress. The number of LWEs should "
+          "be smaller than "
+          "polynomial_size.")
+
   auto extracted_glwe = mem_ptr->tmp_extracted_glwe;
   auto compression_params = mem_ptr->compression_params;
   host_extract<Torus>(streams[0], gpu_indexes[0], extracted_glwe,

@@ -373,7 +373,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     pbs_level: DecompositionLevelCount,
     storage_log_modulus: u32,
     vec_indexes: &CudaVec<u32>,
-    num_blocks: u32,
+    num_lwes: u32,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -403,7 +403,7 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         lwe_dimension.0 as u32,
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
-        num_blocks,
+        num_lwes,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         PBSType::Classical as u32,
