@@ -11,6 +11,8 @@ pub use crate::high_level_api::traits::{
     OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign, Tagged,
 };
+#[cfg(feature = "hpu-xfer")]
+pub use crate::high_level_api::traits::HwXfer;
 
 pub use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};

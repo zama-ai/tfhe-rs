@@ -255,6 +255,12 @@ impl Tagged for CompressedServerKey {
     }
 }
 
+impl From<CompressedServerKey> for crate::integer::CompressedServerKey {
+    fn from(value: CompressedServerKey) -> Self {
+        value.integer_key.key
+    }
+}
+
 #[cfg(feature = "gpu")]
 #[derive(Clone)]
 pub struct CudaServerKey {

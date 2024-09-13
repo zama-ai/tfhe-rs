@@ -16,6 +16,10 @@ mod base;
 mod compressed;
 mod static_;
 
+#[cfg(feature = "hpu-xfer")]
+mod hpu;
+pub use hpu::HpuFheUint;
+
 mod encrypt;
 mod inner;
 mod ops;

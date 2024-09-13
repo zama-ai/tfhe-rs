@@ -199,3 +199,13 @@ pub trait Tagged {
 
     fn tag_mut(&mut self) -> &mut Tag;
 }
+
+#[cfg(feature = "hpu-xfer")]
+/// Traits use to implement explicit movement with Hw accelerators
+/// Function to handle Xfer from Cpu to Hw device
+/// NB: Wayback is implemented with From trait
+pub trait HwXfer<HwDevice> {
+    type Output;
+    fn clone_on(&self, device: &HwDevice) -> Self::Output;
+    fn mv_on(self, device: &HwDevice) -> Self::Output;
+}
