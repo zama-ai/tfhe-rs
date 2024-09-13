@@ -1,0 +1,1307 @@
+<ENTRY>
+{
+ "thisFile": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin.link_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:09 2024",
+ "timestampMillis": "1728588849079",
+ "buildStep": {
+  "cmdId": "8ee507ac-5849-4b65-ad2e-3a068e083511",
+  "name": "v++",
+  "logFile": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/link.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2022.2/bin/unwrapped/lnx64.o/v++  --vivado.prop \"run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\" -l -g -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 --save-temps --temp_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin -o /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin --config /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg --vivado.prop run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc --kernel_frequency 0:250 /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_1in3.xo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_2in3.xo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_3in3.xo ",
+  "args": [
+   "-l",
+   "-g",
+   "-t",
+   "hw",
+   "--platform",
+   "xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "--save-temps",
+   "--temp_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin",
+   "-o",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin",
+   "--config",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg",
+   "--vivado.prop",
+   "run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc",
+   "--kernel_frequency",
+   "0:250",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_3in3.xo"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg",
+    "content": "# General configuration knobs\n# equivalent of --platform knob\n# platform=\n# equivalent of --log_dir knob\n# logdir=\n# equivalent of --report_dir knob\n# report_dir=\n# equivalent of --target knob\n#target=hw\n\n# Enable debug mode\ndebug=1\nsave-temps=1\n\n# Enable link mode\n# link=1\n\n# Vivado properties\n[vivado]\nparam=project.writeIntermediateCheckpoints=1\n\n\n[connectivity]\n# Number of CU per xo\nnk=hpu_msplit_3parts_1in3:1\nnk=hpu_msplit_3parts_2in3:1\nnk=hpu_msplit_3parts_3in3:1\n\n# SLR assignement\nslr=hpu_msplit_3parts_1in3_1:SLR0\nslr=hpu_msplit_3parts_2in3_1:SLR1\nslr=hpu_msplit_3parts_3in3_1:SLR2\n\n# Axi4 memory connection\nsp=hpu_msplit_3parts_1in3_1.m_axi_trc:HBM[0]\n# Note that if the following is modified, do not forget to change the ucore config\nsp=hpu_msplit_3parts_1in3_1.m_axi_ucore:HBM[1]\n\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_0:HBM[10]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_1:HBM[11]\nsp=hpu_msplit_3parts_1in3_1.m_axi_glwe_0:HBM[12]\n\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_0:HBM[2]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_1:HBM[3]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_2:HBM[4]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_3:HBM[5]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_4:HBM[6]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_5:HBM[7]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_6:HBM[8]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_7:HBM[9]\n\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_0:HBM[24]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_1:HBM[25]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_2:HBM[26]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_3:HBM[27]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_4:HBM[28]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_5:HBM[29]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_6:HBM[30]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_7:HBM[31]\n\n\n# AXI stream\n# part1 -\u003e part2\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_d1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_bsk_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_cram_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_cram_d\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmsxt_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmsxt_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_d\n\n# part2 -\u003e part1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_bsk_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_batch:hpu_msplit_3parts_1in3_1.axis_p2_p1_batch\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d2:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d2\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d3:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_cram_d:hpu_msplit_3parts_1in3_1.axis_p2_p1_cram_d\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_side\n\n# part2 -\u003e part3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d0:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d1:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_bsk_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_batch:hpu_msplit_3parts_3in3_1.axis_p2_p3_batch\n# part3 -\u003e part2\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d0\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d1\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_bsk_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_side:hpu_msplit_3parts_2in3_1.axis_p3_p2_side\n"
+   }
+  ],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:09 2024",
+ "timestampMillis": "1728588849079",
+ "status": {
+  "cmdId": "8ee507ac-5849-4b65-ad2e-3a068e083511",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "Thu Oct 10 21:34:12 2024",
+ "timestampMillis": "1728588852444",
+ "buildSummary": {
+  "hardwarePlatform": "xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm",
+  "hardwareDsa": "",
+  "platformDirectory": "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1",
+  "runtime": "OpenCL",
+  "systemConfig": "Linux",
+  "flow": "BF_LINK",
+  "target": "TT_HW",
+  "binaryContainer": {
+   "base": {
+    "type": "BT_UKNOWN",
+    "name": "hpu_msplit_3parts",
+    "file": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin",
+    "reports": [],
+    "uuid": ""
+   },
+   "kernels": []
+  },
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_1in3",
+     "file": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_1in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   },
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_2in3",
+     "file": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_2in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   },
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_3in3",
+     "file": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_3in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_3in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "Vitis V++ Compiler Release 2022.2. SW Build 3671529 on 2022-10-13-17:52:11"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:12 2024",
+ "timestampMillis": "1728588852561",
+ "buildStep": {
+  "cmdId": "05efc579-ad1c-4a83-889c-eaad2b013c9c",
+  "name": "system_link",
+  "logFile": "",
+  "commandLine": "system_link --xo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_1in3.xo --xo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_2in3.xo --xo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_3in3.xo -keep --config /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini --xpfm /opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm --target hw --output_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int --temp_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/sys_link",
+  "args": [
+   "--xo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+   "--xo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+   "--xo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts_3in3.xo",
+   "-keep",
+   "--config",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini",
+   "--xpfm",
+   "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm",
+   "--target",
+   "hw",
+   "--output_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int",
+   "--temp_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/sys_link"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini",
+    "content": "nk=hpu_msplit_3parts_1in3:1\nnk=hpu_msplit_3parts_2in3:1\nnk=hpu_msplit_3parts_3in3:1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_d1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_proc_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_bsk_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_cram_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_cram_d\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmsxt_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmsxt_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_d\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_proc_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_bsk_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_batch:hpu_msplit_3parts_1in3_1.axis_p2_p1_batch\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d2:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d2\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmfeed_d3:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmfeed_d3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_cram_d:hpu_msplit_3parts_1in3_1.axis_p2_p1_cram_d\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d1:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d0:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d1:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_bsk_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_batch:hpu_msplit_3parts_3in3_1.axis_p2_p3_batch\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d0\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d1\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_bsk_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_side:hpu_msplit_3parts_2in3_1.axis_p3_p2_side\nsp=hpu_msplit_3parts_1in3_1.m_axi_trc:HBM[0]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ucore:HBM[1]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_0:HBM[10]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_1:HBM[11]\nsp=hpu_msplit_3parts_1in3_1.m_axi_glwe_0:HBM[12]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_0:HBM[2]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_1:HBM[3]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_2:HBM[4]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_3:HBM[5]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_4:HBM[6]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_5:HBM[7]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_6:HBM[8]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_7:HBM[9]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_0:HBM[24]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_1:HBM[25]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_2:HBM[26]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_3:HBM[27]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_4:HBM[28]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_5:HBM[29]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_6:HBM[30]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_7:HBM[31]\nslr=hpu_msplit_3parts_1in3_1:SLR0\nslr=hpu_msplit_3parts_2in3_1:SLR1\nslr=hpu_msplit_3parts_3in3_1:SLR2\n\n"
+   }
+  ],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:12 2024",
+ "timestampMillis": "1728588852562",
+ "status": {
+  "cmdId": "05efc579-ad1c-4a83-889c-eaad2b013c9c",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:36 2024",
+ "timestampMillis": "1728588876030",
+ "status": {
+  "cmdId": "05efc579-ad1c-4a83-889c-eaad2b013c9c",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:36 2024",
+ "timestampMillis": "1728588876033",
+ "buildStep": {
+  "cmdId": "31946613-2668-4326-8e7b-8d09064820e9",
+  "name": "cf2sw",
+  "logFile": "",
+  "commandLine": "cf2sw -sdsl /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat -rtd /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw.rtd -nofilter /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw_full.rtd -xclbin /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml -o /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.1.xml",
+  "args": [
+   "-sdsl",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat",
+   "-rtd",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw.rtd",
+   "-nofilter",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw_full.rtd",
+   "-xclbin",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml",
+   "-o",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.1.xml"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:36 2024",
+ "timestampMillis": "1728588876033",
+ "status": {
+  "cmdId": "31946613-2668-4326-8e7b-8d09064820e9",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888582",
+ "status": {
+  "cmdId": "31946613-2668-4326-8e7b-8d09064820e9",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888584",
+ "buildStep": {
+  "cmdId": "ebc6db45-84e2-49b2-98b5-e9b8ef37f779",
+  "name": "rtd2_system_diagram",
+  "logFile": "",
+  "commandLine": "rtd2SystemDiagram",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888584",
+ "status": {
+  "cmdId": "ebc6db45-84e2-49b2-98b5-e9b8ef37f779",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888767",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModel.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888767",
+ "status": {
+  "cmdId": "ebc6db45-84e2-49b2-98b5-e9b8ef37f779",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888769",
+ "buildStep": {
+  "cmdId": "bd1dd81e-ab04-4ecb-90fd-63ce7ff45568",
+  "name": "vpl",
+  "logFile": "",
+  "commandLine": "vpl -t hw -f xilinx_u55c_gen3x16_xdma_3_202210_1 -s -g --kernel_frequency 0:250 --remote_ip_cache /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/.ipcache --output_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int --log_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/logs/link --report_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link --config /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini -k /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat --webtalk_flag Vitis --temp_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link --no-info --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0 --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0 --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0 --messageDb /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl",
+  "args": [
+   "-t",
+   "hw",
+   "-f",
+   "xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "-s",
+   "-g",
+   "--kernel_frequency",
+   "0:250",
+   "--remote_ip_cache",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/.ipcache",
+   "--output_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int",
+   "--log_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/logs/link",
+   "--report_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link",
+   "--config",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini",
+   "-k",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat",
+   "--webtalk_flag",
+   "Vitis",
+   "--temp_dir",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link",
+   "--no-info",
+   "--iprepo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0",
+   "--iprepo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0",
+   "--iprepo",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0",
+   "--messageDb",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini",
+    "content": "[advanced]\nmisc=report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\nmisc=report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\nparam=compiler.enablePerformanceTrace=1\nparam=hw_emu.enableDebugWaveform=1\nparam=hw_emu.enableProfiling=1\nparam=compiler.vppCurrentWorkingDir=/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt\nmisc=BinaryName=hpu_msplit_3parts\n\n[connectivity]\nnk=hpu_msplit_3parts_1in3:1:hpu_msplit_3parts_1in3_1\nnk=hpu_msplit_3parts_2in3:1:hpu_msplit_3parts_2in3_1\nnk=hpu_msplit_3parts_3in3:1:hpu_msplit_3parts_3in3_1\n\n[vivado]\nprop=run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\nparam=project.writeIntermediateCheckpoints=1\nprop=run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc\n\n"
+   }
+  ],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:48 2024",
+ "timestampMillis": "1728588888769",
+ "status": {
+  "cmdId": "bd1dd81e-ab04-4ecb-90fd-63ce7ff45568",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:49 2024",
+ "timestampMillis": "1728588889786",
+ "buildStep": {
+  "cmdId": "56e1548a-4785-4a1d-8f27-4420456db1dd",
+  "name": "vpl",
+  "logFile": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/link.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2022.2/bin/unwrapped/lnx64.o/vpl -t hw -f xilinx_u55c_gen3x16_xdma_3_202210_1 -s -g --kernel_frequency 0:250 --remote_ip_cache /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/.ipcache --output_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int --log_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/logs/link --report_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link --config /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini -k /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat --webtalk_flag Vitis --temp_dir /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link --no-info --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0 --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0 --iprepo /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0 --messageDb /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl ",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/run_link"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:49 2024",
+ "timestampMillis": "1728588889786",
+ "status": {
+  "cmdId": "56e1548a-4785-4a1d-8f27-4420456db1dd",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_VivadoProject",
+ "dateTimestamp": "Thu Oct 10 21:34:52 2024",
+ "timestampMillis": "1728588892762",
+ "vivadoProject": {
+  "openDir": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl",
+  "openScript": "openprj.tcl",
+  "relativeProject": "prj/prj.xpr"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu Oct 10 21:34:52 2024",
+ "timestampMillis": "1728588892762",
+ "buildStep": {
+  "cmdId": "10ca9b0e-f5fc-44d5-b2e6-7d02e106131a",
+  "name": "vivado",
+  "logFile": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/vivado.log",
+  "commandLine": "vivado -log vivado.log -applog -m64 -messageDb vivado.pb -mode batch -source vpl.tcl -notrace",
+  "args": [
+   "-log",
+   "vivado.log",
+   "-applog",
+   " -m64",
+   "-messageDb",
+   "vivado.pb",
+   "-mode",
+   "batch",
+   "-source",
+   "vpl.tcl",
+   "-notrace"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/run_link"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:34:52 2024",
+ "timestampMillis": "1728588892763",
+ "status": {
+  "cmdId": "10ca9b0e-f5fc-44d5-b2e6-7d02e106131a",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Thu Oct 10 21:35:34 2024",
+ "timestampMillis": "1728588934099",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary_update_bd.txt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "VITIS_DESIGN_FLOW",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Thu Oct 10 21:56:00 2024",
+ "timestampMillis": "1728590160298",
+ "buildStep": {
+  "cmdId": "421c4c9e-0d8f-4236-a624-3b45848a8bb0",
+  "name": "vivado.impl",
+  "logFile": "",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:56:00 2024",
+ "timestampMillis": "1728590160298",
+ "status": {
+  "cmdId": "421c4c9e-0d8f-4236-a624-3b45848a8bb0",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Thu Oct 10 21:56:00 2024",
+ "timestampMillis": "1728590160299",
+ "buildStep": {
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05",
+  "name": "vivado.impl.impl_1",
+  "logFile": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1/runme.log",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu Oct 10 21:56:00 2024",
+ "timestampMillis": "1728590160300",
+ "status": {
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 02:51:44 2024",
+ "timestampMillis": "1728607904696",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1/system_diagram.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 02:56:03 2024",
+ "timestampMillis": "1728608163010",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_service.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "KERNEL_SERVICE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 02:56:03 2024",
+ "timestampMillis": "1728608163012",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_service.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "KERNEL_SERVICE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849815",
+ "status": {
+  "cmdId": "10ca9b0e-f5fc-44d5-b2e6-7d02e106131a",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849835",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_placed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_SLR_UTIL_PLACED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849836",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849836",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849836",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_routed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849837",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_routed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_SLR_UTIL_ROUTED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849837",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_placed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849837",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_synthed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849838",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_placed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SLR_UTIL_PLACED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849838",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_synthed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849838",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SLR_UTIL_ROUTED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849839",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_routed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849839",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_synthed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849840",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_synthed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849840",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_placed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849897",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_2in3_1_0_synth_1_ulp_hpu_msplit_3parts_2in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849897",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_3in3_1_0_synth_1_ulp_hpu_msplit_3parts_3in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849897",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_1in3_1_0_synth_1_ulp_hpu_msplit_3parts_1in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849898",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_system_diagram.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849915",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY",
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849929",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpx",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY",
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849929",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpv",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY_CONCISE",
+  "cmdId": "a88eb365-bf38-4895-bec2-29ee67c87a05"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849947",
+ "status": {
+  "cmdId": "56e1548a-4785-4a1d-8f27-4420456db1dd",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849982",
+ "status": {
+  "cmdId": "bd1dd81e-ab04-4ecb-90fd-63ce7ff45568",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849986",
+ "buildStep": {
+  "cmdId": "c93ef80c-6dda-46f2-a59e-2576d4f66da7",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "rtdgen",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849986",
+ "status": {
+  "cmdId": "c93ef80c-6dda-46f2-a59e-2576d4f66da7",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849990",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "XCLBIN_INFO",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849992",
+ "buildStep": {
+  "cmdId": "b5f2c077-7378-4f1a-99a9-a3456c3ce492",
+  "name": "cf2sw",
+  "logFile": "",
+  "commandLine": "cf2sw -a /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/address_map.xml -sdsl /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat -xclbin /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml -rtd /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd -o /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml",
+  "args": [
+   "-a",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/address_map.xml",
+   "-sdsl",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat",
+   "-xclbin",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml",
+   "-rtd",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "-o",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:09 2024",
+ "timestampMillis": "1728609849992",
+ "status": {
+  "cmdId": "b5f2c077-7378-4f1a-99a9-a3456c3ce492",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861530",
+ "status": {
+  "cmdId": "b5f2c077-7378-4f1a-99a9-a3456c3ce492",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861532",
+ "buildStep": {
+  "cmdId": "1596bfe1-25b5-45d5-a360-a6c42c101f98",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "writeSystemDiagram",
+  "args": [
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861532",
+ "status": {
+  "cmdId": "1596bfe1-25b5-45d5-a360-a6c42c101f98",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861540",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861540",
+ "status": {
+  "cmdId": "1596bfe1-25b5-45d5-a360-a6c42c101f98",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861541",
+ "buildStep": {
+  "cmdId": "0b2f9c42-8fbd-4ccf-88d5-2fff034158bd",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "writeAutomationSummary",
+  "args": [
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary.txt"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861541",
+ "status": {
+  "cmdId": "0b2f9c42-8fbd-4ccf-88d5-2fff034158bd",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861543",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary.txt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "VITIS_DESIGN_FLOW",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861543",
+ "status": {
+  "cmdId": "0b2f9c42-8fbd-4ccf-88d5-2fff034158bd",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861543",
+ "status": {
+  "cmdId": "c93ef80c-6dda-46f2-a59e-2576d4f66da7",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861545",
+ "buildStep": {
+  "cmdId": "d79610bb-7634-4360-bb0d-4092990da833",
+  "name": "xclbinutil",
+  "logFile": "",
+  "commandLine": "xclbinutil --add-section BITSTREAM:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/partial.bit --force --target hw --key-value SYS:dfx_enable:true --add-section :JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd --append-section :JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/appendSection.rtd --add-section CLOCK_FREQ_TOPOLOGY:JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd --add-section BUILD_METADATA:JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_build.rtd --add-section EMBEDDED_METADATA:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml --add-section SYSTEM_METADATA:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json --key-value SYS:PlatformVBNV:xilinx_u55c_gen3x16_xdma_3_202210_1 --output /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin",
+  "args": [
+   "--add-section",
+   "BITSTREAM:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/partial.bit",
+   "--force",
+   "--target",
+   "hw",
+   "--key-value",
+   "SYS:dfx_enable:true",
+   "--add-section",
+   ":JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "--append-section",
+   ":JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/appendSection.rtd",
+   "--add-section",
+   "CLOCK_FREQ_TOPOLOGY:JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd",
+   "--add-section",
+   "BUILD_METADATA:JSON:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_build.rtd",
+   "--add-section",
+   "EMBEDDED_METADATA:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml",
+   "--add-section",
+   "SYSTEM_METADATA:RAW:/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json",
+   "--key-value",
+   "SYS:PlatformVBNV:xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "--output",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861545",
+ "status": {
+  "cmdId": "d79610bb-7634-4360-bb0d-4092990da833",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861814",
+ "status": {
+  "cmdId": "d79610bb-7634-4360-bb0d-4092990da833",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861816",
+ "buildStep": {
+  "cmdId": "9ed4c3fd-a542-4211-b7c4-7de0512abac2",
+  "name": "xclbinutilinfo",
+  "logFile": "",
+  "commandLine": "xclbinutil --quiet --force --info /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin.info --input /projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin",
+  "args": [
+   "--quiet",
+   "--force",
+   "--info",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin.info",
+   "--input",
+   "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/hpu_msplit_3parts.xclbin"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:21 2024",
+ "timestampMillis": "1728609861816",
+ "status": {
+  "cmdId": "9ed4c3fd-a542-4211-b7c4-7de0512abac2",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862507",
+ "status": {
+  "cmdId": "9ed4c3fd-a542-4211-b7c4-7de0512abac2",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862509",
+ "buildStep": {
+  "cmdId": "d0b7a4d3-6748-454e-a162-9e8cf4e7f0e9",
+  "name": "generate_sc_driver",
+  "logFile": "",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862509",
+ "status": {
+  "cmdId": "d0b7a4d3-6748-454e-a162-9e8cf4e7f0e9",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862510",
+ "status": {
+  "cmdId": "d0b7a4d3-6748-454e-a162-9e8cf4e7f0e9",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862517",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/system_estimate_hpu_msplit_3parts.xtxt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SYSTEM_ESTIMATE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862522",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/logs/optraceViewer.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "OPERATION_TRACE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862522",
+ "status": {
+  "cmdId": "8ee507ac-5849-4b65-ad2e-3a068e083511",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862586",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/reports/link/v++_link_hpu_msplit_3parts_guidance.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Fri Oct 11 03:24:22 2024",
+ "timestampMillis": "1728609862586",
+ "report": {
+  "path": "/projects/jjduflot/projects/dev_gf64_clean_dont_3/xrt/output/hw/_tmp_vitis_xclbin/v++_link_hpu_msplit_3parts_guidance.pb3",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

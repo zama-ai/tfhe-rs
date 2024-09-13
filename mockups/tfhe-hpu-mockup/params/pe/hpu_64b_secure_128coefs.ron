@@ -1,0 +1,26 @@
+([
+    ("LdSt_0", (
+        cost: (
+            rd_lock: 514,
+            wr_lock: 515,
+        ),
+        kind: ("MemLd | MemSt"),
+        batch_size: 1,
+    )),
+    ("Lin_0", (
+        cost: (
+            rd_lock: 2048,
+            wr_lock: 2049,
+        ),
+        kind: ("Arith"),
+        batch_size: 1,
+    )),
+    ("KsPbs_0", (
+        cost: (
+            rd_lock: 24576,
+            wr_lock: 302181,
+        ),
+        kind: ("Pbs"),
+        batch_size: 12,
+    )),
+])
