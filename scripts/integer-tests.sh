@@ -133,8 +133,8 @@ if [[ "${backend}" == "gpu" ]]; then
         test_threads=8
         doctest_threads=8
     else
-        test_threads=3
-        doctest_threads=3
+        test_threads=1
+        doctest_threads=1
     fi
 fi
 
