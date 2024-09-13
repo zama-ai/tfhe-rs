@@ -190,3 +190,13 @@ pub trait CiphertextList {
 }
 
 pub trait FheId: Copy + Default {}
+
+/// Traits use to implement explicit movement with Hw accelerators
+/// Function to handle Xfer from Cpu to Hw device
+/// NB: Wayback is implemented with From trait
+#[cfg(feature = "hpu-xfer")]
+pub trait HwXfer<HwDevice> {
+    type Output;
+    fn clone_on(&self, device: &HwDevice) -> Self::Output;
+    fn mv_on(self, device: &HwDevice) -> Self::Output;
+}

@@ -20,6 +20,10 @@ pub mod fft_impl;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
+
+#[cfg(feature = "hpu")]
+pub mod hpu;
+
 #[cfg(test)]
 pub mod keycache;
 
