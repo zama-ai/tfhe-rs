@@ -1,0 +1,110 @@
+set fallback := true
+
+_targets:
+  @just --list --unsorted --list-heading $'Available targets:\n' --list-prefix "  "
+
+# Default values --------------------------------------------------------------
+DEFAULT_RUST_LOG := "info"
+CARGO_HOME := "$(pwd)/../.."
+BUILD_PROFILE := "release"
+
+# init configuration ------------------------------------------------------------
+# Enforce that symlink is created on config
+init:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    source setup_hpu.sh
+
+### Mockup related target -------------------------------------------------------
+# Build mockup application
+mockup_build:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    cargo build --profile {{BUILD_PROFILE}} --bin hpu_mockup
+
+# Start mockup 44b with fast configuration
+mockup_44b_fast RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/{{BUILD_PROFILE}}/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_44b_fast.ron \
+      --report-out mockup_rpt --report-trace
+
+# Start mockup with real 44b configuration
+mockup_44b RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/{{BUILD_PROFILE}}/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_44b.ron \
+      --report-out mockup_rpt --report-trace
+
+# Start mockup gf64 with fast configuration
+mockup_gf64_fast RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/{{BUILD_PROFILE}}/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron \
+      --report-out mockup_rpt --report-trace
+
+# Start mockup with real gf64 configuration
+mockup_gf64 RUST_LOG=DEFAULT_RUST_LOG: mockup_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} ./target/{{BUILD_PROFILE}}/hpu_mockup \
+      --params mockups/tfhe-hpu-mockup/params/tfhers_64b.ron \
+      --report-out mockup_rpt --report-trace
+
+# UserApp related target -------------------------------------------------------
+# Build hpu example user application
+user_build:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    cargo build --profile {{BUILD_PROFILE}} --features="hpu-xfer"\
+         --example hpu_8b\
+         --example hpu_16b\
+         --example hpu_32b\
+         --example hpu_64b\
+         --example hpu_mixed
+
+
+# Run Hpu benchmark on FheUint8
+hpu_8b ARGS="" RUST_LOG=DEFAULT_RUST_LOG: user_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    ./target/{{BUILD_PROFILE}}/examples/hpu_8b {{ARGS}}
+
+# Run Hpu benchmark on FheUint16
+hpu_16b ARGS="" RUST_LOG=DEFAULT_RUST_LOG: user_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    ./target/{{BUILD_PROFILE}}/examples/hpu_16b {{ARGS}}
+
+# Run Hpu benchmark on FheUint32
+hpu_32b ARGS="" RUST_LOG=DEFAULT_RUST_LOG: user_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    ./target/{{BUILD_PROFILE}}/examples/hpu_32b {{ARGS}}
+
+# Run Hpu benchmark on FheUint64
+hpu_64b ARGS="" RUST_LOG=DEFAULT_RUST_LOG: user_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    ./target/{{BUILD_PROFILE}}/examples/hpu_64b {{ARGS}}
+
+# Run Hpu mixed Hpu/Cpu application
+hpu_mixed RUST_LOG=DEFAULT_RUST_LOG: user_build init
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    ./target/{{BUILD_PROFILE}}/examples/hpu_mixed
