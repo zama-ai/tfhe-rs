@@ -1,0 +1,43 @@
+[package]
+name = "tfhe-hpu-backend"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zama Hardware team"]
+readme = "README.md"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+debug = ["clap", "clap-num"]
+
+[build-dependencies]
+cxx-build = "1.0"
+
+[dev-dependencies]
+serial_test = "3.1.1"
+rand = "0.8.5"
+
+[dependencies]
+cxx = "1.0"
+hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", branch="main"}
+hw-hpu = {git = "ssh://git@github.com/zama-ai/hw-hpu.git", branch="main"}
+
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"]}
+toml = {version = "*", features = []}
+paste = "1.0.15"
+thiserror = "1.0.61"
+tracing = "0.1.40"
+bytemuck = "1.16.0"
+
+clap = { version = "4.4.4", features = ["derive"], optional=true}
+clap-num = {version = "1.1.1", optional=true}
+rand = { version = "0.8.5", optional=true}
+serde_json = {version = "1.0.117", optional=true}
+
+
+# Binary for manual debugging
+[[bin]]
+name = "hputil"
+path = "src/util.rs"
+required-features = ["debug"]
