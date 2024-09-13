@@ -43,6 +43,16 @@ log = "0.4.19"
 hex = "0.4.3"
 # End regex-engine deps
 
+# Begin hpu-demo deps
+# Enable to have hpu execution trace
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+clap-num = {version = "1.1.1"}
+# End hpu-demo deps
+# Begin hpu-tests deps
+# Only one Hpu device -> Tests have to be executed in series
+serial_test = "3.1.1"
+# End hpu-tests deps
+
 [build-dependencies]
 cbindgen = { version = "0.28", optional = true }
 
@@ -83,6 +93,8 @@ serde-wasm-bindgen = { version = "0.6.0", optional = true }
 getrandom = { version = "0.2.8", optional = true }
 bytemuck = { workspace = true }
 
+tfhe-hpu-backend = { version = "0.1", path = "../backends/tfhe-hpu-backend", optional = true }
+
 [features]
 boolean = []
 shortint = ["dep:sha3"]
@@ -96,6 +108,12 @@ gpu-experimental-multi-arch = [
 ]
 gpu-profile = ["gpu", "tfhe-cuda-backend/profile"]
 zk-pok = ["dep:tfhe-zk-pok"]
+# Start Fpga Hpu features
+hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
+hpu-xrt = ["tfhe-hpu-backend/hw-xrt"]
+hpu-xfer = ["hpu"]
+hpu-debug = ["tfhe-hpu-backend/io-dump"]
+# End Fpga Hpu features
 
 # Adds more FheUint/FheInt types to the HL
 extended-types = []
@@ -149,6 +167,7 @@ features = [
     "zk-pok",
     "software-prng",
     "strings",
+    "hpu",
 ]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
@@ -199,6 +218,45 @@ required-features = ["integer", "pbs-stats"]
 [[example]]
 name = "dist_tuniform"
 required-features = ["integer", "internal-keycache"]
+
+# Start of Hpu related section
+[[example]]
+name = "hpu_mixed"
+path = "examples/hpu/demo/mixed_api.rs"
+required-features = ["hpu-xfer"]
+
+[[example]]
+name = "hpu_debug"
+path = "examples/hpu/debug.rs"
+required-features = ["hpu-xfer"]
+
+# NB: Following are application dedicated to Iop benchmark
+# However, there are not yet integrated with libtest and thus are built like an example
+[[example]]
+name = "hpu_gtv"
+path = "examples/hpu/golden_tv.rs"
+required-features = ["hpu-xfer", "hpu-debug"]
+
+[[example]]
+name = "hpu_8b"
+path = "examples/hpu/bench/bench_8b.rs"
+required-features = ["hpu-xfer"]
+
+[[example]]
+name = "hpu_16b"
+path = "examples/hpu/bench/bench_16b.rs"
+required-features = ["hpu-xfer"]
+
+[[example]]
+name = "hpu_32b"
+path = "examples/hpu/bench/bench_32b.rs"
+required-features = ["hpu-xfer"]
+
+[[example]]
+name = "hpu_64b"
+path = "examples/hpu/bench/bench_64b.rs"
+required-features = ["hpu-xfer"]
+# End of Hpu related section
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

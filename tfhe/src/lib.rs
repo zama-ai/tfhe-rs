@@ -158,3 +158,8 @@ pub use error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub use tfhe_versionable::{Unversionize, Versionize};
+
+/// Export tfhe-hpu-backend for external use
+// TODO: check if this is really required for mockup or at least used a dedicated mockup features
+#[cfg(feature = "hpu")]
+pub use tfhe_hpu_backend;

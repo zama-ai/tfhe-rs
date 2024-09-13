@@ -1,0 +1,75 @@
+[package]
+name = "tfhe-hpu-backend"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zama Hardware team"]
+readme = "README.md"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+hw-xrt = []
+io-dump = ["num-traits"]
+utils = ["clap", "clap-num"]
+
+[build-dependencies]
+cxx-build = "1.0"
+
+[dev-dependencies]
+serial_test = "3.1.1"
+
+[dependencies]
+cxx = "1.0"
+hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", rev="c0ba18d0"}
+
+strum = { version = "0.26.2", features = ["derive"] }
+strum_macros = "0.26.2"
+enum_dispatch = "0.3.13"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"]}
+toml = {version = "*", features = []}
+paste = "1.0.15"
+thiserror = "1.0.61"
+bytemuck = "1.16.0"
+anyhow = "1.0.82"
+deku = "0.16.0"
+lazy_static = "1.4.0"
+rand = "0.8.5"
+regex = "1.10.4"
+bitflags = "2.5.0"
+itertools = "0.11.0"
+lru = "0.12.3"
+
+# Dependencies used for Sim feature
+ipc-channel = "0.18.3"
+# ron = "*"
+# getset = "*"
+# indexmap = "*"
+
+# Dependencies used for debug feature
+num-traits = { version = "*", optional=true}
+clap = { version = "4.4.4", features = ["derive"], optional=true}
+clap-num = {version = "1.1.1", optional=true}
+
+
+# Binary for manual debugging
+# Enable to access Hpu register and drive some custom sequence by hand
+[[bin]]
+name = "hputil"
+path = "src/utils/hputil.rs"
+required-features = ["utils"]
+
+# Binary for asm manipulation
+# Enable to convert back and forth between asm/hex format
+[[bin]]
+name = "fmt"
+path = "src/utils/fmt.rs"
+required-features = ["utils"]
+
+# Firmware generation
+# Enable to expand IOp in list of Dop for inspection
+[[bin]]
+name = "fw"
+path = "src/utils/fw.rs"
+required-features = ["utils"]
