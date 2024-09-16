@@ -41,7 +41,8 @@ __global__ void sample_extract(Torus *lwe_array_out, Torus *glwe_array_in,
   uint32_t lwe_per_glwe = params::degree;
   auto glwe_in = glwe_array_in + (input_id / lwe_per_glwe) * glwe_input_size;
 
-  auto nth = nth_array[input_id];
+  // nth is ensured to be in [0, lwe_per_glwe)
+  auto nth = nth_array[input_id] % lwe_per_glwe;
 
   sample_extract_mask<Torus, params>(lwe_out, glwe_in, glwe_dimension, nth);
   sample_extract_body<Torus, params>(lwe_out, glwe_in, glwe_dimension, nth);
