@@ -229,6 +229,15 @@ mod zk {
             })
         }
 
+        pub fn verify(
+            &self,
+            public_params: &CompactPkePublicParams,
+            pk: &CompactPublicKey,
+            metadata: &[u8],
+        ) -> crate::zk::ZkVerificationOutCome {
+            self.inner.verify(public_params, &pk.key.key, metadata)
+        }
+
         pub fn verify_and_expand(
             &self,
             public_params: &CompactPkePublicParams,
