@@ -500,12 +500,12 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitor_parallelized,
-    display_name: bitand
+    display_name: bitor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
     method_name: unchecked_bitxor_parallelized,
-    display_name: bitand
+    display_name: bitxor
 );
 
 define_server_key_bench_binary_signed_clean_inputs_fn!(
