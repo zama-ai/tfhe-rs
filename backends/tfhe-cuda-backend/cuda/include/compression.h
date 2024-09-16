@@ -72,7 +72,8 @@ template <typename Torus> struct int_compression {
               sizeof(Torus),
           streams[0], gpu_indexes[0]);
       tmp_glwe_array_out = (Torus *)cuda_malloc_async(
-          glwe_accumulator_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+          lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
+          gpu_indexes[0]);
 
       scratch_packing_keyswitch_lwe_list_to_glwe_64(
           streams[0], gpu_indexes[0], &fp_ks_buffer,
@@ -100,6 +101,7 @@ template <typename Torus> struct int_decompression {
 
   Torus *tmp_extracted_glwe;
   Torus *tmp_extracted_lwe;
+  uint32_t *tmp_indexes_array;
 
   int_radix_lut<Torus> *carry_extract_lut;
 
@@ -117,20 +119,21 @@ template <typename Torus> struct int_decompression {
     if (allocate_gpu_memory) {
       Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                     compression_params.polynomial_size;
-
+      Torus lwe_accumulator_size = (compression_params.glwe_dimension *
+                                        compression_params.polynomial_size +
+                                    1);
       carry_extract_lut = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, encryption_params, 1,
           num_radix_blocks, allocate_gpu_memory);
 
       tmp_extracted_glwe = (Torus *)cuda_malloc_async(
-          glwe_accumulator_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+          num_radix_blocks * glwe_accumulator_size * sizeof(Torus), streams[0],
+          gpu_indexes[0]);
+      tmp_indexes_array = (uint32_t *)cuda_malloc_async(
+          num_radix_blocks * sizeof(uint32_t), streams[0], gpu_indexes[0]);
       tmp_extracted_lwe = (Torus *)cuda_malloc_async(
-          num_radix_blocks *
-              (compression_params.glwe_dimension *
-                   compression_params.polynomial_size +
-               1) *
-              sizeof(Torus),
-          streams[0], gpu_indexes[0]);
+          num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
+          gpu_indexes[0]);
       // Decompression
       // Carry extract LUT
       auto carry_extract_f = [encryption_params](Torus x) -> Torus {
@@ -151,6 +154,7 @@ template <typename Torus> struct int_decompression {
                uint32_t gpu_count) {
     cuda_drop_async(tmp_extracted_glwe, streams[0], gpu_indexes[0]);
     cuda_drop_async(tmp_extracted_lwe, streams[0], gpu_indexes[0]);
+    cuda_drop_async(tmp_indexes_array, streams[0], gpu_indexes[0]);
 
     carry_extract_lut->release(streams, gpu_indexes, gpu_count);
     delete (carry_extract_lut);

@@ -141,7 +141,7 @@ extern "C" {
         gpu_count: u32,
         lwe_array_out: *mut c_void,
         glwe_in: *const c_void,
-        indexes_array: *const c_void,
+        indexes_array: *const u32,
         indexes_array_size: u32,
         bsks: *const *mut c_void,
         mem_ptr: *mut i8,

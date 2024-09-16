@@ -189,7 +189,7 @@ impl CudaDecompressionKey {
         let glwe_ciphertext_list = &packed_list.glwe_ciphertext_list;
         let compression_glwe_dimension = glwe_ciphertext_list.glwe_dimension();
         let compression_polynomial_size = glwe_ciphertext_list.polynomial_size();
-        let lwe_ciphertext_count = LweCiphertextCount(indexes_array.len());
+        let indexes_array_len = LweCiphertextCount(indexes_array.len());
 
         let message_modulus = self.parameters.message_modulus();
         let carry_modulus = self.parameters.carry_modulus();
@@ -202,16 +202,12 @@ impl CudaDecompressionKey {
 
                 let mut output_lwe = CudaLweCiphertextList::new(
                     lwe_dimension,
-                    lwe_ciphertext_count,
+                    indexes_array_len,
                     ciphertext_modulus,
                     streams,
                 );
 
-                let gpu_index = streams.gpu_indexes[0];
                 unsafe {
-                    let d_indexes_array =
-                        CudaVec::from_cpu_async(indexes_array.as_slice(), streams, gpu_index);
-
                     decompress_integer_radix_async(
                         streams,
                         &mut output_lwe.0.d_vec,
@@ -228,8 +224,8 @@ impl CudaDecompressionKey {
                         bsk.decomp_base_log(),
                         bsk.decomp_level_count(),
                         storage_log_modulus.0 as u32,
-                        &d_indexes_array,
-                        lwe_ciphertext_count.0 as u32,
+                        indexes_array.as_slice(),
+                        indexes_array_len.0 as u32,
                     );
                 }
 
