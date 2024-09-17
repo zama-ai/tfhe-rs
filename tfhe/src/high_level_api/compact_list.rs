@@ -110,7 +110,10 @@ impl CompactCiphertextList {
         self.inner
             .expand(
                 IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
-                IntegerCompactCiphertextListCastingMode::NoCasting,
+                sks.cpk_casting_key().map_or(
+                    IntegerCompactCiphertextListCastingMode::NoCasting,
+                    IntegerCompactCiphertextListCastingMode::CastIfNecessary,
+                ),
             )
             .map(|inner| CompactCiphertextListExpander {
                 inner,
@@ -518,6 +521,68 @@ mod tests {
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
         let expander = compact_list.expand().unwrap();
+
+        {
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+            let d: FheBool = expander.get(3).unwrap().unwrap();
+            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d = d.decrypt(&ck);
+            assert!(d);
+            let e: u8 = e.decrypt(&ck);
+            assert_eq!(e, 3);
+
+            assert!(expander.get::<FheBool>(5).is_none());
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheInt64>(0).unwrap().is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheUint16>(0).unwrap().is_err());
+        }
+    }
+
+    #[test]
+    fn test_compact_list_with_casting() {
+        use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .push(-1i64)
+            .push(false)
+            .push(true)
+            .push_with_num_bits(3u8, 2)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand_with_key(&sk).unwrap();
 
         {
             let a: FheUint32 = expander.get(0).unwrap().unwrap();
