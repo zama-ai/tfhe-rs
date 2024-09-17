@@ -176,6 +176,18 @@ impl CompressedCiphertextList {
             )),
         })
     }
+
+    pub fn into_raw_parts(self) -> (crate::integer::ciphertext::CompressedCiphertextList, Tag) {
+        let Self { inner, tag } = self;
+        (inner, tag)
+    }
+
+    pub fn from_raw_parts(
+        inner: crate::integer::ciphertext::CompressedCiphertextList,
+        tag: Tag,
+    ) -> Self {
+        Self { inner, tag }
+    }
 }
 
 #[cfg(test)]
