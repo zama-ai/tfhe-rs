@@ -2,7 +2,7 @@ pub(crate) mod traits;
 
 pub mod parameters;
 pub use parameters::{
-    HpuIscParameters, HpuKeyswitchParameters, HpuNttParameters, HpuPBSParameters, HpuParameters,
+    HpuIscParameters, HpuKeyswitchParameters, HpuNttCoreArch, HpuNttParameters, HpuPBSParameters, HpuParameters,
     HpuPcParameters, HpuRegfileParameters,
 };
 

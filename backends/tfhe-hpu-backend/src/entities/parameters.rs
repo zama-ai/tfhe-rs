@@ -41,6 +41,8 @@ pub struct HpuKeyswitchParameters {
 /// Related to architectural implementation of NTT/INTT in Hpu
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuNttParameters {
+    /// Core architecture
+    pub core_arch: HpuNttCoreArch,
     /// #PBS in Ntt Pipe
     pub batch_pbs_nb: usize,
     /// Maximum #PBS store in Pep
@@ -61,6 +63,16 @@ pub struct HpuNttParameters {
     pub psi: usize,
     /// Delta value -> Number of stages before pcg network
     pub delta: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HpuNttCoreArch {
+    WmmCompact ,
+    WmmPipeline ,
+    WmmUnfold ,
+    WmmCompactPcg ,
+    WmmUnfoldPcg ,
+    GF64(Vec<u8>),
 }
 
 impl HpuNttParameters {

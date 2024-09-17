@@ -7,8 +7,7 @@ use crate::entities::*;
 
 // Set of constant defined in RTL and associated rust definition
 // -> Cf. fpga/hw/common_lib/common_package/rtl/common_definition_pkg.sv
-// Not used by SW anymore ?
-// const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
+const NTT_CORE_ARCH_OFS: u32 = 5 << 8;
 const MOD_NTT_NAME_OFS: u32 = 6 << 8;
 const APPLICATION_NAME_OFS: u32 = 7 << 8;
 
@@ -57,6 +56,9 @@ impl FromRtl for HpuKeyswitchParameters {
 }
 impl FromRtl for HpuNttParameters {
     fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+
+        let core_arch = HpuNttCoreArch::from_rtl(ffi_pin, regmap);
+
         // Values extracted from NttInternal register
         let ntt_internal = regmap
             .register()
@@ -119,6 +121,7 @@ impl FromRtl for HpuNttParameters {
         let stg_nb = pbs_params.polynomial_size.ilog(radix) as usize;
 
         Self {
+            core_arch,
             batch_pbs_nb,
             total_pbs_nb,
             ct_width: pbs_params.ciphertext_width as u32,
@@ -129,6 +132,46 @@ impl FromRtl for HpuNttParameters {
             delta,
         }
     }
+}
+
+impl FromRtl for HpuNttCoreArch {
+    fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
+
+        // Values extracted from NttModulo register
+        // Modulus isn't directly expressed, instead used custom encoding
+        let ntt_core_arch= regmap
+            .register()
+            .get("Info::NttArch")
+            .expect("Unknow register, check regmap definition");
+        let ntt_core_arch_val = ffi_pin.as_mut().read_reg(*ntt_core_arch.offset() as u64);
+
+        // Check register encoding
+        let field_code = ntt_core_arch_val & (!0xFF_u32);
+        assert_eq!(
+            field_code, NTT_CORE_ARCH_OFS,
+            "Invalid register encoding. Check register map definition"
+        );
+
+        match ntt_core_arch_val & 0xFF {
+            0 => Self::WmmCompact,
+            1 => Self::WmmPipeline,
+            2 => Self::WmmUnfold,
+            3 => Self::WmmCompactPcg,
+            4 => Self::WmmUnfoldPcg,
+            5 => {
+                // Extract associated radix split
+
+                let radix_cut= regmap
+                    .register()
+                    .get("Info::NttRdxCut")
+                    .expect("Unknow register, check regmap definition");
+                let radix_cut_val = ffi_pin.as_mut().read_reg(*radix_cut.offset() as u64);
+                let mut cut_l = (0..(u32::BITS/4)).map(|ofst| ((radix_cut_val >> (ofst*4)) & 0xf) as u8).filter(|x| *x!= 0).collect::<Vec<u8>>();
+                Self::GF64(cut_l)
+            },
+            _ => panic!("Unknown NttCoreArch encoding"),
+        }
+        }
 }
 
 impl FromRtl for HpuPcParameters {
