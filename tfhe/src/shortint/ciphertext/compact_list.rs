@@ -59,6 +59,13 @@ impl ParameterSetConformant for CompactCiphertextList {
 }
 
 impl CompactCiphertextList {
+    /// Expand a [`CompactCiphertextList`] to a `Vec` of [`Ciphertext`].
+    ///
+    /// The function takes a [`ShortintCompactCiphertextListCastingMode`] to indicate whether a
+    /// keyswitch should be applied during expansion.
+    ///
+    /// This is useful when using separate parameters for the public key used to encrypt the
+    /// [`CompactCiphertextList`] allowing to keyswitch to the computation params during expansion.
     pub fn expand(
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
