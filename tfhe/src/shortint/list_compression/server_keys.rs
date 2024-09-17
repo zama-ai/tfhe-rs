@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressionKeyVersions)]
 pub struct CompressionKey {
     pub packing_key_switching_key: LwePackingKeyswitchKey<Vec<u64>>,
@@ -23,7 +23,7 @@ pub struct CompressionKey {
     pub storage_log_modulus: CiphertextModulusLog,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DecompressionKeyVersions)]
 pub struct DecompressionKey {
     pub blind_rotate_key: ShortintBootstrappingKey,
