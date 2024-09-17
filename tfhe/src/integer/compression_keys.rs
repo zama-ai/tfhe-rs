@@ -49,6 +49,28 @@ impl CompressedDecompressionKey {
     }
 }
 
+impl CompressionKey {
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::CompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(key: crate::shortint::list_compression::CompressionKey) -> Self {
+        Self { key }
+    }
+}
+
+impl DecompressionKey {
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::DecompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(key: crate::shortint::list_compression::DecompressionKey) -> Self {
+        Self { key }
+    }
+}
+
 impl ClientKey {
     pub fn new_compressed_compression_decompression_keys(
         &self,
