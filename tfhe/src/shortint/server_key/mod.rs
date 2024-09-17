@@ -19,13 +19,13 @@ mod shift;
 mod sub;
 
 pub mod compressed;
-use ::tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 use aligned_vec::ABox;
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
+use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(test)]
 pub(crate) mod tests;
