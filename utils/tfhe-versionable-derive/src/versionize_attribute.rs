@@ -2,14 +2,11 @@ use proc_macro2::Span;
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{
-    Attribute, Expr, ExprLit, Ident, Lit, Meta, MetaNameValue, Path, Token, TraitBound, Type,
-    TypeParam,
-};
+use syn::{Attribute, Expr, Ident, Lit, Meta, Path, Token, TraitBound, Type};
 
 use crate::{parse_const_str, UNVERSIONIZE_ERROR_NAME, VERSIONIZE_OWNED_TRAIT_NAME};
 
-/// Name of the attribute used to give arguments to our macros
+/// Name of the attribute used to give arguments to the `Versionize` macro
 const VERSIONIZE_ATTR_NAME: &str = "versionize";
 
 pub(crate) struct VersionizeAttribute {
@@ -17,8 +14,6 @@ pub(crate) struct VersionizeAttribute {
     from: Option<Path>,
     try_from: Option<Path>,
     into: Option<Path>,
-    versionize_bounds: Vec<TypeParam>,
-    unversionize_bounds: Vec<TypeParam>,
 }
 
 #[derive(Default)]
@@ -27,8 +22,6 @@ struct VersionizeAttributeBuilder {
     from: Option<Path>,
     try_from: Option<Path>,
     into: Option<Path>,
-    versionize_bounds: Vec<TypeParam>,
-    unversionize_bounds: Vec<TypeParam>,
 }
 
 impl VersionizeAttributeBuilder {
@@ -42,8 +35,6 @@ impl VersionizeAttributeBuilder {
             from: self.from,
             try_from: self.try_from,
             into: self.into,
-            versionize_bounds: self.versionize_bounds,
-            unversionize_bounds: self.unversionize_bounds,
         })
     }
 }
@@ -53,18 +44,17 @@ impl VersionizeAttribute {
     /// `DispatchType` is the name of the type holding the dispatch enum.
     /// Returns an error if no `versionize` attribute has been found, if multiple attributes are
     /// present on the same struct or if the attribute is malformed.
-    pub(crate) fn parse_from_attributes_list(attributes: &[Attribute]) -> syn::Result<Self> {
+    pub(crate) fn parse_from_attributes_list(
+        attributes: &[Attribute],
+    ) -> syn::Result<Option<Self>> {
         let version_attributes: Vec<&Attribute> = attributes
             .iter()
             .filter(|attr| attr.path().is_ident(VERSIONIZE_ATTR_NAME))
             .collect();
 
         match version_attributes.as_slice() {
-            [] => Err(syn::Error::new(
-                Span::call_site(),
-                "Missing `versionize` attribute for `Versionize`",
-            )),
-            [attr] => Self::parse_from_attribute(attr),
+            [] => Ok(None),
+            [attr] => Self::parse_from_attribute(attr).map(Some),
             [_, attr2, ..] => Err(syn::Error::new(
                 attr2.span(),
                 "Multiple `versionize` attributes found",
@@ -89,31 +79,6 @@ impl VersionizeAttribute {
                         return Err(Self::default_error(meta.span()));
                     } else {
                         attribute_builder.dispatch_enum = Some(dispatch_enum.clone());
-                    }
-                }
-                Meta::List(list) => {
-                    // parse versionize(bound(unversionize = "Type: Bound"))
-                    if list.path.is_ident("bound") {
-                        let name_value: MetaNameValue = list.parse_args()?;
-                        let bound_attr: TypeParam = match &name_value.value {
-                            Expr::Lit(ExprLit {
-                                attrs: _,
-                                lit: Lit::Str(s),
-                            }) => syn::parse_str(&s.value())?,
-                            _ => {
-                                return Err(Self::default_error(meta.span()));
-                            }
-                        };
-
-                        if name_value.path.is_ident("versionize") {
-                            attribute_builder.versionize_bounds.push(bound_attr);
-                        } else if name_value.path.is_ident("unversionize") {
-                            attribute_builder.unversionize_bounds.push(bound_attr);
-                        } else {
-                            return Err(Self::default_error(meta.span()));
-                        }
-                    } else {
-                        return Err(Self::default_error(meta.span()));
                     }
                 }
                 Meta::NameValue(name_value) => {
@@ -142,22 +107,11 @@ impl VersionizeAttribute {
                                 Some(parse_path_ignore_quotes(&name_value.value)?);
                         }
                         // parse versionize(bound = "Type: Bound")
-                    } else if name_value.path.is_ident("bound") {
-                        let bound_attr: TypeParam = match &name_value.value {
-                            Expr::Lit(ExprLit {
-                                attrs: _,
-                                lit: Lit::Str(s),
-                            }) => syn::parse_str(&s.value())?,
-                            _ => {
-                                return Err(Self::default_error(meta.span()));
-                            }
-                        };
-                        attribute_builder.versionize_bounds.push(bound_attr.clone());
-                        attribute_builder.unversionize_bounds.push(bound_attr);
                     } else {
                         return Err(Self::default_error(meta.span()));
                     }
                 }
+                _ => return Err(Self::default_error(meta.span())),
             }
         }
 
@@ -212,14 +166,6 @@ impl VersionizeAttribute {
         } else {
             quote! { #arg_name.try_into() }
         }
-    }
-
-    pub(crate) fn versionize_bounds(&self) -> &[TypeParam] {
-        &self.versionize_bounds
-    }
-
-    pub(crate) fn unversionize_bounds(&self) -> &[TypeParam] {
-        &self.unversionize_bounds
     }
 }
 
