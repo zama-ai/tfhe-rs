@@ -121,9 +121,8 @@ __host__ void are_all_comparisons_block_true(
             new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                      max_value, num_radix_blocks, true);
 
-        auto is_equal_to_num_blocks_lut_f = [max_value,
-                                             chunk_length](Torus x) -> Torus {
-          return (x & max_value) == chunk_length;
+        auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
+          return x == chunk_length;
         };
         generate_device_accumulator<Torus>(
             streams[0], gpu_indexes[0], new_lut->get_lut(gpu_indexes[0], 0),
