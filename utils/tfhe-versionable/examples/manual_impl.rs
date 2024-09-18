@@ -94,6 +94,7 @@ enum MyStructVersionsDispatchOwned<T: Default + VersionizeOwned> {
     V1(MyStructVersionOwned<T>),
 }
 
+#[test]
 fn main() {
     let ms = MyStruct {
         attr: 37u64,

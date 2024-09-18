@@ -43,14 +43,35 @@ enum MyStructVersions<T: Default> {
     V1(MyStruct<T>),
 }
 
+mod v0 {
+    // This module simulates an older version of our app where we initiated the versioning process.
+    // In real life code this would likely be only present in your git history.
+    use tfhe_versionable::{Versionize, VersionsDispatch};
+
+    #[derive(Versionize)]
+    #[versionize(MyStructVersions)]
+    pub(super) struct MyStruct {
+        pub(super) builtin: u32,
+    }
+
+    #[derive(VersionsDispatch)]
+    #[allow(unused)]
+    pub(super) enum MyStructVersions {
+        V0(MyStruct),
+    }
+}
+
+#[test]
 fn main() {
-    let ms = MyStruct {
-        attr: 37u64,
-        builtin: 1234,
-    };
+    // In the past we saved a value
+    let value = 1234;
+    let ms = v0::MyStruct { builtin: value };
 
     let serialized = bincode::serialize(&ms.versionize()).unwrap();
 
     // This can be called in future versions of your application, when more variants have been added
-    let _unserialized = MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap());
+    let unserialized =
+        MyStruct::<u64>::unversionize(bincode::deserialize(&serialized).unwrap()).unwrap();
+
+    assert_eq!(unserialized.builtin, value);
 }

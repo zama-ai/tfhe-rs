@@ -77,6 +77,7 @@ mod v1 {
     }
 }
 
+#[test]
 fn main() {
     let v0 = v0::MyStruct(Some(37));
     let serialized = bincode::serialize(&v0.versionize()).unwrap();

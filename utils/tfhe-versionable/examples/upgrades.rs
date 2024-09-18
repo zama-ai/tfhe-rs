@@ -132,6 +132,7 @@ mod v2 {
     }
 }
 
+#[test]
 fn main() {
     let v0 = v0::MyStruct(37);
 

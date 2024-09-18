@@ -39,6 +39,7 @@ impl From<SerializableMyStruct> for MyStruct {
     }
 }
 
+#[test]
 fn main() {
     let stru = MyStruct { val: 37 };
 
