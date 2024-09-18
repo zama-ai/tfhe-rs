@@ -31,12 +31,6 @@ WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
 
-ifeq ($(AVX512_SUPPORT),ON)
-		AVX512_FEATURE=nightly-avx512
-else
-		AVX512_FEATURE=
-endif
-
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
 else
@@ -437,7 +431,7 @@ build_core: install_rs_build_toolchain install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE) -p $(TFHE_SPEC)
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=$(TARGET_ARCH_FEATURE),$(AVX512_FEATURE) -p $(TFHE_SPEC); \
+			--features=$(TARGET_ARCH_FEATURE),nightly-avx512 -p $(TFHE_SPEC); \
 	fi
 
 .PHONY: build_core_experimental # Build core_crypto with experimental features
@@ -446,7 +440,7 @@ build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC)
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC); \
+			--features=$(TARGET_ARCH_FEATURE),experimental,nightly-avx512 -p $(TFHE_SPEC); \
 	fi
 
 .PHONY: build_boolean # Build with boolean enabled
@@ -528,7 +522,7 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok -p $(TFHE_SPEC) -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-			--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
+			--features=$(TARGET_ARCH_FEATURE),experimental,zk-pok,nightly-avx512 -p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
@@ -542,7 +536,7 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,$(AVX512_FEATURE) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,nightly-avx512 \
 			-p $(TFHE_SPEC) -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
