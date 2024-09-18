@@ -181,10 +181,15 @@ mod cuda {
     use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
     use criterion::{black_box, Criterion};
     use serde::Serialize;
+    use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+    use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
     use tfhe::core_crypto::gpu::vec::CudaVec;
-    use tfhe::core_crypto::gpu::{cuda_keyswitch_lwe_ciphertext, CudaStreams};
+    use tfhe::core_crypto::gpu::{
+        cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext,
+        CudaStreams,
+    };
     use tfhe::core_crypto::prelude::*;
 
     fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
@@ -290,10 +295,108 @@ mod cuda {
         }
     }
 
+    fn cuda_packing_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+        criterion: &mut Criterion,
+        parameters: &[(String, CryptoParametersRecord<Scalar>)],
+    ) {
+        let bench_name = "core_crypto::cuda::packing_keyswitch";
+        let mut bench_group = criterion.benchmark_group(bench_name);
+
+        // Create the PRNG
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+        let gpu_index = 0;
+        let streams = CudaStreams::new_single_gpu(gpu_index);
+
+        for (name, params) in parameters.iter() {
+            let lwe_dimension = params.lwe_dimension.unwrap();
+            let glwe_dimension = params.glwe_dimension.unwrap();
+            let polynomial_size = params.polynomial_size.unwrap();
+            let ks_decomp_base_log = params.ks_base_log.unwrap();
+            let ks_decomp_level_count = params.ks_level.unwrap();
+            let glwe_noise_distribution = params.glwe_noise_distribution.unwrap();
+            let ciphertext_modulus = params.ciphertext_modulus.unwrap();
+
+            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+                lwe_dimension,
+                &mut secret_generator,
+            );
+
+            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+                glwe_dimension,
+                polynomial_size,
+                &mut secret_generator,
+            );
+
+            let pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
+                &lwe_sk,
+                &glwe_sk,
+                ks_decomp_base_log,
+                ks_decomp_level_count,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut encryption_generator,
+            );
+
+            let cuda_pksk =
+                CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(&pksk, &streams);
+
+            let ct = LweCiphertextList::new(
+                Scalar::ZERO,
+                lwe_sk.lwe_dimension().to_lwe_size(),
+                LweCiphertextCount(glwe_sk.polynomial_size().0),
+                ciphertext_modulus,
+            );
+            let mut d_input_lwe_list =
+                CudaLweCiphertextList::from_lwe_ciphertext_list(&ct, &streams);
+
+            let mut d_output_glwe = CudaGlweCiphertextList::new(
+                glwe_sk.glwe_dimension(),
+                glwe_sk.polynomial_size(),
+                GlweCiphertextCount(1),
+                ciphertext_modulus,
+                &streams,
+            );
+
+            streams.synchronize();
+
+            let id = format!("{bench_name}::{name}");
+            {
+                bench_group.bench_function(&id, |b| {
+                    b.iter(|| {
+                        cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext(
+                            &cuda_pksk,
+                            &d_input_lwe_list,
+                            &mut d_output_glwe,
+                            &streams,
+                        );
+                        black_box(&mut d_input_lwe_list);
+                    })
+                });
+            }
+            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "packing_ks",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
+    }
+
     pub fn cuda_keyswitch_group() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
         cuda_keyswitch(&mut criterion, &benchmark_parameters_64bits());
+        cuda_packing_keyswitch(&mut criterion, &benchmark_parameters_64bits());
     }
 }
 
