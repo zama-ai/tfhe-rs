@@ -247,14 +247,5 @@ int cuda_get_max_shared_memory(uint32_t gpu_index) {
   cudaDeviceGetAttribute(&max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock,
                          gpu_index);
   check_cuda_error(cudaGetLastError());
-#if CUDA_ARCH == 900
-  max_shared_memory = 226000;
-#elif CUDA_ARCH == 890
-  max_shared_memory = 127000;
-#elif CUDA_ARCH == 800
-  max_shared_memory = 163000;
-#elif CUDA_ARCH == 700
-  max_shared_memory = 95000;
-#endif
   return max_shared_memory;
 }

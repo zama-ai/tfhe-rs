@@ -309,55 +309,6 @@ __host__ void scratch_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  uint64_t full_sm_step_one =
-      get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
-          polynomial_size);
-  uint64_t full_sm_step_two =
-      get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
-          polynomial_size);
-  uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
-
-  int max_shared_memory = cuda_get_max_shared_memory(0);
-
-  // Configure step one
-  if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else if (max_shared_memory >= partial_sm) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  }
-
-  // Configure step two
-  if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_two) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  } else if (max_shared_memory >= partial_sm) {
-    check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
-    cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
-        cudaFuncCachePreferShared);
-    check_cuda_error(cudaGetLastError());
-  }
-
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
