@@ -40,7 +40,8 @@ impl CudaServerKey {
         let lwe_size = ct.as_ref().d_blocks.0.lwe_dimension.to_lwe_size().0;
 
         // Allocate the necessary amount of memory
-        let mut tmp_radix = CudaVec::new(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0]);
+        let mut tmp_radix =
+            CudaVec::new_async(num_ct_blocks * lwe_size, streams, streams.gpu_indexes[0]);
 
         let lut = match direction {
             Direction::Trailing => self.generate_lookup_table(|x| {
@@ -257,7 +258,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
         if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self.create_trivial_zero_radix(0, streams);
+            return self.create_trivial_zero_radix_async(0, streams);
         }
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
@@ -268,7 +269,7 @@ impl CudaServerKey {
             .expect("Number of bits encrypted exceeds u32::MAX");
 
         let mut leading_count_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            &ct.duplicate(streams),
+            &ct.duplicate_async(streams),
             direction,
             bit_value,
             streams,
@@ -287,7 +288,7 @@ impl CudaServerKey {
         );
         for i in 0..ct.as_ref().d_blocks.lwe_ciphertext_count().0 {
             let mut new_item: CudaUnsignedRadixCiphertext =
-                self.create_trivial_zero_radix(counter_num_blocks, streams);
+                self.create_trivial_zero_radix_async(counter_num_blocks, streams);
             let mut dest_slice = new_item
                 .as_mut()
                 .d_blocks
@@ -305,7 +306,7 @@ impl CudaServerKey {
             cts.push(new_item);
         }
 
-        self.unchecked_sum_ciphertexts(&cts, streams)
+        self.unchecked_sum_ciphertexts_async(&cts, streams)
     }
 
     //==============================================================================================
@@ -323,11 +324,24 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe {
-            self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::Zero, streams)
-        };
+        let res = unsafe { self.unchecked_trailing_zeros_async(ct, streams) };
         streams.synchronize();
         res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_trailing_zeros_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::Zero, streams)
     }
 
     /// See [Self::trailing_ones]
@@ -341,11 +355,24 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe {
-            self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::One, streams)
-        };
+        let res = unsafe { self.unchecked_trailing_ones_async(ct, streams) };
         streams.synchronize();
         res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_trailing_ones_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        self.count_consecutive_bits_async(ct, Direction::Trailing, BitValue::One, streams)
     }
 
     /// See [Self::leading_zeros]
@@ -359,11 +386,24 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe {
-            self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::Zero, streams)
-        };
+        let res = unsafe { self.unchecked_leading_zeros_async(ct, streams) };
         streams.synchronize();
         res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_leading_zeros_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::Zero, streams)
     }
 
     /// See [Self::leading_ones]
@@ -377,11 +417,24 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        let res = unsafe {
-            self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::One, streams)
-        };
+        let res = unsafe { self.unchecked_leading_ones_async(ct, streams) };
         streams.synchronize();
         res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn unchecked_leading_ones_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        self.count_consecutive_bits_async(ct, Direction::Leading, BitValue::One, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -411,8 +464,10 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self
-                .create_trivial_zero_radix(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams);
+            return self.create_trivial_zero_radix_async(
+                ct.as_ref().d_blocks.lwe_ciphertext_count().0,
+                streams,
+            );
         }
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
@@ -459,7 +514,7 @@ impl CudaServerKey {
         // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
 
         let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            &ct.duplicate(streams),
+            &ct.duplicate_async(streams),
             Direction::Leading,
             BitValue::Zero,
             streams,
@@ -472,7 +527,7 @@ impl CudaServerKey {
 
         for i in 0..(capacity - 1) {
             let mut new_item: CudaSignedRadixCiphertext =
-                self.create_trivial_zero_radix(counter_num_blocks, streams);
+                self.create_trivial_zero_radix_async(counter_num_blocks, streams);
 
             let mut dest_slice = new_item
                 .as_mut()
@@ -491,7 +546,7 @@ impl CudaServerKey {
             cts.push(new_item);
         }
 
-        let new_trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(
+        let new_trivial: CudaSignedRadixCiphertext = self.create_trivial_radix_async(
             -(num_bits_in_ciphertext as i32 - 1i32),
             counter_num_blocks,
             streams,
@@ -500,7 +555,7 @@ impl CudaServerKey {
         cts.push(new_trivial);
 
         let mut result = self
-            .unchecked_partial_sum_ciphertexts(&cts, streams)
+            .unchecked_partial_sum_ciphertexts_async(&cts, streams)
             .expect("internal error, empty ciphertext count");
 
         // This is the part where we extract message and carry blocks
@@ -599,7 +654,7 @@ impl CudaServerKey {
         );
 
         let mut trivial_last_block: CudaSignedRadixCiphertext =
-            self.create_trivial_radix((self.message_modulus.0 - 1) as u64, 1, streams);
+            self.create_trivial_radix_async((self.message_modulus.0 - 1) as u64, 1, streams);
         let trivial_last_block_slice = trivial_last_block
             .as_mut()
             .d_blocks
@@ -680,7 +735,7 @@ impl CudaServerKey {
         let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
 
         let mut new_item: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix(counter_num_blocks, streams);
+            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
         let mut dest_slice = new_item
             .as_mut()
             .d_blocks
@@ -700,7 +755,7 @@ impl CudaServerKey {
         ciphertexts.push(new_item);
 
         let mut new_item: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix(counter_num_blocks, streams);
+            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
         let mut dest_slice = new_item
             .as_mut()
             .d_blocks
@@ -720,12 +775,12 @@ impl CudaServerKey {
         ciphertexts.push(new_item);
 
         let trivial_ct: CudaSignedRadixCiphertext =
-            self.create_trivial_radix(2u32, counter_num_blocks, streams);
+            self.create_trivial_radix_async(2u32, counter_num_blocks, streams);
         ciphertexts.push(trivial_ct);
 
-        let result = self.sum_ciphertexts(ciphertexts, streams).unwrap();
+        let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();
 
-        self.cast_to_unsigned(result, counter_num_blocks, streams)
+        self.cast_to_unsigned_async(result, counter_num_blocks, streams)
     }
 
     /// Returns the number of trailing zeros in the binary representation of `ct`
@@ -772,17 +827,32 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let res = unsafe { self.trailing_zeros_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn trailing_zeros_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_trailing_zeros(ct, streams)
+        self.unchecked_trailing_zeros_async(ct, streams)
     }
 
     /// Returns the number of trailing ones in the binary representation of `ct`
@@ -829,17 +899,32 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let res = unsafe { self.trailing_ones_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn trailing_ones_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_trailing_ones(ct, streams)
+        self.unchecked_trailing_ones_async(ct, streams)
     }
 
     /// Returns the number of leading zeros in the binary representation of `ct`
@@ -886,17 +971,32 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let res = unsafe { self.leading_zeros_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn leading_zeros_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_leading_zeros(ct, streams)
+        self.unchecked_leading_zeros_async(ct, streams)
     }
 
     /// Returns the number of leading ones in the binary representation of `ct`
@@ -943,17 +1043,32 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let res = unsafe { self.leading_ones_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn leading_ones_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
-        self.unchecked_leading_ones(ct, streams)
+        self.unchecked_leading_ones_async(ct, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -993,18 +1108,33 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        let res = unsafe { self.ilog2_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn ilog2_async<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
         let mut tmp;
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
 
-        self.unchecked_ilog2(ct, streams)
+        self.unchecked_ilog2_async(ct, streams)
     }
 
     /// Returns the base 2 logarithm of the number, rounded down.
@@ -1044,8 +1174,24 @@ impl CudaServerKey {
     /// let is_oks = d_is_oks.to_boolean_block(&mut stream);
     /// let is_ok = cks.decrypt_bool(&is_oks);
     /// assert!(is_ok);
-
     pub fn checked_ilog2<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let res = unsafe { self.checked_ilog2_async(ct, streams) };
+        streams.synchronize();
+        res
+    }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn checked_ilog2_async<T>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -1057,13 +1203,14 @@ impl CudaServerKey {
         let ct = if ct.block_carries_are_empty() {
             ct
         } else {
-            tmp = ct.duplicate(streams);
-            unsafe {
-                self.full_propagate_assign_async(&mut tmp, streams);
-            }
+            tmp = ct.duplicate_async(streams);
+            self.full_propagate_assign_async(&mut tmp, streams);
             &tmp
         };
 
-        (self.ilog2(ct, streams), self.scalar_gt(ct, 0, streams))
+        (
+            self.ilog2_async(ct, streams),
+            self.scalar_gt_async(ct, 0, streams),
+        )
     }
 }
