@@ -165,7 +165,7 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-integer-full-benchmarks ]
     runs-on: ubuntu-latest
-    if: ${{ !success() && !cancelled() }}
+    if: ${{ always() && needs.cuda-integer-full-benchmarks.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message

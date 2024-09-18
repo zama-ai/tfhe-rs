@@ -154,7 +154,7 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' }}
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message

@@ -168,7 +168,7 @@ jobs:
     name: Slack Notification
     needs: [ setup-instance, cuda-signed-integer-tests ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-signed-integer-tests.result != 'skipped' }}
+    if: ${{ always() && needs.cuda-signed-integer-tests.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message
