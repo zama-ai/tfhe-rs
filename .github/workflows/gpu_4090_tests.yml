@@ -53,7 +53,7 @@ jobs:
 
       - name: Run core crypto, integer and internal CUDA backend tests
         run: |
-          make test_gpu
+          BIG_TESTS_INSTANCE=FALSE make test_gpu
 
       - name: Run user docs tests
         run: |
