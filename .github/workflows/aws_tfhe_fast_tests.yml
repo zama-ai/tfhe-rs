@@ -26,6 +26,7 @@ jobs:
     outputs:
       csprng_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.csprng_any_changed }}
       zk_pok_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.zk_pok_any_changed }}
+      versionable_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.versionable_any_changed }}
       core_crypto_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.core_crypto_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
@@ -64,10 +65,15 @@ jobs:
               - tfhe/Cargo.toml
               - concrete-csprng/**
               - tfhe-zk-pok/**
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
             csprng:
               - concrete-csprng/**
             zk_pok:
               - tfhe-zk-pok/**
+            versionable:
+              - utils/tfhe-versionable/**
+              - utils/tfhe-versionable-derive/**
             core_crypto:
               - tfhe/src/core_crypto/**
             boolean:
@@ -103,6 +109,7 @@ jobs:
         if: ( steps.changed-files.outputs.dependencies_any_changed == 'true' ||
           steps.changed-files.outputs.csprng_any_changed == 'true' ||
           steps.changed-files.outputs.zk_pok_any_changed == 'true' ||
+          steps.changed-files.outputs.versionable_any_changed == 'true' ||
           steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
           steps.changed-files.outputs.boolean_any_changed == 'true' ||
           steps.changed-files.outputs.shortint_any_changed == 'true' ||
@@ -166,6 +173,11 @@ jobs:
         if: needs.should-run.outputs.zk_pok_test == 'true'
         run: |
           make test_zk_pok
+
+      - name: Run tfhe-versionable tests
+        if: needs.should-run.outputs.versionable_test == 'true'
+        run: |
+          make test_versionable
 
       - name: Run core tests
         if: needs.should-run.outputs.core_crypto_test == 'true'
