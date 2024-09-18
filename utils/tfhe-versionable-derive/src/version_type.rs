@@ -16,9 +16,9 @@ use crate::associated::{
     ConversionDirection,
 };
 use crate::{
-    add_lifetime_bound, add_trait_where_clause, parse_const_str, parse_trait_bound,
-    punctuated_from_iter_result, LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME,
-    VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
+    add_trait_where_clause, parse_const_str, parse_trait_bound, punctuated_from_iter_result,
+    LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME,
+    VERSIONIZE_TRAIT_NAME,
 };
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
@@ -30,6 +30,9 @@ pub(crate) struct VersionType {
 }
 
 impl AssociatedType for VersionType {
+    const REF_BOUNDS: &'static [&'static str] = &[VERSIONIZE_TRAIT_NAME];
+    const OWNED_BOUNDS: &'static [&'static str] = &[VERSIONIZE_OWNED_TRAIT_NAME];
+
     fn new_ref(orig_type: &DeriveInput) -> syn::Result<VersionType> {
         let lifetime = if is_unit(orig_type) {
             None
@@ -173,40 +176,23 @@ impl AssociatedType for VersionType {
         }
     }
 
-    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
-        None
-    }
-
     fn inner_types(&self) -> syn::Result<Vec<&Type>> {
         self.orig_type_fields()
             .iter()
             .map(|field| Ok(&field.ty))
             .collect()
     }
-}
 
-impl VersionType {
-    /// Returns the fields of the original declaration.
-    fn orig_type_fields(&self) -> Punctuated<&Field, Comma> {
-        derive_type_fields(&self.orig_type)
+    fn as_trait_param(&self) -> Option<syn::Result<&Type>> {
+        None
     }
 
-    fn type_generics(&self) -> syn::Result<Generics> {
-        let mut generics = self.orig_type.generics.clone();
-        if let AssociatedTypeKind::Ref(opt_lifetime) = &self.kind {
-            if let Some(lifetime) = opt_lifetime {
-                add_lifetime_bound(&mut generics, lifetime);
-            }
-            add_trait_where_clause(&mut generics, self.inner_types()?, &[VERSIONIZE_TRAIT_NAME])?;
-        } else {
-            add_trait_where_clause(
-                &mut generics,
-                self.inner_types()?,
-                &[VERSIONIZE_OWNED_TRAIT_NAME],
-            )?;
-        }
+    fn kind(&self) -> &AssociatedTypeKind {
+        &self.kind
+    }
 
-        Ok(generics)
+    fn orig_type_generics(&self) -> &Generics {
+        &self.orig_type.generics
     }
 
     fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics> {
@@ -223,6 +209,13 @@ impl VersionType {
         }
 
         Ok(generics)
+    }
+}
+
+impl VersionType {
+    /// Returns the fields of the original declaration.
+    fn orig_type_fields(&self) -> Punctuated<&Field, Comma> {
+        derive_type_fields(&self.orig_type)
     }
 
     /// Generates the declaration for the Version equivalent of the input struct
