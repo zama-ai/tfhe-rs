@@ -8,20 +8,19 @@ mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
 
+use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
+use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::client_key::ClientKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::Versionize;
-
-use crate::core_crypto::prelude::UnsignedInteger;
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
-use crate::shortint::{CarryModulus, MessageModulus};
+use crate::shortint::{CarryModulus, MessageModulus, PBSParameters};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
-
-use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// A structure containing the server public key.
 ///
@@ -295,6 +294,36 @@ impl CompressedServerKey {
     /// Construct a [`CompressedServerKey`] from its constituents.
     pub fn from_raw_parts(key: crate::shortint::CompressedServerKey) -> Self {
         Self { key }
+    }
+}
+
+impl ParameterSetConformant for ServerKey {
+    type ParameterSet = PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        let expected_max_degree = MaxDegree::integer_radix_server_key(
+            parameter_set.message_modulus(),
+            parameter_set.carry_modulus(),
+        );
+
+        key.is_conformant(&(*parameter_set, expected_max_degree))
+    }
+}
+
+impl ParameterSetConformant for CompressedServerKey {
+    type ParameterSet = PBSParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+
+        let expected_max_degree = MaxDegree::integer_radix_server_key(
+            parameter_set.message_modulus(),
+            parameter_set.carry_modulus(),
+        );
+
+        key.is_conformant(&(*parameter_set, expected_max_degree))
     }
 }
 

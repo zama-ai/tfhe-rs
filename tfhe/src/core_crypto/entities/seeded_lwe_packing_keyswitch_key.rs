@@ -1,13 +1,13 @@
 //! Module containing the definition of the [`SeededLwePackingKeyswitchKey`].
 
-use tfhe_versionable::Versionize;
-
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE packing keyswitch key`](`SeededLwePackingKeyswitchKey`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -455,4 +455,31 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     type SelfMutView<'this> = DummyCreateFrom
     where
         Self: 'this;
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededLwePackingKeyswitchKey<C> {
+    type ParameterSet = PackingKeyswitchConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            compression_seed: _,
+        } = self;
+
+        data.container_len()
+            == seeded_lwe_packing_keyswitch_key_input_key_element_encrypted_size(
+                *decomp_level_count,
+                *output_polynomial_size,
+            ) * parameter_set.input_lwe_dimension.0
+            && *decomp_base_log == parameter_set.decomp_base_log
+            && *decomp_level_count == parameter_set.decomp_level_count
+            && *output_glwe_size == parameter_set.output_glwe_size
+            && *output_polynomial_size == parameter_set.output_polynomial_size
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+    }
 }

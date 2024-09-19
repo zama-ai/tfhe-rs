@@ -1,7 +1,6 @@
 //! Module containing the definition of the SeededGgswCiphertextList.
 
-use tfhe_versionable::Versionize;
-
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_ggsw_ciphertext_list::SeededGgswCiphertextListVersions;
 use crate::core_crypto::commons::generators::{
@@ -13,6 +12,8 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
+use tfhe_versionable::Versionize;
 
 /// A contiguous list containing
 /// [`seeded GGSW ciphertexts`](`crate::core_crypto::entities::SeededGgswCiphertext`).
@@ -465,4 +466,72 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     type SelfMutView<'this> = SeededGgswCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
+}
+
+pub struct GgswCiphertextListConformanceParameters {
+    pub len: usize,
+    pub glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub ciphertext_modulus: CiphertextModulus<u64>,
+}
+
+impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParameters {
+    type Error = ();
+
+    fn try_from(value: &MultiBitBootstrapKeyConformanceParams) -> Result<Self, ()> {
+        if value.input_lwe_dimension.0 % value.grouping_factor.0 != 0 {
+            return Err(());
+        }
+
+        let group_count = value.input_lwe_dimension.0 % value.grouping_factor.0;
+
+        Ok(Self {
+            len: group_count * value.grouping_factor.ggsw_per_multi_bit_element().0,
+            glwe_size: value.output_glwe_size,
+            polynomial_size: value.polynomial_size,
+            decomp_base_log: value.decomp_base_log,
+            decomp_level_count: value.decomp_level_count,
+            ciphertext_modulus: value.ciphertext_modulus,
+        })
+    }
+}
+
+impl From<&BootstrapKeyConformanceParams> for GgswCiphertextListConformanceParameters {
+    fn from(value: &BootstrapKeyConformanceParams) -> Self {
+        Self {
+            len: value.input_lwe_dimension.0,
+            glwe_size: value.output_glwe_size,
+            polynomial_size: value.polynomial_size,
+            decomp_base_log: value.decomp_base_log,
+            decomp_level_count: value.decomp_level_count,
+            ciphertext_modulus: value.ciphertext_modulus,
+        }
+    }
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for SeededGgswCiphertextList<C> {
+    type ParameterSet = GgswCiphertextListConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            compression_seed: _,
+            ciphertext_modulus,
+        } = self;
+
+        data.container_len()
+            == parameter_set.len
+                * seeded_ggsw_ciphertext_size(*glwe_size, *polynomial_size, *decomp_level_count)
+            && *decomp_base_log == parameter_set.decomp_base_log
+            && *decomp_level_count == parameter_set.decomp_level_count
+            && *glwe_size == parameter_set.glwe_size
+            && *polynomial_size == parameter_set.polynomial_size
+            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+    }
 }

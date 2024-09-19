@@ -11,9 +11,10 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParameters, LweCiphertextCount, LweCiphertextListParameters,
-    LweCiphertextParameters, MsDecompressionType,
+    GlweCiphertextConformanceParameters, KeyswitchKeyConformanceParams, LweCiphertextCount,
+    LweCiphertextListParameters, LweCiphertextParameters, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::*;
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,7 @@ pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
 
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
+use super::server_key::PBSConformanceParameters;
 pub use super::PBSOrder;
 pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 use crate::shortint::ciphertext::MaxDegree;
@@ -196,6 +198,19 @@ impl ClassicPBSParameters {
     }
 }
 
+impl From<&PBSConformanceParameters> for BootstrapKeyConformanceParams {
+    fn from(value: &PBSConformanceParameters) -> Self {
+        Self {
+            decomp_base_log: value.base_log,
+            decomp_level_count: value.level,
+            input_lwe_dimension: value.in_lwe_dimension,
+            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
+            polynomial_size: value.out_polynomial_size,
+            ciphertext_modulus: value.ciphertext_modulus,
+        }
+    }
+}
+
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
 #[versionize(PBSParametersVersions)]
 pub enum PBSParameters {
@@ -271,6 +286,20 @@ impl From<ClassicPBSParameters> for PBSParameters {
 impl From<MultiBitPBSParameters> for PBSParameters {
     fn from(value: MultiBitPBSParameters) -> Self {
         Self::MultiBitPBS(value)
+    }
+}
+
+impl From<&PBSParameters> for KeyswitchKeyConformanceParams {
+    fn from(value: &PBSParameters) -> Self {
+        Self {
+            decomp_base_log: value.ks_base_log(),
+            decomp_level_count: value.ks_level(),
+            output_lwe_size: value.lwe_dimension().to_lwe_size(),
+            input_lwe_dimension: value
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(value.polynomial_size()),
+            ciphertext_modulus: value.ciphertext_modulus(),
+        }
     }
 }
 
