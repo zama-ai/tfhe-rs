@@ -473,23 +473,23 @@ test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=$(TARGET_ARCH_FEATURE),gpu -p $(TFHE_SPEC) -- core_crypto::gpu:: --test-threads=1
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=6
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
 .PHONY: test_integer_compression_gpu
 test_integer_compression_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests:: --test-threads=1
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress --test-threads=1
 
 .PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
 test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
