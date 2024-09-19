@@ -36,7 +36,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
-          profile: gpu-test
+          profile: gpu-build
 
   publish-cuda-release:
     name: Publish CUDA Release
