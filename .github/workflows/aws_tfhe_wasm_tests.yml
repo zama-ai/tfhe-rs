@@ -48,6 +48,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: 'false'
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Set up home
         run: |
