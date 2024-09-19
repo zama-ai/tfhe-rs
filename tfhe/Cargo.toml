@@ -107,8 +107,13 @@ integer = ["shortint"]
 internal-keycache = ["dep:lazy_static", "dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
+# Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
 hpu-xfer = ["hpu"]
+# Start Fpga simulation features
+ntt-bnf = []
+ntt-hw = ["ntt-bnf"] # By default hw ntt implementation use back&Forth modswitch
+# End Fpga Hpu features
 
 pbs-stats = []
 

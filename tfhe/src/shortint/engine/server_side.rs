@@ -11,7 +11,7 @@ use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
-    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
+    CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey, PBSMode,
 };
 
 impl ShortintEngine {
@@ -91,6 +91,7 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
+            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 
@@ -105,14 +106,31 @@ impl ShortintEngine {
     ) -> ShortintBootstrappingKey {
         match pbs_params_base {
             PBSParameters::PBS(pbs_params) => {
-                ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
-                    in_key,
-                    out_key,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.ciphertext_modulus,
-                ))
+                match pbs_params.encryption_key_choice {
+                    EncryptionKeyChoice::Big
+                    | EncryptionKeyChoice::Small => {
+                        ShortintBootstrappingKey::Classic(self.new_classic_bootstrapping_key(
+                            in_key,
+                            out_key,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.ciphertext_modulus,
+                        ))
+                    },
+                    EncryptionKeyChoice::BigNtt(ntt_modulus)
+                    | EncryptionKeyChoice::SmallNtt(ntt_modulus) => {
+                        ShortintBootstrappingKey::ClassicNtt(self.new_classic_ntt_bootstrapping_key(
+                            in_key,
+                            out_key,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.ciphertext_modulus,
+                            ntt_modulus,
+                        ))
+                    },
+                }
             }
             PBSParameters::MultiBitPBS(pbs_params) => {
                 let fourier_bsk = self.new_multibit_bootstrapping_key(
@@ -179,6 +197,44 @@ impl ShortintEngine {
 
         fourier_bsk
     }
+    pub fn new_classic_ntt_bootstrapping_key<
+        InKeycont: Container<Element = u64>,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+        glwe_noise_distribution: DynamicDistribution<u64>,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus,
+        ntt_modulus: CiphertextModulus,
+    ) -> NttLweBootstrapKeyOwned<u64> {
+        let mut bootstrap_key: LweBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_bootstrap_key(
+                in_key,
+                out_key,
+                pbs_base_log,
+                pbs_level,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut self.encryption_generator,
+            );
+
+        // Creation of the bootstrapping key in the Ntt domain
+        let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(0_u64,
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+            ntt_modulus,
+        );
+
+        // Conversion to ntt domain
+        par_convert_standard_lwe_bootstrap_key_to_ntt64(&mut bootstrap_key, &mut ntt_bsk);
+        ntt_bsk
+    }
 
     #[allow(clippy::too_many_arguments)]
     pub fn new_multibit_bootstrapping_key<
@@ -231,11 +287,13 @@ impl ShortintEngine {
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
         let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big => (
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => (
                 output_client_key.large_lwe_secret_key(),
                 output_client_key.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small => (
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => (
                 output_client_key.small_lwe_secret_key(),
                 output_client_key.parameters.lwe_noise_distribution(),
             ),
@@ -260,11 +318,13 @@ impl ShortintEngine {
         params: ShortintKeySwitchingParameters,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
         let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big => (
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => (
                 output_client_key.large_lwe_secret_key(),
                 output_client_key.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small => (
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => (
                 output_client_key.small_lwe_secret_key(),
                 output_client_key.parameters.lwe_noise_distribution(),
             ),
@@ -377,6 +437,7 @@ impl ShortintEngine {
             max_noise_level: cks.parameters.max_noise_level(),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
+            pbs_mode: cks.parameters.encryption_key_choice().into(),
         }
     }
 }

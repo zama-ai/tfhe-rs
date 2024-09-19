@@ -81,11 +81,13 @@ impl ClientKey {
         &self,
     ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
         match self.parameters.encryption_key_choice() {
-            EncryptionKeyChoice::Big => (
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => (
                 self.glwe_secret_key.as_lwe_secret_key(),
                 self.parameters.glwe_noise_distribution(),
             ),
-            EncryptionKeyChoice::Small => (
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => (
                 self.lwe_secret_key.as_view(),
                 self.parameters.lwe_noise_distribution(),
             ),

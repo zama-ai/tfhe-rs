@@ -17,6 +17,7 @@ use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, Polynomi
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
+use crate::shortint::CiphertextModulus;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -215,6 +216,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64>,
 {
+    #[cfg(not(feature = "ntt-bnf"))]
     fn implementation(
         bsk: NttLweBootstrapKeyView<'_, u64>,
         mut lut: GlweCiphertextMutView<'_, u64>,
@@ -222,26 +224,27 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
+        use crate::core_crypto::{fft_impl::common::pbs_modulus_switch, prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign};
+
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let modulus = ntt.custom_modulus();
+        let ntt_modulus = CiphertextModulus::new(modulus as u128);
 
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
-        let monomial_degree = pbs_modulus_switch_non_native(
-            *lwe_body,
-            lut_poly_size,
-            ciphertext_modulus.get_custom_modulus().cast_into(),
-        );
 
-        lut.as_mut_polynomial_list()
-            .iter_mut()
-            .for_each(|mut poly| {
-                polynomial_wrapping_monic_monomial_div_assign_custom_mod(
-                    &mut poly,
-                    MonomialDegree(monomial_degree),
-                    modulus,
-                )
+        // Extract modswitch_requirement
+        let (req_ba, req_ms) = bitalign_modswitch_requirement(ciphertext_modulus, ntt_modulus);
+        
+        // Apply modswitch on lut if required
+        if req_ms.is_some() {
+            lut.as_mut_polynomial_list()
+                .iter_mut()
+                .for_each(|mut poly| {
+                    user2ntt_bitalign_modswitch(poly.as_mut(), req_ba, req_ms, ntt);
             });
+            lut.ciphertext_modulus = ntt_modulus;
+        }
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
@@ -253,17 +256,27 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
                 let mut ct1 =
-                    GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
+                    GlweCiphertextMutView::from_container(ct1, lut_poly_size, ntt_modulus);
+
+                // Comptute monomial degree
+                let mask_degree = if req_ms.is_some() {
+                    // pbs_modswitch made on user modulus
+                    pbs_modulus_switch(
+                    *lwe_mask_element,
+                    lut_poly_size)
+                } else { 
+                    // pbs_modswitch made on ntt modulus
+                    pbs_modulus_switch_non_native(
+                    *lwe_mask_element,
+                    lut_poly_size,
+                    ntt_modulus.get_custom_modulus().cast_into(),
+                    )
+                };
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
-                        &mut poly,
-                        MonomialDegree(pbs_modulus_switch_non_native(
-                            *lwe_mask_element,
-                            lut_poly_size,
-                            ciphertext_modulus.get_custom_modulus().cast_into(),
-                        )),
+                        &mut poly,MonomialDegree(mask_degree),
                         modulus,
                     );
                 }
@@ -273,7 +286,60 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                 cmux_ntt64_assign(ct0.as_mut_view(), ct1, bootstrap_key_ggsw, ntt, stack);
             }
         }
+
+        // Finally apply rotation by -b
+        if req_ms.is_some() {
+            // Revert modswitch and apply rotation in user modulus
+            let body_degree = pbs_modulus_switch(
+                *lwe_body,
+                lut_poly_size,
+            );
+
+            ct0.as_mut_polynomial_list()
+                .iter_mut()
+                .for_each(|mut poly| {
+                    // Handle modswich and alignement
+                    ntt2user_bitalign_modswitch(poly.as_mut(), req_ba, req_ms, ntt);
+
+                    // Rotate
+                    polynomial_wrapping_monic_monomial_div_assign(
+                        &mut poly,
+                        MonomialDegree(body_degree),
+                    )
+                });
+            ct0.ciphertext_modulus = ciphertext_modulus;
+
+        } else {
+            // Apply rotation in prime modulus
+            let body_degree = pbs_modulus_switch_non_native(
+        *lwe_body,
+                lut_poly_size,
+       ciphertext_modulus.get_custom_modulus().cast_into(),
+            );
+
+            ct0.as_mut_polynomial_list()
+                .iter_mut()
+                .for_each(|mut poly| {
+                    polynomial_wrapping_monic_monomial_div_assign_custom_mod(
+                        &mut poly,
+                        MonomialDegree(body_degree),
+                        modulus,
+                    )
+                });
+        }
+
     }
+    #[cfg(feature="ntt-bnf")]
+    fn implementation(
+        bsk: NttLweBootstrapKeyView<'_, u64>,
+        mut lut: GlweCiphertextMutView<'_, u64>,
+        lwe: &[u64],
+        ntt: Ntt64View<'_>,
+        mut stack: PodStack<'_>,
+    ) {
+        todo!();
+    }
+
     implementation(bsk.as_view(), lut.as_mut_view(), input.as_ref(), ntt, stack);
 }
 
@@ -738,4 +804,38 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
     blind_rotate_ntt64_assign_mem_optimized_requirement(glwe_size, polynomial_size, ntt)?.try_and(
         StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
     )
+}
+
+/// Return the required bitalign/modswitch
+pub fn bitalign_modswitch_requirement(from: CiphertextModulus, to: CiphertextModulus) -> (Option<u32>, Option<u32>) {
+    if from != to {
+        assert!(from.is_compatible_with_native_modulus(), "Only support implicit modswitch from 2**k to ntt_modulus");
+        if from.is_native_modulus() {
+            (None, Some(usize::BITS))
+        } else {
+            let pow2_modulus = from.get_custom_modulus();
+            let pow2_width = pow2_modulus.ilog2();
+            (Some(usize::BITS-pow2_width), Some(pow2_width))
+        }
+    } else {
+        (None, None)
+    }
+}
+
+pub fn user2ntt_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+    if let Some(shr_bit) = req_bitalign {
+        data.iter_mut().for_each(|x| *x >>= shr_bit);
+    }
+    if let Some(modswitch) = req_modswitch {
+        ntt.user2ntt_modswitch(modswitch, data);
+    }
+}
+
+pub fn ntt2user_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+    if let Some(modswitch) = req_modswitch {
+        ntt.ntt2user_modswitch(modswitch, data);
+    }
+    if let Some(shl_bit) = req_bitalign {
+        data.iter_mut().for_each(|x| *x <<= shl_bit);
+    }
 }

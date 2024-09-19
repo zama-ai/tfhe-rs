@@ -124,6 +124,7 @@ pub struct CompressedServerKey {
     pub max_noise_level: MaxNoiseLevel,
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
+    pub pbs_mode: PBSMode,
 }
 
 impl CompressedServerKey {
@@ -156,6 +157,7 @@ impl CompressedServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         } = self;
 
         let (key_switching_key, bootstrapping_key) = rayon::join(
@@ -269,6 +271,7 @@ impl CompressedServerKey {
         let max_noise_level = *max_noise_level;
         let ciphertext_modulus = *ciphertext_modulus;
         let pbs_order = *pbs_order;
+        let pbs_mode= *pbs_mode;
 
         ServerKey {
             key_switching_key,
@@ -279,6 +282,7 @@ impl CompressedServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         }
     }
 
@@ -294,6 +298,7 @@ impl CompressedServerKey {
         MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
+        PBSMode
     ) {
         let Self {
             key_switching_key,
@@ -304,6 +309,7 @@ impl CompressedServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         } = self;
 
         (
@@ -315,6 +321,7 @@ impl CompressedServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         )
     }
 
@@ -333,6 +340,7 @@ impl CompressedServerKey {
         max_noise_level: MaxNoiseLevel,
         ciphertext_modulus: CiphertextModulus,
         pbs_order: PBSOrder,
+        pbs_mode: PBSMode,
     ) -> Self {
         assert_eq!(
             key_switching_key.input_key_lwe_dimension(),
@@ -386,6 +394,7 @@ impl CompressedServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         }
     }
 

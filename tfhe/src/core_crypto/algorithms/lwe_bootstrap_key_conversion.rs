@@ -274,10 +274,10 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
 }
 
 pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
-    input_bsk: &LweBootstrapKey<InputCont>,
+    input_bsk: &mut LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,
 ) where
-    InputCont: Container<Element = u64>,
+    InputCont: ContainerMut<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
 {
     assert_eq!(
@@ -318,11 +318,25 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         output_bsk.input_lwe_dimension(),
     );
 
+    // Check if bit-align and modswitch is required
+    let (req_bitalign, req_modswitch) =  if input_bsk.ciphertext_modulus() != output_bsk.ciphertext_modulus() {
+        assert!(input_bsk.ciphertext_modulus().is_compatible_with_native_modulus(), "Only support implicit modswitch from 2**k to ntt_modulus");
+            if input_bsk.ciphertext_modulus().is_native_modulus() {
+                (None, Some(usize::BITS))
+            } else {
+                let pow2_modulus = input_bsk.ciphertext_modulus().get_custom_modulus();
+                let pow2_width = pow2_modulus.ilog2();
+                (Some(usize::BITS-pow2_width), Some(pow2_width))
+            }
+        } else {
+            (None, None)
+        };
+
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
     let num_threads = rayon::current_num_threads();
-    let input_as_polynomial_list = input_bsk.as_polynomial_list();
+    let mut input_as_polynomial_list = input_bsk.as_mut_polynomial_list();
     let mut output_as_polynomial_list = output_bsk.as_mut_polynomial_list();
     let chunk_size = input_as_polynomial_list
         .polynomial_count()
@@ -330,13 +344,19 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         .div_ceil(num_threads);
 
     input_as_polynomial_list
-        .par_chunks(chunk_size)
+        .par_chunks_mut(chunk_size)
         .zip(output_as_polynomial_list.par_chunks_mut(chunk_size))
-        .for_each(|(input_poly_chunk, mut output_poly_chunk)| {
-            for (input_poly, output_poly) in
-                input_poly_chunk.iter().zip(output_poly_chunk.iter_mut())
+        .for_each(|(mut input_poly_chunk, mut output_poly_chunk)| {
+            for (mut input_poly, output_poly) in
+                input_poly_chunk.iter_mut().zip(output_poly_chunk.iter_mut())
             {
-                ntt.forward_normalized(output_poly, input_poly)
+                if let Some(shr_bit) = req_bitalign {
+                    input_poly.as_mut().iter_mut().for_each(|x| *x >>= shr_bit);
+                }
+                if let Some(modswitch) = req_modswitch {
+                    ntt.user2ntt_modswitch(modswitch, input_poly.as_mut());
+                }
+                ntt.forward_normalized(output_poly, input_poly.as_view())
             }
         });
 }

@@ -315,7 +315,7 @@ where
 {
     data: C,
     polynomial_size: PolynomialSize,
-    ciphertext_modulus: CiphertextModulus<C::Element>,
+    pub(crate) ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
 impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for GlweCiphertext<C> {

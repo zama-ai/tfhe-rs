@@ -685,6 +685,7 @@ impl WopbsKey {
                         stack,
                     );
                 }
+                ShortintBootstrappingKey::ClassicNtt(_) => todo!("extract_bits_assign currently does not support Ntt PBS"),
                 ShortintBootstrappingKey::MultiBit { .. } => {
                     todo!("extract_bits_assign currently does not support multi-bit PBS")
                 }
@@ -773,6 +774,7 @@ impl WopbsKey {
 
                     ct_out
                 }
+                ShortintBootstrappingKey::ClassicNtt(_) => todo!("WopbsKeyCreation currently does not support Ntt PBS"),
                 ShortintBootstrappingKey::MultiBit { .. } => {
                     return Err(WopbsKeyCreationError::UnsupportedMultiBit);
                 }
@@ -880,6 +882,7 @@ impl WopbsKey {
                         stack,
                     );
                 }
+                ShortintBootstrappingKey::ClassicNtt(_) => todo!("WopbsKeyCreation currently does not support Ntt PBS"),
                 ShortintBootstrappingKey::MultiBit { .. } => {
                     return Err(WopbsKeyCreationError::UnsupportedMultiBit);
                 }

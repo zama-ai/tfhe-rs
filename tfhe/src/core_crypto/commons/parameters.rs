@@ -283,14 +283,29 @@ pub struct GgswPerLweMultiBitBskElement(pub usize);
 #[versionize(EncryptionKeyChoiceVersions)]
 pub enum EncryptionKeyChoice {
     Big,
+    BigNtt(CiphertextModulus<u64>),
     Small,
+    SmallNtt(CiphertextModulus<u64>),
 }
 
 impl From<EncryptionKeyChoice> for PBSOrder {
     fn from(value: EncryptionKeyChoice) -> Self {
         match value {
-            EncryptionKeyChoice::Big => Self::KeyswitchBootstrap,
-            EncryptionKeyChoice::Small => Self::BootstrapKeyswitch,
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => Self::KeyswitchBootstrap,
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => Self::BootstrapKeyswitch,
+        }
+    }
+}
+
+impl From<EncryptionKeyChoice> for PBSMode {
+    fn from(value: EncryptionKeyChoice) -> Self {
+        match value {
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::Small => Self::FFT,
+            EncryptionKeyChoice::BigNtt(modulus)
+            | EncryptionKeyChoice::SmallNtt(modulus) => Self::NTT(modulus),
         }
     }
 }
@@ -308,6 +323,18 @@ pub enum PBSOrder {
     /// The PBS is computed first and a keyswitch is applied to get back to the small LWE secret
     /// key realm.
     BootstrapKeyswitch = 1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Versionize)]
+#[versionize(PBSModeVersions)]
+pub enum PBSMode {
+    /// Bootstrap involved a lot of polynomial multiplication.
+    /// To enhance performance, those polynomial multiplication could rely on FFT or NTT implementation.
+    /// This have impact on bootstrap key format
+    FFT,
+
+    /// NTT implementation required a custom prime modulus encoded in the enum
+    NTT(CiphertextModulus<u64>),
 }
 
 pub use crate::core_crypto::commons::math::random::DynamicDistribution;

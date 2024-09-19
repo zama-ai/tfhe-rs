@@ -80,10 +80,12 @@ impl PublicKey {
         parameters: BooleanParameters,
     ) -> Self {
         let ciphertext_lwe_dimension = match parameters.encryption_key_choice {
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => parameters
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big
+            | crate::core_crypto::commons::parameters::EncryptionKeyChoice::BigNtt(_) => parameters
                 .glwe_dimension
                 .to_equivalent_lwe_dimension(parameters.polynomial_size),
-            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small
+            | crate::core_crypto::commons::parameters::EncryptionKeyChoice::SmallNtt(_) => {
                 parameters.lwe_dimension
             }
         };

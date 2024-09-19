@@ -165,12 +165,14 @@ impl ClassicPBSParameters {
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
         let (pbs_order, expected_dim) = match self.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => (
                 PBSOrder::KeyswitchBootstrap,
                 self.glwe_dimension
                     .to_equivalent_lwe_dimension(self.polynomial_size),
             ),
-            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
         };
 
         let message_modulus = self.message_modulus;
@@ -599,17 +601,21 @@ impl ShortintParameterSet {
 
     pub const fn encryption_noise_distribution(&self) -> DynamicDistribution<u64> {
         match self.encryption_key_choice() {
-            EncryptionKeyChoice::Big => self.glwe_noise_distribution(),
-            EncryptionKeyChoice::Small => self.lwe_noise_distribution(),
+            EncryptionKeyChoice::Big 
+            | EncryptionKeyChoice::BigNtt(_) => self.glwe_noise_distribution(),
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => self.lwe_noise_distribution(),
         }
     }
 
     pub const fn encryption_lwe_dimension(&self) -> LweDimension {
         match self.encryption_key_choice() {
-            EncryptionKeyChoice::Big => self
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => self
                 .glwe_dimension()
                 .to_equivalent_lwe_dimension(self.polynomial_size()),
-            EncryptionKeyChoice::Small => self.lwe_dimension(),
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => self.lwe_dimension(),
         }
     }
 

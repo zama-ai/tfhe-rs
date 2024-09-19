@@ -37,6 +37,7 @@ use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstra
 use crate::core_crypto::backward_compatibility::fft_impl::{
     FourierLweBootstrapKeyVersioned, FourierLweBootstrapKeyVersionedOwned,
 };
+use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, LweSize, MonomialDegree,
     PolynomialSize, ThreadCount,
@@ -53,7 +54,7 @@ use crate::shortint::engine::{
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
-use crate::shortint::PBSOrder;
+use crate::shortint::{PBSOrder, PBSMode};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -138,6 +139,7 @@ impl std::error::Error for CheckError {}
 #[derive(Clone, Debug, PartialEq)]
 pub enum ShortintBootstrappingKey {
     Classic(FourierLweBootstrapKeyOwned),
+    ClassicNtt(NttLweBootstrapKeyOwned<u64>),
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKeyOwned,
         thread_count: ThreadCount,
@@ -280,6 +282,7 @@ impl<'a> From<&'a ShortintBootstrappingKey>
     fn from(value: &'a ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk.as_view()),
+            ShortintBootstrappingKey::ClassicNtt(bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
@@ -298,6 +301,7 @@ impl From<ShortintBootstrappingKey>
     fn from(value: ShortintBootstrappingKey) -> Self {
         match value {
             ShortintBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
+            ShortintBootstrappingKey::ClassicNtt(bsk) => todo!("Not supported. Serialization isn't implemented for ShortintNtt") ,
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -385,6 +389,7 @@ impl ShortintBootstrappingKey {
     pub fn input_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic(inner) => inner.input_lwe_dimension(),
+            Self::ClassicNtt(inner) => inner.input_lwe_dimension(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.input_lwe_dimension(),
@@ -394,6 +399,7 @@ impl ShortintBootstrappingKey {
     pub fn polynomial_size(&self) -> PolynomialSize {
         match self {
             Self::Classic(inner) => inner.polynomial_size(),
+            Self::ClassicNtt(inner) => inner.polynomial_size(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.polynomial_size(),
@@ -403,6 +409,7 @@ impl ShortintBootstrappingKey {
     pub fn glwe_size(&self) -> GlweSize {
         match self {
             Self::Classic(inner) => inner.glwe_size(),
+            Self::ClassicNtt(inner) => inner.glwe_size(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.glwe_size(),
@@ -412,6 +419,7 @@ impl ShortintBootstrappingKey {
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         match self {
             Self::Classic(inner) => inner.decomposition_base_log(),
+            Self::ClassicNtt(inner) => inner.decomposition_base_log(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_base_log(),
@@ -421,6 +429,7 @@ impl ShortintBootstrappingKey {
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         match self {
             Self::Classic(inner) => inner.decomposition_level_count(),
+            Self::ClassicNtt(inner) => inner.decomposition_level_count(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_level_count(),
@@ -430,6 +439,7 @@ impl ShortintBootstrappingKey {
     pub fn output_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic(inner) => inner.output_lwe_dimension(),
+            Self::ClassicNtt(inner) => inner.output_lwe_dimension(),
             Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.output_lwe_dimension(),
@@ -439,6 +449,7 @@ impl ShortintBootstrappingKey {
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
             Self::Classic(bsk) => bsk.as_view().data().len(),
+            Self::ClassicNtt(bsk) => todo!(),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => bsk.as_view().data().len(),
@@ -448,6 +459,7 @@ impl ShortintBootstrappingKey {
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
             Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
+            Self::ClassicNtt(bsk) => todo!(),
             Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().data()),
@@ -461,6 +473,7 @@ impl ShortintBootstrappingKey {
     pub fn deterministic_pbs_execution(&self) -> bool {
         match self {
             Self::Classic(_) => true,
+            Self::ClassicNtt(_) => true,
             Self::MultiBit {
                 deterministic_execution,
                 ..
@@ -476,6 +489,7 @@ impl ShortintBootstrappingKey {
         match self {
             // Classic PBS is already deterministic no matter what
             Self::Classic(_) => (),
+            Self::ClassicNtt(_) => (),
             Self::MultiBit {
                 deterministic_execution,
                 ..
@@ -492,6 +506,7 @@ impl ShortintBootstrappingKey {
     pub fn recompute_thread_count(&mut self) {
         match self {
             Self::Classic(_) => (),
+            Self::ClassicNtt(_) => (),
             Self::MultiBit {
                 fourier_bsk,
                 thread_count,
@@ -531,6 +546,7 @@ pub struct ServerKey {
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
+    pub pbs_mode: PBSMode,
 }
 
 impl ServerKey {
@@ -539,6 +555,7 @@ impl ServerKey {
 
         let ms_decompression_method = match &self.bootstrapping_key {
             ShortintBootstrappingKey::Classic(_) => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::ClassicNtt(_) => todo!("Conformance not implemented for ClassicNtt"),
             ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
                 MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
             }
@@ -658,6 +675,7 @@ impl ServerKey {
         MaxNoiseLevel,
         CiphertextModulus,
         PBSOrder,
+        PBSMode,
     ) {
         let Self {
             key_switching_key,
@@ -668,6 +686,7 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         } = self;
 
         (
@@ -679,6 +698,7 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         )
     }
 
@@ -697,6 +717,7 @@ impl ServerKey {
         max_noise_level: MaxNoiseLevel,
         ciphertext_modulus: CiphertextModulus,
         pbs_order: PBSOrder,
+        pbs_mode: PBSMode,
     ) -> Self {
         assert_eq!(
             key_switching_key.input_key_lwe_dimension(),
@@ -741,9 +762,9 @@ impl ServerKey {
             max_noise_level,
             ciphertext_modulus,
             pbs_order,
+            pbs_mode,
         }
     }
-
     /// Constructs the lookup table given a function as input.
     ///
     /// # Example
@@ -1625,21 +1646,21 @@ impl ServerKey {
     }
 }
 
-pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
+pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey,
     in_buffer: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
 {
     #[cfg(feature = "pbs-stats")]
     let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
 
     match bootstrapping_key {
         ShortintBootstrappingKey::Classic(fourier_bsk) => {
+            println!("Used FFT based PBS");
             let fft = Fft::new(fourier_bsk.polynomial_size());
             let fft = fft.as_view();
             buffers.resize(
@@ -1655,6 +1676,34 @@ pub(crate) fn apply_blind_rotate<Scalar, InputCont, OutputCont>(
 
             // Compute the blind rotation
             blind_rotate_assign_mem_optimized(in_buffer, acc, fourier_bsk, fft, stack);
+        }
+        ShortintBootstrappingKey::ClassicNtt(ntt_bsk) => {
+        
+            // Get ciphertext modulus from bsk
+            let ntt = Ntt64::new(ntt_bsk.ciphertext_modulus(), ntt_bsk.polynomial_size());
+            println!("Used NTT based PBS with {:x?}", ntt_bsk.ciphertext_modulus());
+
+            let ntt_view = ntt.as_view();
+
+            buffers.resize(
+        programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+                    ntt_bsk.glwe_size(),
+                    ntt_bsk.polynomial_size(),
+                    ntt.as_view(),
+                )
+                .unwrap()
+                .unaligned_bytes_required(),
+            );
+            let stack = buffers.stack();
+
+            // Compute the blind rotate
+            blind_rotate_ntt64_assign_mem_optimized(
+                in_buffer,
+                acc,
+                ntt_bsk,
+                ntt_view,
+                stack,
+            );
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

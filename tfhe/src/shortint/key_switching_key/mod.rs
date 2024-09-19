@@ -277,8 +277,10 @@ impl KeySwitchingKey {
         }
 
         let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
+            EncryptionKeyChoice::Big 
+            | EncryptionKeyChoice::BigNtt(_) => dest_server_key.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => dest_server_key.bootstrapping_key.input_lwe_dimension(),
         };
 
         assert_eq!(
@@ -417,8 +419,10 @@ impl<'keys> KeySwitchingKeyView<'keys> {
         }
 
         let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
+            EncryptionKeyChoice::Big 
+            | EncryptionKeyChoice::BigNtt(_) => dest_server_key.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => dest_server_key.bootstrapping_key.input_lwe_dimension(),
         };
 
         assert_eq!(
@@ -485,12 +489,14 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     /// ```
     pub fn cast(&self, input_ct: &Ciphertext) -> Ciphertext {
         let output_lwe_size = match self.key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => self
+            EncryptionKeyChoice::Big
+            | EncryptionKeyChoice::BigNtt(_) => self
                 .dest_server_key
                 .bootstrapping_key
                 .output_lwe_dimension()
                 .to_lwe_size(),
-            EncryptionKeyChoice::Small => self
+            EncryptionKeyChoice::Small
+            | EncryptionKeyChoice::SmallNtt(_) => self
                 .dest_server_key
                 .bootstrapping_key
                 .input_lwe_dimension()
@@ -577,6 +583,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                         // to update the noise however.
                         correct_key_ct.set_noise_level(NoiseLevel::NOMINAL);
                     }
+                    EncryptionKeyChoice::BigNtt(_) | EncryptionKeyChoice::SmallNtt(_) => todo!("Cast not implemented for Ntt engine"),
                 }
 
                 correct_key_ct
@@ -847,8 +854,10 @@ impl CompressedKeySwitchingKey {
         }
 
         let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
+            EncryptionKeyChoice::Big 
+            | EncryptionKeyChoice::BigNtt(_) => dest_server_key.bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small 
+            | EncryptionKeyChoice::SmallNtt(_) => dest_server_key.bootstrapping_key.input_lwe_dimension(),
         };
 
         assert_eq!(

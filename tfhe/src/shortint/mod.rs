@@ -62,7 +62,7 @@ pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
 
-pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
+pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder, PBSMode};
 pub use client_key::ClientKey;
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
