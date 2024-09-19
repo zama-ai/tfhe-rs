@@ -1,17 +1,21 @@
-use super::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
+use super::{
+    CompressionConformanceParameters, CompressionKey, CompressionPrivateKeys, DecompressionKey,
+};
+use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::BootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_seeded_lwe_packing_keyswitch_key,
     par_allocate_and_generate_new_seeded_lwe_bootstrap_key,
     par_convert_standard_lwe_bootstrap_key_to_fourier, CiphertextModulusLog,
-    FourierLweBootstrapKey, LweCiphertextCount, SeededLweBootstrapKeyOwned,
-    SeededLwePackingKeyswitchKey,
+    FourierLweBootstrapKey, LweCiphertextCount, PackingKeyswitchConformanceParams,
+    SeededLweBootstrapKeyOwned, SeededLwePackingKeyswitchKey,
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressedCompressionKeyVersions, CompressedDecompressionKeyVersions,
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::server_key::{PBSConformanceParameters, ShortintBootstrappingKey};
 use crate::shortint::{ClassicPBSParameters, EncryptionKeyChoice, PBSParameters};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -130,5 +134,49 @@ impl ClientKey {
         };
 
         (glwe_compression_key, glwe_decompression_key)
+    }
+}
+
+impl ParameterSetConformant for CompressedCompressionKey {
+    type ParameterSet = CompressionConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+            storage_log_modulus,
+        } = self;
+
+        let params = PackingKeyswitchConformanceParams {
+            decomp_base_log: parameter_set.packing_ks_base_log,
+            decomp_level_count: parameter_set.packing_ks_level,
+            input_lwe_dimension: parameter_set
+                .uncompressed_glwe_dimension
+                .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
+            output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
+            output_polynomial_size: parameter_set.packing_ks_polynomial_size,
+            ciphertext_modulus: parameter_set.cipherext_modulus,
+        };
+
+        packing_key_switching_key.is_conformant(&params)
+            && *lwe_per_glwe == parameter_set.lwe_per_glwe
+            && *storage_log_modulus == parameter_set.storage_log_modulus
+    }
+}
+
+impl ParameterSetConformant for CompressedDecompressionKey {
+    type ParameterSet = CompressionConformanceParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            blind_rotate_key,
+            lwe_per_glwe,
+        } = self;
+
+        let params: PBSConformanceParameters = parameter_set.into();
+
+        let params: BootstrapKeyConformanceParams = (&params).into();
+
+        blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }
 }

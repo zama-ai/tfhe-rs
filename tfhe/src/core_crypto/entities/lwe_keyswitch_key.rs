@@ -2,6 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_keyswitch_key::LweKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -187,7 +188,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C>
             "Got an empty container to create an LweKeyswitchKey"
         );
         assert!(
-            container.container_len() % (decomp_level_count.0 * output_lwe_size.0) == 0,
+            container.container_len()
+                % lwe_keyswitch_key_input_key_element_encrypted_size(
+                    decomp_level_count,
+                    output_lwe_size
+                )
+                == 0,
             "The provided container length is not valid. \
         It needs to be dividable by decomp_level_count * output_lwe_size: {}. \
         Got container length: {} and decomp_level_count: {decomp_level_count:?}, \
@@ -423,4 +429,37 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     type SelfMutView<'this> = LweKeyswitchKeyMutView<'this, Self::Element>
     where
         Self: 'this;
+}
+
+pub struct KeyswitchKeyConformanceParams {
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub output_lwe_size: LweSize,
+    pub input_lwe_dimension: LweDimension,
+    pub ciphertext_modulus: CiphertextModulus<u64>,
+}
+
+impl<C: Container<Element = u64>> ParameterSetConformant for LweKeyswitchKey<C> {
+    type ParameterSet = KeyswitchKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        } = self;
+
+        *ciphertext_modulus == parameter_set.ciphertext_modulus
+            && data.container_len()
+                == parameter_set.input_lwe_dimension.0
+                    * lwe_keyswitch_key_input_key_element_encrypted_size(
+                        parameter_set.decomp_level_count,
+                        parameter_set.output_lwe_size,
+                    )
+            && *decomp_base_log == parameter_set.decomp_base_log
+            && *decomp_level_count == parameter_set.decomp_level_count
+            && *output_lwe_size == parameter_set.output_lwe_size
+    }
 }

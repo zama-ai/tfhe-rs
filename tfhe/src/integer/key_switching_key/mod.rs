@@ -3,8 +3,10 @@ use super::backward_compatibility::key_switching_key::{
     KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
 use super::{ClientKey, CompressedServerKey, ServerKey};
+use crate::conformance::ParameterSetConformant;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::IntegerCiphertext;
+use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -282,5 +284,23 @@ impl CompressedKeySwitchingKey {
         KeySwitchingKey {
             key: self.key.decompress(),
         }
+    }
+}
+
+impl ParameterSetConformant for KeySwitchingKeyMaterial {
+    type ParameterSet = KeySwitchingKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { material } = self;
+        material.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for CompressedKeySwitchingKeyMaterial {
+    type ParameterSet = KeySwitchingKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { material } = self;
+        material.is_conformant(parameter_set)
     }
 }

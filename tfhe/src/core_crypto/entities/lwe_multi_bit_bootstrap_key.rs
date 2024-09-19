@@ -1,5 +1,6 @@
 //! Module containing the definition of the [`LweMultiBitBootstrapKey`].
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::{
     FourierLweMultiBitBootstrapKeyVersioned, FourierLweMultiBitBootstrapKeyVersionedOwned,
     LweMultiBitBootstrapKeyVersions,
@@ -688,5 +689,54 @@ impl FourierLweMultiBitBootstrapKeyOwned {
             decomposition_level_count,
             grouping_factor,
         }
+    }
+}
+
+pub struct MultiBitBootstrapKeyConformanceParams {
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub input_lwe_dimension: LweDimension,
+    pub output_glwe_size: GlweSize,
+    pub polynomial_size: PolynomialSize,
+    pub grouping_factor: LweBskGroupingFactor,
+    pub ciphertext_modulus: CiphertextModulus<u64>,
+}
+
+impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitBootstrapKey<C> {
+    type ParameterSet = MultiBitBootstrapKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            fourier:
+                FourierPolynomialList {
+                    data,
+                    polynomial_size,
+                },
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
+        if input_lwe_dimension.0 % grouping_factor.0 != 0 {
+            return false;
+        }
+
+        data.container_len()
+            == lwe_multi_bit_bootstrap_key_size(
+                *input_lwe_dimension,
+                *glwe_size,
+                *polynomial_size,
+                *decomposition_level_count,
+                *grouping_factor,
+            )
+            .unwrap()
+            && *grouping_factor == parameter_set.grouping_factor
+            && *decomposition_base_log == parameter_set.decomp_base_log
+            && *decomposition_level_count == parameter_set.decomp_level_count
+            && *input_lwe_dimension == parameter_set.input_lwe_dimension
+            && *glwe_size == parameter_set.output_glwe_size
+            && *polynomial_size == parameter_set.polynomial_size
     }
 }

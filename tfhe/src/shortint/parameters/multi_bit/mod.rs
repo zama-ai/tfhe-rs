@@ -7,13 +7,16 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize,
 };
-use crate::core_crypto::prelude::{LweCiphertextParameters, MsDecompressionType};
+use crate::core_crypto::prelude::{
+    LweCiphertextParameters, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
+};
 use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::p_fail_2_minus_64::ks_pbs::*;
 use crate::shortint::parameters::p_fail_2_minus_64::ks_pbs_gpu::*;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
 };
+use crate::shortint::server_key::PBSConformanceParameters;
 use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -88,6 +91,22 @@ impl MultiBitPBSParameters {
             degree,
             noise_level,
         }
+    }
+}
+
+impl TryFrom<&PBSConformanceParameters> for MultiBitBootstrapKeyConformanceParams {
+    type Error = ();
+
+    fn try_from(value: &PBSConformanceParameters) -> Result<Self, ()> {
+        Ok(Self {
+            decomp_base_log: value.base_log,
+            decomp_level_count: value.level,
+            input_lwe_dimension: value.in_lwe_dimension,
+            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
+            polynomial_size: value.out_polynomial_size,
+            grouping_factor: value.multi_bit.ok_or(())?,
+            ciphertext_modulus: value.ciphertext_modulus,
+        })
     }
 }
 

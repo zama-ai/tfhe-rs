@@ -2,6 +2,7 @@ use tfhe_versionable::Versionize;
 
 use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
+use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
@@ -304,5 +305,290 @@ impl From<ServerKey> for InternalServerKey {
 impl From<CudaServerKey> for InternalServerKey {
     fn from(value: CudaServerKey) -> Self {
         Self::Cuda(value)
+    }
+}
+
+use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
+
+impl ParameterSetConformant for ServerKey {
+    type ParameterSet = IntegerServerKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key, tag: _ } = self;
+
+        key.is_conformant(parameter_set)
+    }
+}
+
+impl ParameterSetConformant for CompressedServerKey {
+    type ParameterSet = IntegerServerKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            integer_key,
+            tag: _,
+        } = self;
+
+        integer_key.is_conformant(parameter_set)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
+    use crate::prelude::ParameterSetConformant;
+    use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs;
+    use crate::shortint::parameters::list_compression::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::{ClassicPBSParameters, PBSParameters};
+    use crate::{ClientKey, CompressedServerKey, ConfigBuilder, ServerKey};
+
+    #[test]
+    fn conformance_hl_key() {
+        {
+            let config =
+                ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: None,
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let config =
+                ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: Some((cpk_params, casting_params)),
+                compression_param: None,
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+    }
+
+    #[test]
+    fn broken_conformance_hl_key() {
+        {
+            let config =
+                ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            for modifier in [
+                |sk_param: &mut ClassicPBSParameters| {
+                    sk_param.lwe_dimension.0 += 1;
+                },
+                |sk_param: &mut ClassicPBSParameters| {
+                    sk_param.polynomial_size.0 += 1;
+                },
+            ] {
+                let mut sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+                modifier(&mut sk_param);
+
+                let sk_param = PBSParameters::PBS(sk_param);
+
+                let conformance_params = IntegerServerKeyConformanceParams {
+                    sk_param,
+                    cpk_param: None,
+                    compression_param: None,
+                };
+
+                assert!(!sk.is_conformant(&conformance_params));
+            }
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let mut cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            cpk_params.encryption_lwe_dimension.0 += 1;
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: Some((cpk_params, casting_params)),
+                compression_param: None,
+            };
+
+            assert!(!sk.is_conformant(&conformance_params));
+        }
+    }
+
+    #[test]
+    fn conformance_compressed_hl_key() {
+        {
+            let config =
+                ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: None,
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let config = crate::ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            )
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+            .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: Some((cpk_params, casting_params)),
+                compression_param: None,
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+    }
+
+    #[test]
+    fn broken_conformance_compressed_hl_key() {
+        {
+            let config =
+                ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            for modifier in [
+                |sk_param: &mut ClassicPBSParameters| {
+                    sk_param.lwe_dimension.0 += 1;
+                },
+                |sk_param: &mut ClassicPBSParameters| {
+                    sk_param.polynomial_size.0 += 1;
+                },
+            ] {
+                let mut sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+                modifier(&mut sk_param);
+
+                let sk_param = PBSParameters::PBS(sk_param);
+
+                let conformance_params = IntegerServerKeyConformanceParams {
+                    sk_param,
+                    cpk_param: None,
+                    compression_param: None,
+                };
+
+                assert!(!sk.is_conformant(&conformance_params));
+            }
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let mut cpk_params = ks_pbs::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let casting_params = crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+
+            cpk_params.encryption_lwe_dimension.0 += 1;
+
+            let conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: Some((cpk_params, casting_params)),
+                compression_param: None,
+            };
+
+            assert!(!sk.is_conformant(&conformance_params));
+        }
     }
 }
