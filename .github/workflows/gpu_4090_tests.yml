@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: 'false'
+          token: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a
