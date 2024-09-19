@@ -2,30 +2,43 @@ use super::ServerKey;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::shortint::ciphertext::NoiseLevel;
+use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
 
 #[derive(Debug, Copy, Clone)]
-enum ComparisonKind {
+pub(crate) enum ComparisonKind {
     Less,
     LessOrEqual,
     Greater,
     GreaterOrEqual,
 }
 
+/// This blocks contains part of the information necessary to conclude, for signed ciphertext
+/// it just needs some input borrow
+///
+/// There are 2 possibilities:
+///
+/// * If a block can encrypt at least 4 bits (carry + msg) then the block contains information that
+///   will allow determining the result of x < y in one PBS
+/// * Otherwise the information is split in 2 blocks and a cmux will be required later
+pub(crate) enum PreparedSignedCheck {
+    // The information could be coded on 1 block
+    // because a block store at least 4 bits of information
+    Unified(Ciphertext),
+    // The information had to be split
+    Split((Ciphertext, Ciphertext)),
+}
+
 /// Given the last block of 2 _signed_ numbers x and y, and a borrow (0 or 1)
 ///
-/// Requires MessageModulus > 2
-///
 /// returns whether x < y
-fn is_x_less_than_y_given_input_borrow(
+pub(crate) fn is_x_less_than_y_given_input_borrow(
     last_x_block: u64,
     last_y_block: u64,
     borrow: u64,
     message_modulus: MessageModulus,
 ) -> u64 {
-    assert!(message_modulus.0 > 2, "This requires MessageModulus > 2");
     let last_bit_pos = message_modulus.0.ilog2() - 1;
 
     let mask = (1 << last_bit_pos) - 1;
@@ -270,7 +283,7 @@ impl ServerKey {
 
         // group borrows and simulator of last block
         let (
-            (mut group_borrows, use_sequential_algorithm_to_resolved_grouping_carries),
+            (group_borrows, use_sequential_algorithm_to_resolve_grouping_carries),
             maybe_prepared_signed_check,
         ) = rayon::join(
             || {
@@ -301,205 +314,163 @@ impl ServerKey {
                         (b1 << 1 | b0) << 2
                     });
 
-                    Some(self.key.apply_lookup_table_bivariate(
-                        lhs.blocks().last().unwrap(),
-                        rhs.blocks().last().unwrap(),
-                        &lut,
+                    Some(PreparedSignedCheck::Unified(
+                        self.key.apply_lookup_table_bivariate(
+                            lhs.blocks().last().unwrap(),
+                            rhs.blocks().last().unwrap(),
+                            &lut,
+                        ),
                     ))
                 } else if T::IS_SIGNED {
-                    // When we have just 2 bits (message and carry included)
-                    // we will have to do more work.
-                    // This step is preparing a block that will be used to compute the output borrow
-                    // of the whole subtraction
-                    let message_modulus = self.message_modulus().0 as u64;
-                    let lut = self.key.generate_lookup_table_bivariate(|x, y| {
-                        let value = x.wrapping_sub(y).wrapping_add(message_modulus);
-
-                        #[allow(clippy::comparison_chain)]
-                        if value < message_modulus {
-                            2 << 1
-                        } else if value == message_modulus {
-                            1 << 1
-                        } else {
-                            0
-                        }
-                    });
-
-                    Some(self.key.apply_lookup_table_bivariate(
-                        lhs.blocks().last().unwrap(),
-                        rhs.blocks().last().unwrap(),
-                        &lut,
-                    ))
+                    Some(PreparedSignedCheck::Split(rayon::join(
+                        || {
+                            let lut = self.key.generate_lookup_table_bivariate(|x, y| {
+                                is_x_less_than_y_given_input_borrow(x, y, 1, self.message_modulus())
+                            });
+                            self.key.apply_lookup_table_bivariate(
+                                lhs.blocks().last().unwrap(),
+                                rhs.blocks().last().unwrap(),
+                                &lut,
+                            )
+                        },
+                        || {
+                            let lut = self.key.generate_lookup_table_bivariate(|x, y| {
+                                is_x_less_than_y_given_input_borrow(x, y, 0, self.message_modulus())
+                            });
+                            self.key.apply_lookup_table_bivariate(
+                                lhs.blocks().last().unwrap(),
+                                rhs.blocks().last().unwrap(),
+                                &lut,
+                            )
+                        },
+                    )))
                 } else {
                     None
                 }
             },
         );
 
-        // This blocks contains part of the information necessary to conclude, it just needs
-        // some input borrow
-        // There are 3 possibilities:
-        //
-        // * If the ciphertext is unsigned, it contains the information that will allow determining
-        //   the output borrow
-        // * If the ciphertext is signed and a block can encrypt at least 4 bits (carry + msg) then
-        //   the block contains information that will allow determining the result of x < y in one
-        //   PBS
-        // * If the ciphertext is signed and a block can encrypt 2 bits (msg + carry) then the block
-        //   contains information that will allow computing the output borrow, which will then be
-        //   used to get the overflow flag then the final result
-        let mut result_block = group_borrows.pop().unwrap();
-        if let Some(block) = maybe_prepared_signed_check {
-            self.key.unchecked_add_assign(&mut result_block, &block);
-        }
+        self.finish_comparison(
+            group_borrows,
+            grouping_size,
+            use_sequential_algorithm_to_resolve_grouping_carries,
+            maybe_prepared_signed_check,
+            invert_subtraction_result,
+        )
+    }
+
+    pub(crate) fn finish_comparison(
+        &self,
+        mut group_borrows: Vec<Ciphertext>,
+        grouping_size: usize,
+        use_sequential_algorithm_to_resolve_grouping_carries: bool,
+        maybe_prepared_signed_check: Option<PreparedSignedCheck>,
+        invert_result: bool,
+    ) -> BooleanBlock {
+        let mut last_group_borrow_state = group_borrows.pop().unwrap();
 
         // Third step: resolving borrow propagation between the groups
         let resolved_borrows = if group_borrows.is_empty() {
             // There was only one group, and the borrow generated by this group
             // has already been added to the `overflow_block`, just earlier
-            if T::IS_SIGNED {
+            if maybe_prepared_signed_check.is_some() {
                 // There is still one step to determine the result of the comparison
                 // being done further down.
                 // It will require an input borrow for the last group
                 // which is 0 here because there was only one group thus,
                 // the last group is the same as the first group,
                 // and the input borrow of the first group is 0
-                vec![self.key.create_trivial(0)]
+                vec![]
             } else {
                 // When unsigned, the result is already known at this point
-                return BooleanBlock::new_unchecked(result_block);
+                return BooleanBlock::new_unchecked(last_group_borrow_state);
             }
-        } else if use_sequential_algorithm_to_resolved_grouping_carries {
+        } else if use_sequential_algorithm_to_resolve_grouping_carries {
             self.resolve_carries_of_groups_sequentially(group_borrows, grouping_size)
         } else {
             self.resolve_carries_of_groups_using_hillis_steele(group_borrows)
         };
 
-        if T::IS_SIGNED && self.message_modulus().0 > 2 {
-            // For signed numbers its less direct to do lhs < rhs using subtraction
-            // fortunately when we have at least 4 bits we can encode all the needed information
-            // in one block and conclude in 1 PBS
-            self.key
-                .unchecked_add_assign(&mut result_block, resolved_borrows.last().unwrap());
-            let lut = self.key.generate_lookup_table(|block| {
-                // If `resolved_borrows.len() == 1`, then group_borrows was empty,
-                // This means 2 things:
-                // * The overflow block already contains the borrow
-                // * But the position of the borrow is one less bit further
-                let index = if resolved_borrows.len() == 1 { 0 } else { 1 };
-                let input_borrow = (block >> index) & 1;
-
-                // Here, depending on the input borrow, we retrieve
-                // the bit that tells us if lhs < rhs
-                let r = if input_borrow == 1 {
-                    (block >> 3) & 1
-                } else {
-                    (block >> 2) & 1
-                };
-                u64::from(invert_subtraction_result) ^ r
-            });
-
-            self.key.apply_lookup_table_assign(&mut result_block, &lut);
-
-            BooleanBlock::new_unchecked(result_block)
-        } else if T::IS_SIGNED {
-            // Here, message_modulus == 2 (1 bit of message), 2 bits in a block
-            // Se we don't have enough bits to store all the needed stuff, thus
-            // we have to do a few more PBS to get the result of lhs < rhs
-
-            let input_borrow = resolved_borrows.last().unwrap();
-            let (mut shifted_output_borrow, mut new_sign_bit) = rayon::join(
-                || {
-                    self.key
-                        .unchecked_add_assign(&mut result_block, input_borrow);
-                    if resolved_borrows.len() == 1 {
-                        // There was one group, so the input borrow is not properly positioned
-                        // for the next steps to work, so we add the clear value 1, this will
-                        // push the borrow bit if there was one
-                        self.key.unchecked_scalar_add_assign(&mut result_block, 1);
-                    }
-
-                    // This exploits the fact that the padding of the input bit will be set if
-                    // a borrow is generated, the lut always returns -1:
-                    // If the padding bit is set: it will return -(-1) = 1
-                    // If it's not set: it will return -1
-                    //
-                    // We then add 1, so the possible values are:
-                    // * 2 if a borrow was generated
-                    // * 0 otherwise
-                    //
-                    // We use the fact that the borrow bit is at index 1 a bit later
-                    let lut = self.key.generate_lookup_table(|_| {
-                        // return -1 coded on 3 bits (1 message, 1 carry, 1 padding)
-                        0b111
-                    });
-                    let mut shifted_output_borrow =
-                        self.key.apply_lookup_table(&result_block, &lut);
-                    self.key
-                        .unchecked_scalar_add_assign(&mut shifted_output_borrow, 1);
-                    shifted_output_borrow
-                },
-                || {
-                    let mut sub_of_last_blocks = sub_blocks.last().cloned().unwrap();
-                    crate::core_crypto::prelude::lwe_ciphertext_sub_assign(
-                        &mut sub_of_last_blocks.ct,
-                        &input_borrow.ct,
-                    );
-                    // Degree does not change as we do a subtraction, so worst case we subtract 0
-                    // which does not change the degree
-                    sub_of_last_blocks
-                        .set_noise_level(sub_of_last_blocks.noise_level + input_borrow.noise_level);
-                    self.key.message_extract_assign(&mut sub_of_last_blocks);
-                    sub_of_last_blocks
-                },
-            );
-
-            let overflow_flag_lut = self.key.generate_lookup_table(|x| {
-                let output_borrow = (x >> 1) & 1;
-                let input_borrow = x & 1;
-
-                input_borrow ^ output_borrow
-            });
-            self.key
-                .unchecked_add_assign(&mut shifted_output_borrow, input_borrow);
-            self.key
-                .apply_lookup_table_assign(&mut shifted_output_borrow, &overflow_flag_lut);
-            let overflow_flag = shifted_output_borrow; // Rename
-
-            // Since blocks have one bit of message, the new last block is also the new sign bit
-            let lut = self
-                .key
-                .generate_lookup_table_bivariate(|new_sign_bit, overflow_flag| {
-                    u64::from(invert_subtraction_result) ^ (new_sign_bit ^ overflow_flag)
+        match maybe_prepared_signed_check {
+            None => {
+                // For unsigned numbers, if the last block borrows, then the subtraction
+                // overflowed, which directly means lhs < rhs
+                self.key.unchecked_add_assign(
+                    &mut last_group_borrow_state,
+                    // For unsigned, we know that if we are here,
+                    // resolved_borrows is not empty
+                    resolved_borrows.last().unwrap(),
+                );
+                let lut = self.key.generate_lookup_table(|block| {
+                    let overflowed = (block >> 1) & 1;
+                    u64::from(invert_result) ^ overflowed
                 });
 
-            assert!(new_sign_bit.noise_level <= NoiseLevel::NOMINAL);
-            assert!(overflow_flag.noise_level <= NoiseLevel::NOMINAL);
-            self.key.unchecked_apply_lookup_table_bivariate_assign(
-                &mut new_sign_bit,
-                &overflow_flag,
-                &lut,
-            );
+                self.key
+                    .apply_lookup_table_assign(&mut last_group_borrow_state, &lut);
 
-            BooleanBlock::new_unchecked(new_sign_bit)
-        } else {
-            // For unsigned numbers, if the last block borrows, then the subtraction
-            // overflowed, which directly means lhs < rhs
-            self.key
-                .unchecked_add_assign(&mut result_block, resolved_borrows.last().unwrap());
-            let lut = self.key.generate_lookup_table(|block| {
-                let overflowed = (block >> 1) & 1;
-                u64::from(invert_subtraction_result) ^ overflowed
-            });
+                BooleanBlock::new_unchecked(last_group_borrow_state)
+            }
+            Some(PreparedSignedCheck::Unified(ct)) => {
+                // For signed numbers its less direct to do lhs < rhs using subtraction
+                // fortunately when we have at least 4 bits we can encode all the needed information
+                // in one block and conclude in 1 PBS
+                if let Some(input_borrow) = resolved_borrows.last() {
+                    self.key
+                        .unchecked_add_assign(&mut last_group_borrow_state, input_borrow);
+                }
 
-            self.key.apply_lookup_table_assign(&mut result_block, &lut);
+                self.key
+                    .unchecked_add_assign(&mut last_group_borrow_state, &ct);
+                let lut = self.key.generate_lookup_table(|block| {
+                    // The overflow block already contains the borrow,
+                    // but the position of the borrow is one less bit further
+                    let index = if resolved_borrows.is_empty() { 0 } else { 1 };
+                    let input_borrow = (block >> index) & 1;
 
-            BooleanBlock::new_unchecked(result_block)
+                    // Here, depending on the input borrow, we retrieve
+                    // the bit that tells us if lhs < rhs
+                    let r = if input_borrow == 1 {
+                        (block >> 3) & 1
+                    } else {
+                        (block >> 2) & 1
+                    };
+                    u64::from(invert_result) ^ r
+                });
+
+                self.key
+                    .apply_lookup_table_assign(&mut last_group_borrow_state, &lut);
+
+                BooleanBlock::new_unchecked(last_group_borrow_state)
+            }
+            Some(PreparedSignedCheck::Split((if_input_borrow_is_1, if_input_borrow_is_0))) => {
+                if let Some(input_borrow) = resolved_borrows.last() {
+                    self.key
+                        .unchecked_add_assign(&mut last_group_borrow_state, input_borrow);
+                    let lut = self.key.generate_lookup_table(|x| (x >> 1) & 1);
+                    self.key
+                        .apply_lookup_table_assign(&mut last_group_borrow_state, &lut);
+                }
+
+                let if_input_borrow_is_1 = BooleanBlock::new_unchecked(if_input_borrow_is_1);
+                let if_input_borrow_is_0 = BooleanBlock::new_unchecked(if_input_borrow_is_0);
+                let condition = BooleanBlock::new_unchecked(last_group_borrow_state);
+                let result = self.if_then_else_parallelized(
+                    &condition,
+                    &if_input_borrow_is_1,
+                    &if_input_borrow_is_0,
+                );
+                if invert_result {
+                    self.boolean_bitnot(&result)
+                } else {
+                    result
+                }
+            }
         }
     }
 
     /// The invert_result boolean is only used when there is one and only one group
-    fn compute_group_borrow_state(
+    pub(crate) fn compute_group_borrow_state(
         &self,
         invert_result: bool,
         grouping_size: usize,
