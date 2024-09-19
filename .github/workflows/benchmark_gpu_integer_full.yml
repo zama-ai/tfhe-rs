@@ -49,7 +49,7 @@ jobs:
       max-parallel: 1
       matrix:
         command: [integer, integer_multi_bit]
-        op_flavor: [default, unchecked]
+        op_flavor: [default]
         # explicit include-based build matrix, of known valid options
         include:
           - os: ubuntu-22.04
