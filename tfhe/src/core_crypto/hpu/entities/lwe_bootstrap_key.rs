@@ -9,7 +9,8 @@ use crate::core_crypto::prelude::*;
 impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
     fn from_with(cpu_bsk: LweBootstrapKey<&[u64]>, params: HpuParameters) -> Self {
         // Convert the LweBootstrapKey in Ntt domain
-        let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(0_u64,
+        let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(
+            0_u64,
             cpu_bsk.input_lwe_dimension(),
             cpu_bsk.glwe_size(),
             cpu_bsk.polynomial_size(),
@@ -27,7 +28,11 @@ impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwne
 
 /// Shuffle BSK for GF64 Ntt architecture
 /// This architectures don't use an internal network, however, inputs polynomial was in a custom order and not bit-reversed one
-fn shuffle_gf64(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters, cut_w: &[u8]) -> HpuLweBootstrapKeyOwned<u64> {
+fn shuffle_gf64(
+    ntt_bsk: NttLweBootstrapKey<&[u64]>,
+    params: HpuParameters,
+    cut_w: &[u8],
+) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
 
     // Extract params inner values for ease of writting
@@ -40,15 +45,21 @@ fn shuffle_gf64(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters, cut_
     // Recursive function used to define the expected polynomial order
     fn bsk_order(cut_w: &[u8]) -> Vec<usize> {
         if cut_w.len() == 1 {
-          (0..2_usize.pow(cut_w[0] as u32)).map(|x| x as usize).collect::<Vec<usize>>()
-        }
-        else {
+            (0..2_usize.pow(cut_w[0] as u32))
+                .map(|x| x as usize)
+                .collect::<Vec<usize>>()
+        } else {
             let coefs_left = 2_usize.pow(cut_w[0] as u32);
             let sub_order = bsk_order(&cut_w[1..]);
 
-        (0..coefs_left).flat_map(|j|  { 
-                 sub_order.iter().map(|idx| coefs_left*idx + j).collect::<Vec<usize>>()
-            }).collect::<Vec<usize>>()
+            (0..coefs_left)
+                .flat_map(|j| {
+                    sub_order
+                        .iter()
+                        .map(|idx| coefs_left * idx + j)
+                        .collect::<Vec<usize>>()
+                })
+                .collect::<Vec<usize>>()
         }
     }
 
@@ -59,7 +70,7 @@ fn shuffle_gf64(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters, cut_
     gf64_order.iter_mut().for_each(|x| {
         *x = rb_conv.idx_rev(*x);
     });
-    
+
     let mut wr_idx = 0;
     for ggsw in ntt_bsk.as_view().into_ggsw_iter() {
         // Arch dependant iterations
@@ -88,13 +99,15 @@ fn shuffle_gf64(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters, cut_
         }
     }
     hpu_bsk
-
 }
 
 /// Shuffle BSK for Wmm Ntt architecture
 /// These architectures used a network internally
 /// With those architecture, the structural order and the iteration order differe and required a custom Bsk layout
-fn shuffle_wmm(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters) -> HpuLweBootstrapKeyOwned<u64> {
+fn shuffle_wmm(
+    ntt_bsk: NttLweBootstrapKey<&[u64]>,
+    params: HpuParameters,
+) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
 
     // Extract params inner values for ease of writting
@@ -115,9 +128,11 @@ fn shuffle_wmm(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters) -> Hp
 
     // Instanciate Ntt network
     let mut ntw = match &ntt_p.core_arch {
-      HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => order::Network::new(order::NetworkKind::Pcg, ntt_p.radix, ntt_p.stg_nb),
+        HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => {
+            order::Network::new(order::NetworkKind::Pcg, ntt_p.radix, ntt_p.stg_nb)
+        }
         _ => order::Network::new(order::NetworkKind::RRot, ntt_p.radix, ntt_p.stg_nb),
-      };
+    };
 
     let mut wr_idx = 0;
     for ggsw in ntt_bsk.as_view().into_ggsw_iter() {
@@ -148,9 +163,7 @@ fn shuffle_wmm(ntt_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters) -> Hp
         }
     }
     hpu_bsk
-
 }
-
 
 /// Uploading BSK on HW required custom polynomial interleaving.
 /// The following structure enable OutOfOrder access of GGSW polynomial to ease
@@ -186,18 +199,17 @@ impl GgswIndex {
     }
 }
 
-
 impl FromWith<NttLweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
     fn from_with(cpu_bsk: NttLweBootstrapKey<&[u64]>, params: HpuParameters) -> Self {
         match params.ntt_params.core_arch.clone() {
             // Shuffle required by GF64 Ntt without internal network
-           HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(cpu_bsk, params, &cut_w),
+            HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(cpu_bsk, params, &cut_w),
             // Legacy shuffle required by WmmNtt with internal network
             HpuNttCoreArch::WmmCompact
-           | HpuNttCoreArch::WmmPipeline
-           | HpuNttCoreArch::WmmUnfold
-           | HpuNttCoreArch::WmmCompactPcg
-           | HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(cpu_bsk, params),
-            }
+            | HpuNttCoreArch::WmmPipeline
+            | HpuNttCoreArch::WmmUnfold
+            | HpuNttCoreArch::WmmCompactPcg
+            | HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(cpu_bsk, params),
+        }
     }
 }

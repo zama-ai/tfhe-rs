@@ -166,7 +166,7 @@ impl FromRtl for HpuNttCoreArch {
                     .get("Info::NttRdxCut")
                     .expect("Unknow register, check regmap definition");
                 let radix_cut_val = ffi_pin.as_mut().read_reg(*radix_cut.offset() as u64);
-                let mut cut_l = (0..(u32::BITS/4)).map(|ofst| ((radix_cut_val >> (ofst*4)) & 0xf) as u8).filter(|x| *x!= 0).collect::<Vec<u8>>();
+                let cut_l = (0..(u32::BITS/4)).map(|ofst| ((radix_cut_val >> (ofst*4)) & 0xf) as u8).filter(|x| *x!= 0).collect::<Vec<u8>>();
                 Self::GF64(cut_l)
             },
             _ => panic!("Unknown NttCoreArch encoding"),
