@@ -7,6 +7,7 @@ use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
 use crate::integer::compression_keys::CompressionPrivateKeys;
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
@@ -132,4 +133,8 @@ impl AsRef<crate::integer::ClientKey> for ClientKey {
     fn as_ref(&self) -> &crate::integer::ClientKey {
         &self.key.key
     }
+}
+
+impl Named for ClientKey {
+    const NAME: &'static str = "high_level_api::ClientKey";
 }
