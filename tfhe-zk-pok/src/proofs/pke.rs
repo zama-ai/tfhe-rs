@@ -19,6 +19,7 @@ pub struct PublicParams<G: Curve> {
     pub b_r: u64,
     pub q: u64,
     pub t: u64,
+    pub msbs_zero_padding_bit_count: u64,
     hash: [u8; HASH_METADATA_LEN_BYTES],
     hash_t: [u8; HASH_METADATA_LEN_BYTES],
     hash_agg: [u8; HASH_METADATA_LEN_BYTES],
@@ -40,6 +41,7 @@ impl<G: Curve> PublicParams<G> {
         b_r: u64,
         q: u64,
         t: u64,
+        msbs_zero_padding_bit_count: u64,
         hash: [u8; HASH_METADATA_LEN_BYTES],
         hash_t: [u8; HASH_METADATA_LEN_BYTES],
         hash_agg: [u8; HASH_METADATA_LEN_BYTES],
@@ -57,6 +59,7 @@ impl<G: Curve> PublicParams<G> {
             b_r,
             q,
             t,
+            msbs_zero_padding_bit_count,
             hash,
             hash_t,
             hash_agg,
@@ -121,13 +124,18 @@ pub fn compute_crs_params(
     b: u64,
     _q: u64, // we keep q here to make sure the API is consistent with [crs_gen]
     t: u64,
+    msbs_zero_padding_bit_count: u64,
 ) -> (usize, usize, u64) {
     let b_r = d as u64 / 2 + 1;
 
+    // This is also the effective t for encryption
+    let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
+
     // This formulation is equivalent to the formula of the paper as 1 + b_r.ilog2() == d.ilog2()
     // for any d power of 2 > 2
-    let big_d =
-        d + k * t.ilog2() as usize + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
+    let big_d = d
+        + k * effective_t_for_decomposition.ilog2() as usize
+        + (d + k) * (2 + b.ilog2() as usize + b_r.ilog2() as usize);
     let n = big_d + 1;
     (n, big_d, b_r)
 }
@@ -138,10 +146,11 @@ pub fn crs_gen<G: Curve>(
     b: u64,
     q: u64,
     t: u64,
+    msbs_zero_padding_bit_count: u64,
     rng: &mut dyn RngCore,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
-    let (n, big_d, b_r) = compute_crs_params(d, k, b, q, t);
+    let (n, big_d, b_r) = compute_crs_params(d, k, b, q, t, msbs_zero_padding_bit_count);
     PublicParams {
         g_lists: GroupElements::<G>::new(n, alpha),
         big_d,
@@ -152,6 +161,7 @@ pub fn crs_gen<G: Curve>(
         b_r,
         q,
         t,
+        msbs_zero_padding_bit_count,
         hash: core::array::from_fn(|_| rng.gen()),
         hash_t: core::array::from_fn(|_| rng.gen()),
         hash_agg: core::array::from_fn(|_| rng.gen()),
@@ -209,6 +219,7 @@ pub fn prove<G: Curve>(
         b_r,
         q,
         t,
+        msbs_zero_padding_bit_count,
         k: k_max,
         ref hash,
         ref hash_t,
@@ -228,13 +239,17 @@ pub fn prove<G: Curve>(
     let k = c2.len();
     assert!(k <= k_max);
 
-    let big_d =
-        d + k * t.ilog2() as usize + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
+    let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
+
+    let big_d = d
+        + k * effective_t_for_decomposition.ilog2() as usize
+        + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
     assert!(big_d <= big_d_max);
 
     // FIXME: div_round
     let delta = {
         let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+        // delta takes the encoding with the padding bit
         (q / t as i128) as u64
     };
 
@@ -320,7 +335,10 @@ pub fn prove<G: Curve>(
             r.iter()
                 .rev()
                 .flat_map(|&r| bit_iter(u64(r), 1))
-                .chain(m.iter().flat_map(|&m| bit_iter(u64(m), t.ilog2())))
+                .chain(
+                    m.iter()
+                        .flat_map(|&m| bit_iter(u64(m), effective_t_for_decomposition.ilog2())),
+                )
                 .chain(e1.iter().flat_map(|&e1| bit_iter(u64(e1), 1 + b_i.ilog2())))
                 .chain(e2.iter().flat_map(|&e2| bit_iter(u64(e2), 1 + b_i.ilog2())))
                 .chain(r1.iter().flat_map(|&r1| bit_iter(u64(r1), 1 + b_r.ilog2())))
@@ -342,6 +360,7 @@ pub fn prove<G: Curve>(
         d.to_le_bytes().as_slice(),
         b_i.to_le_bytes().as_slice(),
         t.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
         &*b.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
         &*c1.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
@@ -383,7 +402,19 @@ pub fn prove<G: Curve>(
 
     let mut a_theta = vec![G::Zp::ZERO; big_d];
 
-    compute_a_theta::<G>(theta0, d, a, k, b, &mut a_theta, t, delta, b_i, b_r, q);
+    compute_a_theta::<G>(
+        theta0,
+        d,
+        a,
+        k,
+        b,
+        &mut a_theta,
+        effective_t_for_decomposition,
+        delta,
+        b_i,
+        b_r,
+        q,
+    );
 
     let mut t = vec![G::Zp::ZERO; n];
     G::Zp::hash_128bit(
@@ -734,6 +765,7 @@ pub fn verify<G: Curve>(
         b_r,
         q,
         t,
+        msbs_zero_padding_bit_count,
         k: k_max,
         ref hash,
         ref hash_t,
@@ -750,6 +782,7 @@ pub fn verify<G: Curve>(
     // FIXME: div_round
     let delta = {
         let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+        // delta takes the encoding with the padding bit
         (q / t as i128) as u64
     };
 
@@ -759,8 +792,11 @@ pub fn verify<G: Curve>(
         return Err(());
     }
 
-    let big_d =
-        d + k * t.ilog2() as usize + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
+    let effective_t_for_decomposition = t >> msbs_zero_padding_bit_count;
+
+    let big_d = d
+        + k * effective_t_for_decomposition.ilog2() as usize
+        + (d + k) * (2 + b_i.ilog2() as usize + b_r.ilog2() as usize);
     if big_d > big_d_max {
         return Err(());
     }
@@ -770,6 +806,7 @@ pub fn verify<G: Curve>(
         d.to_le_bytes().as_slice(),
         b_i.to_le_bytes().as_slice(),
         t.to_le_bytes().as_slice(),
+        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
         &*a.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
         &*b.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
         &*c1.iter().flat_map(|&x| x.to_le_bytes()).collect::<Box<_>>(),
@@ -803,7 +840,19 @@ pub fn verify<G: Curve>(
     let delta_theta = theta[d + k];
 
     let mut a_theta = vec![G::Zp::ZERO; big_d];
-    compute_a_theta::<G>(theta0, d, a, k, b, &mut a_theta, t, delta, b_i, b_r, q);
+    compute_a_theta::<G>(
+        theta0,
+        d,
+        a,
+        k,
+        b,
+        &mut a_theta,
+        effective_t_for_decomposition,
+        delta,
+        b_i,
+        b_r,
+        q,
+    );
 
     let mut t_theta = G::Zp::ZERO;
     for i in 0..d {
@@ -993,9 +1042,12 @@ mod tests {
         let b_i = 512;
         let q = 0;
         let t = 1024;
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
         let delta = {
             let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            // delta takes the encoding with the padding bit
             (q / t as i128) as u64
         };
 
@@ -1047,11 +1099,234 @@ mod tests {
             .collect::<Vec<_>>();
 
         let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
         let fake_m = (0..k)
-            .map(|_| (rng.gen::<u64>() % t) as i64)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
+
+        let b = polymul_rev(&a, &s)
+            .into_iter()
+            .zip(e.iter())
+            .map(|(x, e)| x.wrapping_add(*e))
+            .collect::<Vec<_>>();
+        let c1 = polymul_rev(&a, &r)
+            .into_iter()
+            .zip(e1.iter())
+            .map(|(x, e1)| x.wrapping_add(*e1))
+            .collect::<Vec<_>>();
+
+        let mut c2 = vec![0i64; k];
+
+        for i in 0..k {
+            let mut dot = 0i64;
+            for j in 0..d {
+                let b = if i + j < d {
+                    b[d - j - i - 1]
+                } else {
+                    b[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+            }
+
+            c2[i] = dot
+                .wrapping_add(e2[i])
+                .wrapping_add((delta * m[i] as u64) as i64);
+        }
+
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut fake_metadata = [255u8; METADATA_LEN];
+        fake_metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut m_roundtrip = vec![0i64; k];
+        for i in 0..k {
+            let mut dot = 0i128;
+            for j in 0..d {
+                let c = if i + j < d {
+                    c1[d - j - i - 1]
+                } else {
+                    c1[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot += s[d - j - 1] as i128 * c as i128;
+            }
+
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
+            let div = val.div_euclid(q);
+            let rem = val.rem_euclid(q);
+            let result = div as i64 + (rem > (q / 2)) as i64;
+            let result = result.rem_euclid(effective_cleartext_t as i64);
+            m_roundtrip[i] = result;
+        }
+
+        type Curve = crate::curve_api::Bls12_446;
+
+        let serialize_then_deserialize =
+            |public_param: &PublicParams<Curve>,
+             compress: Compress|
+             -> Result<PublicParams<Curve>, SerializationError> {
+                let mut data = Vec::new();
+                public_param.serialize_with_mode(&mut data, compress)?;
+
+                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
+            };
+
+        // To check management of bigger k_max from CRS during test
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, b_i, q, t, msbs_zero_padding_bit_count, rng);
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
+        let public_param_that_was_not_compressed =
+            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+
+        for (
+            public_param,
+            use_fake_e1,
+            use_fake_e2,
+            use_fake_m,
+            use_fake_r,
+            use_fake_metadata_verify,
+        ) in itertools::iproduct!(
+            [
+                original_public_param,
+                public_param_that_was_compressed,
+                public_param_that_was_not_compressed,
+            ],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true]
+        ) {
+            let (public_commit, private_commit) = commit(
+                a.clone(),
+                b.clone(),
+                c1.clone(),
+                c2.clone(),
+                if use_fake_r {
+                    fake_r.clone()
+                } else {
+                    r.clone()
+                },
+                if use_fake_e1 {
+                    fake_e1.clone()
+                } else {
+                    e1.clone()
+                },
+                if use_fake_m {
+                    fake_m.clone()
+                } else {
+                    m.clone()
+                },
+                if use_fake_e2 {
+                    fake_e2.clone()
+                } else {
+                    e2.clone()
+                },
+                &public_param,
+                rng,
+            );
+
+            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                let proof = prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &metadata,
+                    load,
+                    rng,
+                );
+
+                let verify_metadata = if use_fake_metadata_verify {
+                    &fake_metadata
+                } else {
+                    &metadata
+                };
+
+                assert_eq!(
+                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                    use_fake_e1
+                        || use_fake_e2
+                        || use_fake_r
+                        || use_fake_m
+                        || use_fake_metadata_verify
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_pke_w_padding_fail_verify() {
+        let d = 2048;
+        let k = 320;
+        let b_i = 512;
+        let q = 0;
+        let t = 1024;
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let delta = {
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            (q / t as i128) as u64
+        };
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let polymul_rev = |a: &[i64], b: &[i64]| -> Vec<i64> {
+            assert_eq!(a.len(), b.len());
+            let d = a.len();
+            let mut c = vec![0i64; d];
+
+            for i in 0..d {
+                for j in 0..d {
+                    if i + j < d {
+                        c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
+                    } else {
+                        c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
+                    }
+                }
+            }
+
+            c
+        };
+
+        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+        let s = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+        let e = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * b_i)) as i64 - b_i as i64)
+            .collect::<Vec<_>>();
+        let e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * b_i)) as i64 - b_i as i64)
+            .collect::<Vec<_>>();
+        let e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * b_i)) as i64 - b_i as i64)
+            .collect::<Vec<_>>();
+
+        let r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+
+        // Generate messages with padding set to fail verification
+        let m = {
+            let mut tmp = (0..k)
+                .map(|_| (rng.gen::<u64>() % t) as i64)
+                .collect::<Vec<_>>();
+            while tmp.iter().all(|&x| (x as u64) < effective_cleartext_t) {
+                tmp.fill_with(|| rng.gen());
+            }
+
+            tmp
+        };
 
         let b = polymul_rev(&a, &s)
             .into_iter()
@@ -1129,56 +1404,27 @@ mod tests {
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
-        let original_public_param = crs_gen::<Curve>(d, crs_k, b_i, q, t, rng);
+        let original_public_param =
+            crs_gen::<Curve>(d, crs_k, b_i, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
             serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
         let public_param_that_was_not_compressed =
             serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
 
-        for (
-            public_param,
-            use_fake_e1,
-            use_fake_e2,
-            use_fake_m,
-            use_fake_r,
-            use_fake_metadata_verify,
-        ) in itertools::iproduct!(
-            [
-                original_public_param,
-                public_param_that_was_compressed,
-                public_param_that_was_not_compressed,
-            ],
-            [false, true],
-            [false, true],
-            [false, true],
-            [false, true],
-            [false, true]
-        ) {
+        for public_param in [
+            original_public_param,
+            public_param_that_was_compressed,
+            public_param_that_was_not_compressed,
+        ] {
             let (public_commit, private_commit) = commit(
                 a.clone(),
                 b.clone(),
                 c1.clone(),
                 c2.clone(),
-                if use_fake_r {
-                    fake_r.clone()
-                } else {
-                    r.clone()
-                },
-                if use_fake_e1 {
-                    fake_e1.clone()
-                } else {
-                    e1.clone()
-                },
-                if use_fake_m {
-                    fake_m.clone()
-                } else {
-                    m.clone()
-                },
-                if use_fake_e2 {
-                    fake_e2.clone()
-                } else {
-                    e2.clone()
-                },
+                r.clone(),
+                e1.clone(),
+                m.clone(),
+                e2.clone(),
                 &public_param,
                 rng,
             );
@@ -1192,20 +1438,7 @@ mod tests {
                     rng,
                 );
 
-                let verify_metadata = if use_fake_metadata_verify {
-                    &fake_metadata
-                } else {
-                    &metadata
-                };
-
-                assert_eq!(
-                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
-                    use_fake_e1
-                        || use_fake_e2
-                        || use_fake_r
-                        || use_fake_m
-                        || use_fake_metadata_verify
-                );
+                assert!(verify(&proof, (&public_param, &public_commit), &metadata).is_err());
             }
         }
     }
