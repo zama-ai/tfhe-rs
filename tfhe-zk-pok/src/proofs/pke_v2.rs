@@ -308,6 +308,7 @@ pub fn commit<G: Curve>(
 pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
+    metadata: &[u8],
     load: ComputeLoad,
     rng: &mut dyn RngCore,
 ) -> Proof<G> {
@@ -536,6 +537,7 @@ pub fn prove<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
         C_hat_e.to_bytes().as_ref(),
         C_e.to_bytes().as_ref(),
@@ -604,6 +606,7 @@ pub fn prove<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
             C_hat_e.to_bytes().as_ref(),
@@ -643,6 +646,7 @@ pub fn prove<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
             C_hat_e.to_bytes().as_ref(),
             C_e.to_bytes().as_ref(),
@@ -664,6 +668,7 @@ pub fn prove<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
@@ -695,6 +700,7 @@ pub fn prove<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
@@ -718,6 +724,7 @@ pub fn prove<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -752,6 +759,7 @@ pub fn prove<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -777,6 +785,7 @@ pub fn prove<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1151,6 +1160,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1283,6 +1293,7 @@ pub fn prove<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1457,6 +1468,7 @@ fn compute_a_theta<G: Curve>(
 pub fn verify<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
+    metadata: &[u8],
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
@@ -1555,6 +1567,7 @@ pub fn verify<G: Curve>(
     let mut hasher = sha3::Shake256::default();
     for &data in &[
         hash_R,
+        metadata,
         x_bytes,
         C_hat_e.to_bytes().as_ref(),
         C_e.to_bytes().as_ref(),
@@ -1591,6 +1604,7 @@ pub fn verify<G: Curve>(
         &mut phi,
         &[
             hash_phi,
+            metadata,
             x_bytes,
             R_bytes,
             C_hat_e.to_bytes().as_ref(),
@@ -1609,6 +1623,7 @@ pub fn verify<G: Curve>(
         &mut xi,
         &[
             hash_xi,
+            metadata,
             x_bytes,
             C_hat_e.to_bytes().as_ref(),
             C_e.to_bytes().as_ref(),
@@ -1629,6 +1644,7 @@ pub fn verify<G: Curve>(
         &mut y,
         &[
             hash,
+            metadata,
             x_bytes,
             R_bytes,
             phi_bytes,
@@ -1650,6 +1666,7 @@ pub fn verify<G: Curve>(
         &mut t,
         &[
             hash_t,
+            metadata,
             x_bytes,
             y_bytes,
             phi_bytes,
@@ -1673,6 +1690,7 @@ pub fn verify<G: Curve>(
         &mut theta,
         &[
             hash_lmap,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1697,6 +1715,7 @@ pub fn verify<G: Curve>(
         &mut w,
         &[
             hash_w,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1732,6 +1751,7 @@ pub fn verify<G: Curve>(
         &mut delta,
         &[
             hash_agg,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1825,6 +1845,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut z),
         &[
             hash_z,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -1963,6 +1984,7 @@ pub fn verify<G: Curve>(
         core::slice::from_mut(&mut chi),
         &[
             hash_chi,
+            metadata,
             x_bytes,
             y_bytes,
             t_bytes,
@@ -2122,6 +2144,15 @@ mod tests {
                 .wrapping_add((delta * m[i] as u64) as i64);
         }
 
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut fake_metadata = [255u8; METADATA_LEN];
+        fake_metadata.fill_with(|| rng.gen::<u8>());
+
         let mut m_roundtrip = vec![0i64; k];
         for i in 0..k {
             let mut dot = 0i128;
@@ -2165,60 +2196,77 @@ mod tests {
         let public_param_that_was_not_compressed =
             serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
 
-        for public_param in [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed,
-        ] {
-            for use_fake_e1 in [false, true] {
-                for use_fake_e2 in [false, true] {
-                    for use_fake_m in [false, true] {
-                        for use_fake_r in [false, true] {
-                            let (public_commit, private_commit) = commit(
-                                a.clone(),
-                                b.clone(),
-                                c1.clone(),
-                                c2.clone(),
-                                if use_fake_r {
-                                    fake_r.clone()
-                                } else {
-                                    r.clone()
-                                },
-                                if use_fake_e1 {
-                                    fake_e1.clone()
-                                } else {
-                                    e1.clone()
-                                },
-                                if use_fake_m {
-                                    fake_m.clone()
-                                } else {
-                                    m.clone()
-                                },
-                                if use_fake_e2 {
-                                    fake_e2.clone()
-                                } else {
-                                    e2.clone()
-                                },
-                                &public_param,
-                                rng,
-                            );
+        for (
+            public_param,
+            use_fake_r,
+            use_fake_e1,
+            use_fake_e2,
+            use_fake_m,
+            use_fake_metadata_verify,
+        ) in itertools::iproduct!(
+            [
+                original_public_param,
+                public_param_that_was_compressed,
+                public_param_that_was_not_compressed,
+            ],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true],
+            [false, true]
+        ) {
+            let (public_commit, private_commit) = commit(
+                a.clone(),
+                b.clone(),
+                c1.clone(),
+                c2.clone(),
+                if use_fake_r {
+                    fake_r.clone()
+                } else {
+                    r.clone()
+                },
+                if use_fake_e1 {
+                    fake_e1.clone()
+                } else {
+                    e1.clone()
+                },
+                if use_fake_m {
+                    fake_m.clone()
+                } else {
+                    m.clone()
+                },
+                if use_fake_e2 {
+                    fake_e2.clone()
+                } else {
+                    e2.clone()
+                },
+                &public_param,
+                rng,
+            );
 
-                            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-                                let proof = prove(
-                                    (&public_param, &public_commit),
-                                    &private_commit,
-                                    load,
-                                    rng,
-                                );
+            for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+                let proof = prove(
+                    (&public_param, &public_commit),
+                    &private_commit,
+                    &metadata,
+                    load,
+                    rng,
+                );
 
-                                assert_eq!(
-                                    verify(&proof, (&public_param, &public_commit)).is_err(),
-                                    use_fake_e1 || use_fake_e2 || use_fake_r || use_fake_m
-                                );
-                            }
-                        }
-                    }
-                }
+                let verify_metadata = if use_fake_metadata_verify {
+                    &fake_metadata
+                } else {
+                    &metadata
+                };
+
+                assert_eq!(
+                    verify(&proof, (&public_param, &public_commit), verify_metadata).is_err(),
+                    use_fake_e1
+                        || use_fake_e2
+                        || use_fake_r
+                        || use_fake_m
+                        || use_fake_metadata_verify
+                );
             }
         }
     }
