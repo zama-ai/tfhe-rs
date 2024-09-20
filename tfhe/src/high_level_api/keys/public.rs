@@ -21,6 +21,7 @@ use crate::backward_compatibility::keys::{
     PublicKeyVersions,
 };
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::{Error, Tag};
@@ -68,6 +69,10 @@ impl Tagged for PublicKey {
     }
 }
 
+impl Named for PublicKey {
+    const NAME: &'static str = "high_level_api::PublicKey";
+}
+
 /// Compressed classical public key.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedPublicKeyVersions)]
@@ -113,6 +118,10 @@ impl Tagged for CompressedPublicKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for CompressedPublicKey {
+    const NAME: &'static str = "high_level_api::CompressedPublicKey";
 }
 
 /// A more compact public key
@@ -166,6 +175,10 @@ impl Tagged for CompactPublicKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for CompactPublicKey {
+    const NAME: &'static str = "high_level_api::CompactPublicKey";
 }
 
 /// Compressed variant of [CompactPublicKey]
@@ -222,4 +235,8 @@ impl Tagged for CompressedCompactPublicKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for CompressedCompactPublicKey {
+    const NAME: &'static str = "high_level_api::CompressedCompactPublicKey";
 }

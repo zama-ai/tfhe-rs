@@ -8,6 +8,7 @@ use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 use crate::Tag;
@@ -106,6 +107,10 @@ impl Tagged for ServerKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for ServerKey {
+    const NAME: &'static str = "high_level_api::ServerKey";
 }
 
 impl AsRef<crate::integer::ServerKey> for ServerKey {
@@ -253,6 +258,10 @@ impl Tagged for CompressedServerKey {
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
     }
+}
+
+impl Named for CompressedServerKey {
+    const NAME: &'static str = "high_level_api::CompressedServerKey";
 }
 
 #[cfg(feature = "gpu")]
