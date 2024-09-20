@@ -4,7 +4,10 @@ use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, MessageModulus, ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
-use crate::zk::{CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkVerificationOutCome};
+use crate::zk::{
+    CompactPkeCrs, CompactPkeProof, CompactPkePublicParams, ZkMSBZeroPaddingBitCount,
+    ZkVerificationOutCome,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +30,8 @@ impl CompactPkeCrs {
         // Our plaintext modulus does not take into account the bit of padding
         plaintext_modulus *= 2;
 
+        // 1 padding bit for the PBS
+        // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
             Self::new(
                 size,
@@ -34,6 +39,7 @@ impl CompactPkeCrs {
                 noise_distribution,
                 params.ciphertext_modulus,
                 plaintext_modulus,
+                ZkMSBZeroPaddingBitCount(1),
                 &mut engine.random_generator,
             )
         })
