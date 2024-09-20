@@ -3,6 +3,7 @@ pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
+mod test_count_zeros_ones;
 pub(crate) mod test_ilog2;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;

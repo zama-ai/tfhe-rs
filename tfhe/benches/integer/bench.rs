@@ -1011,6 +1011,8 @@ define_server_key_bench_unary_default_fn!(method_name: leading_ones_parallelized
 define_server_key_bench_unary_default_fn!(method_name: trailing_zeros_parallelized, display_name: trailing_zeros);
 define_server_key_bench_unary_default_fn!(method_name: trailing_ones_parallelized, display_name: trailing_ones);
 define_server_key_bench_unary_default_fn!(method_name: ilog2_parallelized, display_name: ilog2);
+define_server_key_bench_unary_default_fn!(method_name: count_ones_parallelized, display_name: count_ones);
+define_server_key_bench_unary_default_fn!(method_name: count_zeros_parallelized, display_name: count_zeros);
 define_server_key_bench_unary_default_fn!(method_name: checked_ilog2_parallelized, display_name: checked_ilog2);
 
 define_server_key_bench_unary_default_fn!(method_name: unchecked_abs_parallelized, display_name: abs);
@@ -2243,6 +2245,8 @@ criterion_group!(
     trailing_ones_parallelized,
     ilog2_parallelized,
     checked_ilog2_parallelized,
+    count_zeros_parallelized,
+    count_ones_parallelized,
 );
 
 criterion_group!(

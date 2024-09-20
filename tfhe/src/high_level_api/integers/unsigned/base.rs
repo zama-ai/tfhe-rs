@@ -533,6 +533,80 @@ where
         })
     }
 
+    /// Returns the number of ones in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let clear_a = 0b0000000_0110111u16;
+    /// let a = FheUint16::encrypt(clear_a, &client_key);
+    ///
+    /// let result = a.count_ones();
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, clear_a.count_ones());
+    /// ```
+    pub fn count_ones(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .count_ones_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result, cpu_key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support count_ones yet");
+            }
+        })
+    }
+
+    /// Returns the number of zeros in the binary representation of self.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let clear_a = 0b0000000_0110111u16;
+    /// let a = FheUint16::encrypt(clear_a, &client_key);
+    ///
+    /// let result = a.count_zeros();
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, clear_a.count_zeros());
+    /// ```
+    pub fn count_zeros(&self) -> super::FheUint32 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let result = cpu_key
+                    .pbs_key()
+                    .count_zeros_parallelized(&*self.ciphertext.on_cpu());
+                let result = cpu_key.pbs_key().cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
+                );
+                super::FheUint32::new(result, cpu_key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support count_zeros yet");
+            }
+        })
+    }
+
     /// Returns the base 2 logarithm of the number, rounded down.
     ///
     /// Result has no meaning if self encrypts 0. See [Self::checked_ilog2]

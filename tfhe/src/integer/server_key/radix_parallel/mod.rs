@@ -21,6 +21,7 @@ mod shift;
 pub(crate) mod sub;
 mod sum;
 
+mod count_zeros_ones;
 pub(crate) mod ilog2;
 mod reverse_bits;
 mod slice;
