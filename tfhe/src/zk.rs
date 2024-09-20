@@ -34,6 +34,9 @@ pub struct CompactPkeCrs {
     public_params: CompactPkePublicParams,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ZkMSBZeroPaddingBitCount(pub u64);
+
 impl CompactPkeCrs {
     /// Prepare and check the CRS parameters.
     ///
@@ -140,6 +143,7 @@ impl CompactPkeCrs {
         noise_distribution: NoiseDistribution,
         ciphertext_modulus: CiphertextModulus<Scalar>,
         plaintext_modulus: Scalar,
+        msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
         rng: &mut impl RngCore,
     ) -> crate::Result<Self>
     where
@@ -153,7 +157,15 @@ impl CompactPkeCrs {
             ciphertext_modulus,
             plaintext_modulus,
         )?;
-        let public_params = crs_gen(d.0, k, b.cast_into(), q, t.cast_into(), rng);
+        let public_params = crs_gen(
+            d.0,
+            k,
+            b.cast_into(),
+            q,
+            t.cast_into(),
+            msbs_zero_padding_bit_count.0,
+            rng,
+        );
 
         Ok(Self { public_params })
     }
