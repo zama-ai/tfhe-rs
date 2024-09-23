@@ -130,11 +130,11 @@ fi
 # Override test-threads number to avoid Out-of-memory issues on GPU instances
 if [[ "${backend}" == "gpu" ]]; then
     if [[ "${BIG_TESTS_INSTANCE}" == TRUE ]]; then
-        test_threads=1
-        doctest_threads=1
+        test_threads=8
+        doctest_threads=8
     else
-        test_threads=1
-        doctest_threads=1
+        test_threads=3
+        doctest_threads=3
     fi
 fi
 
