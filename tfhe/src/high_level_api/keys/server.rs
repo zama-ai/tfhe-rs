@@ -11,6 +11,7 @@ use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
+use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
@@ -100,6 +101,19 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
+    }
+
+    pub(in crate::high_level_api) fn integer_compact_ciphertext_list_expansion_mode(
+        &self,
+    ) -> IntegerCompactCiphertextListExpansionMode {
+        self.cpk_casting_key().map_or_else(
+            || {
+                IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(
+                    self.pbs_key(),
+                )
+            },
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary,
+        )
     }
 }
 

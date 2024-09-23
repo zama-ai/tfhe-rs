@@ -7,46 +7,154 @@ use crate::integer::backward_compatibility::ciphertext::ProvenCompactCiphertextL
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
-pub use crate::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
+pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{CompactPublicKey, ServerKey};
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
-use crate::shortint::parameters::CiphertextConformanceParams;
-#[cfg(feature = "zk-pok")]
-use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+use crate::shortint::parameters::{
+    CastingFunctionsOwned, CiphertextConformanceParams, ShortintCompactCiphertextListCastingMode,
+};
 #[cfg(feature = "zk-pok")]
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, CompactPublicKeyEncryptionParameters, LweDimension,
+    CiphertextModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
+    LweDimension,
 };
-use crate::shortint::{Ciphertext, MessageModulus};
+use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
-use crate::zk::CompactPkeCrs;
+use crate::zk::{CompactPkeCrs, CompactPkePublicParams, ZkComputeLoad, ZkVerificationOutCome};
+
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
-#[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkePublicParams, ZkComputeLoad, ZkVerificationOutCome};
+/// Unpack message and carries and additionally sanitizes blocks that correspond to boolean values
+/// to make sure they encrypt a 0 or a 1.
+fn unpack_and_sanitize_message_and_carries(
+    packed_blocks: Vec<Ciphertext>,
+    sks: &ServerKey,
+    infos: &[DataKind],
+) -> Vec<Ciphertext> {
+    let IntegerUnpackingToShortintCastingModeHelper {
+        msg_extract,
+        carry_extract,
+        msg_extract_bool,
+        carry_extract_bool,
+    } = IntegerUnpackingToShortintCastingModeHelper::new(
+        sks.message_modulus(),
+        sks.carry_modulus(),
+    );
+    let msg_extract = sks.key.generate_lookup_table(msg_extract);
+    let carry_extract = sks.key.generate_lookup_table(carry_extract);
+    let msg_extract_bool = sks.key.generate_lookup_table(msg_extract_bool);
+    let carry_extract_bool = sks.key.generate_lookup_table(carry_extract_bool);
 
-fn extract_message_and_carries(packed_blocks: Vec<Ciphertext>, sks: &ServerKey) -> Vec<Ciphertext> {
+    let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+    let packed_block_count = block_count.div_ceil(2);
+    assert_eq!(
+        packed_block_count,
+        packed_blocks.len(),
+        "Internal error, invalid packed blocks count during unpacking of a compact ciphertext list."
+    );
+    let mut functions = vec![[None; 2]; packed_block_count];
+
+    let mut overall_block_idx = 0;
+
+    for data_kind in infos {
+        let block_count = data_kind.num_blocks();
+        for _ in 0..block_count {
+            let is_in_msg_part = overall_block_idx % 2 == 0;
+
+            let unpacking_function = if is_in_msg_part {
+                if matches!(data_kind, DataKind::Boolean) {
+                    &msg_extract_bool
+                } else {
+                    &msg_extract
+                }
+            } else if matches!(data_kind, DataKind::Boolean) {
+                &carry_extract_bool
+            } else {
+                &carry_extract
+            };
+
+            let packed_block_idx = overall_block_idx / 2;
+            let idx_in_packed_block = overall_block_idx % 2;
+
+            functions[packed_block_idx][idx_in_packed_block] = Some(unpacking_function);
+            overall_block_idx += 1;
+        }
+    }
+
     packed_blocks
         .into_par_iter()
-        .flat_map(|block| {
+        .zip(functions.into_par_iter())
+        .flat_map(|(block, extract_function)| {
             let mut low_block = block;
             let mut high_block = low_block.clone();
+            let (msg_lut, carry_lut) = (extract_function[0], extract_function[1]);
 
             rayon::join(
                 || {
-                    sks.key.message_extract_assign(&mut low_block);
+                    if let Some(msg_lut) = msg_lut {
+                        sks.key.apply_lookup_table_assign(&mut low_block, msg_lut);
+                    }
                 },
                 || {
-                    sks.key.carry_extract_assign(&mut high_block);
+                    if let Some(carry_lut) = carry_lut {
+                        sks.key
+                            .apply_lookup_table_assign(&mut high_block, carry_lut);
+                    }
                 },
             );
 
             [low_block, high_block]
+        })
+        .collect::<Vec<_>>()
+}
+
+/// This function sanitizes boolean blocks to make sure they encrypt a 0 or a 1
+fn sanitize_boolean_blocks(
+    packed_blocks: Vec<Ciphertext>,
+    sks: &ServerKey,
+    infos: &[DataKind],
+) -> Vec<Ciphertext> {
+    let message_modulus = sks.message_modulus().0 as u64;
+    let msg_extract_bool = sks.key.generate_lookup_table(|x: u64| {
+        let tmp = x % message_modulus;
+        if tmp == 0 {
+            0u64
+        } else {
+            1u64
+        }
+    });
+
+    let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+    let mut functions = vec![None; block_count];
+
+    let mut overall_block_idx = 0;
+
+    for data_kind in infos {
+        let block_count = data_kind.num_blocks();
+        for _ in 0..block_count {
+            let acc = if matches!(data_kind, DataKind::Boolean) {
+                Some(&msg_extract_bool)
+            } else {
+                None
+            };
+
+            functions[overall_block_idx] = acc;
+            overall_block_idx += 1;
+        }
+    }
+
+    packed_blocks
+        .into_par_iter()
+        .zip(functions.into_par_iter())
+        .map(|(mut block, sanitize_acc)| {
+            if let Some(sanitize_acc) = sanitize_acc {
+                sks.key.apply_lookup_table_assign(&mut block, sanitize_acc);
+            }
+
+            block
         })
         .collect::<Vec<_>>()
 }
@@ -337,8 +445,77 @@ impl ParameterSetConformant for CompactCiphertextList {
 pub const WRONG_UNPACKING_MODE_ERR_MSG: &str =
     "Cannot expand a CompactCiphertextList that requires unpacking without \
     a server key, please provide a integer::ServerKey passing it with the \
-    enum variant IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary \
+    enum variant IntegerCompactCiphertextListExpansionMode::UnpackIfNecessary \
+    or IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary \
     as unpacking_mode.";
+
+struct IntegerUnpackingToShortintCastingModeHelper {
+    msg_extract: Box<dyn Fn(u64) -> u64 + Sync>,
+    carry_extract: Box<dyn Fn(u64) -> u64 + Sync>,
+    msg_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
+    carry_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
+}
+
+impl IntegerUnpackingToShortintCastingModeHelper {
+    pub fn new(message_modulus: MessageModulus, carry_modulus: CarryModulus) -> Self {
+        let message_modulus = message_modulus.0 as u64;
+        let carry_modulus = carry_modulus.0 as u64;
+        let msg_extract = Box::new(move |x: u64| x % message_modulus);
+        let carry_extract = Box::new(move |x: u64| (x / carry_modulus) % message_modulus);
+        let msg_extract_bool = Box::new(move |x: u64| {
+            let tmp = x % message_modulus;
+            u64::from(tmp != 0)
+        });
+        let carry_extract_bool = Box::new(move |x: u64| {
+            let tmp = (x / carry_modulus) % message_modulus;
+            u64::from(tmp != 0)
+        });
+
+        Self {
+            msg_extract,
+            carry_extract,
+            msg_extract_bool,
+            carry_extract_bool,
+        }
+    }
+
+    pub fn generate_function(&self, infos: &[DataKind]) -> CastingFunctionsOwned {
+        let block_count: usize = infos.iter().map(|x| x.num_blocks()).sum();
+        let packed_block_count = block_count.div_ceil(2);
+        let mut functions = vec![Some(Vec::with_capacity(2)); packed_block_count];
+
+        let mut overall_block_idx = 0;
+
+        for data_kind in infos {
+            let block_count = data_kind.num_blocks();
+            for _ in 0..block_count {
+                let is_in_msg_part = overall_block_idx % 2 == 0;
+
+                let unpacking_function: &(dyn Fn(u64) -> u64 + Sync) = if is_in_msg_part {
+                    if matches!(data_kind, DataKind::Boolean) {
+                        self.msg_extract_bool.as_ref()
+                    } else {
+                        self.msg_extract.as_ref()
+                    }
+                } else if matches!(data_kind, DataKind::Boolean) {
+                    self.carry_extract_bool.as_ref()
+                } else {
+                    self.carry_extract.as_ref()
+                };
+
+                let packed_block_idx = overall_block_idx / 2;
+
+                if let Some(block_fns) = functions[packed_block_idx].as_mut() {
+                    block_fns.push(unpacking_function)
+                }
+
+                overall_block_idx += 1;
+            }
+        }
+
+        functions
+    }
+}
 
 impl CompactCiphertextList {
     pub fn is_packed(&self) -> bool {
@@ -424,8 +601,8 @@ impl CompactCiphertextList {
     ///
     /// ```rust
     /// use tfhe::integer::ciphertext::{
-    ///     CompactCiphertextList, DataKind, IntegerCompactCiphertextListCastingMode,
-    ///     IntegerCompactCiphertextListUnpackingMode, RadixCiphertext, SignedRadixCiphertext,
+    ///     CompactCiphertextList, DataKind, IntegerCompactCiphertextListExpansionMode,
+    ///     RadixCiphertext, SignedRadixCiphertext,
     /// };
     /// use tfhe::integer::{ClientKey, CompactPublicKey};
     /// use tfhe::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
@@ -440,10 +617,7 @@ impl CompactCiphertextList {
     /// let mut compact_ct = CompactCiphertextList::builder(&pk).push(-1i8).build();
     ///
     /// let sanity_check_expander = compact_ct
-    ///     .expand(
-    ///         IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-    ///         IntegerCompactCiphertextListCastingMode::NoCasting,
-    ///     )
+    ///     .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)
     ///     .unwrap();
     /// let sanity_expanded = sanity_check_expander
     ///     .get::<SignedRadixCiphertext>(0)
@@ -457,10 +631,7 @@ impl CompactCiphertextList {
     ///     .unwrap();
     ///
     /// let expander = compact_ct
-    ///     .expand(
-    ///         IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-    ///         IntegerCompactCiphertextListCastingMode::NoCasting,
-    ///     )
+    ///     .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)
     ///     .unwrap();
     ///
     /// let expanded = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
@@ -491,15 +662,14 @@ impl CompactCiphertextList {
 
     pub fn expand(
         &self,
-        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
-        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
+        expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
         let is_packed = self.is_packed();
 
         if is_packed
             && matches!(
-                unpacking_mode,
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                expansion_mode,
+                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking
             )
         {
             return Err(crate::Error::new(String::from(
@@ -507,11 +677,35 @@ impl CompactCiphertextList {
             )));
         }
 
-        let expanded_blocks = self.ct_list.expand(casting_mode.into())?;
+        let expanded_blocks = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => {
+                let function_helper;
+                let functions;
+                let functions = if is_packed {
+                    let dest_sks = &key_switching_key_view.key.dest_server_key;
+                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                        dest_sks.message_modulus,
+                        dest_sks.carry_modulus,
+                    );
+                    functions = function_helper.generate_function(&self.info);
+                    Some(functions.as_slice())
+                } else {
+                    None
+                };
+                self.ct_list
+                    .expand(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                        casting_key: key_switching_key_view.key,
+                        functions,
+                    })?
+            }
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                let expanded_blocks = self
+                    .ct_list
+                    .expand(ShortintCompactCiphertextListCastingMode::NoCasting)?;
 
-        let expanded_blocks = if is_packed {
-            match unpacking_mode {
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                if is_packed {
                     let degree = self.ct_list.degree;
                     let mut conformance_params = sks.key.conformance_params();
                     conformance_params.degree = degree;
@@ -525,12 +719,14 @@ impl CompactCiphertextList {
                         }
                     }
 
-                    extract_message_and_carries(expanded_blocks, sks)
+                    unpack_and_sanitize_message_and_carries(expanded_blocks, sks, &self.info)
+                } else {
+                    sanitize_boolean_blocks(expanded_blocks, sks, &self.info)
                 }
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
             }
-        } else {
-            expanded_blocks
+            IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => self
+                .ct_list
+                .expand(ShortintCompactCiphertextListCastingMode::NoCasting)?,
         };
 
         Ok(CompactCiphertextListExpander::new(
@@ -597,15 +793,14 @@ impl ProvenCompactCiphertextList {
         public_params: &CompactPkePublicParams,
         public_key: &CompactPublicKey,
         metadata: &[u8],
-        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
-        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
+        expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
         let is_packed = self.is_packed();
 
         if is_packed
             && matches!(
-                unpacking_mode,
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                expansion_mode,
+                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking
             )
         {
             return Err(crate::Error::new(String::from(
@@ -613,16 +808,42 @@ impl ProvenCompactCiphertextList {
             )));
         }
 
-        let expanded_blocks = self.ct_list.verify_and_expand(
-            public_params,
-            &public_key.key,
-            metadata,
-            casting_mode.into(),
-        )?;
+        let expanded_blocks = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => {
+                let function_helper;
+                let functions;
+                let functions = if is_packed {
+                    let dest_sks = &key_switching_key_view.key.dest_server_key;
+                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                        dest_sks.message_modulus,
+                        dest_sks.carry_modulus,
+                    );
+                    functions = function_helper.generate_function(&self.info);
+                    Some(functions.as_slice())
+                } else {
+                    None
+                };
+                self.ct_list.verify_and_expand(
+                    public_params,
+                    &public_key.key,
+                    metadata,
+                    ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                        casting_key: key_switching_key_view.key,
+                        functions,
+                    },
+                )?
+            }
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                let expanded_blocks = self.ct_list.verify_and_expand(
+                    public_params,
+                    &public_key.key,
+                    metadata,
+                    ShortintCompactCiphertextListCastingMode::NoCasting,
+                )?;
 
-        let expanded_blocks = if is_packed {
-            match unpacking_mode {
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                if is_packed {
                     let degree = self.ct_list.proved_lists[0].0.degree;
                     let mut conformance_params = sks.key.conformance_params();
                     conformance_params.degree = degree;
@@ -636,12 +857,19 @@ impl ProvenCompactCiphertextList {
                         }
                     }
 
-                    extract_message_and_carries(expanded_blocks, sks)
+                    unpack_and_sanitize_message_and_carries(expanded_blocks, sks, &self.info)
+                } else {
+                    sanitize_boolean_blocks(expanded_blocks, sks, &self.info)
                 }
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
             }
-        } else {
-            expanded_blocks
+            IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => {
+                self.ct_list.verify_and_expand(
+                    public_params,
+                    &public_key.key,
+                    metadata,
+                    ShortintCompactCiphertextListCastingMode::NoCasting,
+                )?
+            }
         };
 
         Ok(CompactCiphertextListExpander::new(
@@ -656,15 +884,14 @@ impl ProvenCompactCiphertextList {
     /// If you are here you were probably looking for it: use at your own risks.
     pub fn expand_without_verification(
         &self,
-        unpacking_mode: IntegerCompactCiphertextListUnpackingMode<'_>,
-        casting_mode: IntegerCompactCiphertextListCastingMode<'_>,
+        expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
         let is_packed = self.is_packed();
 
         if is_packed
             && matches!(
-                unpacking_mode,
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking
+                expansion_mode,
+                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking
             )
         {
             return Err(crate::Error::new(String::from(
@@ -672,13 +899,36 @@ impl ProvenCompactCiphertextList {
             )));
         }
 
-        let expanded_blocks = self
-            .ct_list
-            .expand_without_verification(casting_mode.into())?;
+        let expanded_blocks = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => {
+                let function_helper;
+                let functions;
+                let functions = if is_packed {
+                    let dest_sks = &key_switching_key_view.key.dest_server_key;
+                    function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
+                        dest_sks.message_modulus,
+                        dest_sks.carry_modulus,
+                    );
+                    functions = function_helper.generate_function(&self.info);
+                    Some(functions.as_slice())
+                } else {
+                    None
+                };
+                self.ct_list.expand_without_verification(
+                    ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                        casting_key: key_switching_key_view.key,
+                        functions,
+                    },
+                )?
+            }
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                let expanded_blocks = self.ct_list.expand_without_verification(
+                    ShortintCompactCiphertextListCastingMode::NoCasting,
+                )?;
 
-        let expanded_blocks = if is_packed {
-            match unpacking_mode {
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks) => {
+                if is_packed {
                     let degree = self.ct_list.proved_lists[0].0.degree;
                     let mut conformance_params = sks.key.conformance_params();
                     conformance_params.degree = degree;
@@ -692,12 +942,14 @@ impl ProvenCompactCiphertextList {
                         }
                     }
 
-                    extract_message_and_carries(expanded_blocks, sks)
+                    unpack_and_sanitize_message_and_carries(expanded_blocks, sks, &self.info)
+                } else {
+                    sanitize_boolean_blocks(expanded_blocks, sks, &self.info)
                 }
-                IntegerCompactCiphertextListUnpackingMode::NoUnpacking => unreachable!(),
             }
-        } else {
-            expanded_blocks
+            IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => self
+                .ct_list
+                .expand_without_verification(ShortintCompactCiphertextListCastingMode::NoCasting)?,
         };
 
         Ok(CompactCiphertextListExpander::new(
@@ -797,9 +1049,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 mod tests {
     use crate::integer::ciphertext::CompactCiphertextList;
     use crate::integer::key_switching_key::KeySwitchingKey;
-    use crate::integer::parameters::{
-        IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-    };
+    use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
     use crate::integer::{
         ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
     };
@@ -843,8 +1093,7 @@ mod tests {
                 crs.public_params(),
                 &pk,
                 &metadata,
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
-                IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();
 
@@ -856,8 +1105,64 @@ mod tests {
 
         let unverified_expander = proven_ct
             .expand_without_verification(
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sk),
-                IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = unverified_expander
+                .get::<RadixCiphertext>(idx)
+                .unwrap()
+                .unwrap();
+            let decrypted = cks.decrypt_radix::<u64>(&expanded);
+            assert_eq!(msg, decrypted);
+        }
+    }
+
+    #[test]
+    fn test_several_proven_lists() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let crs_blocks_for_64_bits =
+            64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
+        let encryption_num_blocks = 64 / (pke_params.message_modulus.0.ilog2() as usize);
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, crs_blocks_for_64_bits).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let msgs = (0..2).map(|_| random::<u64>()).collect::<Vec<_>>();
+
+        let proven_ct = CompactCiphertextList::builder(&pk)
+            .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
+            .build_with_proof_packed(crs.public_params(), &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let expander = proven_ct
+            .verify_and_expand(
+                crs.public_params(),
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        for (idx, msg) in msgs.iter().copied().enumerate() {
+            let expanded = expander.get::<RadixCiphertext>(idx).unwrap().unwrap();
+            let decrypted = cks.decrypt_radix::<u64>(&expanded);
+            assert_eq!(msg, decrypted);
+        }
+
+        let unverified_expander = proven_ct
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();
 

@@ -21,14 +21,19 @@ pub enum CompactCiphertextListExpansionKind {
     NoCasting(PBSOrder),
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum CompactCiphertextListCastingMode<K> {
-    CastIfNecessary(K),
+pub type CastingFunctionsOwned<'functions> =
+    Vec<Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>>;
+pub type CastingFunctionsView<'functions> =
+    &'functions [Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>];
+
+#[derive(Clone, Copy)]
+pub enum ShortintCompactCiphertextListCastingMode<'a> {
+    CastIfNecessary {
+        casting_key: KeySwitchingKeyView<'a>,
+        functions: Option<CastingFunctionsView<'a>>,
+    },
     NoCasting,
 }
-
-pub type ShortintCompactCiphertextListCastingMode<'key> =
-    CompactCiphertextListCastingMode<KeySwitchingKeyView<'key>>;
 
 impl From<PBSOrder> for CompactCiphertextListExpansionKind {
     fn from(value: PBSOrder) -> Self {

@@ -90,8 +90,8 @@ You will find below a list of breaking changes and how to upgrade them.
 ```rust
 use std::io::Cursor;
 use tfhe::integer::ciphertext::{
-    CompactCiphertextList, DataKind, IntegerCompactCiphertextListCastingMode,
-    IntegerCompactCiphertextListUnpackingMode, SignedRadixCiphertext,
+    CompactCiphertextList, DataKind, IntegerCompactCiphertextListExpansionMode,
+    SignedRadixCiphertext,
 };
 use tfhe::integer::{ClientKey, CompactPublicKey};
 use tfhe::shortint::parameters::classic::compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
@@ -130,10 +130,7 @@ pub fn main() {
         .reinterpret_data(&[DataKind::Signed(num_blocks)])
         .unwrap();
     let expander = compact_ct
-        .expand(
-            IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-            IntegerCompactCiphertextListCastingMode::NoCasting,
-        )
+        .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)
         .unwrap();
     let expanded = expander.get::<SignedRadixCiphertext>(0).unwrap().unwrap();
     let decrypted: i8 = client_key.decrypt_signed_radix(&expanded);
