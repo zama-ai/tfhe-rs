@@ -654,8 +654,8 @@ fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
         );
 
         let (q2_res, r2_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
-        assert_eq!(q2_res, q_res, "Failed determinism check");
-        assert_eq!(r2_res, r_res, "Failed determinism check");
+        assert_eq!(q2_res, q_res, "Failed determinism check, \n\n\n msg0: {clear_lhs}, msg1: {clear_rhs}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {clear_rhs:?}\n\n\n");
+        assert_eq!(r2_res, r_res, "Failed determinism check, \n\n\n msg0: {clear_lhs}, msg1: {clear_rhs}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {clear_rhs:?}\n\n\n");
     }
 }
 
