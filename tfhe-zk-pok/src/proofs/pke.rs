@@ -1,14 +1,16 @@
 // TODO: refactor copy-pasted code in proof/verify
 
-use crate::backward_compatibility::{PKEv1ProofVersions, SerializablePKEv1PublicParamsVersions};
+use crate::backward_compatibility::{
+    PKEv1CompressedProofVersions, PKEv1ProofVersions, SerializablePKEv1PublicParamsVersions,
+};
 use crate::serialization::{
-    InvalidSerializedPublicParamsError, SerializableGroupElements, SerializablePKEv1PublicParams,
+    try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
+    SerializableGroupElements, SerializablePKEv1PublicParams,
 };
 
 use super::*;
 use core::marker::PhantomData;
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -18,7 +20,7 @@ fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
     try_from = "SerializablePKEv1PublicParams",
     into = "SerializablePKEv1PublicParams",
@@ -92,6 +94,96 @@ where
     }
 }
 
+impl<G: Curve> Compressible for PublicParams<G>
+where
+    GroupElements<G>: Compressible<
+        Compressed = SerializableGroupElements,
+        UncompressError = InvalidSerializedGroupElementsError,
+    >,
+{
+    type Compressed = SerializablePKEv1PublicParams;
+
+    type UncompressError = InvalidSerializedPublicParamsError;
+
+    fn compress(&self) -> Self::Compressed {
+        let PublicParams {
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = self;
+        SerializablePKEv1PublicParams {
+            g_lists: g_lists.compress(),
+            big_d: *big_d,
+            n: *n,
+            d: *d,
+            k: *k,
+            b: *b,
+            b_r: *b_r,
+            q: *q,
+            t: *t,
+            msbs_zero_padding_bit_count: *msbs_zero_padding_bit_count,
+            hash: hash.to_vec(),
+            hash_t: hash_t.to_vec(),
+            hash_agg: hash_agg.to_vec(),
+            hash_lmap: hash_lmap.to_vec(),
+            hash_z: hash_z.to_vec(),
+            hash_w: hash_w.to_vec(),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let SerializablePKEv1PublicParams {
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = compressed;
+        Ok(Self {
+            g_lists: GroupElements::uncompress(g_lists)?,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash: try_vec_to_array(hash)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_w: try_vec_to_array(hash_w)?,
+        })
+    }
+}
+
 impl<G: Curve> PublicParams<G> {
     #[allow(clippy::too_many_arguments)]
     pub fn from_vec(
@@ -151,6 +243,78 @@ pub struct Proof<G: Curve> {
     c_hat_t: Option<G::G2>,
     c_h: Option<G::G1>,
     pi_kzg: Option<G::G1>,
+}
+
+type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
+type CompressedG1<G> = <<G as Curve>::G1 as Compressible>::Compressed;
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(bound(
+    deserialize = "G: Curve, CompressedG1<G>: serde::Deserialize<'de>, CompressedG2<G>: serde::Deserialize<'de>",
+    serialize = "G: Curve, CompressedG1<G>: serde::Serialize, CompressedG2<G>: serde::Serialize"
+))]
+#[versionize(PKEv1CompressedProofVersions)]
+pub struct CompressedProof<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    c_hat: CompressedG2<G>,
+    c_y: CompressedG1<G>,
+    pi: CompressedG1<G>,
+    c_hat_t: Option<CompressedG2<G>>,
+    c_h: Option<CompressedG1<G>>,
+    pi_kzg: Option<CompressedG1<G>>,
+}
+
+impl<G: Curve> Compressible for Proof<G>
+where
+    G::G1: Compressible<UncompressError = InvalidSerializedAffineError>,
+    G::G2: Compressible<UncompressError = InvalidSerializedAffineError>,
+{
+    type Compressed = CompressedProof<G>;
+
+    type UncompressError = InvalidSerializedAffineError;
+
+    fn compress(&self) -> Self::Compressed {
+        let Proof {
+            c_hat,
+            c_y,
+            pi,
+            c_hat_t,
+            c_h,
+            pi_kzg,
+        } = self;
+
+        CompressedProof {
+            c_hat: c_hat.compress(),
+            c_y: c_y.compress(),
+            pi: pi.compress(),
+            c_hat_t: c_hat_t.map(|val| val.compress()),
+            c_h: c_h.map(|val| val.compress()),
+            pi_kzg: pi_kzg.map(|val| val.compress()),
+        }
+    }
+
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+        let CompressedProof {
+            c_hat,
+            c_y,
+            pi,
+            c_hat_t,
+            c_h,
+            pi_kzg,
+        } = compressed;
+
+        Ok(Proof {
+            c_hat: G::G2::uncompress(c_hat)?,
+            c_y: G::G1::uncompress(c_y)?,
+            pi: G::G1::uncompress(pi)?,
+            c_hat_t: c_hat_t.map(G::G2::uncompress).transpose()?,
+            c_h: c_h.map(G::G1::uncompress).transpose()?,
+            pi_kzg: pi_kzg.map(G::G1::uncompress).transpose()?,
+        })
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -1097,7 +1261,7 @@ pub fn verify<G: Curve>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ark_serialize::{Compress, SerializationError, Validate};
+    use bincode::ErrorKind;
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
 
@@ -1234,15 +1398,17 @@ mod tests {
 
         type Curve = crate::curve_api::Bls12_446;
 
-        let serialize_then_deserialize =
-            |public_param: &PublicParams<Curve>,
-             compress: Compress|
-             -> Result<PublicParams<Curve>, SerializationError> {
-                let mut data = Vec::new();
-                public_param.serialize_with_mode(&mut data, compress)?;
-
-                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
-            };
+        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
+                                          compress: bool|
+         -> bincode::Result<PublicParams<Curve>> {
+            match compress {
+                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
+                    &public_param.clone().compress(),
+                )?)?)
+                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+                false => bincode::deserialize(&bincode::serialize(&public_param)?),
+            }
+        };
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -1250,9 +1416,9 @@ mod tests {
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, b_i, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
+            serialize_then_deserialize(&original_public_param, true).unwrap();
         let public_param_that_was_not_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+            serialize_then_deserialize(&original_public_param, false).unwrap();
 
         for (
             public_param,
@@ -1448,21 +1614,23 @@ mod tests {
             let div = val.div_euclid(q);
             let rem = val.rem_euclid(q);
             let result = div as i64 + (rem > (q / 2)) as i64;
-            let result = result.rem_euclid(t as i64);
+            let result = result.rem_euclid(effective_cleartext_t as i64);
             m_roundtrip[i] = result;
         }
 
         type Curve = crate::curve_api::Bls12_446;
 
-        let serialize_then_deserialize =
-            |public_param: &PublicParams<Curve>,
-             compress: Compress|
-             -> Result<PublicParams<Curve>, SerializationError> {
-                let mut data = Vec::new();
-                public_param.serialize_with_mode(&mut data, compress)?;
-
-                PublicParams::deserialize_with_mode(data.as_slice(), compress, Validate::No)
-            };
+        let serialize_then_deserialize = |public_param: &PublicParams<Curve>,
+                                          compress: bool|
+         -> bincode::Result<PublicParams<Curve>> {
+            match compress {
+                true => PublicParams::uncompress(bincode::deserialize(&bincode::serialize(
+                    &public_param.clone().compress(),
+                )?)?)
+                .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+                false => bincode::deserialize(&bincode::serialize(&public_param)?),
+            }
+        };
 
         // To check management of bigger k_max from CRS during test
         let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
@@ -1470,9 +1638,9 @@ mod tests {
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, b_i, q, t, msbs_zero_padding_bit_count, rng);
         let public_param_that_was_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
+            serialize_then_deserialize(&original_public_param, true).unwrap();
         let public_param_that_was_not_compressed =
-            serialize_then_deserialize(&original_public_param, Compress::Yes).unwrap();
+            serialize_then_deserialize(&original_public_param, false).unwrap();
 
         for public_param in [
             original_public_param,
@@ -1503,6 +1671,158 @@ mod tests {
 
                 assert!(verify(&proof, (&public_param, &public_commit), &metadata).is_err());
             }
+        }
+    }
+
+    #[test]
+    fn test_proof_compression() {
+        let d = 2048;
+        let k = 320;
+        let big_b = 1048576;
+        let q = 0;
+        let t = 1024;
+        let msbs_zero_padding_bit_count = 1;
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let delta = {
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            (q / t as i128) as u64
+        };
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let polymul_rev = |a: &[i64], b: &[i64]| -> Vec<i64> {
+            assert_eq!(a.len(), b.len());
+            let d = a.len();
+            let mut c = vec![0i64; d];
+
+            for i in 0..d {
+                for j in 0..d {
+                    if i + j < d {
+                        c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
+                    } else {
+                        c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
+                    }
+                }
+            }
+
+            c
+        };
+
+        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+        let s = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+        let e = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * big_b)) as i64 - big_b as i64)
+            .collect::<Vec<_>>();
+        let e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * big_b)) as i64 - big_b as i64)
+            .collect::<Vec<_>>();
+        let e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * big_b)) as i64 - big_b as i64)
+            .collect::<Vec<_>>();
+
+        let r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+
+        let m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .collect::<Vec<_>>();
+
+        let b = polymul_rev(&a, &s)
+            .into_iter()
+            .zip(e.iter())
+            .map(|(x, e)| x.wrapping_add(*e))
+            .collect::<Vec<_>>();
+        let c1 = polymul_rev(&a, &r)
+            .into_iter()
+            .zip(e1.iter())
+            .map(|(x, e1)| x.wrapping_add(*e1))
+            .collect::<Vec<_>>();
+
+        let mut c2 = vec![0i64; k];
+
+        for i in 0..k {
+            let mut dot = 0i64;
+            for j in 0..d {
+                let b = if i + j < d {
+                    b[d - j - i - 1]
+                } else {
+                    b[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot = dot.wrapping_add(r[d - j - 1].wrapping_mul(b));
+            }
+
+            c2[i] = dot
+                .wrapping_add(e2[i])
+                .wrapping_add((delta * m[i] as u64) as i64);
+        }
+
+        // One of our usecases uses 320 bits of additional metadata
+        const METADATA_LEN: usize = (320 / u8::BITS) as usize;
+
+        let mut metadata = [0u8; METADATA_LEN];
+        metadata.fill_with(|| rng.gen::<u8>());
+
+        let mut m_roundtrip = vec![0i64; k];
+        for i in 0..k {
+            let mut dot = 0i128;
+            for j in 0..d {
+                let c = if i + j < d {
+                    c1[d - j - i - 1]
+                } else {
+                    c1[2 * d - j - i - 1].wrapping_neg()
+                };
+
+                dot += s[d - j - 1] as i128 * c as i128;
+            }
+
+            let q = if q == 0 { 1i128 << 64 } else { q as i128 };
+            let val = ((c2[i] as i128).wrapping_sub(dot)) * t as i128;
+            let div = val.div_euclid(q);
+            let rem = val.rem_euclid(q);
+            let result = div as i64 + (rem > (q / 2)) as i64;
+            let result = result.rem_euclid(effective_cleartext_t as i64);
+            m_roundtrip[i] = result;
+        }
+
+        type Curve = crate::curve_api::Bls12_446;
+
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let public_param =
+            crs_gen::<Curve>(d, crs_k, big_b, q, t, msbs_zero_padding_bit_count, rng);
+
+        let (public_commit, private_commit) = commit(
+            a.clone(),
+            b.clone(),
+            c1.clone(),
+            c2.clone(),
+            r.clone(),
+            e1.clone(),
+            m.clone(),
+            e2.clone(),
+            &public_param,
+            rng,
+        );
+
+        for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+            let proof = prove(
+                (&public_param, &public_commit),
+                &private_commit,
+                &metadata,
+                load,
+                rng,
+            );
+
+            let compressed_proof = bincode::serialize(&proof.clone().compress()).unwrap();
+            let proof =
+                Proof::uncompress(bincode::deserialize(&compressed_proof).unwrap()).unwrap();
+
+            verify(&proof, (&public_param, &public_commit), &metadata).unwrap()
         }
     }
 }

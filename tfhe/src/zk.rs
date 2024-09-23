@@ -6,6 +6,7 @@ use std::collections::Bound;
 use std::fmt::Debug;
 use tfhe_zk_pok::proofs::pke::crs_gen;
 
+pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 pub use tfhe_zk_pok::{Compress, Validate};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;

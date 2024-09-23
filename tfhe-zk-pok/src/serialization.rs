@@ -42,7 +42,9 @@ impl Error for InvalidArraySizeError {}
 
 /// Tries to convert a Vec into a constant size array, and returns an [`InvalidArraySizeError`] if
 /// the size does not match
-fn try_vec_to_array<T, const N: usize>(vec: Vec<T>) -> Result<[T; N], InvalidArraySizeError> {
+pub(crate) fn try_vec_to_array<T, const N: usize>(
+    vec: Vec<T>,
+) -> Result<[T; N], InvalidArraySizeError> {
     let len = vec.len();
 
     vec.try_into().map_err(|_| InvalidArraySizeError {
@@ -74,24 +76,6 @@ impl<P: FpConfig<N>, const N: usize> TryFrom<SerializableFp> for Fp<P, N> {
         Ok(Fp(BigInt(try_vec_to_array(value.val)?), PhantomData))
     }
 }
-
-#[derive(Debug)]
-pub struct InvalidSerializedFpError {
-    expected_len: usize,
-    found_len: usize,
-}
-
-impl Display for InvalidSerializedFpError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Invalid serialized FP: found array of size {}, expected {}",
-            self.found_len, self.expected_len
-        )
-    }
-}
-
-impl Error for InvalidSerializedFpError {}
 
 #[derive(Debug)]
 pub enum InvalidSerializedAffineError {
@@ -421,16 +405,16 @@ pub struct SerializablePKEv2PublicParams {
     pub t: u64,
     pub msbs_zero_padding_bit_count: u64,
     // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
-    hash: Vec<u8>,
-    hash_R: Vec<u8>,
-    hash_t: Vec<u8>,
-    hash_w: Vec<u8>,
-    hash_agg: Vec<u8>,
-    hash_lmap: Vec<u8>,
-    hash_phi: Vec<u8>,
-    hash_xi: Vec<u8>,
-    hash_z: Vec<u8>,
-    hash_chi: Vec<u8>,
+    pub(crate) hash: Vec<u8>,
+    pub(crate) hash_R: Vec<u8>,
+    pub(crate) hash_t: Vec<u8>,
+    pub(crate) hash_w: Vec<u8>,
+    pub(crate) hash_agg: Vec<u8>,
+    pub(crate) hash_lmap: Vec<u8>,
+    pub(crate) hash_phi: Vec<u8>,
+    pub(crate) hash_xi: Vec<u8>,
+    pub(crate) hash_z: Vec<u8>,
+    pub(crate) hash_chi: Vec<u8>,
 }
 
 impl<G: Curve> From<PKEv2PublicParams<G>> for SerializablePKEv2PublicParams

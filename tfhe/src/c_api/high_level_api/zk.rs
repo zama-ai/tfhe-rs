@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::c_api::high_level_api::config::Config;
 use crate::c_api::utils::get_ref_checked;
-use crate::zk::{Compress, Validate};
+use crate::zk::Compressible;
 use std::ffi::c_int;
 
 #[repr(C)]
@@ -41,16 +41,11 @@ pub unsafe extern "C" fn compact_pke_public_params_serialize(
 
         let wrapper = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-        let compress = if compress {
-            Compress::Yes
+        let buffer = if compress {
+            bincode::serialize(&wrapper.0.compress()).unwrap()
         } else {
-            Compress::No
+            bincode::serialize(&wrapper.0).unwrap()
         };
-        let mut buffer = vec![];
-        wrapper
-            .0
-            .serialize_with_mode(&mut buffer, compress)
-            .unwrap();
 
         *result = buffer.into();
     })
@@ -62,8 +57,6 @@ pub unsafe extern "C" fn compact_pke_public_params_serialize(
 #[no_mangle]
 pub unsafe extern "C" fn compact_pke_public_params_deserialize(
     buffer_view: crate::c_api::buffer::DynamicBufferView,
-    is_compressed: bool,
-    validate: bool,
     result: *mut *mut CompactPkePublicParams,
 ) -> ::std::os::raw::c_int {
     crate::c_api::utils::catch_panic(|| {
@@ -71,20 +64,7 @@ pub unsafe extern "C" fn compact_pke_public_params_deserialize(
 
         *result = std::ptr::null_mut();
 
-        let deserialized = crate::zk::CompactPkePublicParams::deserialize_with_mode(
-            buffer_view.as_slice(),
-            if is_compressed {
-                Compress::Yes
-            } else {
-                Compress::No
-            },
-            if validate {
-                Validate::Yes
-            } else {
-                Validate::No
-            },
-        )
-        .unwrap();
+        let deserialized = bincode::deserialize(buffer_view.as_slice()).unwrap();
 
         let heap_allocated_object = Box::new(CompactPkePublicParams(deserialized));
 
