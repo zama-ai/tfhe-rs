@@ -2037,6 +2037,9 @@ mod cuda {
         cuda_max,
         cuda_default_if_then_else,
         cuda_ilog2,
+        cuda_scalar_mul,
+        cuda_scalar_div,
+        cuda_scalar_rem,
     );
 
     criterion_group!(
