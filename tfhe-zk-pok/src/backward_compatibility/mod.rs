@@ -1,8 +1,8 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::curve_api::Curve;
-use crate::proofs::pke::Proof as PKEv1Proof;
-use crate::proofs::pke_v2::Proof as PKEv2Proof;
+use crate::curve_api::{Compressible, Curve};
+use crate::proofs::pke::{CompressedProof as PKEv1CompressedProof, Proof as PKEv1Proof};
+use crate::proofs::pke_v2::{CompressedProof as PKEv2CompressedProof, Proof as PKEv2Proof};
 use crate::proofs::GroupElements;
 use crate::serialization::{
     SerializableAffine, SerializableCubicExtField, SerializableFp, SerializableFp2,
@@ -35,13 +35,31 @@ pub type SerializableG2AffineVersions = SerializableAffineVersions<SerializableF
 pub type SerializableFp12Versions = SerializableQuadExtFieldVersions<SerializableFp6>;
 
 #[derive(VersionsDispatch)]
+pub enum PKEv1ProofVersions<G: Curve> {
+    V0(PKEv1Proof<G>),
+}
+
+#[derive(VersionsDispatch)]
 pub enum PKEv2ProofVersions<G: Curve> {
     V0(PKEv2Proof<G>),
 }
 
 #[derive(VersionsDispatch)]
-pub enum PKEv1ProofVersions<G: Curve> {
-    V0(PKEv1Proof<G>),
+pub enum PKEv1CompressedProofVersions<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    V0(PKEv1CompressedProof<G>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum PKEv2CompressedProofVersions<G: Curve>
+where
+    G::G1: Compressible,
+    G::G2: Compressible,
+{
+    V0(PKEv2CompressedProof<G>),
 }
 
 #[derive(VersionsDispatch)]

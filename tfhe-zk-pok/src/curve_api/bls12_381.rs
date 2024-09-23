@@ -41,19 +41,7 @@ mod g1 {
 
     use super::*;
 
-    #[derive(
-        Copy,
-        Clone,
-        Debug,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-        Hash,
-        Versionize,
-    )]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[versionize(
         SerializableG1AffineVersions,
@@ -67,7 +55,7 @@ mod g1 {
 
     impl From<G1Affine> for SerializableAffine<SerializableFp> {
         fn from(value: G1Affine) -> Self {
-            SerializableAffine::compressed(value.inner)
+            SerializableAffine::uncompressed(value.inner)
         }
     }
 
@@ -78,6 +66,19 @@ mod g1 {
             Ok(Self {
                 inner: value.try_into()?,
             })
+        }
+    }
+
+    impl Compressible for G1Affine {
+        type Compressed = SerializableG1Affine;
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> SerializableG1Affine {
+            SerializableAffine::compressed(self.inner)
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
         }
     }
 
@@ -96,18 +97,7 @@ mod g1 {
         }
     }
 
-    #[derive(
-        Copy,
-        Clone,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        Hash,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-        Versionize,
-    )]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG1Affine", into = "SerializableG1Affine")]
     #[versionize(
         SerializableG1AffineVersions,
@@ -121,17 +111,30 @@ mod g1 {
 
     impl From<G1> for SerializableAffine<SerializableFp> {
         fn from(value: G1) -> Self {
-            SerializableAffine::compressed(value.inner.into_affine())
+            SerializableAffine::uncompressed(value.inner.into_affine())
         }
     }
 
-    impl TryFrom<SerializableAffine<SerializableFp>> for G1 {
+    impl TryFrom<SerializableG1Affine> for G1 {
         type Error = InvalidSerializedAffineError;
 
         fn try_from(value: SerializableAffine<SerializableFp>) -> Result<Self, Self::Error> {
             Ok(Self {
                 inner: Affine::try_from(value)?.into(),
             })
+        }
+    }
+
+    impl Compressible for G1 {
+        type Compressed = SerializableG1Affine;
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> SerializableG1Affine {
+            SerializableAffine::compressed(self.inner.into_affine())
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
         }
     }
 
@@ -266,19 +269,7 @@ mod g2 {
 
     use super::*;
 
-    #[derive(
-        Copy,
-        Clone,
-        Debug,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-        Hash,
-        Versionize,
-    )]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[versionize(
         SerializableG2AffineVersions,
@@ -292,7 +283,7 @@ mod g2 {
 
     impl From<G2Affine> for SerializableAffine<SerializableFp2> {
         fn from(value: G2Affine) -> Self {
-            SerializableAffine::compressed(value.inner)
+            SerializableAffine::uncompressed(value.inner)
         }
     }
 
@@ -303,6 +294,20 @@ mod g2 {
             Ok(Self {
                 inner: value.try_into()?,
             })
+        }
+    }
+
+    impl Compressible for G2Affine {
+        type Compressed = SerializableG2Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> SerializableAffine<SerializableFp2> {
+            SerializableAffine::compressed(self.inner)
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
         }
     }
 
@@ -321,18 +326,7 @@ mod g2 {
         }
     }
 
-    #[derive(
-        Copy,
-        Clone,
-        PartialEq,
-        Eq,
-        Serialize,
-        Deserialize,
-        CanonicalSerialize,
-        CanonicalDeserialize,
-        Hash,
-        Versionize,
-    )]
+    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Versionize)]
     #[serde(try_from = "SerializableG2Affine", into = "SerializableG2Affine")]
     #[versionize(
         SerializableG2AffineVersions,
@@ -344,19 +338,33 @@ mod g2 {
         pub(crate) inner: ark_bls12_381::G2Projective,
     }
 
-    impl From<G2> for SerializableAffine<SerializableFp2> {
+    impl From<G2> for SerializableG2Affine {
         fn from(value: G2) -> Self {
-            SerializableAffine::compressed(value.inner.into_affine())
+            SerializableAffine::uncompressed(value.inner.into_affine())
         }
     }
 
-    impl TryFrom<SerializableAffine<SerializableFp2>> for G2 {
+    impl TryFrom<SerializableG2Affine> for G2 {
         type Error = InvalidSerializedAffineError;
 
         fn try_from(value: SerializableAffine<SerializableFp2>) -> Result<Self, Self::Error> {
             Ok(Self {
                 inner: Affine::try_from(value)?.into(),
             })
+        }
+    }
+
+    impl Compressible for G2 {
+        type Compressed = SerializableG2Affine;
+
+        type UncompressError = InvalidSerializedAffineError;
+
+        fn compress(&self) -> SerializableAffine<SerializableFp2> {
+            SerializableAffine::compressed(self.inner.into_affine())
+        }
+
+        fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError> {
+            compressed.try_into()
         }
     }
 
@@ -995,6 +1003,26 @@ mod tests {
 
         let g_hat_cur2: G2 =
             serde_json::from_str(&serde_json::to_string(&g_hat_cur).unwrap()).unwrap();
+        assert_eq!(g_hat_cur, g_hat_cur2);
+    }
+
+    #[test]
+    fn test_compressed_serialization() {
+        let rng = &mut StdRng::seed_from_u64(0);
+        let alpha = Zp::rand(rng);
+        let g_cur = G1::GENERATOR.mul_scalar(alpha);
+        let g_hat_cur = G2::GENERATOR.mul_scalar(alpha);
+
+        let g_cur2 = G1::uncompress(
+            serde_json::from_str(&serde_json::to_string(&g_cur.compress()).unwrap()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(g_cur, g_cur2);
+
+        let g_hat_cur2 = G2::uncompress(
+            serde_json::from_str(&serde_json::to_string(&g_hat_cur.compress()).unwrap()).unwrap(),
+        )
+        .unwrap();
         assert_eq!(g_hat_cur, g_hat_cur2);
     }
 

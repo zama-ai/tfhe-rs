@@ -3,7 +3,9 @@ use wasm_bindgen::prelude::*;
 use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 use crate::js_on_wasm_api::shortint::ShortintParameters;
-use tfhe_zk_pok::{Compress, Validate};
+
+use crate::zk::Compressible;
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[wasm_bindgen]
 pub enum ZkComputeLoad {
@@ -33,43 +35,23 @@ impl CompactPkePublicParams {
     #[wasm_bindgen]
     pub fn serialize(&self, compress: bool) -> Result<Vec<u8>, JsError> {
         catch_panic_result(|| {
-            let mut data = vec![];
-            self.0
-                .serialize_with_mode(
-                    &mut data,
-                    if compress {
-                        Compress::Yes
-                    } else {
-                        Compress::No
-                    },
-                )
-                .map_err(into_js_error)?;
-            Ok(data)
+            let data = if compress {
+                bincode::serialize(&self.0.compress())
+            } else {
+                bincode::serialize(&self.0)
+            };
+            data.map_err(into_js_error)
         })
     }
 
     #[wasm_bindgen]
-    pub fn deserialize(
-        buffer: &[u8],
-        is_compressed: bool,
-        validate: bool,
-    ) -> Result<CompactPkePublicParams, JsError> {
+    pub fn deserialize(buffer: &[u8]) -> Result<CompactPkePublicParams, JsError> {
+        // If buffer is compressed it is automatically detected and uncompressed.
+        // TODO: handle validation
         catch_panic_result(|| {
-            crate::zk::CompactPkePublicParams::deserialize_with_mode(
-                buffer,
-                if is_compressed {
-                    Compress::Yes
-                } else {
-                    Compress::No
-                },
-                if validate {
-                    Validate::Yes
-                } else {
-                    Validate::No
-                },
-            )
-            .map(CompactPkePublicParams)
-            .map_err(into_js_error)
+            bincode::deserialize(buffer)
+                .map(CompactPkePublicParams)
+                .map_err(into_js_error)
         })
     }
 }

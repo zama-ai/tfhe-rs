@@ -3,7 +3,6 @@ use ark_ec::short_weierstrass::Affine;
 use ark_ec::{AdditiveGroup as Group, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, Field, MontFp, Zero};
 use ark_poly::univariate::DensePolynomial;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 use serde::{Deserialize, Serialize};
@@ -108,9 +107,7 @@ pub trait CurveGroupOps<Zp>:
         + Sync
         + core::fmt::Debug
         + serde::Serialize
-        + for<'de> serde::Deserialize<'de>
-        + CanonicalSerialize
-        + CanonicalDeserialize;
+        + for<'de> serde::Deserialize<'de>;
 
     fn projective(affine: Self::Affine) -> Self;
 
@@ -119,6 +116,16 @@ pub trait CurveGroupOps<Zp>:
     fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
     fn normalize(self) -> Self::Affine;
+}
+
+/// Mark that an element can be compressed, by storing only the 'x' coordinates of the affine
+/// representation and getting the 'y' from the curve.
+pub trait Compressible: Sized {
+    type Compressed;
+    type UncompressError;
+
+    fn compress(&self) -> Self::Compressed;
+    fn uncompress(compressed: Self::Compressed) -> Result<Self, Self::UncompressError>;
 }
 
 pub trait PairingGroupOps<Zp, G1, G2>:
@@ -139,8 +146,8 @@ pub trait PairingGroupOps<Zp, G1, G2>:
 
 pub trait Curve: Clone {
     type Zp: FieldOps;
-    type G1: CurveGroupOps<Self::Zp> + CanonicalSerialize + CanonicalDeserialize;
-    type G2: CurveGroupOps<Self::Zp> + CanonicalSerialize + CanonicalDeserialize;
+    type G1: CurveGroupOps<Self::Zp>;
+    type G2: CurveGroupOps<Self::Zp>;
     type Gt: PairingGroupOps<Self::Zp, Self::G1, Self::G2>;
 }
 
