@@ -7,7 +7,9 @@ use tfhe_versionable::Versionize;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(DataKindVersions)]
 pub enum DataKind {
+    /// The held value is a number of radix blocks.
     Unsigned(usize),
+    /// The held value is a number of radix blocks.
     Signed(usize),
     Boolean,
 }

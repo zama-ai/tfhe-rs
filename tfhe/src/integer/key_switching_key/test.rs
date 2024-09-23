@@ -1,8 +1,6 @@
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
+use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{
     ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
@@ -197,12 +195,14 @@ fn test_case_cpk_encrypt_cast_compute(
     // Encrypt a value and cast
     let ct1 = pk.encrypt_radix_compact(input_msg, num_block);
     let expander = ct1
-        .expand(
-            IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks_fhe),
-            IntegerCompactCiphertextListCastingMode::CastIfNecessary(ksk.as_view()),
-        )
+        .expand(IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()))
         .unwrap();
     let mut ct1_extracted_and_cast = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+
+    assert!(ct1_extracted_and_cast
+        .blocks()
+        .iter()
+        .all(|x| x.degree.get() == sks_fhe.message_modulus().0 - 1));
 
     let sanity_pbs: u64 = cks_fhe.decrypt_radix(&ct1_extracted_and_cast);
     assert_eq!(sanity_pbs, input_msg);

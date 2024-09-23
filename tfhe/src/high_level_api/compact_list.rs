@@ -12,8 +12,7 @@ use crate::high_level_api::traits::Tagged;
 use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
-    CompactCiphertextListConformanceParams, IntegerCompactCiphertextListCastingMode,
-    IntegerCompactCiphertextListUnpackingMode,
+    CompactCiphertextListConformanceParams, IntegerCompactCiphertextListExpansionMode,
 };
 use crate::named::Named;
 use crate::prelude::CiphertextList;
@@ -111,13 +110,7 @@ impl CompactCiphertextList {
         sks: &crate::ServerKey,
     ) -> crate::Result<CompactCiphertextListExpander> {
         self.inner
-            .expand(
-                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(sks.key.pbs_key()),
-                sks.cpk_casting_key().map_or(
-                    IntegerCompactCiphertextListCastingMode::NoCasting,
-                    IntegerCompactCiphertextListCastingMode::CastIfNecessary,
-                ),
-            )
+            .expand(sks.integer_compact_ciphertext_list_expansion_mode())
             .map(|inner| CompactCiphertextListExpander {
                 inner,
                 tag: self.tag.clone(),
@@ -129,44 +122,22 @@ impl CompactCiphertextList {
         if !self.inner.is_packed() && !self.inner.needs_casting() {
             // No ServerKey required, short-circuit to avoid the global state call
             return Ok(CompactCiphertextListExpander {
-                inner: self.inner.expand(
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                    IntegerCompactCiphertextListCastingMode::NoCasting,
-                )?,
+                inner: self
+                    .inner
+                    .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)?,
                 tag: self.tag.clone(),
             });
         }
 
         global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
             None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-            Some(InternalServerKey::Cpu(cpu_key)) => {
-                let unpacking_mode = if self.inner.is_packed() {
-                    IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(cpu_key.pbs_key())
-                } else {
-                    IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                };
-
-                let casting_mode = if self.inner.needs_casting() {
-                    IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                        cpu_key.cpk_casting_key().ok_or_else(|| {
-                            crate::Error::new(
-                                "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                    .to_string(),
-                            )
-                        })?,
-                    )
-                } else {
-                    IntegerCompactCiphertextListCastingMode::NoCasting
-                };
-
-                self.inner
-                    .expand(unpacking_mode, casting_mode)
-                    .map(|inner| CompactCiphertextListExpander {
-                        inner,
-                        tag: self.tag.clone(),
-                    })
-            }
+            Some(InternalServerKey::Cpu(cpu_key)) => self
+                .inner
+                .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
+                .map(|inner| CompactCiphertextListExpander {
+                    inner,
+                    tag: self.tag.clone(),
+                }),
             #[cfg(feature = "gpu")]
             Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
         })
@@ -261,8 +232,7 @@ mod zk {
                         public_params,
                         &pk.key.key,
                         metadata,
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                        IntegerCompactCiphertextListCastingMode::NoCasting,
+                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
                     )?,
                     tag: self.tag.clone(),
                 });
@@ -270,42 +240,18 @@ mod zk {
 
             global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => {
-                    let unpacking_mode = if self.inner.is_packed() {
-                        IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(
-                            cpu_key.pbs_key(),
-                        )
-                    } else {
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                    };
-
-                    let casting_mode = if self.inner.needs_casting() {
-                        IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                            cpu_key.cpk_casting_key().ok_or_else(|| {
-                                crate::Error::new(
-                                    "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                        .to_string(),
-                                )
-                            })?,
-                        )
-                    } else {
-                        IntegerCompactCiphertextListCastingMode::NoCasting
-                    };
-
-                    self.inner
-                        .verify_and_expand(
-                            public_params,
-                            &pk.key.key,
-                            metadata,
-                            unpacking_mode,
-                            casting_mode,
-                        )
-                        .map(|expander| CompactCiphertextListExpander {
-                            inner: expander,
-                            tag: self.tag.clone(),
-                        })
-                }
+                Some(InternalServerKey::Cpu(cpu_key)) => self
+                    .inner
+                    .verify_and_expand(
+                        public_params,
+                        &pk.key.key,
+                        metadata,
+                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                    )
+                    .map(|expander| CompactCiphertextListExpander {
+                        inner: expander,
+                        tag: self.tag.clone(),
+                    }),
                 #[cfg(feature = "gpu")]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })
@@ -321,8 +267,7 @@ mod zk {
                 // No ServerKey required, short circuit to avoid the global state call
                 return Ok(CompactCiphertextListExpander {
                     inner: self.inner.expand_without_verification(
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking,
-                        IntegerCompactCiphertextListCastingMode::NoCasting,
+                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
                     )?,
                     tag: self.tag.clone(),
                 });
@@ -330,36 +275,15 @@ mod zk {
 
             global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => {
-                    let unpacking_mode = if self.inner.is_packed() {
-                        IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(
-                            cpu_key.pbs_key(),
-                        )
-                    } else {
-                        IntegerCompactCiphertextListUnpackingMode::NoUnpacking
-                    };
-
-                    let casting_mode = if self.inner.needs_casting() {
-                        IntegerCompactCiphertextListCastingMode::CastIfNecessary(
-                            cpu_key.cpk_casting_key().ok_or_else(|| {
-                                crate::Error::new(
-                                    "No casting key found in ServerKey, \
-                                required to expand this CompactCiphertextList"
-                                        .to_string(),
-                                )
-                            })?,
-                        )
-                    } else {
-                        IntegerCompactCiphertextListCastingMode::NoCasting
-                    };
-
-                    self.inner
-                        .expand_without_verification(unpacking_mode, casting_mode)
-                        .map(|expander| CompactCiphertextListExpander {
-                            inner: expander,
-                            tag: self.tag.clone(),
-                        })
-                }
+                Some(InternalServerKey::Cpu(cpu_key)) => self
+                    .inner
+                    .expand_without_verification(
+                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                    )
+                    .map(|expander| CompactCiphertextListExpander {
+                        inner: expander,
+                        tag: self.tag.clone(),
+                    }),
                 #[cfg(feature = "gpu")]
                 Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
             })

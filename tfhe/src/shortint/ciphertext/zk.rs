@@ -104,10 +104,58 @@ impl ProvenCompactCiphertextList {
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<Vec<Ciphertext>> {
+        let per_list_casting_mode: Vec<_> = match casting_mode {
+            ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                casting_key,
+                functions,
+            } => match functions {
+                Some(functions) => {
+                    // For how many ciphertexts we have functions
+                    let functions_sets_count = functions.len();
+                    let total_ciphertext_count: usize = self
+                        .proved_lists
+                        .iter()
+                        .map(|list| list.0.ct_list.lwe_ciphertext_count().0)
+                        .sum();
+
+                    if functions_sets_count != total_ciphertext_count {
+                        return Err(crate::Error::new(format!(
+                            "Cannot expand a CompactCiphertextList: got {functions_sets_count} \
+                            sets of functions for casting, expected {total_ciphertext_count}"
+                        )));
+                    }
+
+                    let mut modes = vec![];
+                    let mut functions_used_so_far = 0;
+                    for list in self.proved_lists.iter() {
+                        let blocks_in_list = list.0.ct_list.lwe_ciphertext_count().0;
+
+                        let functions_to_use = &functions
+                            [functions_used_so_far..functions_used_so_far + blocks_in_list];
+
+                        modes.push(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                            casting_key,
+                            functions: Some(functions_to_use),
+                        });
+
+                        functions_used_so_far += blocks_in_list;
+                    }
+                    modes
+                }
+                None => vec![
+                    ShortintCompactCiphertextListCastingMode::NoCasting;
+                    self.proved_lists.len()
+                ],
+            },
+            ShortintCompactCiphertextListCastingMode::NoCasting => {
+                vec![ShortintCompactCiphertextListCastingMode::NoCasting; self.proved_lists.len()]
+            }
+        };
         let expanded = self
             .proved_lists
             .iter()
-            .map(|(ct_list, _proof)| ct_list.expand(casting_mode))
+            .zip(per_list_casting_mode.into_iter())
+            .map(|((ct_list, _proof), casting_mode)| ct_list.expand(casting_mode))
             .collect::<Result<Vec<Vec<_>>, _>>()?
             .into_iter()
             .flatten()

@@ -7,9 +7,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
-use tfhe::integer::parameters::{
-    IntegerCompactCiphertextListCastingMode, IntegerCompactCiphertextListUnpackingMode,
-};
+use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
@@ -247,8 +245,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 public_params,
                                 &pk,
                                 &metadata,
-                                IntegerCompactCiphertextListUnpackingMode::UnpackIfNecessary(&sks),
-                                IntegerCompactCiphertextListCastingMode::CastIfNecessary(
+                                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                                     casting_key.as_view(),
                                 ),
                             )
