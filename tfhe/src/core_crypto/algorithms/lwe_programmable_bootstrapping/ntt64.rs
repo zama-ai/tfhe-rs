@@ -337,7 +337,56 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
-        todo!();
+        use crate::core_crypto::{fft_impl::common::pbs_modulus_switch, prelude::polynomial_algorithms::{polynomial_wrapping_monic_monomial_div_assign, polynomial_wrapping_monic_monomial_mul_assign}};
+
+        let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
+        let lut_poly_size = lut.polynomial_size();
+        let ciphertext_modulus = lut.ciphertext_modulus();
+
+        // We initialize the ct_0 used for the successive cmuxes
+        let mut ct0 = lut;
+
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
+            if *lwe_mask_element != 0u64 {
+                let stack = stack.rb_mut();
+                // We copy ct_0 to ct_1
+                let (ct1, stack) =
+                    stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
+                let mut ct1 =
+                    GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
+
+                // Comptute monomial degree
+                let mask_degree = pbs_modulus_switch(
+                    *lwe_mask_element,
+                    lut_poly_size);
+
+                // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
+                for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
+                    polynomial_wrapping_monic_monomial_mul_assign(
+                        &mut poly,MonomialDegree(mask_degree),
+                    );
+                }
+
+                // ct1 is re-created each loop it can be moved, ct0 is already a view, but
+                // as_mut_view is required to keep borrow rules consistent
+                cmux_ntt64_assign(ct0.as_mut_view(), ct1, bootstrap_key_ggsw, ntt, stack);
+            }
+        }
+
+        // Finally apply rotation by -b
+            let body_degree = pbs_modulus_switch(
+                *lwe_body,
+                lut_poly_size,
+            );
+
+            ct0.as_mut_polynomial_list()
+                .iter_mut()
+                .for_each(|mut poly| {
+                    polynomial_wrapping_monic_monomial_div_assign(
+                        &mut poly,
+                        MonomialDegree(body_degree),
+                    )
+                });
     }
 
     implementation(bsk.as_view(), lut.as_mut_view(), input.as_ref(), ntt, stack);
@@ -614,107 +663,270 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 ) where
     InputGlweCont: Container<Element = u64>,
 {
-    // we check that the polynomial sizes match
-    debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
-    debug_assert_eq!(ggsw.polynomial_size(), out.polynomial_size());
-    // we check that the glwe sizes match
-    debug_assert_eq!(ggsw.glwe_size(), glwe.glwe_size());
-    debug_assert_eq!(ggsw.glwe_size(), out.glwe_size());
 
-    let align = CACHELINE_ALIGN;
-    let poly_size = ggsw.polynomial_size().0;
-
-    // we round the input mask and body
-    let decomposer = SignedDecomposerNonNative::<u64>::new(
-        ggsw.decomposition_base_log(),
-        ggsw.decomposition_level_count(),
-        out.ciphertext_modulus(),
-    );
-
-    let (output_fft_buffer, mut substack0) =
-        stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
-    // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
-    // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
-    // it has been fully initialized for the first time.
-    let mut is_output_uninit = true;
-
+    #[cfg(not(feature = "ntt-bnf"))]
+    fn implementation<InputGlweCont>(
+        mut out: GlweCiphertextMutView<'_, u64>,
+        ggsw: NttGgswCiphertextView<'_, u64>,
+        glwe: &GlweCiphertext<InputGlweCont>,
+        ntt: Ntt64View<'_>,
+        stack: PodStack<'_>,
+    ) where
+        InputGlweCont: Container<Element = u64>,
     {
-        // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
-        // In this section, we perform the external product in the ntt domain, and accumulate
-        // the result in the output_fft_buffer variable.
-        let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIterNonNative::new(
-            &decomposer,
-            glwe.as_ref(),
-            ntt.custom_modulus(),
-            substack0.rb_mut(),
+        // we check that the polynomial sizes match
+        debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
+        debug_assert_eq!(ggsw.polynomial_size(), out.polynomial_size());
+        // we check that the glwe sizes match
+        debug_assert_eq!(ggsw.glwe_size(), glwe.glwe_size());
+        debug_assert_eq!(ggsw.glwe_size(), out.glwe_size());
+
+        let align = CACHELINE_ALIGN;
+        let poly_size = ggsw.polynomial_size().0;
+
+        // we round the input mask and body
+        let decomposer = SignedDecomposerNonNative::<u64>::new(
+            ggsw.decomposition_base_log(),
+            ggsw.decomposition_level_count(),
+            out.ciphertext_modulus(),
         );
 
-        // We loop through the levels (we reverse to match the order of the decomposition iterator.)
-        ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
-            // We retrieve the decomposition of this level.
-            let (glwe_level, glwe_decomp_term, mut substack2) =
-                decomposition.collect_next_term(&mut substack1, align);
-            let glwe_decomp_term = GlweCiphertextView::from_container(
-                &*glwe_decomp_term,
-                ggsw.polynomial_size(),
-                out.ciphertext_modulus(),
+        let (output_fft_buffer, mut substack0) =
+            stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
+        // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
+        // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
+        // it has been fully initialized for the first time.
+        let mut is_output_uninit = true;
+
+        {
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
+            // In this section, we perform the external product in the ntt domain, and accumulate
+            // the result in the output_fft_buffer variable.
+            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIterNonNative::new(
+                &decomposer,
+                glwe.as_ref(),
+                ntt.custom_modulus(),
+                substack0.rb_mut(),
             );
-            debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
 
-            // For each level we have to add the result of the vector-matrix product between the
-            // decomposition of the glwe, and the ggsw level matrix to the output. To do so, we
-            // iteratively add to the output, the product between every line of the matrix, and
-            // the corresponding (scalar) polynomial in the glwe decomposition:
-            //
-            //                ggsw_mat                        ggsw_mat
-            //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
-            //  | - - - | x | - - - - |         | - - - | x | - - - - | <
-            //    ^         | - - - - |             ^       | - - - - |
-            //
-            //        t = 1                           t = 2                     ...
-
-            izip!(
-                ggsw_decomp_matrix.into_rows(),
-                glwe_decomp_term.as_polynomial_list().iter()
-            )
-            .for_each(|(ggsw_row, glwe_poly)| {
-                let (ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
-                // We perform the forward ntt transform for the glwe polynomial
-                ntt.forward(PolynomialMutView::from_container(ntt_poly), glwe_poly);
-                // Now we loop through the polynomials of the output, and add the
-                // corresponding product of polynomials.
-
-                update_with_fmadd_ntt64(
-                    output_fft_buffer,
-                    ggsw_row.as_ref(),
-                    ntt_poly,
-                    is_output_uninit,
-                    poly_size,
-                    ntt,
+            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
+            ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+                // We retrieve the decomposition of this level.
+                let (glwe_level, glwe_decomp_term, mut substack2) =
+                    decomposition.collect_next_term(&mut substack1, align);
+                let glwe_decomp_term = GlweCiphertextView::from_container(
+                    &*glwe_decomp_term,
+                    ggsw.polynomial_size(),
+                    out.ciphertext_modulus(),
                 );
+                debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
 
-                // we initialized `output_fft_buffer, so we can set this to false
-                is_output_uninit = false;
+                // For each level we have to add the result of the vector-matrix product between the
+                // decomposition of the glwe, and the ggsw level matrix to the output. To do so, we
+                // iteratively add to the output, the product between every line of the matrix, and
+                // the corresponding (scalar) polynomial in the glwe decomposition:
+                //
+                //                ggsw_mat                        ggsw_mat
+                //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
+                //  | - - - | x | - - - - |         | - - - | x | - - - - | <
+                //    ^         | - - - - |             ^       | - - - - |
+                //
+                //        t = 1                           t = 2                     ...
+
+                izip!(
+                    ggsw_decomp_matrix.into_rows(),
+                    glwe_decomp_term.as_polynomial_list().iter()
+                )
+                .for_each(|(ggsw_row, glwe_poly)| {
+                    let (ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    // We perform the forward ntt transform for the glwe polynomial
+                    ntt.forward(PolynomialMutView::from_container(ntt_poly), glwe_poly);
+                    // Now we loop through the polynomials of the output, and add the
+                    // corresponding product of polynomials.
+
+                    update_with_fmadd_ntt64(
+                        output_fft_buffer,
+                        ggsw_row.as_ref(),
+                        ntt_poly,
+                        is_output_uninit,
+                        poly_size,
+                        ntt,
+                    );
+
+                    // we initialized `output_fft_buffer, so we can set this to false
+                    is_output_uninit = false;
+                });
             });
-        });
+        }
+
+        // --------------------------------------------  TRANSFORMATION OF RESULT TO STANDARD DOMAIN
+        // In this section, we bring the result from the ntt domain, back to the standard
+        // domain, and add it to the output.
+        //
+        // We iterate over the polynomials in the output.
+        if !is_output_uninit {
+            izip!(
+                out.as_mut_polynomial_list().iter_mut(),
+                output_fft_buffer
+                    .into_chunks(poly_size)
+                    .map(PolynomialMutView::from_container),
+            )
+            .for_each(|(out, ntt_poly)| {
+                ntt.add_backward(out, ntt_poly);
+            });
+        }
     }
 
-    // --------------------------------------------  TRANSFORMATION OF RESULT TO STANDARD DOMAIN
-    // In this section, we bring the result from the ntt domain, back to the standard
-    // domain, and add it to the output.
-    //
-    // We iterate over the polynomials in the output.
-    if !is_output_uninit {
-        izip!(
-            out.as_mut_polynomial_list().iter_mut(),
-            output_fft_buffer
-                .into_chunks(poly_size)
-                .map(PolynomialMutView::from_container),
-        )
-        .for_each(|(out, ntt_poly)| {
-            ntt.add_backward(out, ntt_poly);
+    #[cfg(feature = "ntt-bnf")]
+fn implementation<InputGlweCont>(
+        mut out: GlweCiphertextMutView<'_, u64>,
+        ggsw: NttGgswCiphertextView<'_, u64>,
+        glwe: &GlweCiphertext<InputGlweCont>,
+        ntt: Ntt64View<'_>,
+        stack: PodStack<'_>,
+    ) where
+        InputGlweCont: Container<Element = u64>,
+    {
+        // Check that modswitch is really needed around cmux
+
+        use crate::core_crypto::{fft_impl::fft64::{crypto::ggsw::collect_next_term, math::decomposition::TensorSignedDecompositionLendingIter}, prelude::SignedDecomposer};
+        assert!(
+            glwe.ciphertext_modulus()
+                .is_compatible_with_native_modulus(),
+            "Back and Forth modswitch implementation only work with power-of-two user modulus"
+        );
+
+        // we check that the polynomial sizes match
+        debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
+        debug_assert_eq!(ggsw.polynomial_size(), out.polynomial_size());
+        // we check that the glwe sizes match
+        debug_assert_eq!(ggsw.glwe_size(), glwe.glwe_size());
+        debug_assert_eq!(ggsw.glwe_size(), out.glwe_size());
+
+        let align = CACHELINE_ALIGN;
+        let poly_size = ggsw.polynomial_size().0;
+
+        // Extract modswitch_requirement
+        let modulus = ntt.custom_modulus();
+        let ntt_modulus = CiphertextModulus::new(modulus as u128);
+        let (req_ba, req_ms) = bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
+        
+
+        // we round the input mask and body
+        let decomposer = SignedDecomposer::<u64>::new(
+            ggsw.decomposition_base_log(),
+            ggsw.decomposition_level_count(),
+        );
+
+        let (output_fft_buffer, mut substack0) =
+            stack.make_aligned_raw::<u64>(poly_size * ggsw.glwe_size().0, align);
+        // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
+        // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
+        // it has been fully initialized for the first time.
+        let mut is_output_uninit = true;
+
+        {
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
+            // In this section, we perform the external product in the ntt domain, and accumulate
+            // the result in the output_fft_buffer variable.
+            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(            glwe.as_ref()
+                .iter()
+                .map(|s| decomposer.closest_representable(*s)),
+            decomposer.base_log(),
+            decomposer.level_count(),
+            substack0.rb_mut(),
+);
+
+            // We loop through the levels (we reverse to match the order of the decomposition iterator.)
+            ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+                // We retrieve the decomposition of this level.
+                let (glwe_level, glwe_decomp_term, mut substack2) =
+                    collect_next_term(&mut decomposition, &mut substack1, align);
+                let glwe_decomp_term = GlweCiphertextView::from_container(
+                    &*glwe_decomp_term,
+                    ggsw.polynomial_size(),
+                    out.ciphertext_modulus(),
+                );
+                debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
+
+                // For each level we have to add the result of the vector-matrix product between the
+                // decomposition of the glwe, and the ggsw level matrix to the output. To do so, we
+                // iteratively add to the output, the product between every line of the matrix, and
+                // the corresponding (scalar) polynomial in the glwe decomposition:
+                //
+                //                ggsw_mat                        ggsw_mat
+                //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
+                //  | - - - | x | - - - - |         | - - - | x | - - - - | <
+                //    ^         | - - - - |             ^       | - - - - |
+                //
+                //        t = 1                           t = 2                     ...
+
+                izip!(
+                    ggsw_decomp_matrix.into_rows(),
+                    glwe_decomp_term.as_polynomial_list().iter()
+                )
+                .for_each(|(ggsw_row, glwe_poly)| {
+                    let (mut ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    // 1. Move poly coef in ntt_modulus if needed
+                    ntt_poly.clone_from_slice(glwe_poly.into_container());
+                    // NB: Decomposition term is already LSB align
+                    user2ntt_bitmask_modswitch(&mut ntt_poly, req_ba, req_ms, ntt);
+
+                    // 2. We perform the forward ntt transform for the glwe polynomial
+                    ntt.plan.fwd(&mut ntt_poly);
+                    // Now we loop through the polynomials of the output, and add the
+                    // corresponding product of polynomials.
+
+                    update_with_fmadd_ntt64(
+                        output_fft_buffer,
+                        ggsw_row.as_ref(),
+                        ntt_poly,
+                        is_output_uninit,
+                        poly_size,
+                        ntt,
+                    );
+
+                    // we initialized `output_fft_buffer, so we can set this to false
+                    is_output_uninit = false;
+                });
+            });
+        }
+
+        // --------------------------------------------  TRANSFORMATION OF RESULT TO STANDARD DOMAIN
+        // In this section, we bring the result from the ntt domain, back to the standard
+        // domain, and add it to the output.
+        //
+        // We iterate over the polynomials in the output.
+        if !is_output_uninit {
+            izip!(
+                out.as_mut_polynomial_list().iter_mut(),
+                output_fft_buffer
+                    .into_chunks(poly_size)
+                    .map(PolynomialMutView::from_container),
+            )
+            .for_each(|(out, ntt_poly)| {
+                
+            let mut out = out;
+            let mut ntt_poly = ntt_poly;
+
+            // Move back in std domain
+            ntt.plan.inv(ntt_poly.as_mut());
+            ntt2user_bitalign_modswitch(ntt_poly.as_mut(), req_ba, req_ms, ntt);
+
+            // autovectorize
+            pulp::Arch::new().dispatch(
+                #[inline(always)]
+                || {
+                    for (out, inp) in izip!(out.as_mut(), ntt_poly.as_ref()) {
+                        *out = u64::wrapping_add(*out, *inp);
+                    }
+                },
+            )
         });
+        }
     }
+
+    implementation(out, ggsw, glwe, ntt, stack,);
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
@@ -725,10 +937,34 @@ pub(crate) fn cmux_ntt64_assign(
     ntt: Ntt64View<'_>,
     stack: PodStack<'_>,
 ) {
+
+    #[cfg(not(feature = "ntt-bnf"))]
+    fn implementation(
+        ct0: GlweCiphertextMutView<'_, u64>,
+        mut ct1: GlweCiphertextMutView<'_, u64>,
+        ggsw: NttGgswCiphertextView<'_, u64>,
+        ntt: Ntt64View<'_>,
+        stack: PodStack<'_>,) {
     izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
     });
     add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
+    }
+
+    #[cfg(feature = "ntt-bnf")]
+    fn implementation(
+        ct0: GlweCiphertextMutView<'_, u64>,
+        mut ct1: GlweCiphertextMutView<'_, u64>,
+        ggsw: NttGgswCiphertextView<'_, u64>,
+        ntt: Ntt64View<'_>,
+        stack: PodStack<'_>,) {
+    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+        *c1 = c1.wrapping_sub(*c0);
+    });
+    add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
+    }
+
+    implementation(ct0, ct1, ggsw, ntt, stack);
 }
 
 #[cfg_attr(feature = "__profiling", inline(never))]
@@ -825,6 +1061,19 @@ pub fn bitalign_modswitch_requirement(from: CiphertextModulus, to: CiphertextMod
 pub fn user2ntt_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
     if let Some(shr_bit) = req_bitalign {
         data.iter_mut().for_each(|x| *x >>= shr_bit);
+    }
+    if let Some(modswitch) = req_modswitch {
+        ntt.user2ntt_modswitch(modswitch, data);
+    }
+}
+
+/// This function is used when the input come from the decomposer
+/// In such case value inputs are small value around 0. But negative value are signed
+/// extend on BITS and prevent the modswitch to work properly
+/// Thus we start by bitmask to remove extra MSB and then modswitch
+pub fn user2ntt_bitmask_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+    if let Some(shr_bit) = req_bitalign {
+        data.iter_mut().for_each(|x| *x = (*x <<shr_bit) >> shr_bit);
     }
     if let Some(modswitch) = req_modswitch {
         ntt.user2ntt_modswitch(modswitch, data);
