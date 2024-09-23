@@ -87,8 +87,8 @@ where
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
 
         let (expected_result, expected_overflowed) =
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
@@ -245,8 +245,8 @@ where
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
-        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
 
         let (expected_result, expected_overflowed) =
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);

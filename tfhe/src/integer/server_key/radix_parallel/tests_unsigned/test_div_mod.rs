@@ -286,7 +286,7 @@ where
 
         // Determinism checks
         let q2 = executor.execute((&ctxt_0, &ctxt_1));
-        assert_eq!(q2, q_res, "Operation was not deterministic");
+        assert_eq!(q2, q_res, "Operation was not deterministic, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
     }
 }
 
@@ -331,7 +331,7 @@ where
 
         // Determinism checks
         let r2 = executor.execute((&ctxt_0, &ctxt_1));
-        assert_eq!(r2, r_res, "Operation was not deterministic");
+        assert_eq!(r2, r_res, "Operation was not deterministic, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
     }
 }
 

@@ -149,7 +149,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
         }
 
         // case when shift >= nb_bits
@@ -181,7 +181,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
         }
     }
 }
@@ -240,7 +240,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
         }
 
         // case when shift >= nb_bits
@@ -272,7 +272,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
         }
     }
 }
