@@ -1660,7 +1660,6 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
 
     match bootstrapping_key {
         ShortintBootstrappingKey::Classic(fourier_bsk) => {
-            println!("Used FFT based PBS");
             let fft = Fft::new(fourier_bsk.polynomial_size());
             let fft = fft.as_view();
             buffers.resize(
@@ -1681,7 +1680,6 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
         
             // Get ciphertext modulus from bsk
             let ntt = Ntt64::new(ntt_bsk.ciphertext_modulus(), ntt_bsk.polynomial_size());
-            println!("Used NTT based PBS with {:x?}", ntt_bsk.ciphertext_modulus());
 
             let ntt_view = ntt.as_view();
 

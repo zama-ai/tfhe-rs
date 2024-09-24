@@ -9,6 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::core_crypto::prelude::{bitalign_modswitch_requirement, user2ntt_bitalign_modswitch};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
@@ -261,23 +262,40 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         output_bsk.input_lwe_dimension(),
     );
 
+    // Extract modswitch_requirement
+    let (req_ba, req_ms) = bitalign_modswitch_requirement(
+        input_bsk.ciphertext_modulus(),
+        output_bsk.ciphertext_modulus(),
+    );
+
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
+    // Allocate a buffer for bitshifth and modswitch
+    let mut poly_bfr = Polynomial::from_container(vec![0; input_bsk.polynomial_size().0]);
     for (input_poly, output_poly) in input_bsk
         .as_polynomial_list()
         .iter()
         .zip(output_bsk.as_mut_polynomial_list().iter_mut())
     {
-        ntt.forward_normalized(output_poly, input_poly)
+        poly_bfr.as_mut().copy_from_slice(input_poly.as_ref());
+        user2ntt_bitalign_modswitch(poly_bfr.as_mut(), req_ba, req_ms, ntt);
+
+        if cfg!(feature = "hpu") {
+            // NB: With Hpu implementation, normalization is embedded in phi
+            //    and thus freely apply on each bwd path
+            ntt.forward(output_poly, poly_bfr.as_view())
+        } else {
+            ntt.forward_normalized(output_poly, poly_bfr.as_view())
+        }
     }
 }
 
 pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
-    input_bsk: &mut LweBootstrapKey<InputCont>,
+    input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,
 ) where
-    InputCont: ContainerMut<Element = u64>,
+    InputCont: Container<Element = u64> + std::marker::Sync,
     OutputCont: ContainerMut<Element = u64>,
 {
     assert_eq!(
@@ -318,25 +336,17 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         output_bsk.input_lwe_dimension(),
     );
 
-    // Check if bit-align and modswitch is required
-    let (req_bitalign, req_modswitch) =  if input_bsk.ciphertext_modulus() != output_bsk.ciphertext_modulus() {
-        assert!(input_bsk.ciphertext_modulus().is_compatible_with_native_modulus(), "Only support implicit modswitch from 2**k to ntt_modulus");
-            if input_bsk.ciphertext_modulus().is_native_modulus() {
-                (None, Some(usize::BITS))
-            } else {
-                let pow2_modulus = input_bsk.ciphertext_modulus().get_custom_modulus();
-                let pow2_width = pow2_modulus.ilog2();
-                (Some(usize::BITS-pow2_width), Some(pow2_width))
-            }
-        } else {
-            (None, None)
-        };
+    // Extract modswitch_requirement
+    let (req_ba, req_ms) = bitalign_modswitch_requirement(
+        input_bsk.ciphertext_modulus(),
+        output_bsk.ciphertext_modulus(),
+    );
 
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
     let num_threads = rayon::current_num_threads();
-    let mut input_as_polynomial_list = input_bsk.as_mut_polynomial_list();
+    let input_as_polynomial_list = input_bsk.as_polynomial_list();
     let mut output_as_polynomial_list = output_bsk.as_mut_polynomial_list();
     let chunk_size = input_as_polynomial_list
         .polynomial_count()
@@ -344,19 +354,25 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         .div_ceil(num_threads);
 
     input_as_polynomial_list
-        .par_chunks_mut(chunk_size)
+        .par_chunks(chunk_size)
         .zip(output_as_polynomial_list.par_chunks_mut(chunk_size))
-        .for_each(|(mut input_poly_chunk, mut output_poly_chunk)| {
-            for (mut input_poly, output_poly) in
-                input_poly_chunk.iter_mut().zip(output_poly_chunk.iter_mut())
+        .for_each(|(input_poly_chunk, mut output_poly_chunk)| {
+            // Allocate a buffer for bitshifth and modswitch
+            let mut poly_bfr = Polynomial::from_container(vec![0; input_bsk.polynomial_size().0]);
+
+            for (input_poly, output_poly) in
+                input_poly_chunk.iter().zip(output_poly_chunk.iter_mut())
             {
-                if let Some(shr_bit) = req_bitalign {
-                    input_poly.as_mut().iter_mut().for_each(|x| *x >>= shr_bit);
+                poly_bfr.as_mut().copy_from_slice(input_poly.as_ref());
+                user2ntt_bitalign_modswitch(poly_bfr.as_mut(), req_ba, req_ms, ntt);
+
+                if cfg!(feature = "hpu") {
+                    // NB: With Hpu implementation, normalization is embedded in phi
+                    //    and thus freely apply on each bwd path
+                    ntt.forward(output_poly, poly_bfr.as_view())
+                } else {
+                    ntt.forward_normalized(output_poly, poly_bfr.as_view())
                 }
-                if let Some(modswitch) = req_modswitch {
-                    ntt.user2ntt_modswitch(modswitch, input_poly.as_mut());
-                }
-                ntt.forward_normalized(output_poly, input_poly.as_view())
             }
         });
 }

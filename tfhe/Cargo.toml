@@ -72,7 +72,7 @@ serde = { version = "1.0", features = ["derive"] }
 rayon = { version = "1.5.0" }
 bincode = "1.3.3"
 concrete-fft = { version = "0.5.1", features = ["serde", "fft128"] }
-concrete-ntt = { version = "0.2.0" }
+concrete-ntt = { git = "https://github.com/zama-ai/concrete-ntt", branch="hw-team/gf64" }
 pulp = "0.18.22"
 tfhe-cuda-backend = { version = "0.4.0-alpha.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { version = "0.5", features = ["serde"] }

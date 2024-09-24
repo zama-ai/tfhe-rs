@@ -224,7 +224,10 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
-        use crate::core_crypto::{fft_impl::common::pbs_modulus_switch, prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign};
+        use crate::core_crypto::{
+            fft_impl::common::pbs_modulus_switch,
+            prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div_assign,
+        };
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let modulus = ntt.custom_modulus();
@@ -235,14 +238,14 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 
         // Extract modswitch_requirement
         let (req_ba, req_ms) = bitalign_modswitch_requirement(ciphertext_modulus, ntt_modulus);
-        
+
         // Apply modswitch on lut if required
         if req_ms.is_some() {
             lut.as_mut_polynomial_list()
                 .iter_mut()
                 .for_each(|mut poly| {
                     user2ntt_bitalign_modswitch(poly.as_mut(), req_ba, req_ms, ntt);
-            });
+                });
             lut.ciphertext_modulus = ntt_modulus;
         }
 
@@ -261,22 +264,21 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                 // Comptute monomial degree
                 let mask_degree = if req_ms.is_some() {
                     // pbs_modswitch made on user modulus
-                    pbs_modulus_switch(
-                    *lwe_mask_element,
-                    lut_poly_size)
-                } else { 
+                    pbs_modulus_switch(*lwe_mask_element, lut_poly_size)
+                } else {
                     // pbs_modswitch made on ntt modulus
                     pbs_modulus_switch_non_native(
-                    *lwe_mask_element,
-                    lut_poly_size,
-                    ntt_modulus.get_custom_modulus().cast_into(),
+                        *lwe_mask_element,
+                        lut_poly_size,
+                        ntt_modulus.get_custom_modulus().cast_into(),
                     )
                 };
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
-                        &mut poly,MonomialDegree(mask_degree),
+                        &mut poly,
+                        MonomialDegree(mask_degree),
                         modulus,
                     );
                 }
@@ -290,10 +292,7 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         // Finally apply rotation by -b
         if req_ms.is_some() {
             // Revert modswitch and apply rotation in user modulus
-            let body_degree = pbs_modulus_switch(
-                *lwe_body,
-                lut_poly_size,
-            );
+            let body_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
 
             ct0.as_mut_polynomial_list()
                 .iter_mut()
@@ -308,13 +307,12 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                     )
                 });
             ct0.ciphertext_modulus = ciphertext_modulus;
-
         } else {
             // Apply rotation in prime modulus
             let body_degree = pbs_modulus_switch_non_native(
-        *lwe_body,
+                *lwe_body,
                 lut_poly_size,
-       ciphertext_modulus.get_custom_modulus().cast_into(),
+                ciphertext_modulus.get_custom_modulus().cast_into(),
             );
 
             ct0.as_mut_polynomial_list()
@@ -327,9 +325,8 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                     )
                 });
         }
-
     }
-    #[cfg(feature="ntt-bnf")]
+    #[cfg(feature = "ntt-bnf")]
     fn implementation(
         bsk: NttLweBootstrapKeyView<'_, u64>,
         mut lut: GlweCiphertextMutView<'_, u64>,
@@ -337,7 +334,13 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         ntt: Ntt64View<'_>,
         mut stack: PodStack<'_>,
     ) {
-        use crate::core_crypto::{fft_impl::common::pbs_modulus_switch, prelude::polynomial_algorithms::{polynomial_wrapping_monic_monomial_div_assign, polynomial_wrapping_monic_monomial_mul_assign}};
+        use crate::core_crypto::{
+            fft_impl::common::pbs_modulus_switch,
+            prelude::polynomial_algorithms::{
+                polynomial_wrapping_monic_monomial_div_assign,
+                polynomial_wrapping_monic_monomial_mul_assign,
+            },
+        };
 
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
         let lut_poly_size = lut.polynomial_size();
@@ -356,14 +359,13 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
                     GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
 
                 // Comptute monomial degree
-                let mask_degree = pbs_modulus_switch(
-                    *lwe_mask_element,
-                    lut_poly_size);
+                let mask_degree = pbs_modulus_switch(*lwe_mask_element, lut_poly_size);
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign(
-                        &mut poly,MonomialDegree(mask_degree),
+                        &mut poly,
+                        MonomialDegree(mask_degree),
                     );
                 }
 
@@ -374,19 +376,16 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
         }
 
         // Finally apply rotation by -b
-            let body_degree = pbs_modulus_switch(
-                *lwe_body,
-                lut_poly_size,
-            );
+        let body_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
 
-            ct0.as_mut_polynomial_list()
-                .iter_mut()
-                .for_each(|mut poly| {
-                    polynomial_wrapping_monic_monomial_div_assign(
-                        &mut poly,
-                        MonomialDegree(body_degree),
-                    )
-                });
+        ct0.as_mut_polynomial_list()
+            .iter_mut()
+            .for_each(|mut poly| {
+                polynomial_wrapping_monic_monomial_div_assign(
+                    &mut poly,
+                    MonomialDegree(body_degree),
+                )
+            });
     }
 
     implementation(bsk.as_view(), lut.as_mut_view(), input.as_ref(), ntt, stack);
@@ -663,7 +662,6 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
 ) where
     InputGlweCont: Container<Element = u64>,
 {
-
     #[cfg(not(feature = "ntt-bnf"))]
     fn implementation<InputGlweCont>(
         mut out: GlweCiphertextMutView<'_, u64>,
@@ -702,12 +700,13 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
             // In this section, we perform the external product in the ntt domain, and accumulate
             // the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIterNonNative::new(
-                &decomposer,
-                glwe.as_ref(),
-                ntt.custom_modulus(),
-                substack0.rb_mut(),
-            );
+            let (mut decomposition, mut substack1) =
+                TensorSignedDecompositionLendingIterNonNative::new(
+                    &decomposer,
+                    glwe.as_ref(),
+                    ntt.custom_modulus(),
+                    substack0.rb_mut(),
+                );
 
             // We loop through the levels (we reverse to match the order of the decomposition iterator.)
             ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
@@ -738,7 +737,8 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    let (ntt_poly, _) =
+                        substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
                     // We perform the forward ntt transform for the glwe polynomial
                     ntt.forward(PolynomialMutView::from_container(ntt_poly), glwe_poly);
                     // Now we loop through the polynomials of the output, and add the
@@ -778,7 +778,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
     }
 
     #[cfg(feature = "ntt-bnf")]
-fn implementation<InputGlweCont>(
+    fn implementation<InputGlweCont>(
         mut out: GlweCiphertextMutView<'_, u64>,
         ggsw: NttGgswCiphertextView<'_, u64>,
         glwe: &GlweCiphertext<InputGlweCont>,
@@ -789,7 +789,13 @@ fn implementation<InputGlweCont>(
     {
         // Check that modswitch is really needed around cmux
 
-        use crate::core_crypto::{fft_impl::fft64::{crypto::ggsw::collect_next_term, math::decomposition::TensorSignedDecompositionLendingIter}, prelude::SignedDecomposer};
+        use crate::core_crypto::{
+            fft_impl::fft64::{
+                crypto::ggsw::collect_next_term,
+                math::decomposition::TensorSignedDecompositionLendingIter,
+            },
+            prelude::SignedDecomposer,
+        };
         assert!(
             glwe.ciphertext_modulus()
                 .is_compatible_with_native_modulus(),
@@ -809,8 +815,8 @@ fn implementation<InputGlweCont>(
         // Extract modswitch_requirement
         let modulus = ntt.custom_modulus();
         let ntt_modulus = CiphertextModulus::new(modulus as u128);
-        let (req_ba, req_ms) = bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
-        
+        let (req_ba, req_ms) =
+            bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
 
         // we round the input mask and body
         let decomposer = SignedDecomposer::<u64>::new(
@@ -829,13 +835,14 @@ fn implementation<InputGlweCont>(
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER DOMAIN
             // In this section, we perform the external product in the ntt domain, and accumulate
             // the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(            glwe.as_ref()
-                .iter()
-                .map(|s| decomposer.closest_representable(*s)),
-            decomposer.base_log(),
-            decomposer.level_count(),
-            substack0.rb_mut(),
-);
+            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+                glwe.as_ref()
+                    .iter()
+                    .map(|s| decomposer.closest_representable(*s)),
+                decomposer.base_log(),
+                decomposer.level_count(),
+                substack0.rb_mut(),
+            );
 
             // We loop through the levels (we reverse to match the order of the decomposition iterator.)
             ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
@@ -866,7 +873,8 @@ fn implementation<InputGlweCont>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (mut ntt_poly, _) = substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
+                    let (mut ntt_poly, _) =
+                        substack2.rb_mut().make_aligned_raw::<u64>(poly_size, align);
                     // 1. Move poly coef in ntt_modulus if needed
                     ntt_poly.clone_from_slice(glwe_poly.into_container());
                     // NB: Decomposition term is already LSB align
@@ -905,28 +913,31 @@ fn implementation<InputGlweCont>(
                     .map(PolynomialMutView::from_container),
             )
             .for_each(|(out, ntt_poly)| {
-                
-            let mut out = out;
-            let mut ntt_poly = ntt_poly;
+                let mut out = out;
+                let mut ntt_poly = ntt_poly;
 
-            // Move back in std domain
-            ntt.plan.inv(ntt_poly.as_mut());
-            ntt2user_bitalign_modswitch(ntt_poly.as_mut(), req_ba, req_ms, ntt);
+                // Normalized
+                // NB: Need by hpu stimulus generation to be bit-accurate with Hw
+                #[cfg(feature = "hpu")]
+                ntt.plan.normalize(ntt_poly.as_mut());
+                // Move back in std domain
+                ntt.plan.inv(ntt_poly.as_mut());
+                ntt2user_bitalign_modswitch(ntt_poly.as_mut(), req_ba, req_ms, ntt);
 
-            // autovectorize
-            pulp::Arch::new().dispatch(
-                #[inline(always)]
-                || {
-                    for (out, inp) in izip!(out.as_mut(), ntt_poly.as_ref()) {
-                        *out = u64::wrapping_add(*out, *inp);
-                    }
-                },
-            )
-        });
+                // autovectorize
+                pulp::Arch::new().dispatch(
+                    #[inline(always)]
+                    || {
+                        for (out, inp) in izip!(out.as_mut(), ntt_poly.as_ref()) {
+                            *out = u64::wrapping_add(*out, *inp);
+                        }
+                    },
+                )
+            });
         }
     }
 
-    implementation(out, ggsw, glwe, ntt, stack,);
+    implementation(out, ggsw, glwe, ntt, stack);
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
@@ -937,18 +948,18 @@ pub(crate) fn cmux_ntt64_assign(
     ntt: Ntt64View<'_>,
     stack: PodStack<'_>,
 ) {
-
     #[cfg(not(feature = "ntt-bnf"))]
     fn implementation(
         ct0: GlweCiphertextMutView<'_, u64>,
         mut ct1: GlweCiphertextMutView<'_, u64>,
         ggsw: NttGgswCiphertextView<'_, u64>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,) {
-    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
-        *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
-    });
-    add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
+        stack: PodStack<'_>,
+    ) {
+        izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+            *c1 = c1.wrapping_sub_custom_mod(*c0, ntt.custom_modulus());
+        });
+        add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
     }
 
     #[cfg(feature = "ntt-bnf")]
@@ -957,11 +968,12 @@ pub(crate) fn cmux_ntt64_assign(
         mut ct1: GlweCiphertextMutView<'_, u64>,
         ggsw: NttGgswCiphertextView<'_, u64>,
         ntt: Ntt64View<'_>,
-        stack: PodStack<'_>,) {
-    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
-        *c1 = c1.wrapping_sub(*c0);
-    });
-    add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
+        stack: PodStack<'_>,
+    ) {
+        izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+            *c1 = c1.wrapping_sub(*c0);
+        });
+        add_external_product_ntt64_assign(ct0, ggsw, &ct1, ntt, stack);
     }
 
     implementation(ct0, ct1, ggsw, ntt, stack);
@@ -1043,22 +1055,33 @@ pub fn programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
 }
 
 /// Return the required bitalign/modswitch
-pub fn bitalign_modswitch_requirement(from: CiphertextModulus, to: CiphertextModulus) -> (Option<u32>, Option<u32>) {
+pub fn bitalign_modswitch_requirement(
+    from: CiphertextModulus,
+    to: CiphertextModulus,
+) -> (Option<u32>, Option<u32>) {
     if from != to {
-        assert!(from.is_compatible_with_native_modulus(), "Only support implicit modswitch from 2**k to ntt_modulus");
+        assert!(
+            from.is_compatible_with_native_modulus(),
+            "Only support implicit modswitch from 2**k to ntt_modulus"
+        );
         if from.is_native_modulus() {
             (None, Some(usize::BITS))
         } else {
             let pow2_modulus = from.get_custom_modulus();
             let pow2_width = pow2_modulus.ilog2();
-            (Some(usize::BITS-pow2_width), Some(pow2_width))
+            (Some(usize::BITS - pow2_width), Some(pow2_width))
         }
     } else {
         (None, None)
     }
 }
 
-pub fn user2ntt_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+pub fn user2ntt_bitalign_modswitch(
+    data: &mut [u64],
+    req_bitalign: Option<u32>,
+    req_modswitch: Option<u32>,
+    ntt: Ntt64View<'_>,
+) {
     if let Some(shr_bit) = req_bitalign {
         data.iter_mut().for_each(|x| *x >>= shr_bit);
     }
@@ -1071,16 +1094,27 @@ pub fn user2ntt_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, r
 /// In such case value inputs are small value around 0. But negative value are signed
 /// extend on BITS and prevent the modswitch to work properly
 /// Thus we start by bitmask to remove extra MSB and then modswitch
-pub fn user2ntt_bitmask_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+pub fn user2ntt_bitmask_modswitch(
+    data: &mut [u64],
+    req_bitalign: Option<u32>,
+    req_modswitch: Option<u32>,
+    ntt: Ntt64View<'_>,
+) {
     if let Some(shr_bit) = req_bitalign {
-        data.iter_mut().for_each(|x| *x = (*x <<shr_bit) >> shr_bit);
+        data.iter_mut()
+            .for_each(|x| *x = (*x << shr_bit) >> shr_bit);
     }
     if let Some(modswitch) = req_modswitch {
         ntt.user2ntt_modswitch(modswitch, data);
     }
 }
 
-pub fn ntt2user_bitalign_modswitch(data: &mut[u64], req_bitalign: Option<u32>, req_modswitch: Option<u32>, ntt: Ntt64View<'_>) {
+pub fn ntt2user_bitalign_modswitch(
+    data: &mut [u64],
+    req_bitalign: Option<u32>,
+    req_modswitch: Option<u32>,
+    ntt: Ntt64View<'_>,
+) {
     if let Some(modswitch) = req_modswitch {
         ntt.ntt2user_modswitch(modswitch, data);
     }

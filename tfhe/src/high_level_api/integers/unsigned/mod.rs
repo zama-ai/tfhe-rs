@@ -18,7 +18,7 @@ mod static_;
 
 #[cfg(feature = "hpu-xfer")]
 mod hpu;
-pub use hpu::HpuFheUint;
+// pub use hpu::HpuFheUint;
 
 mod encrypt;
 mod inner;
