@@ -51,7 +51,7 @@ pub struct Args {
 
     /// Seed used for some rngs
     #[clap(long, value_parser)]
-    pub seed: Option<u64>,
+    pub seed: Option<u128>,
 
     // Debug option ----------------------------------------------------------
     #[cfg(feature="hpu-debug")]
@@ -96,12 +96,16 @@ macro_rules! impl_hpu_bench {
 
             // Seeder for args randomization ------------------------------------------
             let mut rng: StdRng = if let Some(seed) = args.seed {
-                SeedableRng::seed_from_u64(seed)
+                SeedableRng::seed_from_u64((seed & u64::MAX as u128) as u64)
             } else {
                 SeedableRng::from_entropy()
             };
 
             // Hpu io dump for debug  -------------------------------------------------
+            #[cfg(feature="seeder-manual")]
+            // Register seed inside tfhe-rs.
+            tfhe::core_crypto::seeders::seeder_manual::set_manual_seed(args.seed);
+
             #[cfg(feature="hpu-debug")]
             if let Some(dump_path) = args.io_dump.as_ref()
             {
