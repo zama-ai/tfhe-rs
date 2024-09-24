@@ -110,6 +110,7 @@ zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
 hpu-xfer = ["hpu"]
+hpu-debug = ["tfhe-hpu-backend/io-dump"]
 # Start Fpga simulation features
 ntt-bnf = []
 seeder-manual = ["seeder_unix"]

@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::{collections::VecDeque, pin::Pin};
 
 /// Describe Slot position
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
 pub(crate) struct SlotId {
     pub(crate) bid: usize,
     pub(crate) cid: usize,

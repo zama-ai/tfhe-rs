@@ -9,6 +9,9 @@ mod rtl;
 pub mod rtl;
 mod variable;
 
+#[cfg(feature = "io-dump")]
+pub mod io_dump;
+
 use thiserror::Error;
 
 // Publicly export some types

@@ -139,6 +139,8 @@ impl HpuVarWrapped {
             for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.iter()) {
                 for (id, cut) in ct.hw_slice().iter().enumerate() {
                     slot.mz[id].pin_mut().write(0, &cut);
+                    #[cfg(feature = "io-dump")]
+                    io_dump::dump(&cut.as_slice(), io_dump::DumpKind::BlweIn, io_dump::DumpId::Slot(slot.id, id));
                 }
             }
             inner.state = SyncState::CpuSync;
@@ -173,8 +175,12 @@ impl HpuVarWrapped {
             let mut hw_cut = vec![cut_0, cut_1];
 
             // Copy from Xrt memory and shuffle back to cpu order
-            std::iter::zip(slot.mz.iter(), hw_cut.iter_mut())
-                .for_each(|(mz, cut)| mz.read(0, *cut));
+            std::iter::zip(slot.mz.iter(), hw_cut.iter_mut()).enumerate()
+                .for_each(|(id, (mz, cut))| {
+                    mz.read(0, *cut);
+                    #[cfg(feature = "io-dump")]
+                    io_dump::dump(&cut.as_ref(), io_dump::DumpKind::BlweOut, io_dump::DumpId::Slot(slot.id, id));
+            });
             hpu_lwe.copy_from_hw_slice(&hw_slice);
             ct.push(hpu_lwe);
         }

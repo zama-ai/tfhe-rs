@@ -53,6 +53,12 @@ pub struct Args {
     #[clap(long, value_parser)]
     pub seed: Option<u64>,
 
+    // Debug option ----------------------------------------------------------
+    #[cfg(feature="hpu-debug")]
+    /// Hpu io dump path
+    #[clap(long, value_parser)]
+    pub io_dump: Option<String>,
+
     // Reports configuration -------------------------------------------------
     /// JsonLine output file
     #[clap(long, value_parser, default_value = "output/hpu_bench.jsonl")]
@@ -94,6 +100,13 @@ macro_rules! impl_hpu_bench {
             } else {
                 SeedableRng::from_entropy()
             };
+
+            // Hpu io dump for debug  -------------------------------------------------
+            #[cfg(feature="hpu-debug")]
+            if let Some(dump_path) = args.io_dump.as_ref()
+            {
+                set_hpu_io_dump(dump_path);
+            }
 
             // Instanciate HpuDevice --------------------------------------------------
             let hpu_device = {
