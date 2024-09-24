@@ -38,6 +38,7 @@
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)] // 1
 #![allow(clippy::too_long_first_doc_paragraph)]
+#![allow(clippy::redundant_closure_for_method_calls)]
 // These pedantic lints are deemed to bring too little value therefore they are allowed (which are
 // their natural state anyways, being pedantic lints)
 
