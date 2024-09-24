@@ -59,9 +59,11 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Node
+      - name: Install web resources
         run: |
           make install_node
+          make install_chrome_browser
+          make install_chrome_web_driver
 
       - name: Run fmt checks
         run: |
@@ -72,10 +74,8 @@ jobs:
           make test_nodejs_wasm_api_in_docker
 
       - name: Run parallel wasm tests
-        # test timeouts are at 60 but if we want a log we need to give time to the step to log stuff
-        timeout-minutes: 65
         run: |
-          make test_web_js_api_parallel_ci
+          make test_web_js_api_parallel_chrome_ci
 
       - name: Slack Notification
         if: ${{ failure() }}

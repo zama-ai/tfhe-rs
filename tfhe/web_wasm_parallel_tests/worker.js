@@ -353,7 +353,7 @@ async function compressedCompactPublicKeyWithCastingTest256Bit() {
   assert_eq(expander.get_uint256(3).decrypt(clientKey), clear_u256);
 }
 
-async function compactPublicKeyZeroKnowledge() {
+async function compactPublicKeyZeroKnowledgeTest() {
   let block_params = new ShortintParameters(
     ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
   );
@@ -737,7 +737,7 @@ async function main() {
     compressedPublicKeyTest,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
-    compactPublicKeyZeroKnowledge,
+    compactPublicKeyZeroKnowledgeTest,
     compactPublicKeyBench32BitBig,
     compactPublicKeyBench32BitSmall,
     compactPublicKeyBench256BitBig,
