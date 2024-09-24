@@ -26,6 +26,8 @@ backends/tfhe-cuda-backend/cuda/cmake-build-debug/
 
 # WASM tests
 tfhe/web_wasm_parallel_tests/server.PID
+venv/
+web_test_runners/
 
 # Dir used for backward compatibility test data
 tfhe/tfhe-backward-compat-data/

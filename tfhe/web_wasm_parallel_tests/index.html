@@ -22,6 +22,10 @@
   </style>
 
   <div>
+    <!-- Use input `max` attribute to specify a custom timeout in seconds for a test/bench
+         Default timeout is available in ci/webdriver.py under variable name `case_timeout_seconds`
+    -->
+
     <input type="button" id="publicKeyTest" value="Public Key Test" disabled />
     <input
       type="button"
@@ -44,8 +48,9 @@
     />
     <input
       type="button"
-      id="compactPublicKeyZeroKnowledge"
+      id="compactPublicKeyZeroKnowledgeTest"
       value="Compact Public Key Test 64 Bits Big With Zero Knowledge Proof"
+      max="3600"
       disabled
     />
     <input type="checkbox" id="testSuccess" disabled />
@@ -92,18 +97,21 @@
       type="button"
       id="compressedServerKeyBenchMessage1Carry1"
       value="Compressed Server Key Bench 1_1"
+      max="600"
       disabled
     />
     <input
       type="button"
       id="compressedServerKeyBenchMessage2Carry2"
       value="Compressed Server Key Bench 2_2"
+      max="600"
       disabled
     />
     <input
       type="button"
       id="compactPublicKeyZeroKnowledgeBench"
       value="Compact ZK Bench"
+      max="3600"
       disabled
     />
 

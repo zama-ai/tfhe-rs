@@ -25,6 +25,8 @@ BACKWARD_COMPAT_DATA_BRANCH?=v0.1
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
 TFHE_SPEC:=tfhe
+WEB_RUNNER_DIR=web-test-runner
+WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -145,6 +147,37 @@ install_tarpaulin: install_rs_build_toolchain
 install_tfhe_lints:
 	(cd utils/cargo-tfhe-lints-inner && cargo install --path .) && \
 	cd utils/cargo-tfhe-lints && cargo install --path .
+
+.PHONY: setup_venv # Setup Python virtualenv for wasm tests
+setup_venv:
+	python3 -m venv venv
+	@source venv/bin/activate && \
+	pip3 install -r ci/webdriver_requirements.txt
+
+# This is an internal target, not meant to be called on its own.
+install_web_resource:
+	wget -P $(dest) $(url)
+	@cd $(dest) && \
+	echo "$(checksum) $(filename)" > checksum && \
+	sha256sum -c checksum && \
+	rm checksum && \
+	unzip $(filename)
+
+install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chrome-linux64.zip"
+install_chrome_browser: checksum = "c5d7da679f3a353ae4e4420ab113de06d4bd459152f5b17558390c02d9520566"
+install_chrome_browser: dest = "$(WEB_RUNNER_DIR)/chrome"
+install_chrome_browser: filename = "chrome-linux64.zip"
+
+.PHONY: install_chrome_browser # Install Chrome browser for Linux
+install_chrome_browser: install_web_resource
+
+install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.137/linux64/chromedriver-linux64.zip"
+install_chrome_web_driver: checksum = "f041092f403fb7455a6da2871070b6587c32814a3e3c2b0a794d3d4aa4739151"
+install_chrome_web_driver: dest = "$(WEB_RUNNER_DIR)/chrome"
+install_chrome_web_driver: filename = "chromedriver-linux64.zip"
+
+.PHONY: install_chrome_web_driver # Install Chrome web driver for Linux
+install_chrome_web_driver: install_web_resource
 
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
@@ -851,18 +884,35 @@ test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd tfhe/js_on_wasm_tests && npm run test
+	cd tfhe/js_on_wasm_tests && npm install && npm run test
 
-.PHONY: test_web_js_api_parallel # Run tests for the web wasm api
-test_web_js_api_parallel: build_web_js_api_parallel
-	$(MAKE) -C tfhe/web_wasm_parallel_tests test
 
-.PHONY: test_web_js_api_parallel_ci # Run tests for the web wasm api
-test_web_js_api_parallel_ci: build_web_js_api_parallel
+# This is an internal target, not meant to be called on its own.
+run_web_js_api_parallel: build_web_js_api_parallel setup_venv
+	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind  $(browser_kind) \
+	--server-cmd "npm run server" \
+	--server-workdir "$(WEB_SERVER_DIR)" \
+	--id-pattern $(filter)
+
+test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+test_web_js_api_parallel_chrome: browser_kind = chrome
+test_web_js_api_parallel_chrome: filter = Test
+
+.PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api
+test_web_js_api_parallel_chrome: run_web_js_api_parallel
+
+.PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api
+test_web_js_api_parallel_chrome_ci: setup_venv
 	source ~/.nvm/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci
+	$(MAKE) test_web_js_api_parallel_chrome
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
@@ -1011,15 +1061,20 @@ bench_ks_gpu: install_rs_check_toolchain
 	--bench ks-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
 
-.PHONY: bench_web_js_api_parallel # Run benchmarks for the web wasm api
-bench_web_js_api_parallel: build_web_js_api_parallel
-	$(MAKE) -C tfhe/web_wasm_parallel_tests bench
+bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+bench_web_js_api_parallel_chrome: browser_kind = chrome
+bench_web_js_api_parallel_chrome: filter = Bench
 
-.PHONY: bench_web_js_api_parallel_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_ci: build_web_js_api_parallel
+.PHONY: bench_web_js_api_parallel_chrome # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_chrome: run_web_js_api_parallel
+
+.PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
+bench_web_js_api_parallel_chrome_ci: setup_venv
 	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
-	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
+	$(MAKE) bench_web_js_api_parallel_chrome
 
 #
 # Utility tools
@@ -1067,7 +1122,7 @@ parse_wasm_benchmarks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 	--example wasm_benchmarks_parser \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
-	-- web_wasm_parallel_tests/test/benchmark_results
+	-- wasm_benchmark_results.json
 
 .PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
 write_params_to_file: install_rs_check_toolchain
