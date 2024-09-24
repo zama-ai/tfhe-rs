@@ -295,6 +295,21 @@ const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 44,
 };
 
+const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
+    lwe_dimension: 724,
+    glwe_dimension: 2,
+    polynomial_size: 1024,
+    lwe_modular_std_dev: 1.2597809688976277e-05_f64,
+    glwe_modular_std_dev: 2.2737367544323206e-13_f64,
+    pbs_base_log: 20,
+    pbs_level: 1,
+    ks_base_log: 2,
+    ks_level: 7,
+    message_width: 2,
+    carry_width: 2,
+    ciphertext_width: 64,
+};
+
 impl FromRtl for HpuPBSParameters {
     fn from_rtl(ffi_pin: &mut Pin<&mut ffi::HpuHw>, regmap: &FlatRegmap) -> Self {
         let pbs_app = regmap
@@ -320,6 +335,7 @@ impl FromRtl for HpuPBSParameters {
             }
             3 => MSG2_CARRY2_64B,
             4 => MSG2_CARRY2_44B,
+            9 => MSG2_CARRY2_64B_FAKE,
             _ => panic!("Unknown TfheAppName encoding"),
         }
     }
