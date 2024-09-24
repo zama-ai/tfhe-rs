@@ -96,7 +96,7 @@ mod cuda {
     use super::*;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
-    use tfhe::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
+    use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
 
     fn gpu_glwe_packing(c: &mut Criterion) {
@@ -134,8 +134,14 @@ mod cuda {
             let (compressed_compression_key, compressed_decompression_key) =
                 radix_cks.new_compressed_compression_decompression_keys(&private_compression_key);
             let cuda_compression_key = compressed_compression_key.decompress_to_cuda(&stream);
-            let cuda_decompression_key =
-                compressed_decompression_key.decompress_to_cuda(radix_cks.parameters(), &stream);
+            let cuda_decompression_key = compressed_decompression_key.decompress_to_cuda(
+                radix_cks.parameters().glwe_dimension(),
+                radix_cks.parameters().polynomial_size(),
+                radix_cks.parameters().message_modulus(),
+                radix_cks.parameters().carry_modulus(),
+                radix_cks.parameters().ciphertext_modulus(),
+                &stream,
+            );
 
             // Encrypt
             let ct = cks.encrypt_radix(0_u32, num_blocks);
@@ -170,8 +176,10 @@ mod cuda {
             let bench_id = format!("{bench_name}::unpack_u{bit_size}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
-                    let unpacked: CudaRadixCiphertext =
-                        compressed.get(0, &cuda_decompression_key, &stream);
+                    let unpacked: CudaUnsignedRadixCiphertext = compressed
+                        .get(0, &cuda_decompression_key, &stream)
+                        .unwrap()
+                        .unwrap();
 
                     _ = black_box(unpacked);
                 })

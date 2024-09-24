@@ -642,7 +642,7 @@ pub struct CudaLweList<T: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<T>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CudaGlweList<T: UnsignedInteger> {
     // Pointer to GPU data
     pub d_vec: CudaVec<T>,
